@@ -59,6 +59,19 @@ function createBoard(): string {
            (colLetter === 'A' && (rowNum === 10 || rowNum === 11)) ||
            (colLetter === 'K' && (rowNum === 10 || rowNum === 11))
   }
+  const isTunnel = (row: number, col: number) => {
+    const colLetter = columns[col]
+    const rowNum = BOARD_SIZE - row
+    // e4, e8, g4, g8
+    return (colLetter === 'E' && (rowNum === 4 || rowNum === 8)) ||
+           (colLetter === 'G' && (rowNum === 4 || rowNum === 8))
+  }
+  const isTrench = (row: number, col: number) => {
+    const colLetter = columns[col]
+    const rowNum = BOARD_SIZE - row
+    // f3, f9
+    return colLetter === 'F' && (rowNum === 3 || rowNum === 9)
+  }
 
   // Draw squares
   for (let row = 0; row < BOARD_SIZE; row++) {
@@ -205,6 +218,33 @@ function createBoard(): string {
           const ty = y + 5 + i * 10
           svg += `<rect x="${x + 10}" y="${ty}" width="30" height="4" fill="#8b5a2b" class="pointer-events-none" />`
         }
+      }
+
+      // Add tunnel holes
+      if (isTunnel(row, col)) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        // Dark tunnel hole (ellipse for depth effect)
+        svg += `<ellipse cx="${cx}" cy="${cy}" rx="18" ry="14" fill="#1a1a1a" class="pointer-events-none" />`
+        svg += `<ellipse cx="${cx}" cy="${cy - 2}" rx="16" ry="11" fill="#2d2d2d" class="pointer-events-none" />`
+        svg += `<ellipse cx="${cx}" cy="${cy - 4}" rx="12" ry="7" fill="#0a0a0a" class="pointer-events-none" />`
+        // Stone arch around the hole
+        svg += `<ellipse cx="${cx}" cy="${cy}" rx="20" ry="16" fill="none" stroke="#6b6b6b" stroke-width="3" class="pointer-events-none" />`
+        svg += `<ellipse cx="${cx}" cy="${cy}" rx="22" ry="18" fill="none" stroke="#4a4a4a" stroke-width="2" class="pointer-events-none" />`
+      }
+
+      // Add trenches (loopgraven)
+      if (isTrench(row, col)) {
+        // Brown dirt trench
+        svg += `<rect x="${x + 5}" y="${y + 15}" width="40" height="20" fill="#5c4033" class="pointer-events-none" />`
+        svg += `<rect x="${x + 7}" y="${y + 17}" width="36" height="16" fill="#3d2817" class="pointer-events-none" />`
+        // Sandbags on edges
+        svg += `<ellipse cx="${x + 12}" cy="${y + 14}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
+        svg += `<ellipse cx="${x + 25}" cy="${y + 13}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
+        svg += `<ellipse cx="${x + 38}" cy="${y + 14}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
+        svg += `<ellipse cx="${x + 12}" cy="${y + 36}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
+        svg += `<ellipse cx="${x + 25}" cy="${y + 37}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
+        svg += `<ellipse cx="${x + 38}" cy="${y + 36}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
       }
     }
   }
