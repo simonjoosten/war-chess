@@ -31,14 +31,58 @@ function getTeamScore(team: Team): number {
     .reduce((sum, p) => sum + p.points, 0)
 }
 
-const moveLog: Move[] = []
-const capturedPieces: Piece[] = []
+let moveLog: Move[] = []
+let capturedPieces: Piece[] = []
+
+// Game state
+type GameState = 'start' | 'playing' | 'confirmReset'
+let gameState: GameState = 'start'
 
 // Selected piece and valid moves
 let selectedPiece: Piece | null = null
 let validMoves: { col: string; row: number; canCapture: boolean }[] = []
 let message: string | null = null
 let currentTurn: Team = 'yellow' // Yellow starts
+
+function getInitialPieces(): Piece[] {
+  return [
+    // Yellow trains
+    { type: 'train', team: 'yellow', col: 'K', row: 1, points: 10 },
+    { type: 'train', team: 'yellow', col: 'A', row: 1, points: 10 },
+    // Green trains
+    { type: 'train', team: 'green', col: 'A', row: 11, points: 10 },
+    { type: 'train', team: 'green', col: 'K', row: 11, points: 10 },
+  ]
+}
+
+function startGame() {
+  gameState = 'playing'
+  render()
+}
+
+function showResetConfirm() {
+  gameState = 'confirmReset'
+  render()
+}
+
+function cancelReset() {
+  gameState = 'playing'
+  render()
+}
+
+function resetGame() {
+  // Reset all game state
+  pieces.length = 0
+  pieces.push(...getInitialPieces())
+  moveLog = []
+  capturedPieces = []
+  selectedPiece = null
+  validMoves = []
+  message = null
+  currentTurn = 'yellow'
+  gameState = 'start'
+  render()
+}
 
 // Train zones: left side (A-C) and right side (I-K)
 function getTrainZone(piece: Piece): 'left' | 'right' {
@@ -207,15 +251,8 @@ function handleSquareClick(col: string, row: number) {
   }
 }
 
-// Game state
-const pieces: Piece[] = [
-  // Yellow trains
-  { type: 'train', team: 'yellow', col: 'K', row: 1, points: 10 },
-  { type: 'train', team: 'yellow', col: 'A', row: 1, points: 10 },
-  // Green trains
-  { type: 'train', team: 'green', col: 'A', row: 11, points: 10 },
-  { type: 'train', team: 'green', col: 'K', row: 11, points: 10 },
-]
+// Pieces array
+const pieces: Piece[] = getInitialPieces()
 
 function getPieceAt(col: string, row: number): Piece | undefined {
   return pieces.find(p => p.col === col && p.row === row)
@@ -604,9 +641,9 @@ function createScorePanel(): string {
 
 function createMoveLog(): string {
   return `
-    <div class="bg-gray-800 rounded-lg p-4 w-64 flex-1 flex flex-col">
+    <div class="bg-gray-800 rounded-lg p-4 w-64 flex-1 flex flex-col min-h-0">
       <h2 class="text-gray-200 font-bold text-lg mb-3 border-b border-gray-700 pb-2">Move Log</h2>
-      <div id="move-list" class="flex-1 overflow-y-auto space-y-1 text-sm font-mono">
+      <div id="move-list" class="flex-1 overflow-y-auto space-y-1 text-sm font-mono min-h-0">
         ${moveLog.length === 0
           ? '<p class="text-gray-500 italic">No moves yet</p>'
           : moveLog.map((move, i) => `
@@ -627,6 +664,58 @@ function createMoveLog(): string {
 function render() {
   const app = document.querySelector<HTMLDivElement>('#app')!
   const turnColor = currentTurn === 'yellow' ? 'text-yellow-400 border-yellow-400' : 'text-green-400 border-green-400'
+
+  // Start screen
+  if (gameState === 'start') {
+    app.innerHTML = `
+      <div class="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
+        <h1 class="text-4xl font-bold text-white">War Chess</h1>
+        <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition-colors">
+          Start Game
+        </button>
+        <div class="flex items-start gap-8 opacity-50">
+          <div class="flex-shrink-0" id="board-container">
+            ${createBoard()}
+          </div>
+        </div>
+      </div>
+    `
+    document.getElementById('start-btn')?.addEventListener('click', startGame)
+    return
+  }
+
+  // Confirm reset dialog
+  if (gameState === 'confirmReset') {
+    app.innerHTML = `
+      <div class="min-h-screen flex flex-col items-center justify-center p-8 gap-4">
+        <div class="bg-gray-800 p-6 rounded-lg flex flex-col items-center gap-4">
+          <p class="text-white text-lg">Are you sure you want to reset the game?</p>
+          <div class="flex gap-4">
+            <button id="confirm-reset-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+              Yes, Reset
+            </button>
+            <button id="cancel-reset-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+              No, Cancel
+            </button>
+          </div>
+        </div>
+        <div class="flex items-start gap-8 opacity-50">
+          <div class="flex-shrink-0" id="board-container">
+            ${createBoard()}
+          </div>
+          <div class="flex flex-col gap-4 h-[80vh]">
+            ${createScorePanel()}
+            ${createMoveLog()}
+          </div>
+        </div>
+      </div>
+    `
+    document.getElementById('confirm-reset-btn')?.addEventListener('click', resetGame)
+    document.getElementById('cancel-reset-btn')?.addEventListener('click', cancelReset)
+    return
+  }
+
+  // Playing state
   app.innerHTML = `
     <div class="min-h-screen flex flex-col items-center justify-center p-8 gap-4">
       <div class="flex items-center gap-4">
@@ -634,6 +723,9 @@ function render() {
           <span class="${turnColor} font-bold">${currentTurn.toUpperCase()}'s turn</span>
         </div>
         ${message ? `<div class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">${message}</div>` : ''}
+        <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+          Reset Game
+        </button>
       </div>
       <div class="flex items-start gap-8">
         <div class="flex-shrink-0" id="board-container">
@@ -647,7 +739,10 @@ function render() {
     </div>
   `
 
-  // Add click event listeners
+  // Add reset button listener
+  document.getElementById('reset-btn')?.addEventListener('click', showResetConfirm)
+
+  // Add click event listeners for game board
   const svg = document.querySelector('#board-container svg')
   if (svg) {
     // Click on squares
