@@ -7,7 +7,7 @@ const LABEL_SIZE = 30
 const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
 type Team = 'yellow' | 'green'
-type PieceType = 'train' | 'soldier'
+type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter'
 
 interface Piece {
   type: PieceType
@@ -19,6 +19,11 @@ interface Piece {
   inTrench?: boolean
   trenchEnteredOnTurn?: number  // The team's turn number when entered trench
   inTunnel?: boolean
+  // Carrier specific
+  hp?: number  // Aircraft carrier has 2 HP
+  hasHelicopter?: boolean  // Whether helicopter is on the carrier
+  // Helicopter specific
+  onCarrier?: Piece  // Reference to carrier the helicopter is on
 }
 
 // Action mode for soldiers
@@ -66,6 +71,32 @@ let pendingTunnelExit: Piece | null = null
 // Forced trench exit
 let forcedTrenchSoldier: Piece | null = null
 
+// Animation state
+let explosionAt: { col: string; row: number } | null = null
+let lastMovedPiece: Piece | null = null
+let bulletAnimation: {
+  fromCol: string
+  fromRow: number
+  toCol: string
+  toRow: number
+  progress: number
+} | null = null
+let trainHitAnimation: {
+  train: Piece
+  targetCol: string
+  targetRow: number
+  phase: 'moving' | 'impact' | 'done'
+} | null = null
+let aimingPiece: Piece | null = null
+let moveAnimation: {
+  piece: Piece
+  fromCol: string
+  fromRow: number
+  toCol: string
+  toRow: number
+  progress: number
+} | null = null
+
 // Check if any soldier of the current team must leave the trench
 function checkForcedTrenchExit(): Piece | null {
   const currentTeamTurn = currentTurn === 'yellow' ? yellowTurnCount : greenTurnCount
@@ -89,6 +120,30 @@ function getInitialPieces(): Piece[] {
     // Green trains
     { type: 'train', team: 'green', col: 'A', row: 11, points: 10 },
     { type: 'train', team: 'green', col: 'K', row: 11, points: 10 },
+    // Yellow tanks
+    { type: 'tank', team: 'yellow', col: 'B', row: 2, points: 15 },
+    { type: 'tank', team: 'yellow', col: 'J', row: 2, points: 15 },
+    // Green tanks
+    { type: 'tank', team: 'green', col: 'B', row: 10, points: 15 },
+    { type: 'tank', team: 'green', col: 'J', row: 10, points: 15 },
+    // Yellow ships (behind tanks)
+    { type: 'ship', team: 'yellow', col: 'B', row: 1, points: 12 },
+    { type: 'ship', team: 'yellow', col: 'J', row: 1, points: 12 },
+    // Green ships (behind tanks)
+    { type: 'ship', team: 'green', col: 'B', row: 11, points: 12 },
+    { type: 'ship', team: 'green', col: 'J', row: 11, points: 12 },
+    // Yellow aircraft carriers
+    { type: 'carrier', team: 'yellow', col: 'C', row: 1, points: 20, hp: 2, hasHelicopter: false },
+    { type: 'carrier', team: 'yellow', col: 'I', row: 1, points: 20, hp: 2, hasHelicopter: false },
+    // Green aircraft carriers
+    { type: 'carrier', team: 'green', col: 'C', row: 11, points: 20, hp: 2, hasHelicopter: false },
+    { type: 'carrier', team: 'green', col: 'I', row: 11, points: 20, hp: 2, hasHelicopter: false },
+    // Yellow helicopters (in front of trains)
+    { type: 'helicopter', team: 'yellow', col: 'A', row: 2, points: 8 },
+    { type: 'helicopter', team: 'yellow', col: 'K', row: 2, points: 8 },
+    // Green helicopters (in front of trains)
+    { type: 'helicopter', team: 'green', col: 'A', row: 10, points: 8 },
+    { type: 'helicopter', team: 'green', col: 'K', row: 10, points: 8 },
     // Yellow soldiers
     { type: 'soldier', team: 'yellow', col: 'E', row: 2, points: 5 },
     { type: 'soldier', team: 'yellow', col: 'F', row: 2, points: 5 },
@@ -310,6 +365,265 @@ function getShootTargetsForSoldier(piece: Piece): { col: string; row: number }[]
   return targets
 }
 
+// Tank movement: 1 or 2 squares horizontal or vertical
+function getValidMovesForTank(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  const directions = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+  ]
+
+  for (const dir of directions) {
+    // Check 1 and 2 squares in each direction
+    for (let distance = 1; distance <= 2; distance++) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) break
+
+      const col = columns[colIndex]
+
+      // Cannot go on water (row 6, except bridge at F6)
+      if (row === 6 && col !== 'F') break
+
+      // Check if path is blocked (for distance 2, check the middle square)
+      if (distance === 2) {
+        const midColIndex = pieceColIndex + dir.dc
+        const midRow = piece.row + dir.dr
+        const midCol = columns[midColIndex]
+
+        // Cannot pass through water
+        if (midRow === 6 && midCol !== 'F') break
+
+        const pieceInPath = getPieceAt(midCol, midRow)
+        if (pieceInPath) break
+      }
+
+      const pieceAtTarget = getPieceAt(col, row)
+
+      // Tanks cannot capture by moving (they shoot)
+      if (pieceAtTarget) break
+
+      moves.push({ col, row, canCapture: false })
+    }
+  }
+
+  return moves
+}
+
+// Tank shooting: diagonal 2 squares
+function getShootTargetsForTank(piece: Piece): { col: string; row: number }[] {
+  const targets: { col: string; row: number }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  const diagonals = [
+    { dc: 2, dr: 2 },   // up-right
+    { dc: -2, dr: 2 },  // up-left
+    { dc: 2, dr: -2 },  // down-right
+    { dc: -2, dr: -2 }, // down-left
+  ]
+
+  for (const dir of diagonals) {
+    const colIndex = pieceColIndex + dir.dc
+    const row = piece.row + dir.dr
+
+    if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+
+    const col = columns[colIndex]
+    const pieceAtTarget = getPieceAt(col, row)
+
+    // Can only shoot if there's an enemy piece there
+    if (pieceAtTarget && pieceAtTarget.team !== piece.team) {
+      // Check if target is in trench or tunnel (cannot be shot)
+      if (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel) {
+        targets.push({ col, row })
+      }
+    }
+  }
+
+  return targets
+}
+
+// Ship movement: 1 or 2 squares horizontal or vertical (CAN go on water)
+function getValidMovesForShip(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  const directions = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+  ]
+
+  for (const dir of directions) {
+    for (let distance = 1; distance <= 2; distance++) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) break
+
+      const col = columns[colIndex]
+
+      // Check if path is blocked (for distance 2)
+      if (distance === 2) {
+        const midColIndex = pieceColIndex + dir.dc
+        const midRow = piece.row + dir.dr
+        const midCol = columns[midColIndex]
+
+        const pieceInPath = getPieceAt(midCol, midRow)
+        if (pieceInPath) break
+      }
+
+      const pieceAtTarget = getPieceAt(col, row)
+
+      // Ships cannot capture by moving (they shoot)
+      if (pieceAtTarget) break
+
+      moves.push({ col, row, canCapture: false })
+    }
+  }
+
+  return moves
+}
+
+// Ship shooting: 1 or 2 squares in all 4 directions (not diagonal)
+function getShootTargetsForShip(piece: Piece): { col: string; row: number }[] {
+  const targets: { col: string; row: number }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  const directions = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+  ]
+
+  for (const dir of directions) {
+    for (const distance of [1, 2]) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+
+      const col = columns[colIndex]
+      const pieceAtTarget = getPieceAt(col, row)
+
+      if (pieceAtTarget && pieceAtTarget.team !== piece.team) {
+        if (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel) {
+          targets.push({ col, row })
+        }
+      }
+    }
+  }
+
+  return targets
+}
+
+// Aircraft carrier movement: 1 or 2 squares horizontal or vertical (CAN go on water, CAN capture by moving)
+function getValidMovesForCarrier(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  const directions = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+  ]
+
+  for (const dir of directions) {
+    for (let distance = 1; distance <= 2; distance++) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) break
+
+      const col = columns[colIndex]
+
+      // Check if path is blocked (for distance 2)
+      if (distance === 2) {
+        const midColIndex = pieceColIndex + dir.dc
+        const midRow = piece.row + dir.dr
+        const midCol = columns[midColIndex]
+
+        const pieceInPath = getPieceAt(midCol, midRow)
+        if (pieceInPath) break
+      }
+
+      const pieceAtTarget = getPieceAt(col, row)
+
+      if (pieceAtTarget) {
+        if (pieceAtTarget.team !== piece.team) {
+          // Can capture enemy by ramming
+          moves.push({ col, row, canCapture: true })
+        }
+        break // Stop in this direction after hitting any piece
+      }
+
+      moves.push({ col, row, canCapture: false })
+    }
+  }
+
+  return moves
+}
+
+// Check if a square is a helipad
+function isHelipadSquare(col: string, row: number): boolean {
+  return (col === 'C' && (row === 5 || row === 7)) ||
+         (col === 'I' && (row === 5 || row === 7))
+}
+
+// Helicopter movement: can fly to helipads or own team's carriers
+function getValidMovesForHelicopter(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+
+  // All helipad locations
+  const helipads = [
+    { col: 'C', row: 5 },
+    { col: 'C', row: 7 },
+    { col: 'I', row: 5 },
+    { col: 'I', row: 7 },
+  ]
+
+  // Check each helipad
+  for (const pad of helipads) {
+    // Can't move to current position
+    if (pad.col === piece.col && pad.row === piece.row) continue
+
+    const pieceAtTarget = getPieceAt(pad.col, pad.row)
+
+    if (pieceAtTarget) {
+      // Can capture enemy on helipad
+      if (pieceAtTarget.team !== piece.team) {
+        moves.push({ col: pad.col, row: pad.row, canCapture: true })
+      }
+      // Can't land if own piece is there
+    } else {
+      moves.push({ col: pad.col, row: pad.row, canCapture: false })
+    }
+  }
+
+  // Check own team's carriers
+  for (const p of pieces) {
+    if (p.type === 'carrier' && p.team === piece.team) {
+      // Can't move to current position
+      if (p.col === piece.col && p.row === piece.row) continue
+
+      // Can land on own carrier if it doesn't have a helicopter already
+      if (!p.hasHelicopter) {
+        moves.push({ col: p.col, row: p.row, canCapture: false })
+      }
+    }
+  }
+
+  return moves
+}
+
 function selectPiece(piece: Piece) {
   // Check if it's this team's turn
   if (piece.team !== currentTurn) {
@@ -382,24 +696,53 @@ function selectPiece(piece: Piece) {
       showSoldierActions = true
       validMoves = []
     }
+  } else if (piece.type === 'tank') {
+    // Tank has move and shoot options
+    showSoldierActions = true  // Reuse soldier action buttons
+    validMoves = []
+  } else if (piece.type === 'ship') {
+    // Ship has move and shoot options
+    showSoldierActions = true
+    validMoves = []
+  } else if (piece.type === 'carrier') {
+    // Carrier can only move (captures by ramming), no shooting
+    validMoves = getValidMovesForCarrier(piece)
+    showSoldierActions = false
+  } else if (piece.type === 'helicopter') {
+    // Helicopter can fly to helipads or own carriers
+    validMoves = getValidMovesForHelicopter(piece)
+    showSoldierActions = false
   }
 
   render()
 }
 
 function selectSoldierAction(action: 'move' | 'shoot') {
-  if (!selectedPiece || selectedPiece.type !== 'soldier') return
+  if (!selectedPiece) return
+  if (selectedPiece.type !== 'soldier' && selectedPiece.type !== 'tank' && selectedPiece.type !== 'ship') return
 
   actionMode = action
   // Keep showing action buttons so user can switch
 
   if (action === 'move') {
-    validMoves = getValidMovesForSoldier(selectedPiece)
+    if (selectedPiece.type === 'soldier') {
+      validMoves = getValidMovesForSoldier(selectedPiece)
+    } else if (selectedPiece.type === 'tank') {
+      validMoves = getValidMovesForTank(selectedPiece)
+    } else if (selectedPiece.type === 'ship') {
+      validMoves = getValidMovesForShip(selectedPiece)
+    }
     shootTargets = []
     message = null
   } else if (action === 'shoot') {
     validMoves = []
-    shootTargets = getShootTargetsForSoldier(selectedPiece)
+    if (selectedPiece.type === 'soldier') {
+      shootTargets = getShootTargetsForSoldier(selectedPiece)
+    } else if (selectedPiece.type === 'tank') {
+      shootTargets = getShootTargetsForTank(selectedPiece)
+    } else if (selectedPiece.type === 'ship') {
+      shootTargets = getShootTargetsForShip(selectedPiece)
+    }
     message = null
   }
 
@@ -423,16 +766,161 @@ function movePiece(col: string, row: number) {
   }
 
   const pieceAtTarget = getPieceAt(col, row)
-  let capturedPiece: Piece | null = null
 
   if (pieceAtTarget) {
+    // Special case: helicopter landing on own carrier
+    if (selectedPiece.type === 'helicopter' && pieceAtTarget.type === 'carrier' && pieceAtTarget.team === selectedPiece.team) {
+      // Land on carrier
+      pieceAtTarget.hasHelicopter = true
+      const heliIndex = pieces.indexOf(selectedPiece)
+      pieces.splice(heliIndex, 1)
+
+      message = "Helicopter landed on carrier!"
+
+      // Log the move
+      moveLog.push({
+        from: `${selectedPiece.col}${selectedPiece.row}`,
+        to: `${col}${row}`,
+        piece: selectedPiece.type,
+        team: selectedPiece.team
+      })
+
+      // Increment turn count
+      if (selectedPiece.team === 'yellow') yellowTurnCount++
+      else greenTurnCount++
+
+      // Switch turns
+      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+
+      // Deselect
+      selectedPiece = null
+      validMoves = []
+
+      render()
+      return
+    }
+
     if (pieceAtTarget.team === selectedPiece.team) {
       message = "There is already a piece of your team there!"
       render()
       return
+    } else if (selectedPiece.type === 'train') {
+      // Train hit animation
+      animateTrainHit(selectedPiece, pieceAtTarget, col, row)
+      return
+    } else if (selectedPiece.type === 'carrier') {
+      // Carrier rams enemy - capture and move to 1 square before target
+      const index = pieces.indexOf(pieceAtTarget)
+      pieces.splice(index, 1)
+      capturedPieces.push(pieceAtTarget)
+      message = `Rammed enemy ${pieceAtTarget.type} (+${pieceAtTarget.points} points)!`
+
+      // Calculate position 1 square before target
+      const fromColIndex = columns.indexOf(selectedPiece.col)
+      const toColIndex = columns.indexOf(col)
+      const colDiff = toColIndex - fromColIndex
+      const rowDiff = row - selectedPiece.row
+
+      // Move to 1 square before target (half the distance if moving 2, or stay if moving 1)
+      let newCol = col
+      let newRow = row
+      if (Math.abs(colDiff) === 2) {
+        newCol = columns[fromColIndex + colDiff / 2]
+      } else if (Math.abs(rowDiff) === 2) {
+        newRow = selectedPiece.row + rowDiff / 2
+      }
+      // If moving 1 square, carrier stays at original position
+      else {
+        newCol = selectedPiece.col
+        newRow = selectedPiece.row
+      }
+
+      // Log the move
+      moveLog.push({
+        from: `${selectedPiece.col}${selectedPiece.row}`,
+        to: `${newCol}${newRow}`,
+        piece: selectedPiece.type,
+        team: selectedPiece.team,
+        captured: pieceAtTarget.type,
+        capturedPoints: pieceAtTarget.points
+      })
+
+      // Move carrier to new position
+      selectedPiece.col = newCol
+      selectedPiece.row = newRow
+
+      // Increment turn count
+      if (selectedPiece.team === 'yellow') yellowTurnCount++
+      else greenTurnCount++
+
+      // Switch turns
+      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+
+      // Deselect
+      selectedPiece = null
+      validMoves = []
+
+      render()
+      return
+    } else if (pieceAtTarget.type === 'carrier') {
+      // Ramming a carrier - carrier has HP system
+      if (pieceAtTarget.hp && pieceAtTarget.hp > 1) {
+        // First hit - destroy helicopter if present, reduce HP
+        pieceAtTarget.hp -= 1
+        if (pieceAtTarget.hasHelicopter) {
+          pieceAtTarget.hasHelicopter = false
+          message = `Rammed carrier! Helicopter destroyed! (${pieceAtTarget.hp} HP left)`
+        } else {
+          message = `Rammed carrier! (${pieceAtTarget.hp} HP left)`
+        }
+
+        // Log the hit
+        moveLog.push({
+          from: `${selectedPiece.col}${selectedPiece.row}`,
+          to: `${col}${row}`,
+          piece: selectedPiece.type,
+          team: selectedPiece.team,
+          captured: 'hit'
+        })
+
+        // Attacker moves back 1 square (stays at position before target)
+        const fromColIndex = columns.indexOf(selectedPiece.col)
+        const toColIndex = columns.indexOf(col)
+        const colDiff = toColIndex - fromColIndex
+        const rowDiff = row - selectedPiece.row
+
+        // Calculate 1 square before target
+        let newCol = selectedPiece.col
+        let newRow = selectedPiece.row
+        if (Math.abs(colDiff) === 2) {
+          newCol = columns[fromColIndex + colDiff / 2]
+        } else if (Math.abs(rowDiff) === 2) {
+          newRow = selectedPiece.row + rowDiff / 2
+        }
+        // If moving 1 square, attacker stays at original position
+
+        selectedPiece.col = newCol
+        selectedPiece.row = newRow
+
+        // Increment turn count
+        if (selectedPiece.team === 'yellow') yellowTurnCount++
+        else greenTurnCount++
+
+        currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+        selectedPiece = null
+        validMoves = []
+
+        render()
+        return
+      } else {
+        // Final hit - destroy carrier
+        const index = pieces.indexOf(pieceAtTarget)
+        pieces.splice(index, 1)
+        capturedPieces.push(pieceAtTarget)
+        message = `Destroyed carrier! (+${pieceAtTarget.points} points)!`
+      }
     } else {
-      // Capture enemy piece
-      capturedPiece = pieceAtTarget
+      // Capture enemy piece (helicopter, etc.)
       const index = pieces.indexOf(pieceAtTarget)
       pieces.splice(index, 1)
       capturedPieces.push(pieceAtTarget)
@@ -450,56 +938,189 @@ function movePiece(col: string, row: number) {
   }
 
   // Complete the move
-  completMove(col, row, capturedPiece)
+  completMove(col, row, null)
+}
+
+function animateTrainHit(train: Piece, target: Piece, targetCol: string, targetRow: number) {
+  const movingTeam = train.team
+  const startCol = train.col
+  const startRow = train.row
+
+  // Phase 1: Train charges towards target
+  trainHitAnimation = {
+    train: train,
+    targetCol: targetCol,
+    targetRow: targetRow,
+    phase: 'moving'
+  }
+  message = "Charging..."
+  render()
+
+  const chargeDuration = 400
+  const startTime = Date.now()
+  const startColIndex = columns.indexOf(startCol)
+  const targetColIndex = columns.indexOf(targetCol)
+
+  function animateCharge() {
+    const elapsed = Date.now() - startTime
+    const progress = Math.min(elapsed / chargeDuration, 1)
+
+    // Update train position visually (we'll use a transform)
+    if (trainHitAnimation) {
+      trainHitAnimation.phase = 'moving'
+      // Store progress in a way we can read it
+      ;(trainHitAnimation as any).progress = progress
+    }
+    render()
+
+    if (progress < 1) {
+      requestAnimationFrame(animateCharge)
+    } else {
+      // Phase 2: Impact
+      trainHitAnimation = { ...trainHitAnimation!, phase: 'impact' }
+      explosionAt = { col: targetCol, row: targetRow }
+
+      // Remove target
+      const index = pieces.indexOf(target)
+      pieces.splice(index, 1)
+      capturedPieces.push(target)
+
+      render()
+
+      // Phase 3: Complete move
+      setTimeout(() => {
+        trainHitAnimation = null
+        explosionAt = null
+
+        // Move train to target position
+        train.col = targetCol
+        train.row = targetRow
+
+        message = `Ran over enemy ${target.type} (+${target.points} points)!`
+
+        // Log the move
+        moveLog.push({
+          from: `${startCol}${startRow}`,
+          to: `${targetCol}${targetRow}`,
+          piece: train.type,
+          team: movingTeam,
+          captured: target.type,
+          capturedPoints: target.points
+        })
+
+        // Increment turn count
+        if (movingTeam === 'yellow') yellowTurnCount++
+        else greenTurnCount++
+
+        // Switch turns
+        currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+
+        // Deselect
+        selectedPiece = null
+        validMoves = []
+        actionMode = null
+        showSoldierActions = false
+
+        render()
+      }, 500)
+    }
+  }
+
+  requestAnimationFrame(animateCharge)
 }
 
 function completMove(col: string, row: number, capturedPiece: Piece | null) {
   if (!selectedPiece) return
 
-  const movingTeam = selectedPiece.team
+  const piece = selectedPiece
+  const movingTeam = piece.team
+  const fromCol = piece.col
+  const fromRow = piece.row
 
-  // Log the move
-  moveLog.push({
-    from: `${selectedPiece.col}${selectedPiece.row}`,
-    to: `${col}${row}`,
-    piece: selectedPiece.type,
-    team: movingTeam,
-    captured: capturedPiece?.type,
-    capturedPoints: capturedPiece?.points
-  })
-
-  // Check if soldier is entering trench
-  if (selectedPiece.type === 'soldier' && !selectedPiece.inTrench && isTrenchSquare(col, row)) {
-    const currentTeamTurn = movingTeam === 'yellow' ? yellowTurnCount : greenTurnCount
-    selectedPiece.inTrench = true
-    selectedPiece.trenchEnteredOnTurn = currentTeamTurn
-    message = "Entered the trench! (Turn 0/3)"
-  }
-  // If soldier was in trench and is leaving
-  else if (selectedPiece.type === 'soldier' && selectedPiece.inTrench && !isTrenchSquare(col, row)) {
-    selectedPiece.inTrench = false
-    selectedPiece.trenchEnteredOnTurn = undefined
-    message = "Left the trench!"
+  // Start movement animation
+  moveAnimation = {
+    piece: piece,
+    fromCol: fromCol,
+    fromRow: fromRow,
+    toCol: col,
+    toRow: row,
+    progress: 0
   }
 
-  // Move the piece
-  selectedPiece.col = col
-  selectedPiece.row = row
-
-  // Increment turn count for the team that just moved
-  if (movingTeam === 'yellow') yellowTurnCount++
-  else greenTurnCount++
-
-  // Switch turns
-  currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
-
-  // Deselect
+  // Clear selection immediately so squares don't show as valid
   selectedPiece = null
   validMoves = []
   actionMode = null
   showSoldierActions = false
 
   render()
+
+  const moveDuration = 250
+  const startTime = Date.now()
+
+  function animateMove() {
+    const elapsed = Date.now() - startTime
+    const progress = Math.min(elapsed / moveDuration, 1)
+
+    if (moveAnimation) {
+      moveAnimation.progress = progress
+    }
+    render()
+
+    if (progress < 1) {
+      requestAnimationFrame(animateMove)
+    } else {
+      // Animation complete - finalize the move
+      moveAnimation = null
+
+      // Log the move
+      moveLog.push({
+        from: `${fromCol}${fromRow}`,
+        to: `${col}${row}`,
+        piece: piece.type,
+        team: movingTeam,
+        captured: capturedPiece?.type,
+        capturedPoints: capturedPiece?.points
+      })
+
+      // Check if soldier is entering trench
+      if (piece.type === 'soldier' && !piece.inTrench && isTrenchSquare(col, row)) {
+        const currentTeamTurn = movingTeam === 'yellow' ? yellowTurnCount : greenTurnCount
+        piece.inTrench = true
+        piece.trenchEnteredOnTurn = currentTeamTurn
+        message = "Entered the trench! (Turn 0/3)"
+      }
+      // If soldier was in trench and is leaving
+      else if (piece.type === 'soldier' && piece.inTrench && !isTrenchSquare(col, row)) {
+        piece.inTrench = false
+        piece.trenchEnteredOnTurn = undefined
+        message = "Left the trench!"
+      }
+
+      // Move the piece
+      piece.col = col
+      piece.row = row
+
+      // Increment turn count for the team that just moved
+      if (movingTeam === 'yellow') yellowTurnCount++
+      else greenTurnCount++
+
+      // Switch turns
+      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+
+      render()
+
+      // Clear explosion after animation
+      if (explosionAt) {
+        setTimeout(() => {
+          explosionAt = null
+          render()
+        }, 500)
+      }
+    }
+  }
+
+  requestAnimationFrame(animateMove)
 }
 
 function confirmEnterTunnel() {
@@ -622,29 +1243,50 @@ function shootPiece(col: string, row: number) {
     return
   }
 
-  const shootingTeam = selectedPiece.team
+  const shooter = selectedPiece
+  const shootingTeam = shooter.team
 
-  // Capture the shot piece
-  const index = pieces.indexOf(pieceAtTarget)
-  pieces.splice(index, 1)
-  capturedPieces.push(pieceAtTarget)
-  message = `Shot enemy ${pieceAtTarget.type} (+${pieceAtTarget.points} points)!`
+  // Handle carrier with HP
+  if (pieceAtTarget.type === 'carrier' && pieceAtTarget.hp && pieceAtTarget.hp > 1) {
+    // First hit - reduce HP, destroy helicopter if present
+    pieceAtTarget.hp -= 1
+    if (pieceAtTarget.hasHelicopter) {
+      pieceAtTarget.hasHelicopter = false
+      message = `Hit carrier! Helicopter destroyed! (${pieceAtTarget.hp} HP left)`
+    } else {
+      message = `Hit carrier! (${pieceAtTarget.hp} HP left)`
+    }
 
-  // Log the shot
-  moveLog.push({
-    from: `${selectedPiece.col}${selectedPiece.row}`,
-    to: `${col}${row}`,
-    piece: selectedPiece.type,
-    team: shootingTeam,
-    captured: pieceAtTarget.type,
-    capturedPoints: pieceAtTarget.points
-  })
+    // Log the hit
+    moveLog.push({
+      from: `${shooter.col}${shooter.row}`,
+      to: `${col}${row}`,
+      piece: shooter.type,
+      team: shootingTeam,
+      captured: 'hit'
+    })
+  } else {
+    // Normal kill or final carrier hit
+    const index = pieces.indexOf(pieceAtTarget)
+    pieces.splice(index, 1)
+    capturedPieces.push(pieceAtTarget)
+    message = `Shot enemy ${pieceAtTarget.type} (+${pieceAtTarget.points} points)!`
 
-  // Increment turn count for the team that just shot
+    // Log the shot
+    moveLog.push({
+      from: `${shooter.col}${shooter.row}`,
+      to: `${col}${row}`,
+      piece: shooter.type,
+      team: shootingTeam,
+      captured: pieceAtTarget.type,
+      capturedPoints: pieceAtTarget.points
+    })
+  }
+
+  // Increment turn count
   if (shootingTeam === 'yellow') yellowTurnCount++
   else greenTurnCount++
 
-  // Soldier stays in place after shooting
   // Switch turns
   currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
 
@@ -812,6 +1454,186 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
         ${inTrench ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#5c4033" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">⚔</text>` : ''}
         ${inTunnel ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#333" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">🚇</text>` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'tank') {
+    const bodyColor = piece.team === 'yellow' ? '#6b5a2f' : '#3d5a3d'
+    const bodyDark = piece.team === 'yellow' ? '#4a3d1f' : '#2d4a2d'
+    const trackColor = '#2d2d2d'
+    // Tank design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.4)" />
+        <!-- Tracks -->
+        <rect x="${x + 4}" y="${y + 34}" width="42" height="10" rx="5" fill="${trackColor}" />
+        <rect x="${x + 6}" y="${y + 36}" width="38" height="6" rx="3" fill="#1a1a1a" />
+        <!-- Track wheels -->
+        <circle cx="${x + 12}" cy="${y + 39}" r="3" fill="#3f3f3f" />
+        <circle cx="${x + 25}" cy="${y + 39}" r="3" fill="#3f3f3f" />
+        <circle cx="${x + 38}" cy="${y + 39}" r="3" fill="#3f3f3f" />
+        <!-- Track details -->
+        <line x1="${x + 8}" y1="${y + 36}" x2="${x + 8}" y2="${y + 42}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 15}" y1="${y + 36}" x2="${x + 15}" y2="${y + 42}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 22}" y1="${y + 36}" x2="${x + 22}" y2="${y + 42}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 29}" y1="${y + 36}" x2="${x + 29}" y2="${y + 42}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 36}" y1="${y + 36}" x2="${x + 36}" y2="${y + 42}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 42}" y1="${y + 36}" x2="${x + 42}" y2="${y + 42}" stroke="#4a4a4a" stroke-width="1" />
+        <!-- Hull -->
+        <path d="M${x + 6} ${y + 34} L${x + 10} ${y + 24} L${x + 40} ${y + 24} L${x + 44} ${y + 34} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Hull top -->
+        <rect x="${x + 12}" y="${y + 20}" width="26" height="6" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Turret -->
+        <ellipse cx="${x + 25}" cy="${y + 18}" rx="12" ry="8" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1.5" />
+        <ellipse cx="${x + 25}" cy="${y + 16}" rx="10" ry="6" fill="${bodyDark}" />
+        <!-- Cannon -->
+        <rect x="${x + 32}" y="${y + 14}" width="16" height="4" rx="2" fill="#4a4a4a" />
+        <rect x="${x + 46}" y="${y + 15}" width="4" height="2" fill="#2d2d2d" />
+        <!-- Hatch -->
+        <ellipse cx="${x + 25}" cy="${y + 14}" rx="4" ry="3" fill="${bodyDark}" stroke="#1a1a1a" stroke-width="0.5" />
+        <!-- Commander cupola -->
+        <circle cx="${x + 20}" cy="${y + 12}" r="3" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Machine gun -->
+        <rect x="${x + 18}" y="${y + 10}" width="8" height="2" fill="#3f3f3f" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        <!-- Antenna -->
+        <line x1="${x + 35}" y1="${y + 12}" x2="${x + 38}" y2="${y + 4}" stroke="#4a4a4a" stroke-width="1" />
+        <circle cx="${x + 38}" cy="${y + 4}" r="1" fill="#ef4444" />
+      </g>
+    `
+  }
+
+  if (piece.type === 'ship') {
+    const hullColor = piece.team === 'yellow' ? '#6b5a2f' : '#3d5a3d'
+    const hullDark = piece.team === 'yellow' ? '#4a3d1f' : '#2d4a2d'
+    const deckColor = piece.team === 'yellow' ? '#8b7355' : '#5a7a5a'
+    // Battleship design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Water ripples -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="4" fill="#6bb3e8" opacity="0.5" />
+        <ellipse cx="${x + 25}" cy="${y + 44}" rx="18" ry="3" fill="#7ec8f0" opacity="0.4" />
+        <!-- Hull (boat shape) -->
+        <path d="M${x + 5} ${y + 38} L${x + 10} ${y + 44} L${x + 40} ${y + 44} L${x + 45} ${y + 38} L${x + 42} ${y + 30} L${x + 8} ${y + 30} Z" fill="${hullColor}" stroke="${hullDark}" stroke-width="1.5" />
+        <!-- Hull stripe -->
+        <path d="M${x + 8} ${y + 36} L${x + 42} ${y + 36}" stroke="${hullDark}" stroke-width="1" />
+        <!-- Deck -->
+        <rect x="${x + 10}" y="${y + 26}" width="30" height="6" rx="1" fill="${deckColor}" stroke="${hullDark}" stroke-width="1" />
+        <!-- Bridge/Command tower -->
+        <rect x="${x + 20}" y="${y + 16}" width="12" height="12" rx="1" fill="${hullColor}" stroke="${hullDark}" stroke-width="1" />
+        <rect x="${x + 22}" y="${y + 18}" width="8" height="4" rx="1" fill="#87ceeb" opacity="0.7" />
+        <!-- Bridge roof -->
+        <rect x="${x + 19}" y="${y + 14}" width="14" height="3" rx="1" fill="${hullDark}" />
+        <!-- Main cannon (front) -->
+        <rect x="${x + 12}" y="${y + 22}" width="6" height="6" rx="1" fill="#4a4a4a" stroke="#2d2d2d" stroke-width="0.5" />
+        <rect x="${x + 6}" y="${y + 24}" width="8" height="2" rx="1" fill="#3d3d3d" />
+        <!-- Main cannon (back) -->
+        <rect x="${x + 32}" y="${y + 22}" width="6" height="6" rx="1" fill="#4a4a4a" stroke="#2d2d2d" stroke-width="0.5" />
+        <rect x="${x + 36}" y="${y + 24}" width="8" height="2" rx="1" fill="#3d3d3d" />
+        <!-- Side guns -->
+        <rect x="${x + 8}" y="${y + 28}" width="4" height="2" fill="#3d3d3d" />
+        <rect x="${x + 38}" y="${y + 28}" width="4" height="2" fill="#3d3d3d" />
+        <!-- Radar/Antenna -->
+        <line x1="${x + 26}" y1="${y + 14}" x2="${x + 26}" y2="${y + 8}" stroke="#4a4a4a" stroke-width="1.5" />
+        <ellipse cx="${x + 26}" cy="${y + 7}" rx="4" ry="2" fill="none" stroke="#4a4a4a" stroke-width="1" />
+        <!-- Flag -->
+        <line x1="${x + 40}" y1="${y + 26}" x2="${x + 40}" y2="${y + 18}" stroke="#4a4a4a" stroke-width="1" />
+        <rect x="${x + 40}" y="${y + 18}" width="6" height="4" fill="${teamColor}" stroke="${strokeColor}" stroke-width="0.5" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+      </g>
+    `
+  }
+
+  if (piece.type === 'carrier') {
+    const hullColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
+    const hullDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
+    const deckColor = piece.team === 'yellow' ? '#7a7a7a' : '#5a6a5a'
+    const damaged = piece.hp === 1
+    // Aircraft carrier design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Water ripples -->
+        <ellipse cx="${x + 25}" cy="${y + 47}" rx="24" ry="4" fill="#6bb3e8" opacity="0.5" />
+        <ellipse cx="${x + 25}" cy="${y + 45}" rx="20" ry="3" fill="#7ec8f0" opacity="0.4" />
+        <!-- Hull (long flat carrier shape) -->
+        <path d="M${x + 2} ${y + 40} L${x + 6} ${y + 45} L${x + 44} ${y + 45} L${x + 48} ${y + 40} L${x + 48} ${y + 28} L${x + 2} ${y + 28} Z" fill="${hullColor}" stroke="${hullDark}" stroke-width="1.5" />
+        <!-- Flight deck (flat top) -->
+        <rect x="${x + 4}" y="${y + 22}" width="42" height="8" rx="1" fill="${deckColor}" stroke="${hullDark}" stroke-width="1" />
+        <!-- Deck markings (landing strip) -->
+        <line x1="${x + 8}" y1="${y + 26}" x2="${x + 42}" y2="${y + 26}" stroke="#ffffff" stroke-width="1" stroke-dasharray="4,2" />
+        <rect x="${x + 10}" y="${y + 24}" width="8" height="4" fill="none" stroke="#ffffff" stroke-width="0.5" />
+        <!-- Helipad circle -->
+        <circle cx="${x + 30}" cy="${y + 26}" r="3" fill="none" stroke="#ffffff" stroke-width="0.5" />
+        <text x="${x + 30}" y="${y + 27.5}" text-anchor="middle" font-size="4" fill="#ffffff">H</text>
+        <!-- Command tower (island) - on the side -->
+        <rect x="${x + 38}" y="${y + 12}" width="8" height="12" rx="1" fill="${hullColor}" stroke="${hullDark}" stroke-width="1" />
+        <rect x="${x + 39}" y="${y + 14}" width="6" height="3" rx="0.5" fill="#87ceeb" opacity="0.7" />
+        <!-- Radar on tower -->
+        <line x1="${x + 42}" y1="${y + 12}" x2="${x + 42}" y2="${y + 6}" stroke="#4a4a4a" stroke-width="1" />
+        <ellipse cx="${x + 42}" cy="${y + 5}" rx="3" ry="1.5" fill="none" stroke="#4a4a4a" stroke-width="1" />
+        <!-- Small gun on deck -->
+        <rect x="${x + 6}" y="${y + 20}" width="4" height="3" fill="#4a4a4a" />
+        <rect x="${x + 3}" y="${y + 21}" width="4" height="1.5" fill="#3d3d3d" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        <!-- Damage indicator -->
+        ${damaged ? `
+          <line x1="${x + 15}" y1="${y + 20}" x2="${x + 25}" y2="${y + 30}" stroke="#ef4444" stroke-width="2" />
+          <line x1="${x + 25}" y1="${y + 20}" x2="${x + 15}" y2="${y + 30}" stroke="#ef4444" stroke-width="2" />
+          <circle cx="${x + 20}" cy="${y + 25}" r="6" fill="#ef4444" opacity="0.3" />
+        ` : ''}
+        <!-- Helicopter on deck (if present) -->
+        ${piece.hasHelicopter ? `
+          <!-- Mini helicopter on carrier deck -->
+          <ellipse cx="${x + 20}" cy="${y + 26}" rx="8" ry="5" fill="#3d3d3d" stroke="#2d2d2d" stroke-width="1" />
+          <ellipse cx="${x + 17}" cy="${y + 25}" rx="4" ry="3" fill="#87ceeb" opacity="0.6" />
+          <rect x="${x + 26}" y="${y + 25}" width="8" height="2" fill="#3d3d3d" />
+          <line x1="${x + 10}" y1="${y + 23}" x2="${x + 30}" y2="${y + 23}" stroke="#5a5a5a" stroke-width="1.5" />
+          <line x1="${x + 15}" y1="${y + 21}" x2="${x + 25}" y2="${y + 25}" stroke="#5a5a5a" stroke-width="1.5" />
+          <circle cx="${x + 20}" cy="${y + 18}" r="2" fill="${teamColor}" />
+        ` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'helicopter') {
+    const bodyColor = piece.team === 'yellow' ? '#4a4a4a' : '#3a4a3a'
+    const bodyDark = piece.team === 'yellow' ? '#2a2a2a' : '#1a2a1a'
+    // Helicopter design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.3)" />
+        <!-- Tail boom -->
+        <rect x="${x + 35}" y="${y + 28}" width="12" height="3" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Tail rotor -->
+        <rect x="${x + 45}" y="${y + 24}" width="2" height="10" fill="${bodyDark}" />
+        <ellipse cx="${x + 46}" cy="${y + 24}" rx="1" ry="4" fill="#6b7280" />
+        <ellipse cx="${x + 46}" cy="${y + 34}" rx="1" ry="4" fill="#6b7280" />
+        <!-- Main body -->
+        <ellipse cx="${x + 25}" cy="${y + 32}" rx="14" ry="10" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Cockpit window -->
+        <ellipse cx="${x + 20}" cy="${y + 30}" rx="6" ry="5" fill="#87ceeb" opacity="0.8" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Cockpit frame -->
+        <line x1="${x + 20}" y1="${y + 25}" x2="${x + 20}" y2="${y + 35}" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Skids (landing gear) -->
+        <rect x="${x + 12}" y="${y + 40}" width="26" height="2" rx="1" fill="${bodyDark}" />
+        <rect x="${x + 14}" y="${y + 38}" width="2" height="4" fill="${bodyDark}" />
+        <rect x="${x + 34}" y="${y + 38}" width="2" height="4" fill="${bodyDark}" />
+        <!-- Main rotor mast -->
+        <rect x="${x + 24}" y="${y + 18}" width="2" height="6" fill="${bodyDark}" />
+        <!-- Main rotor blades -->
+        <ellipse cx="${x + 25}" cy="${y + 17}" rx="20" ry="3" fill="#6b7280" opacity="0.7" />
+        <line x1="${x + 5}" y1="${y + 17}" x2="${x + 45}" y2="${y + 17}" stroke="#4b5563" stroke-width="2" />
+        <line x1="${x + 15}" y1="${y + 12}" x2="${x + 35}" y2="${y + 22}" stroke="#4b5563" stroke-width="2" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        <!-- Side marking -->
+        <circle cx="${x + 30}" cy="${y + 32}" r="3" fill="${teamColor}" opacity="0.8" />
       </g>
     `
   }
@@ -1057,11 +1879,49 @@ function createBoard(): string {
       const rowNum = BOARD_SIZE - row
       const piece = getPieceAt(colLetter, rowNum)
       if (piece) {
-        // Highlight selected piece
-        if (selectedPiece === piece) {
-          svg += `<rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
+        // Check if this piece is the charging train
+        if (trainHitAnimation && trainHitAnimation.train === piece && trainHitAnimation.phase === 'moving') {
+          const progress = (trainHitAnimation as any).progress || 0
+          const targetColIndex = columns.indexOf(trainHitAnimation.targetCol)
+          const targetX = LABEL_SIZE + targetColIndex * SQUARE_SIZE
+          const targetY = (BOARD_SIZE - trainHitAnimation.targetRow) * SQUARE_SIZE
+
+          const animX = x + (targetX - x) * progress
+          const animY = y + (targetY - y) * progress
+
+          // Draw train at animated position with shake effect
+          const shakeX = progress > 0.8 ? Math.sin(progress * 50) * 3 : 0
+          svg += drawPiece(piece, animX + shakeX, animY)
         }
-        svg += drawPiece(piece, x, y)
+        // Check if this piece is moving
+        else if (moveAnimation && moveAnimation.piece === piece) {
+          // Don't draw here - we'll draw at animated position below
+        } else {
+          // Highlight selected piece
+          if (selectedPiece === piece) {
+            svg += `<rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
+          }
+          svg += drawPiece(piece, x, y)
+        }
+      }
+
+      // Draw piece that is currently in move animation (at its animated position)
+      if (moveAnimation && moveAnimation.fromCol === colLetter && moveAnimation.fromRow === rowNum) {
+        const progress = moveAnimation.progress
+        const toColIndex = columns.indexOf(moveAnimation.toCol)
+        const toX = LABEL_SIZE + toColIndex * SQUARE_SIZE
+        const toY = (BOARD_SIZE - moveAnimation.toRow) * SQUARE_SIZE
+
+        // Ease out animation
+        const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+        const animX = x + (toX - x) * easedProgress
+        const animY = y + (toY - y) * easedProgress
+
+        // Add slight bounce at the end
+        const bounce = progress > 0.8 ? Math.sin((progress - 0.8) * 25) * 2 * (1 - progress) : 0
+
+        svg += drawPiece(moveAnimation.piece, animX, animY + bounce)
       }
 
       // Draw valid move indicator (X mark)
@@ -1091,6 +1951,27 @@ function createBoard(): string {
           <line x1="${cx}" y1="${cy + 8}" x2="${cx}" y2="${cy + 20}" stroke="#ef4444" stroke-width="3" />
         </g>`
       }
+
+      // Draw explosion animation
+      if (explosionAt && explosionAt.col === colLetter && explosionAt.row === rowNum) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none animate-explosion">
+          <circle cx="${cx}" cy="${cy}" r="20" fill="#ef4444" opacity="0.8" />
+          <circle cx="${cx}" cy="${cy}" r="15" fill="#f97316" opacity="0.9" />
+          <circle cx="${cx}" cy="${cy}" r="8" fill="#fbbf24" />
+          <!-- Explosion particles -->
+          <circle cx="${cx - 12}" cy="${cy - 8}" r="4" fill="#ef4444" opacity="0.7" />
+          <circle cx="${cx + 10}" cy="${cy - 10}" r="3" fill="#f97316" opacity="0.6" />
+          <circle cx="${cx + 8}" cy="${cy + 12}" r="5" fill="#ef4444" opacity="0.7" />
+          <circle cx="${cx - 10}" cy="${cy + 8}" r="3" fill="#fbbf24" opacity="0.8" />
+          <!-- Smoke -->
+          <circle cx="${cx}" cy="${cy - 5}" r="8" fill="#6b7280" opacity="0.6" class="animate-smoke" />
+          <circle cx="${cx - 8}" cy="${cy}" r="6" fill="#4b5563" opacity="0.5" class="animate-smoke" />
+          <circle cx="${cx + 8}" cy="${cy + 3}" r="7" fill="#6b7280" opacity="0.5" class="animate-smoke" />
+        </g>`
+      }
+
     }
   }
 
@@ -1142,7 +2023,7 @@ function createScorePanel(): string {
         <div class="flex flex-wrap gap-1 min-h-[24px]">
           ${yellowCaptured.map(p => `
             <div class="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded border border-green-700 flex items-center justify-center text-xs" title="${p.type} (${p.points}pts)">
-              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : '?'}
+              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : '?'}
             </div>
           `).join('')}
           ${yellowCaptured.length === 0 ? '<span class="text-gray-500 text-xs sm:text-sm italic">-</span>' : ''}
@@ -1158,7 +2039,7 @@ function createScorePanel(): string {
         <div class="flex flex-wrap gap-1 min-h-[24px]">
           ${greenCaptured.map(p => `
             <div class="w-5 h-5 sm:w-6 sm:h-6 bg-yellow-400 rounded border border-yellow-600 flex items-center justify-center text-xs" title="${p.type} (${p.points}pts)">
-              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : '?'}
+              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : '?'}
             </div>
           `).join('')}
           ${greenCaptured.length === 0 ? '<span class="text-gray-500 text-xs sm:text-sm italic">-</span>' : ''}
@@ -1177,11 +2058,12 @@ function createMoveLog(): string {
           ? '<p class="text-gray-500 italic text-xs sm:text-sm">No moves yet</p>'
           : moveLog.map((move, i) => {
               const textColor = move.team === 'yellow' ? 'text-yellow-400' : move.team === 'green' ? 'text-green-400' : 'text-gray-300'
+              const pieceIcon = move.piece === 'train' ? '🚂' : move.piece === 'soldier' ? '🎖️' : move.piece === 'tank' ? '🛡️' : move.piece === 'ship' ? '🚢' : move.piece === 'carrier' ? '🛫' : move.piece === 'helicopter' ? '🚁' : ''
               return `
               <div class="${textColor} flex flex-col">
                 <div class="flex">
                   <span class="text-gray-500 w-6 sm:w-8">${i + 1}.</span>
-                  <span>${move.from}→${move.to}</span>
+                  <span>${move.piece} ${pieceIcon} ${move.from}→${move.to}</span>
                 </div>
                 ${move.captured === 'trapped' ? `<span class="text-red-400 text-xs ml-6 sm:ml-8">☠ trapped</span>` : move.captured ? `<span class="text-red-400 text-xs ml-6 sm:ml-8">✕ ${move.captured}</span>` : ''}
               </div>
@@ -1335,12 +2217,12 @@ function render() {
     </div>
   ` : ''
 
-  // Soldier action buttons HTML - show when soldier is selected (but not when forced out of trench)
-  const showSoldierButtons = selectedPiece?.type === 'soldier' && !forcedSoldier
+  // Action buttons HTML - show when soldier or tank is selected (but not when forced out of trench)
+  const showActionButtons = (selectedPiece?.type === 'soldier' || selectedPiece?.type === 'tank' || selectedPiece?.type === 'ship') && !forcedSoldier
   const canExit = selectedPiece && canExitTunnel(selectedPiece)
   const moveButtonClass = actionMode === 'move' ? 'bg-blue-800 ring-2 ring-blue-400' : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
   const shootButtonClass = actionMode === 'shoot' ? 'bg-red-800 ring-2 ring-red-400' : 'bg-red-600 hover:bg-red-700 active:bg-red-800'
-  const soldierActionsHtml = showSoldierButtons ? `
+  const actionButtonsHtml = showActionButtons ? `
     <div class="bg-gray-800 px-2 sm:px-4 py-2 rounded-lg flex gap-1 sm:gap-2">
       <button id="action-move" class="${moveButtonClass} text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
         Move
@@ -1366,7 +2248,7 @@ function render() {
         <div class="bg-gray-800 px-3 py-2 rounded-lg border-2 ${turnColor}">
           <span class="${turnColor} font-bold text-sm sm:text-base">${currentTurn.toUpperCase()}'s turn</span>
         </div>
-        ${soldierActionsHtml}
+        ${actionButtonsHtml}
         ${message && !forcedSoldier ? `<div class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs sm:text-sm">${message}</div>` : ''}
         <button id="reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors">
           Reset

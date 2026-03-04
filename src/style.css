@@ -1,1 +1,112 @@
 @import "tailwindcss";
+
+/* Game animations */
+@keyframes piece-move {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes piece-shoot {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes explosion {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes hit-flash {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(2) saturate(0); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px) rotate(-1deg); }
+  75% { transform: translateX(4px) rotate(1deg); }
+}
+
+@keyframes aiming {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+@keyframes recoil {
+  0% { transform: translateY(0); }
+  30% { transform: translateY(3px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes muzzle-flash {
+  0% { opacity: 1; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes bullet-travel {
+  0% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes train-charge {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(var(--charge-x, 0), var(--charge-y, 0)); }
+}
+
+@keyframes victim-hit {
+  0% { transform: scale(1); opacity: 1; }
+  30% { transform: scale(1.2); }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes smoke-rise {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  100% { transform: translateY(-20px) scale(2); opacity: 0; }
+}
+
+.animate-move {
+  animation: piece-move 0.3s ease-in-out;
+}
+
+.animate-shoot {
+  animation: piece-shoot 0.2s ease-in-out;
+}
+
+.animate-explosion {
+  animation: explosion 0.5s ease-out forwards;
+}
+
+.animate-hit {
+  animation: hit-flash 0.3s ease-in-out;
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+.animate-aiming {
+  animation: aiming 0.4s ease-in-out;
+}
+
+.animate-recoil {
+  animation: recoil 0.15s ease-out;
+}
+
+.animate-muzzle-flash {
+  animation: muzzle-flash 0.2s ease-out forwards;
+}
+
+.animate-victim-hit {
+  animation: victim-hit 0.4s ease-out forwards;
+}
+
+.animate-smoke {
+  animation: smoke-rise 0.8s ease-out forwards;
+}
