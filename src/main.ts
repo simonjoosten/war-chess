@@ -7,7 +7,7 @@ const LABEL_SIZE = 30
 const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
 type Team = 'yellow' | 'green'
-type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter'
+type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun'
 
 interface Piece {
   type: PieceType
@@ -24,6 +24,8 @@ interface Piece {
   hasHelicopter?: boolean  // Whether helicopter is on the carrier
   // Helicopter specific
   onCarrier?: Piece  // Reference to carrier the helicopter is on
+  // Rocket specific
+  used?: boolean  // Rocket can only be used once
 }
 
 // Action mode for soldiers
@@ -97,6 +99,24 @@ let moveAnimation: {
   progress: number
 } | null = null
 
+// Rocket state
+let rocketTargetArea: { col: string; row: number }[] = []
+let rocketAnimation: {
+  rocket: Piece
+  targetCol: string
+  targetRow: number
+  phase: 'launching' | 'flying' | 'exploding'
+  progress: number
+} | null = null
+
+const ROCKET_READY_TURN = 45  // Rocket can be used after this many team turns
+
+// Check if rockets are ready for a specific team
+function isRocketReadyForTeam(team: Team): boolean {
+  const teamTurns = team === 'yellow' ? yellowTurnCount : greenTurnCount
+  return teamTurns >= ROCKET_READY_TURN
+}
+
 // Check if any soldier of the current team must leave the trench
 function checkForcedTrenchExit(): Piece | null {
   const currentTeamTurn = currentTurn === 'yellow' ? yellowTurnCount : greenTurnCount
@@ -144,6 +164,18 @@ function getInitialPieces(): Piece[] {
     // Green helicopters (in front of trains)
     { type: 'helicopter', team: 'green', col: 'A', row: 10, points: 8 },
     { type: 'helicopter', team: 'green', col: 'K', row: 10, points: 8 },
+    // Yellow rockets (next to carriers)
+    { type: 'rocket', team: 'yellow', col: 'D', row: 1, points: 25, used: false },
+    { type: 'rocket', team: 'yellow', col: 'H', row: 1, points: 25, used: false },
+    // Green rockets (next to carriers)
+    { type: 'rocket', team: 'green', col: 'D', row: 11, points: 25, used: false },
+    { type: 'rocket', team: 'green', col: 'H', row: 11, points: 25, used: false },
+    // Yellow machine guns (in front of rockets)
+    { type: 'machinegun', team: 'yellow', col: 'D', row: 2, points: 25 },
+    { type: 'machinegun', team: 'yellow', col: 'H', row: 2, points: 25 },
+    // Green machine guns (in front of rockets)
+    { type: 'machinegun', team: 'green', col: 'D', row: 10, points: 25 },
+    { type: 'machinegun', team: 'green', col: 'H', row: 10, points: 25 },
     // Yellow soldiers
     { type: 'soldier', team: 'yellow', col: 'E', row: 2, points: 5 },
     { type: 'soldier', team: 'yellow', col: 'F', row: 2, points: 5 },
@@ -179,6 +211,8 @@ function resetGame() {
   selectedPiece = null
   validMoves = []
   shootTargets = []
+  rocketTargetArea = []
+  rocketAnimation = null
   message = null
   currentTurn = 'yellow'
   gameState = 'start'
@@ -281,6 +315,7 @@ function getValidMovesForSoldier(piece: Piece): { col: string; row: number; canC
   const pieceColIndex = columns.indexOf(piece.col)
 
   // If in tunnel, can move within tunnel or exit at entrances
+  // Can move under pieces that are NOT in the tunnel
   if (piece.inTunnel) {
     const tunnelCol = piece.col // E or G
     // Can move to adjacent tunnel squares (up or down within E4-E8 or G4-G8)
@@ -289,13 +324,17 @@ function getValidMovesForSoldier(piece: Piece): { col: string; row: number; canC
 
     if (isTunnelSquare(tunnelCol, upRow)) {
       const pieceAtTarget = getPieceAt(tunnelCol, upRow)
-      if (!pieceAtTarget) {
+      // Can move if no piece there, OR if the piece is NOT in the tunnel (we go under it)
+      // But blocked by other soldiers that ARE in the tunnel
+      if (!pieceAtTarget || !pieceAtTarget.inTunnel) {
         moves.push({ col: tunnelCol, row: upRow, canCapture: false })
       }
     }
     if (isTunnelSquare(tunnelCol, downRow)) {
       const pieceAtTarget = getPieceAt(tunnelCol, downRow)
-      if (!pieceAtTarget) {
+      // Can move if no piece there, OR if the piece is NOT in the tunnel (we go under it)
+      // But blocked by other soldiers that ARE in the tunnel
+      if (!pieceAtTarget || !pieceAtTarget.inTunnel) {
         moves.push({ col: tunnelCol, row: downRow, canCapture: false })
       }
     }
@@ -340,8 +379,27 @@ function canExitTunnel(piece: Piece): boolean {
 function getShootTargetsForSoldier(piece: Piece): { col: string; row: number }[] {
   const targets: { col: string; row: number }[] = []
 
-  // Cannot shoot from tunnel
-  if (piece.inTunnel) return targets
+  // If in tunnel, can only shoot at other soldiers in the same tunnel
+  if (piece.inTunnel) {
+    const tunnelCol = piece.col // E or G
+    // Can shoot 1 or 2 squares forward within tunnel
+    const directionSign = piece.team === 'yellow' ? 1 : -1
+
+    for (const distance of [1, 2]) {
+      const targetRow = piece.row + (distance * directionSign)
+
+      if (!isTunnelSquare(tunnelCol, targetRow)) continue
+
+      const pieceAtTarget = getPieceAt(tunnelCol, targetRow)
+
+      // Can only shoot enemy soldiers that are also in the tunnel
+      if (pieceAtTarget && pieceAtTarget.team !== piece.team &&
+          pieceAtTarget.type === 'soldier' && pieceAtTarget.inTunnel) {
+        targets.push({ col: tunnelCol, row: targetRow })
+      }
+    }
+    return targets
+  }
 
   // Can shoot 1 or 2 squares forward (yellow shoots up, green shoots down)
   const directionSign = piece.team === 'yellow' ? 1 : -1
@@ -420,27 +478,31 @@ function getShootTargetsForTank(piece: Piece): { col: string; row: number }[] {
   const targets: { col: string; row: number }[] = []
   const pieceColIndex = columns.indexOf(piece.col)
 
+  // Diagonal directions
   const diagonals = [
-    { dc: 2, dr: 2 },   // up-right
-    { dc: -2, dr: 2 },  // up-left
-    { dc: 2, dr: -2 },  // down-right
-    { dc: -2, dr: -2 }, // down-left
+    { dc: 1, dr: 1 },   // up-right
+    { dc: -1, dr: 1 },  // up-left
+    { dc: 1, dr: -1 },  // down-right
+    { dc: -1, dr: -1 }, // down-left
   ]
 
+  // Can shoot 1 or 2 squares diagonally
   for (const dir of diagonals) {
-    const colIndex = pieceColIndex + dir.dc
-    const row = piece.row + dir.dr
+    for (const distance of [1, 2]) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
 
-    if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
 
-    const col = columns[colIndex]
-    const pieceAtTarget = getPieceAt(col, row)
+      const col = columns[colIndex]
+      const pieceAtTarget = getPieceAt(col, row)
 
-    // Can only shoot if there's an enemy piece there
-    if (pieceAtTarget && pieceAtTarget.team !== piece.team) {
-      // Check if target is in trench or tunnel (cannot be shot)
-      if (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel) {
-        targets.push({ col, row })
+      // Can only shoot if there's an enemy piece there
+      if (pieceAtTarget && pieceAtTarget.team !== piece.team) {
+        // Check if target is in trench or tunnel (cannot be shot)
+        if (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel) {
+          targets.push({ col, row })
+        }
       }
     }
   }
@@ -578,6 +640,76 @@ function isHelipadSquare(col: string, row: number): boolean {
          (col === 'I' && (row === 5 || row === 7))
 }
 
+// Machine gun shooting: 1-4 squares forward (vertical), only if path is clear
+function getShootTargetsForMachineGun(piece: Piece): { col: string; row: number }[] {
+  const targets: { col: string; row: number }[] = []
+
+  // Direction: yellow shoots up (+1), green shoots down (-1)
+  const directionSign = piece.team === 'yellow' ? 1 : -1
+
+  // Check up to 4 squares in the forward direction
+  for (let distance = 1; distance <= 4; distance++) {
+    const targetRow = piece.row + (distance * directionSign)
+
+    if (targetRow < 1 || targetRow > 11) break
+
+    const pieceAtTarget = getPieceAt(piece.col, targetRow)
+
+    if (pieceAtTarget) {
+      // Found a piece - can shoot if enemy
+      if (pieceAtTarget.team !== piece.team) {
+        // Check if target is in trench or tunnel (cannot be shot)
+        if (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel) {
+          targets.push({ col: piece.col, row: targetRow })
+        }
+      }
+      // Path is blocked after this piece, stop checking further
+      break
+    }
+  }
+
+  return targets
+}
+
+// Rocket targeting: select center of 3x3 explosion area (anywhere on board except edges)
+function getValidTargetsForRocket(piece: Piece): { col: string; row: number }[] {
+  // Rocket can't be used if already used
+  if (piece.used) return []
+
+  // Rocket can only be used after 45 team turns
+  if (!isRocketReadyForTeam(piece.team)) return []
+
+  const targets: { col: string; row: number }[] = []
+
+  // Can target any square where a 3x3 area fits (rows 2-10, columns B-J)
+  for (let row = 2; row <= 10; row++) {
+    for (let colIndex = 1; colIndex <= 9; colIndex++) {
+      const col = columns[colIndex]
+      targets.push({ col, row })
+    }
+  }
+
+  return targets
+}
+
+// Get 3x3 area around center
+function getRocketExplosionArea(centerCol: string, centerRow: number): { col: string; row: number }[] {
+  const area: { col: string; row: number }[] = []
+  const centerColIndex = columns.indexOf(centerCol)
+
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const row = centerRow + dr
+      const colIndex = centerColIndex + dc
+      if (row >= 1 && row <= 11 && colIndex >= 0 && colIndex < 11) {
+        area.push({ col: columns[colIndex], row })
+      }
+    }
+  }
+
+  return area
+}
+
 // Helicopter movement: can fly to helipads or own team's carriers
 function getValidMovesForHelicopter(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
   const moves: { col: string; row: number; canCapture: boolean }[] = []
@@ -712,6 +844,32 @@ function selectPiece(piece: Piece) {
     // Helicopter can fly to helipads or own carriers
     validMoves = getValidMovesForHelicopter(piece)
     showSoldierActions = false
+  } else if (piece.type === 'rocket') {
+    // Rocket can target 3x3 area
+    if (piece.used) {
+      message = "This rocket has already been used!"
+      validMoves = []
+    } else if (!isRocketReadyForTeam(piece.team)) {
+      const teamTurns = piece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+      message = `Rocket not ready yet! (${teamTurns}/${ROCKET_READY_TURN} turns)`
+      validMoves = []
+    } else {
+      rocketTargetArea = getValidTargetsForRocket(piece).map(t => ({ col: t.col, row: t.row }))
+      message = "Select target for rocket (3x3 explosion area)"
+      validMoves = []
+    }
+    showSoldierActions = false
+  } else if (piece.type === 'machinegun') {
+    // Machine gun can only shoot, cannot move
+    validMoves = []
+    shootTargets = getShootTargetsForMachineGun(piece)
+    if (shootTargets.length === 0) {
+      message = "No targets in range"
+    } else {
+      message = "Select target to shoot"
+    }
+    showSoldierActions = false
+    actionMode = 'shoot'
   }
 
   render()
@@ -1300,6 +1458,148 @@ function shootPiece(col: string, row: number) {
   render()
 }
 
+// Launch rocket at target location
+function launchRocket(rocket: Piece, targetCol: string, targetRow: number) {
+  const launchingTeam = rocket.team
+
+  // Start rocket animation
+  rocketAnimation = {
+    rocket: rocket,
+    targetCol: targetCol,
+    targetRow: targetRow,
+    phase: 'launching',
+    progress: 0
+  }
+
+  message = "Rocket launching..."
+  render()
+
+  const launchDuration = 600
+  const flyDuration = 400
+  const explosionDuration = 800
+  const startTime = Date.now()
+
+  function animate() {
+    const elapsed = Date.now() - startTime
+
+    if (elapsed < launchDuration) {
+      // Phase 1: Launching (rocket goes up)
+      rocketAnimation!.phase = 'launching'
+      rocketAnimation!.progress = elapsed / launchDuration
+      render()
+      requestAnimationFrame(animate)
+    } else if (elapsed < launchDuration + flyDuration) {
+      // Phase 2: Flying (rocket moves to target)
+      rocketAnimation!.phase = 'flying'
+      rocketAnimation!.progress = (elapsed - launchDuration) / flyDuration
+      render()
+      requestAnimationFrame(animate)
+    } else if (elapsed < launchDuration + flyDuration + explosionDuration) {
+      // Phase 3: Exploding
+      rocketAnimation!.phase = 'exploding'
+      rocketAnimation!.progress = (elapsed - launchDuration - flyDuration) / explosionDuration
+
+      // Apply damage on first frame of explosion
+      if (rocketAnimation!.progress < 0.1) {
+        applyRocketDamage(targetCol, targetRow, launchingTeam)
+      }
+
+      render()
+      requestAnimationFrame(animate)
+    } else {
+      // Animation complete
+      rocketAnimation = null
+
+      // Remove rocket from the board (it's been launched)
+      const rocketIndex = pieces.indexOf(rocket)
+      if (rocketIndex !== -1) {
+        pieces.splice(rocketIndex, 1)
+      }
+
+      // Log the launch
+      moveLog.push({
+        from: `${rocket.col}${rocket.row}`,
+        to: `${targetCol}${targetRow}`,
+        piece: rocket.type,
+        team: launchingTeam,
+        captured: 'explosion'
+      })
+
+      // Increment turn count
+      if (launchingTeam === 'yellow') yellowTurnCount++
+      else greenTurnCount++
+
+      // Switch turns
+      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+
+      // Clear selection
+      selectedPiece = null
+      rocketTargetArea = []
+      message = null
+
+      render()
+    }
+  }
+
+  requestAnimationFrame(animate)
+}
+
+// Apply rocket explosion damage in 3x3 area
+function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: Team) {
+  const area = getRocketExplosionArea(centerCol, centerRow)
+  const piecesHit: Piece[] = []
+
+  for (const square of area) {
+    const pieceAtSquare = getPieceAt(square.col, square.row)
+    if (pieceAtSquare) {
+      piecesHit.push(pieceAtSquare)
+    }
+  }
+
+  let totalPoints = 0
+
+  for (const piece of piecesHit) {
+    // Soldiers, helicopters, ships, trains, tanks and machine guns die immediately
+    if (piece.type === 'soldier' || piece.type === 'helicopter' || piece.type === 'ship' || piece.type === 'train' || piece.type === 'tank' || piece.type === 'machinegun') {
+      const index = pieces.indexOf(piece)
+      if (index !== -1) {
+        pieces.splice(index, 1)
+        capturedPieces.push(piece)
+        if (piece.team !== launchingTeam) {
+          totalPoints += piece.points
+        }
+      }
+    }
+    // Carrier takes 1 damage
+    else if (piece.type === 'carrier') {
+      if (piece.hp && piece.hp > 1) {
+        piece.hp -= 1
+        // Also destroy helicopter if present
+        if (piece.hasHelicopter) {
+          piece.hasHelicopter = false
+        }
+      } else {
+        // Carrier destroyed
+        const index = pieces.indexOf(piece)
+        if (index !== -1) {
+          pieces.splice(index, 1)
+          capturedPieces.push(piece)
+          if (piece.team !== launchingTeam) {
+            totalPoints += piece.points
+          }
+        }
+      }
+    }
+    // Other pieces (rocket) are not affected for now
+  }
+
+  if (totalPoints > 0) {
+    message = `Rocket exploded! (+${totalPoints} points)`
+  } else {
+    message = "Rocket exploded!"
+  }
+}
+
 function handleSquareClick(col: string, row: number) {
   const piece = getPieceAt(col, row)
 
@@ -1309,11 +1609,21 @@ function handleSquareClick(col: string, row: number) {
       selectedPiece = null
       validMoves = []
       shootTargets = []
+      rocketTargetArea = []
       message = null
       actionMode = null
       showSoldierActions = false
       render()
       return
+    }
+
+    // If rocket is selected and has targets, try to launch
+    if (selectedPiece.type === 'rocket' && rocketTargetArea.length > 0) {
+      const isValidTarget = rocketTargetArea.some(t => t.col === col && t.row === row)
+      if (isValidTarget) {
+        launchRocket(selectedPiece, col, row)
+        return
+      }
     }
 
     // If in shoot mode, try to shoot
@@ -1638,6 +1948,81 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     `
   }
 
+  if (piece.type === 'machinegun') {
+    const baseColor = piece.team === 'yellow' ? '#5c4a1f' : '#2d4a2d'
+    const baseDark = piece.team === 'yellow' ? '#3d3214' : '#1e331e'
+    const metalColor = '#4a4a4a'
+    const metalDark = '#2d2d2d'
+    // Machine gun design (stationary)
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+        <!-- Sandbag base -->
+        <ellipse cx="${x + 15}" cy="${y + 42}" rx="10" ry="5" fill="#c2a878" stroke="#8b7355" stroke-width="1" />
+        <ellipse cx="${x + 35}" cy="${y + 42}" rx="10" ry="5" fill="#c2a878" stroke="#8b7355" stroke-width="1" />
+        <ellipse cx="${x + 25}" cy="${y + 40}" rx="12" ry="6" fill="#c2a878" stroke="#8b7355" stroke-width="1" />
+        <ellipse cx="${x + 20}" cy="${y + 38}" rx="8" ry="4" fill="#d4b896" stroke="#8b7355" stroke-width="1" />
+        <ellipse cx="${x + 30}" cy="${y + 38}" rx="8" ry="4" fill="#d4b896" stroke="#8b7355" stroke-width="1" />
+        <!-- Tripod legs -->
+        <line x1="${x + 25}" y1="${y + 30}" x2="${x + 12}" y2="${y + 38}" stroke="${metalDark}" stroke-width="3" />
+        <line x1="${x + 25}" y1="${y + 30}" x2="${x + 38}" y2="${y + 38}" stroke="${metalDark}" stroke-width="3" />
+        <line x1="${x + 25}" y1="${y + 30}" x2="${x + 25}" y2="${y + 36}" stroke="${metalDark}" stroke-width="3" />
+        <!-- Gun body -->
+        <rect x="${x + 18}" y="${y + 22}" width="14" height="10" rx="2" fill="${metalColor}" stroke="${metalDark}" stroke-width="1" />
+        <!-- Barrel -->
+        <rect x="${x + 22}" y="${y + 8}" width="6" height="16" rx="2" fill="${metalColor}" stroke="${metalDark}" stroke-width="1" />
+        <rect x="${x + 23}" y="${y + 6}" width="4" height="4" fill="${metalDark}" />
+        <!-- Barrel holes (muzzle) -->
+        <circle cx="${x + 25}" cy="${y + 7}" r="1.5" fill="#1a1a1a" />
+        <!-- Ammunition box -->
+        <rect x="${x + 32}" y="${y + 24}" width="8" height="6" rx="1" fill="${baseColor}" stroke="${baseDark}" stroke-width="1" />
+        <!-- Handle -->
+        <rect x="${x + 10}" y="${y + 24}" width="8" height="4" rx="1" fill="${baseDark}" />
+        <circle cx="${x + 12}" cy="${y + 26}" r="2" fill="${metalDark}" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+      </g>
+    `
+  }
+
+  if (piece.type === 'rocket') {
+    const bodyColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
+    const bodyDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
+    const noseColor = '#ef4444'
+    const used = piece.used
+    // Rocket/missile design
+    return `
+      <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="10" ry="3" fill="rgba(0,0,0,0.3)" />
+        <!-- Launch platform/base -->
+        <rect x="${x + 12}" y="${y + 40}" width="26" height="6" rx="2" fill="#4a4a4a" stroke="#2d2d2d" stroke-width="1" />
+        <rect x="${x + 14}" y="${y + 42}" width="22" height="2" fill="#3d3d3d" />
+        <!-- Rocket body -->
+        <rect x="${x + 20}" y="${y + 14}" width="10" height="28" rx="3" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Body stripes -->
+        <rect x="${x + 20}" y="${y + 26}" width="10" height="3" fill="${teamColor}" />
+        <rect x="${x + 20}" y="${y + 32}" width="10" height="3" fill="${teamColor}" />
+        <!-- Nose cone -->
+        <path d="M${x + 20} ${y + 14} L${x + 25} ${y + 4} L${x + 30} ${y + 14} Z" fill="${noseColor}" stroke="#b91c1c" stroke-width="1" />
+        <!-- Fins -->
+        <path d="M${x + 18} ${y + 38} L${x + 20} ${y + 34} L${x + 20} ${y + 40} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="0.5" />
+        <path d="M${x + 32} ${y + 38} L${x + 30} ${y + 34} L${x + 30} ${y + 40} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="0.5" />
+        <path d="M${x + 25} ${y + 42} L${x + 25} ${y + 34} L${x + 28} ${y + 40} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Exhaust nozzle -->
+        <ellipse cx="${x + 25}" cy="${y + 42}" rx="4" ry="2" fill="#2d2d2d" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 20}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${used ? `
+          <!-- Used X mark -->
+          <line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="#ef4444" stroke-width="3" />
+          <line x1="${x + 35}" y1="${y + 15}" x2="${x + 15}" y2="${y + 35}" stroke="#ef4444" stroke-width="3" />
+        ` : ''}
+      </g>
+    `
+  }
+
   return ''
 }
 
@@ -1952,6 +2337,35 @@ function createBoard(): string {
         </g>`
       }
 
+      // Draw rocket target indicator (3x3 area preview)
+      const isRocketTarget = rocketTargetArea.some(t => t.col === colLetter && t.row === rowNum)
+      if (isRocketTarget) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 5}" y="${y + 5}" width="${SQUARE_SIZE - 10}" height="${SQUARE_SIZE - 10}" fill="#ef4444" opacity="0.3" rx="4" />
+          <circle cx="${cx}" cy="${cy}" r="12" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,2" />
+          <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="12" fill="#ef4444" font-weight="bold">💥</text>
+        </g>`
+      }
+
+      // Draw rocket explosion animation (3x3 area)
+      if (rocketAnimation && rocketAnimation.phase === 'exploding') {
+        const explosionArea = getRocketExplosionArea(rocketAnimation.targetCol, rocketAnimation.targetRow)
+        const isInExplosion = explosionArea.some(e => e.col === colLetter && e.row === rowNum)
+        if (isInExplosion) {
+          const cx = x + SQUARE_SIZE / 2
+          const cy = y + SQUARE_SIZE / 2
+          const scale = 0.5 + rocketAnimation.progress * 0.5
+          const opacity = 1 - rocketAnimation.progress * 0.7
+          svg += `<g class="pointer-events-none">
+            <circle cx="${cx}" cy="${cy}" r="${20 * scale}" fill="#ef4444" opacity="${opacity * 0.8}" />
+            <circle cx="${cx}" cy="${cy}" r="${15 * scale}" fill="#f97316" opacity="${opacity * 0.9}" />
+            <circle cx="${cx}" cy="${cy}" r="${8 * scale}" fill="#fbbf24" opacity="${opacity}" />
+          </g>`
+        }
+      }
+
       // Draw explosion animation
       if (explosionAt && explosionAt.col === colLetter && explosionAt.row === rowNum) {
         const cx = x + SQUARE_SIZE / 2
@@ -1972,6 +2386,59 @@ function createBoard(): string {
         </g>`
       }
 
+    }
+  }
+
+  // Draw rocket animation (on top of everything)
+  if (rocketAnimation) {
+    const rocketPiece = rocketAnimation.rocket
+    const rocketColIndex = columns.indexOf(rocketPiece.col)
+    const rocketX = LABEL_SIZE + rocketColIndex * SQUARE_SIZE
+    const rocketY = (BOARD_SIZE - rocketPiece.row) * SQUARE_SIZE
+
+    const targetColIndex = columns.indexOf(rocketAnimation.targetCol)
+    const targetX = LABEL_SIZE + targetColIndex * SQUARE_SIZE
+    const targetY = (BOARD_SIZE - rocketAnimation.targetRow) * SQUARE_SIZE
+
+    if (rocketAnimation.phase === 'launching') {
+      // Rocket goes up with fire trail
+      const progress = rocketAnimation.progress
+      const rocketAnimY = rocketY - (progress * 200) // Go up 200 pixels
+      const scale = 1 - progress * 0.3
+
+      // Fire trail
+      for (let i = 0; i < 5; i++) {
+        const trailY = rocketAnimY + 40 + i * 15
+        const trailOpacity = (1 - i * 0.15) * (1 - progress * 0.5)
+        svg += `<circle cx="${rocketX + 25}" cy="${trailY}" r="${8 - i}" fill="#f97316" opacity="${trailOpacity}" class="pointer-events-none" />`
+        svg += `<circle cx="${rocketX + 25}" cy="${trailY + 5}" r="${6 - i}" fill="#fbbf24" opacity="${trailOpacity * 0.8}" class="pointer-events-none" />`
+      }
+
+      // Rocket body (simplified)
+      svg += `<g class="pointer-events-none" transform="translate(${rocketX}, ${rocketAnimY}) scale(${scale})">
+        <rect x="20" y="14" width="10" height="28" rx="3" fill="#5a5a5a" stroke="#3a3a3a" stroke-width="1" />
+        <path d="M20 14 L25 4 L30 14 Z" fill="#ef4444" stroke="#b91c1c" stroke-width="1" />
+        <ellipse cx="25" cy="42" rx="4" ry="2" fill="#f97316" />
+      </g>`
+    } else if (rocketAnimation.phase === 'flying') {
+      // Rocket flies from top to target
+      const progress = rocketAnimation.progress
+      const startY = rocketY - 200 // Where it ended up after launch
+      const animX = rocketX + (targetX - rocketX) * progress
+      const animY = startY + (targetY - startY) * progress
+
+      // Fire trail
+      for (let i = 0; i < 3; i++) {
+        const trailX = animX - (targetX - rocketX) * 0.1 * i
+        const trailY = animY - (targetY - startY) * 0.1 * i + 30
+        svg += `<circle cx="${trailX + 25}" cy="${trailY}" r="${6 - i * 2}" fill="#f97316" opacity="${0.6 - i * 0.15}" class="pointer-events-none" />`
+      }
+
+      // Rocket body (smaller, pointed down)
+      svg += `<g class="pointer-events-none" transform="translate(${animX}, ${animY})">
+        <rect x="22" y="10" width="6" height="20" rx="2" fill="#5a5a5a" />
+        <path d="M22 30 L25 38 L28 30 Z" fill="#ef4444" />
+      </g>`
     }
   }
 
@@ -2023,7 +2490,7 @@ function createScorePanel(): string {
         <div class="flex flex-wrap gap-1 min-h-[24px]">
           ${yellowCaptured.map(p => `
             <div class="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded border border-green-700 flex items-center justify-center text-xs" title="${p.type} (${p.points}pts)">
-              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : '?'}
+              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : p.type === 'rocket' ? '🚀' : p.type === 'machinegun' ? '🔫' : '?'}
             </div>
           `).join('')}
           ${yellowCaptured.length === 0 ? '<span class="text-gray-500 text-xs sm:text-sm italic">-</span>' : ''}
@@ -2039,7 +2506,7 @@ function createScorePanel(): string {
         <div class="flex flex-wrap gap-1 min-h-[24px]">
           ${greenCaptured.map(p => `
             <div class="w-5 h-5 sm:w-6 sm:h-6 bg-yellow-400 rounded border border-yellow-600 flex items-center justify-center text-xs" title="${p.type} (${p.points}pts)">
-              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : '?'}
+              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : p.type === 'rocket' ? '🚀' : p.type === 'machinegun' ? '🔫' : '?'}
             </div>
           `).join('')}
           ${greenCaptured.length === 0 ? '<span class="text-gray-500 text-xs sm:text-sm italic">-</span>' : ''}
@@ -2058,7 +2525,7 @@ function createMoveLog(): string {
           ? '<p class="text-gray-500 italic text-xs sm:text-sm">No moves yet</p>'
           : moveLog.map((move, i) => {
               const textColor = move.team === 'yellow' ? 'text-yellow-400' : move.team === 'green' ? 'text-green-400' : 'text-gray-300'
-              const pieceIcon = move.piece === 'train' ? '🚂' : move.piece === 'soldier' ? '🎖️' : move.piece === 'tank' ? '🛡️' : move.piece === 'ship' ? '🚢' : move.piece === 'carrier' ? '🛫' : move.piece === 'helicopter' ? '🚁' : ''
+              const pieceIcon = move.piece === 'train' ? '🚂' : move.piece === 'soldier' ? '🎖️' : move.piece === 'tank' ? '🛡️' : move.piece === 'ship' ? '🚢' : move.piece === 'carrier' ? '🛫' : move.piece === 'helicopter' ? '🚁' : move.piece === 'rocket' ? '🚀' : move.piece === 'machinegun' ? '🔫' : ''
               return `
               <div class="${textColor} flex flex-col">
                 <div class="flex">
@@ -2217,6 +2684,16 @@ function render() {
     </div>
   ` : ''
 
+  // Rocket ready notification (show at turn 45 for current team)
+  const currentTeamTurns = currentTurn === 'yellow' ? yellowTurnCount : greenTurnCount
+  const rocketJustBecameReady = currentTeamTurns === ROCKET_READY_TURN
+  const hasUnusedRockets = pieces.some(p => p.type === 'rocket' && p.team === currentTurn)
+  const rocketReadyMessage = (rocketJustBecameReady || (isRocketReadyForTeam(currentTurn) && hasUnusedRockets && selectedPiece?.type === 'rocket')) ? `
+    <div class="bg-orange-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-bold text-sm sm:text-lg text-center">
+      🚀 Rocket is ready for use!
+    </div>
+  ` : ''
+
   // Action buttons HTML - show when soldier or tank is selected (but not when forced out of trench)
   const showActionButtons = (selectedPiece?.type === 'soldier' || selectedPiece?.type === 'tank' || selectedPiece?.type === 'ship') && !forcedSoldier
   const canExit = selectedPiece && canExitTunnel(selectedPiece)
@@ -2244,6 +2721,7 @@ function render() {
   app.innerHTML = `
     <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4">
       ${forcedTrenchWarning}
+      ${rocketReadyMessage}
       <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
         <div class="bg-gray-800 px-3 py-2 rounded-lg border-2 ${turnColor}">
           <span class="${turnColor} font-bold text-sm sm:text-base">${currentTurn.toUpperCase()}'s turn</span>
