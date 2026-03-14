@@ -7,7 +7,7 @@ const LABEL_SIZE = 30
 const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
 type Team = 'yellow' | 'green'
-type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun'
+type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun' | 'suv' | 'hacker' | 'sub' | 'fighter' | 'builder' | 'barricade' | 'artillery' | 'spike'
 
 interface Piece {
   type: PieceType
@@ -26,6 +26,19 @@ interface Piece {
   onCarrier?: Piece  // Reference to carrier the helicopter is on
   // Rocket specific
   used?: boolean  // Rocket can only be used once
+  // Hacker specific
+  cooldownTurns?: number  // Number of turns until hacker can be used again
+  // Frozen by hacker
+  frozenTurns?: number  // Number of turns this piece is frozen
+  // Builder specific
+  barricadesBuilt?: number  // Total barricades built (max 5)
+  artilleryBuilt?: number  // Total artillery built (max 2)
+  spikesBuilt?: number  // Total spikes built (max 3)
+  barricadeCooldown?: number  // Turns until can build barricade again
+  artilleryCooldown?: number  // Turns until can build artillery again
+  spikeCooldown?: number  // Turns until can build spike again
+  // Spike specific
+  turnsRemaining?: number  // Turns until spike disappears
 }
 
 // Action mode for soldiers
@@ -51,8 +64,13 @@ let moveLog: Move[] = []
 let capturedPieces: Piece[] = []
 
 // Game state
-type GameState = 'start' | 'playing' | 'confirmReset' | 'confirmTunnel' | 'confirmTunnelExit'
+type GameState = 'start' | 'playing' | 'confirmReset' | 'confirmTunnel' | 'confirmTunnelExit' | 'gameOver'
 let gameState: GameState = 'start'
+let winner: Team | null = null
+let winReason: 'points' | 'builder' | null = null
+
+// Max turns per team before point-based win
+const MAX_TURNS_PER_TEAM = 80
 
 // Track team turn numbers for trench mechanics
 let yellowTurnCount = 0
@@ -109,12 +127,563 @@ let rocketAnimation: {
   progress: number
 } | null = null
 
+let fighterAnimation: {
+  fighter: Piece
+  startCol: string
+  startRow: number
+  targetCol: string
+  targetRow: number
+  landingCol: string
+  landingRow: number
+  target: Piece
+  phase: 'flyToTarget' | 'bombing' | 'flyToLanding'
+  progress: number
+} | null = null
+
 const ROCKET_READY_TURN = 45  // Rocket can be used after this many team turns
+const HACKER_READY_TURN = 10  // Hacker can be used after this many team turns
+const HACKER_COOLDOWN_TURNS = 15  // 15 turns cooldown
+const FIGHTER_READY_TURN = 10  // Fighter can be used after this many team turns
+const FIGHTER_COOLDOWN_TURNS = 7  // 7 turns cooldown
+const FIGHTER_BOMB_RANGE = 4  // Can bomb targets up to 4 squares away
+const FIGHTER_LANDING_RANGE = 3  // Can land 0-3 squares from target
+
+// Builder constants
+const BUILDER_READY_TURN = 3  // Builder can build barricades after this many team turns
+const ARTILLERY_READY_TURN = 10  // Builder can build artillery after this many team turns
+const BARRICADE_COOLDOWN = 5  // Turns between barricade builds
+const ARTILLERY_COOLDOWN = 10  // Turns between artillery builds
+const BUILDER_RANGE = 5  // Range for placing barricades/artillery
+const MAX_BARRICADES_TOTAL = 5  // Max barricades a builder can ever build
+const MAX_BARRICADES_ON_BOARD = 3  // Max barricades on board per team
+const MAX_ARTILLERY_TOTAL = 2  // Max artillery a builder can ever build
+const MAX_ARTILLERY_ON_BOARD = 1  // Max artillery on board per team
+const ARTILLERY_TARGET_RANGE = 4  // Artillery target must be within this range
+const SPIKE_READY_TURN = 10  // Builder can build spikes after this many team turns
+const SPIKE_COOLDOWN = 15  // Turns between spike builds
+const SPIKE_DURATION = 5  // Turns until spike disappears
+const MAX_SPIKES_TOTAL = 3  // Max spikes a builder can ever build
+const MAX_SPIKES_ON_BOARD = 1  // Max spikes on board per team
+
+// Hacker state
+let hackTargets: Piece[] = []  // Enemy pieces that can be hacked
+let selectedHackTarget: Piece | null = null  // Currently selected piece to hack
+let showHackActions = false  // Show hack action buttons
+
+// Fighter state
+let bombTargets: Piece[] = []  // Enemy pieces that can be bombed
+let selectedBombTarget: Piece | null = null  // Currently selected piece to bomb
+let landingSpots: { col: string; row: number }[] = []  // Valid landing spots after bombing
+
+// Builder state
+let showBuilderActions = false  // Show builder action buttons
+let builderPlacementMode: 'barricade' | 'artillery' | 'spike' | null = null
+let builderPlacementSpots: { col: string; row: number }[] = []  // Valid spots for placement
 
 // Check if rockets are ready for a specific team
 function isRocketReadyForTeam(team: Team): boolean {
   const teamTurns = team === 'yellow' ? yellowTurnCount : greenTurnCount
   return teamTurns >= ROCKET_READY_TURN
+}
+
+// Check if hacker is ready for a specific team
+function isHackerReadyForTeam(team: Team): boolean {
+  const teamTurns = team === 'yellow' ? yellowTurnCount : greenTurnCount
+  return teamTurns >= HACKER_READY_TURN
+}
+
+// Decrement frozen turns for pieces of the given team at start of their turn
+function decrementFrozenTurns(team: Team) {
+  for (const piece of pieces) {
+    if (piece.team === team && piece.frozenTurns && piece.frozenTurns > 0) {
+      piece.frozenTurns -= 1
+      if (piece.frozenTurns === 0) {
+        piece.frozenTurns = undefined
+      }
+    }
+  }
+}
+
+// Decrement cooldowns for hacker and fighter of a team
+function decrementCooldowns(team: Team) {
+  for (const piece of pieces) {
+    if ((piece.type === 'hacker' || piece.type === 'fighter') && piece.team === team && piece.cooldownTurns && piece.cooldownTurns > 0) {
+      piece.cooldownTurns -= 1
+      if (piece.cooldownTurns === 0) {
+        piece.cooldownTurns = undefined
+      }
+    }
+  }
+}
+
+// Decrement builder cooldowns
+function decrementBuilderCooldowns(team: Team) {
+  for (const piece of pieces) {
+    if (piece.type === 'builder' && piece.team === team) {
+      if (piece.barricadeCooldown && piece.barricadeCooldown > 0) {
+        piece.barricadeCooldown -= 1
+        if (piece.barricadeCooldown === 0) piece.barricadeCooldown = undefined
+      }
+      if (piece.artilleryCooldown && piece.artilleryCooldown > 0) {
+        piece.artilleryCooldown -= 1
+        if (piece.artilleryCooldown === 0) piece.artilleryCooldown = undefined
+      }
+      if (piece.spikeCooldown && piece.spikeCooldown > 0) {
+        piece.spikeCooldown -= 1
+        if (piece.spikeCooldown === 0) piece.spikeCooldown = undefined
+      }
+    }
+  }
+}
+
+// Decrement spike timers and remove expired spikes
+function decrementSpikeTimers(team: Team) {
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    const piece = pieces[i]
+    if (piece.type === 'spike' && piece.team === team && piece.turnsRemaining) {
+      piece.turnsRemaining -= 1
+      if (piece.turnsRemaining <= 0) {
+        pieces.splice(i, 1)
+      }
+    }
+  }
+}
+
+// Switch turn to the other team and handle frozen pieces
+function switchTurn() {
+  const newTeam: Team = currentTurn === 'yellow' ? 'green' : 'yellow'
+  currentTurn = newTeam
+  // Decrement frozen turns for the team that is now playing
+  decrementFrozenTurns(newTeam)
+  // Decrement cooldowns for hacker and fighter of the team that is now playing
+  decrementCooldowns(newTeam)
+  // Decrement builder cooldowns
+  decrementBuilderCooldowns(newTeam)
+  // Decrement spike timers
+  decrementSpikeTimers(newTeam)
+
+  // Check for max turns win condition (after both teams have made 80 moves)
+  if (yellowTurnCount >= MAX_TURNS_PER_TEAM && greenTurnCount >= MAX_TURNS_PER_TEAM) {
+    const yellowScore = getTeamScore('yellow')
+    const greenScore = getTeamScore('green')
+    if (yellowScore > greenScore) {
+      winner = 'yellow'
+    } else if (greenScore > yellowScore) {
+      winner = 'green'
+    } else {
+      // Tie goes to yellow (first player) or could be a draw
+      winner = 'yellow'
+    }
+    winReason = 'points'
+    gameState = 'gameOver'
+  }
+}
+
+// Check if builder was captured - call this when a piece is captured
+function checkBuilderCaptured(capturedPiece: Piece, capturingTeam: Team) {
+  if (capturedPiece.type === 'builder') {
+    winner = capturingTeam
+    winReason = 'builder'
+    gameState = 'gameOver'
+  }
+}
+
+// Check if hacker is on cooldown
+function isHackerOnCooldown(hacker: Piece): boolean {
+  return (hacker.cooldownTurns ?? 0) > 0
+}
+
+// Get remaining cooldown in turns
+function getHackerCooldownRemaining(hacker: Piece): number {
+  return hacker.cooldownTurns ?? 0
+}
+
+// Check if fighter is ready for a specific team
+function isFighterReadyForTeam(team: Team): boolean {
+  const teamTurns = team === 'yellow' ? yellowTurnCount : greenTurnCount
+  return teamTurns >= FIGHTER_READY_TURN
+}
+
+// Check if fighter is on cooldown
+function isFighterOnCooldown(fighter: Piece): boolean {
+  return (fighter.cooldownTurns ?? 0) > 0
+}
+
+// Get remaining cooldown in turns for fighter
+function getFighterCooldownRemaining(fighter: Piece): number {
+  return fighter.cooldownTurns ?? 0
+}
+
+// Get valid bomb targets for fighter (enemies within range in 8 directions)
+function getValidBombTargets(fighter: Piece): Piece[] {
+  const targets: Piece[] = []
+  const fighterColIndex = columns.indexOf(fighter.col)
+
+  // All 8 directions
+  const directions = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+    { dc: 1, dr: 1 },   // up-right
+    { dc: -1, dr: 1 },  // up-left
+    { dc: 1, dr: -1 },  // down-right
+    { dc: -1, dr: -1 }, // down-left
+  ]
+
+  for (const dir of directions) {
+    for (let distance = 1; distance <= FIGHTER_BOMB_RANGE; distance++) {
+      const colIndex = fighterColIndex + dir.dc * distance
+      const row = fighter.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) break
+
+      const col = columns[colIndex]
+      const pieceAtTarget = getPieceAt(col, row)
+
+      if (pieceAtTarget) {
+        if (pieceAtTarget.team !== fighter.team) {
+          targets.push(pieceAtTarget)
+        }
+        break // Can't see past pieces
+      }
+    }
+  }
+
+  return targets
+}
+
+// Get valid landing spots after bombing (0-3 squares from target, not occupied)
+function getValidLandingSpots(targetCol: string, targetRow: number): { col: string; row: number }[] {
+  const spots: { col: string; row: number }[] = []
+  const targetColIndex = columns.indexOf(targetCol)
+
+  // Check all squares within landing range
+  for (let dr = -FIGHTER_LANDING_RANGE; dr <= FIGHTER_LANDING_RANGE; dr++) {
+    for (let dc = -FIGHTER_LANDING_RANGE; dc <= FIGHTER_LANDING_RANGE; dc++) {
+      const row = targetRow + dr
+      const colIndex = targetColIndex + dc
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+
+      // Check if within range (Chebyshev distance for 8-directional)
+      const distance = Math.max(Math.abs(dr), Math.abs(dc))
+      if (distance > FIGHTER_LANDING_RANGE) continue
+
+      const col = columns[colIndex]
+
+      // Cannot land on water (row 6, except bridge)
+      if (row === 6 && col !== 'F') continue
+
+      // Cannot land on other pieces
+      const pieceAtSpot = getPieceAt(col, row)
+      if (pieceAtSpot) continue
+
+      spots.push({ col, row })
+    }
+  }
+
+  return spots
+}
+
+// Builder movement: 1 square in all 8 directions
+function getValidMovesForBuilder(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  // All 8 directions, 1 square only
+  const directions = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+    { dc: 1, dr: 1 },   // up-right
+    { dc: -1, dr: 1 },  // up-left
+    { dc: 1, dr: -1 },  // down-right
+    { dc: -1, dr: -1 }, // down-left
+  ]
+
+  for (const dir of directions) {
+    const colIndex = pieceColIndex + dir.dc
+    const row = piece.row + dir.dr
+
+    if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+
+    const col = columns[colIndex]
+
+    // Cannot go on water (row 6, except bridge)
+    if (row === 6 && col !== 'F') continue
+
+    const pieceAtTarget = getPieceAt(col, row)
+
+    // Builder cannot capture normally - just check for empty squares or move behind friendly barricade
+    if (!pieceAtTarget) {
+      moves.push({ col, row, canCapture: false })
+    } else if (canMoveBehindBarricade(piece, col, row)) {
+      moves.push({ col, row, canCapture: false })
+    }
+  }
+
+  return moves
+}
+
+// Check if builder can build barricades
+function canBuilderBuildBarricade(builder: Piece): boolean {
+  const teamTurns = builder.team === 'yellow' ? yellowTurnCount : greenTurnCount
+  if (teamTurns < BUILDER_READY_TURN) return false
+  if ((builder.barricadesBuilt ?? 0) >= MAX_BARRICADES_TOTAL) return false
+  if ((builder.barricadeCooldown ?? 0) > 0) return false
+
+  // Check max barricades on board
+  const barricadesOnBoard = pieces.filter(p => p.type === 'barricade' && p.team === builder.team).length
+  if (barricadesOnBoard >= MAX_BARRICADES_ON_BOARD) return false
+
+  return true
+}
+
+// Check if builder can build artillery
+function canBuilderBuildArtillery(builder: Piece): boolean {
+  const teamTurns = builder.team === 'yellow' ? yellowTurnCount : greenTurnCount
+  if (teamTurns < ARTILLERY_READY_TURN) return false
+  if ((builder.artilleryBuilt ?? 0) >= MAX_ARTILLERY_TOTAL) return false
+  if ((builder.artilleryCooldown ?? 0) > 0) return false
+
+  // Check max artillery on board
+  const artilleryOnBoard = pieces.filter(p => p.type === 'artillery' && p.team === builder.team).length
+  if (artilleryOnBoard >= MAX_ARTILLERY_ON_BOARD) return false
+
+  return true
+}
+
+// Get valid placement spots for barricade/artillery
+function getValidPlacementSpots(builder: Piece): { col: string; row: number }[] {
+  const spots: { col: string; row: number }[] = []
+  const builderColIndex = columns.indexOf(builder.col)
+
+  for (let dr = -BUILDER_RANGE; dr <= BUILDER_RANGE; dr++) {
+    for (let dc = -BUILDER_RANGE; dc <= BUILDER_RANGE; dc++) {
+      const row = builder.row + dr
+      const colIndex = builderColIndex + dc
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+
+      // Check if within range (Chebyshev distance)
+      const distance = Math.max(Math.abs(dr), Math.abs(dc))
+      if (distance > BUILDER_RANGE || distance === 0) continue
+
+      const col = columns[colIndex]
+
+      // Cannot place on water (row 6, except bridge)
+      if (row === 6 && col !== 'F') continue
+
+      // Cannot place on other pieces
+      const pieceAtSpot = getPieceAt(col, row)
+      if (pieceAtSpot) continue
+
+      spots.push({ col, row })
+    }
+  }
+
+  return spots
+}
+
+// Count barricades on board for a team
+function getBarricadesOnBoard(team: Team): number {
+  return pieces.filter(p => p.type === 'barricade' && p.team === team).length
+}
+
+// Count artillery on board for a team
+function getArtilleryOnBoard(team: Team): number {
+  return pieces.filter(p => p.type === 'artillery' && p.team === team).length
+}
+
+// Count spikes on board for a team
+function getSpikesOnBoard(team: Team): number {
+  return pieces.filter(p => p.type === 'spike' && p.team === team).length
+}
+
+// Check if builder can build spikes
+function canBuilderBuildSpike(builder: Piece): boolean {
+  const teamTurns = builder.team === 'yellow' ? yellowTurnCount : greenTurnCount
+  if (teamTurns < SPIKE_READY_TURN) return false
+  if ((builder.spikesBuilt ?? 0) >= MAX_SPIKES_TOTAL) return false
+  if ((builder.spikeCooldown ?? 0) > 0) return false
+
+  // Check max spikes on board
+  const spikesOnBoard = getSpikesOnBoard(builder.team)
+  if (spikesOnBoard >= MAX_SPIKES_ON_BOARD) return false
+
+  return true
+}
+
+// Check if a square is a special square (cannot place spikes)
+function isSpecialSquare(col: string, row: number): boolean {
+  const colLetter = col
+
+  // River (row 6)
+  if (row === 6) return true
+
+  // Bridge and adjacent squares (E6, F6, G6 - but F5, F7 are 1 before/after bridge)
+  if (col === 'F' && (row === 5 || row === 6 || row === 7)) return true
+  if ((col === 'E' || col === 'G') && row === 6) return true
+
+  // Helipads (C5, C7, I5, I7)
+  if ((colLetter === 'C' || colLetter === 'I') && (row === 5 || row === 7)) return true
+
+  // Tunnels (E4, E8, G4, G8)
+  if ((colLetter === 'E' || colLetter === 'G') && (row === 4 || row === 8)) return true
+
+  // Trenches (F3, F9)
+  if (colLetter === 'F' && (row === 3 || row === 9)) return true
+
+  // Rail tracks
+  if ((colLetter === 'A' || colLetter === 'K') && (row === 1 || row === 2 || row === 10 || row === 11)) return true
+
+  // Bushes
+  if (['A', 'B', 'C'].includes(colLetter) && (row >= 3 && row <= 4)) return true
+  if (['I', 'J', 'K'].includes(colLetter) && (row >= 3 && row <= 4)) return true
+  if (['A', 'B', 'C'].includes(colLetter) && (row >= 8 && row <= 9)) return true
+  if (['I', 'J', 'K'].includes(colLetter) && (row >= 8 && row <= 9)) return true
+
+  return false
+}
+
+// Get valid spike placement spots
+function getValidSpikePlacementSpots(builder: Piece): { col: string; row: number }[] {
+  const spots: { col: string; row: number }[] = []
+  const builderColIndex = columns.indexOf(builder.col)
+
+  for (let dr = -BUILDER_RANGE; dr <= BUILDER_RANGE; dr++) {
+    for (let dc = -BUILDER_RANGE; dc <= BUILDER_RANGE; dc++) {
+      const row = builder.row + dr
+      const colIndex = builderColIndex + dc
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
+
+      // Check if within range (Chebyshev distance)
+      const distance = Math.max(Math.abs(dr), Math.abs(dc))
+      if (distance > BUILDER_RANGE || distance === 0) continue
+
+      const col = columns[colIndex]
+
+      // Cannot place on special squares
+      if (isSpecialSquare(col, row)) continue
+
+      // Cannot place on other pieces
+      const pieceAtSpot = getPieceAt(col, row)
+      if (pieceAtSpot) continue
+
+      spots.push({ col, row })
+    }
+  }
+
+  return spots
+}
+
+// Check if a square is blocked by a barricade (for movement)
+function isBlockedByBarricade(col: string, row: number): boolean {
+  const piece = getPieceAt(col, row)
+  return piece?.type === 'barricade'
+}
+
+// Check if a shot path is blocked by a barricade
+function isShotBlockedByBarricade(fromCol: string, fromRow: number, toCol: string, toRow: number): boolean {
+  const fromColIndex = columns.indexOf(fromCol)
+  const toColIndex = columns.indexOf(toCol)
+
+  const dc = Math.sign(toColIndex - fromColIndex)
+  const dr = Math.sign(toRow - fromRow)
+
+  let currentCol = fromColIndex + dc
+  let currentRow = fromRow + dr
+
+  while (currentCol !== toColIndex || currentRow !== toRow) {
+    // Check for barricade specifically (handles multiple pieces on same square)
+    if (getBarricadeAt(columns[currentCol], currentRow)) return true
+    currentCol += dc
+    currentRow += dr
+  }
+
+  // Also check the target square for barricade (blocks shots to pieces behind it)
+  if (getBarricadeAt(toCol, toRow)) return true
+
+  return false
+}
+
+// Fire artillery at random position over the river
+function fireArtillery(artillery: Piece) {
+  const artilleryTeam = artillery.team
+
+  // Determine enemy side of the river
+  const enemyRows = artilleryTeam === 'yellow' ? [7, 8, 9, 10, 11] : [1, 2, 3, 4, 5]
+
+  // Find all valid targets within range of artillery
+  const artilleryColIndex = columns.indexOf(artillery.col)
+  const validTargets: { col: string; row: number; piece?: Piece }[] = []
+
+  for (const row of enemyRows) {
+    for (let colIndex = 0; colIndex < 11; colIndex++) {
+      const col = columns[colIndex]
+
+      // Check if within range of artillery
+      const distance = Math.max(Math.abs(colIndex - artilleryColIndex), Math.abs(row - artillery.row))
+      if (distance > ARTILLERY_TARGET_RANGE) continue
+
+      // Skip water
+      if (row === 6 && col !== 'F') continue
+
+      const piece = getPieceAt(col, row)
+      validTargets.push({ col, row, piece: piece || undefined })
+    }
+  }
+
+  if (validTargets.length === 0) {
+    message = "Artillery has no valid targets!"
+    return
+  }
+
+  // Pick random target
+  const target = validTargets[Math.floor(Math.random() * validTargets.length)]
+
+  // Check if there's a piece that can be destroyed
+  const destructibleTypes: PieceType[] = ['train', 'helicopter', 'tank', 'ship', 'sub', 'soldier', 'suv']
+
+  // Remove the artillery immediately (single use)
+  const artilleryIndex = pieces.indexOf(artillery)
+  if (artilleryIndex !== -1) {
+    pieces.splice(artilleryIndex, 1)
+  }
+
+  // Show explosion at target
+  explosionAt = { col: target.col, row: target.row }
+  selectedPiece = null
+  render()
+
+  // After explosion animation, complete the action
+  setTimeout(() => {
+    if (target.piece && destructibleTypes.includes(target.piece.type)) {
+      // Destroy the piece
+      const targetIndex = pieces.indexOf(target.piece)
+      if (targetIndex !== -1) {
+        pieces.splice(targetIndex, 1)
+        capturedPieces.push(target.piece)
+        message = `Artillery hit ${target.piece.type} at ${target.col}${target.row}! (+${target.piece.points} points)`
+      }
+    } else {
+      message = `Artillery fired at ${target.col}${target.row} - miss!`
+    }
+
+    explosionAt = null
+
+    // Increment turn count
+    if (artilleryTeam === 'yellow') yellowTurnCount++
+    else greenTurnCount++
+
+    // Switch turns
+    switchTurn()
+
+    render()
+  }, 500)
 }
 
 // Check if any soldier of the current team must leave the trench
@@ -176,6 +745,28 @@ function getInitialPieces(): Piece[] {
     // Green machine guns (in front of rockets)
     { type: 'machinegun', team: 'green', col: 'D', row: 10, points: 25 },
     { type: 'machinegun', team: 'green', col: 'H', row: 10, points: 25 },
+    // Yellow SUVs (next to tanks and soldiers)
+    { type: 'suv', team: 'yellow', col: 'C', row: 2, points: 20 },
+    { type: 'suv', team: 'yellow', col: 'I', row: 2, points: 20 },
+    // Green SUVs (next to tanks and soldiers)
+    { type: 'suv', team: 'green', col: 'C', row: 10, points: 20 },
+    { type: 'suv', team: 'green', col: 'I', row: 10, points: 20 },
+    // Yellow hacker
+    { type: 'hacker', team: 'yellow', col: 'E', row: 1, points: 30 },
+    // Green hacker
+    { type: 'hacker', team: 'green', col: 'E', row: 11, points: 30 },
+    // Yellow submarine
+    { type: 'sub', team: 'yellow', col: 'A', row: 6, points: 12 },
+    // Green submarine
+    { type: 'sub', team: 'green', col: 'K', row: 6, points: 12 },
+    // Yellow fighter jet
+    { type: 'fighter', team: 'yellow', col: 'G', row: 1, points: 40 },
+    // Green fighter jet
+    { type: 'fighter', team: 'green', col: 'G', row: 11, points: 40 },
+    // Yellow builder
+    { type: 'builder', team: 'yellow', col: 'F', row: 1, points: 0, barricadesBuilt: 0, artilleryBuilt: 0, spikesBuilt: 0 },
+    // Green builder
+    { type: 'builder', team: 'green', col: 'F', row: 11, points: 0, barricadesBuilt: 0, artilleryBuilt: 0, spikesBuilt: 0 },
     // Yellow soldiers
     { type: 'soldier', team: 'yellow', col: 'E', row: 2, points: 5 },
     { type: 'soldier', team: 'yellow', col: 'F', row: 2, points: 5 },
@@ -213,6 +804,16 @@ function resetGame() {
   shootTargets = []
   rocketTargetArea = []
   rocketAnimation = null
+  fighterAnimation = null
+  hackTargets = []
+  selectedHackTarget = null
+  showHackActions = false
+  bombTargets = []
+  selectedBombTarget = null
+  landingSpots = []
+  showBuilderActions = false
+  builderPlacementMode = null
+  builderPlacementSpots = []
   message = null
   currentTurn = 'yellow'
   gameState = 'start'
@@ -220,6 +821,8 @@ function resetGame() {
   showSoldierActions = false
   yellowTurnCount = 0
   greenTurnCount = 0
+  winner = null
+  winReason = null
   render()
 }
 
@@ -281,7 +884,10 @@ function getValidMovesForTrain(piece: Piece): { col: string; row: number; canCap
       const pieceAtTarget = getPieceAt(col, row)
 
       if (pieceAtTarget) {
-        if (pieceAtTarget.team !== piece.team) {
+        // Can move behind friendly barricade
+        if (canMoveBehindBarricade(piece, col, row)) {
+          moves.push({ col, row, canCapture: false })
+        } else if (pieceAtTarget.team !== piece.team) {
           // Can capture enemy piece
           moves.push({ col, row, canCapture: true })
         }
@@ -358,11 +964,16 @@ function getValidMovesForSoldier(piece: Piece): { col: string; row: number; canC
     const col = columns[colIndex]
     const pieceAtTarget = getPieceAt(col, row)
 
-    // Soldiers cannot capture by moving
-    if (pieceAtTarget) continue
-
     // Cannot move onto water (row 6, except bridge at F6)
     if (row === 6 && col !== 'F') continue
+
+    // Soldiers cannot capture by moving, but can move behind friendly barricade
+    if (pieceAtTarget) {
+      if (canMoveBehindBarricade(piece, col, row)) {
+        moves.push({ col, row, canCapture: false })
+      }
+      continue
+    }
 
     moves.push({ col, row, canCapture: false })
   }
@@ -463,8 +1074,13 @@ function getValidMovesForTank(piece: Piece): { col: string; row: number; canCapt
 
       const pieceAtTarget = getPieceAt(col, row)
 
-      // Tanks cannot capture by moving (they shoot)
-      if (pieceAtTarget) break
+      // Tanks cannot capture by moving (they shoot), but can move behind friendly barricade
+      if (pieceAtTarget) {
+        if (canMoveBehindBarricade(piece, col, row)) {
+          moves.push({ col, row, canCapture: false })
+        }
+        break
+      }
 
       moves.push({ col, row, canCapture: false })
     }
@@ -473,7 +1089,163 @@ function getValidMovesForTank(piece: Piece): { col: string; row: number; canCapt
   return moves
 }
 
-// Tank shooting: diagonal 2 squares
+/// SUV movement: 1-2 squares in all 8 directions, can ram horizontally/vertically
+function getValidMovesForSuv(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  // Horizontal and vertical directions (can ram)
+  const straightDirections = [
+    { dc: 0, dr: 1 },   // up
+    { dc: 0, dr: -1 },  // down
+    { dc: 1, dr: 0 },   // right
+    { dc: -1, dr: 0 },  // left
+  ]
+
+  // Diagonal directions (cannot ram)
+  const diagonalDirections = [
+    { dc: 1, dr: 1 },   // up-right
+    { dc: -1, dr: 1 },  // up-left
+    { dc: 1, dr: -1 },  // down-right
+    { dc: -1, dr: -1 }, // down-left
+  ]
+
+  // Horizontal/vertical movement with ramming
+  for (const dir of straightDirections) {
+    for (let distance = 1; distance <= 2; distance++) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) break
+
+      const col = columns[colIndex]
+
+      // Cannot go on water (row 6, except bridge at F6)
+      if (row === 6 && col !== 'F') break
+
+      // Check if path is blocked (for distance 2, check the middle square)
+      if (distance === 2) {
+        const midColIndex = pieceColIndex + dir.dc
+        const midRow = piece.row + dir.dr
+        const midCol = columns[midColIndex]
+
+        // Cannot pass through water
+        if (midRow === 6 && midCol !== 'F') break
+
+        const pieceInPath = getPieceAt(midCol, midRow)
+        if (pieceInPath) break
+      }
+
+      const pieceAtTarget = getPieceAt(col, row)
+
+      if (pieceAtTarget) {
+        // Can move behind friendly barricade
+        if (canMoveBehindBarricade(piece, col, row)) {
+          moves.push({ col, row, canCapture: false })
+        } else if (pieceAtTarget.team !== piece.team) {
+          // Can ram enemy pieces horizontally/vertically
+          moves.push({ col, row, canCapture: true })
+        }
+        break
+      }
+
+      moves.push({ col, row, canCapture: false })
+    }
+  }
+
+  // Diagonal movement (no ramming)
+  for (const dir of diagonalDirections) {
+    for (let distance = 1; distance <= 2; distance++) {
+      const colIndex = pieceColIndex + dir.dc * distance
+      const row = piece.row + dir.dr * distance
+
+      if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) break
+
+      const col = columns[colIndex]
+
+      // Cannot go on water (row 6, except bridge at F6)
+      if (row === 6 && col !== 'F') break
+
+      // Check if path is blocked (for distance 2, check the middle square)
+      if (distance === 2) {
+        const midColIndex = pieceColIndex + dir.dc
+        const midRow = piece.row + dir.dr
+        const midCol = columns[midColIndex]
+
+        // Cannot pass through water
+        if (midRow === 6 && midCol !== 'F') break
+
+        const pieceInPath = getPieceAt(midCol, midRow)
+        if (pieceInPath) break
+      }
+
+      const pieceAtTarget = getPieceAt(col, row)
+
+      // Cannot capture diagonally, but can move behind friendly barricade
+      if (pieceAtTarget) {
+        if (canMoveBehindBarricade(piece, col, row)) {
+          moves.push({ col, row, canCapture: false })
+        }
+        break
+      }
+
+      moves.push({ col, row, canCapture: false })
+    }
+  }
+
+  return moves
+}
+
+// Submarine movement: moves 1-2 squares horizontally on water (row 6), can go under bridge, can ram ships
+function getValidMovesForSub(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
+  const moves: { col: string; row: number; canCapture: boolean }[] = []
+  const pieceColIndex = columns.indexOf(piece.col)
+
+  // Sub can only move on water (row 6)
+  // Moves left or right, 1 or 2 squares
+  const directions = [-1, 1]  // left, right
+
+  for (const dir of directions) {
+    for (let distance = 1; distance <= 2; distance++) {
+      const targetColIndex = pieceColIndex + (distance * dir)
+
+      // Check if target is on the board
+      if (targetColIndex < 0 || targetColIndex >= 11) break
+
+      const targetCol = columns[targetColIndex]
+
+      // Check if path is blocked (for distance 2, check the middle square)
+      if (distance === 2) {
+        const midColIndex = pieceColIndex + dir
+        const midCol = columns[midColIndex]
+        const pieceInPath = getPieceAt(midCol, 6)
+
+        // Sub goes under the bridge (F6) - can pass through
+        if (pieceInPath && midCol !== 'F') {
+          // Blocked by piece (unless it's the bridge square)
+          break
+        }
+      }
+
+      const pieceAtTarget = getPieceAt(targetCol, 6)
+
+      if (pieceAtTarget) {
+        // Can ram any enemy piece on water
+        if (pieceAtTarget.team !== piece.team) {
+          moves.push({ col: targetCol, row: 6, canCapture: true })
+        }
+        // Can't move past other pieces
+        break
+      } else {
+        moves.push({ col: targetCol, row: 6, canCapture: false })
+      }
+    }
+  }
+
+  return moves
+}
+
+// Tank shooting: diagonal 1-2 squares
 function getShootTargetsForTank(piece: Piece): { col: string; row: number }[] {
   const targets: { col: string; row: number }[] = []
   const pieceColIndex = columns.indexOf(piece.col)
@@ -730,11 +1502,11 @@ function getValidMovesForHelicopter(piece: Piece): { col: string; row: number; c
     const pieceAtTarget = getPieceAt(pad.col, pad.row)
 
     if (pieceAtTarget) {
-      // Can capture enemy on helipad
-      if (pieceAtTarget.team !== piece.team) {
+      // Can capture enemy on helipad, but NOT other helicopters
+      if (pieceAtTarget.team !== piece.team && pieceAtTarget.type !== 'helicopter') {
         moves.push({ col: pad.col, row: pad.row, canCapture: true })
       }
-      // Can't land if own piece is there
+      // Can't land if own piece is there, or if enemy helicopter
     } else {
       moves.push({ col: pad.col, row: pad.row, canCapture: false })
     }
@@ -764,6 +1536,13 @@ function selectPiece(piece: Piece) {
     return
   }
 
+  // Check if piece is frozen
+  if (piece.frozenTurns && piece.frozenTurns > 0) {
+    message = `This piece is frozen! (${piece.frozenTurns} turns left)`
+    render()
+    return
+  }
+
   // Check if there's a forced trench soldier that must move
   const forcedSoldier = checkForcedTrenchExit()
   if (forcedSoldier && piece !== forcedSoldier) {
@@ -776,6 +1555,15 @@ function selectPiece(piece: Piece) {
   message = null
   actionMode = null
   shootTargets = []
+  hackTargets = []
+  selectedHackTarget = null
+  showHackActions = false
+  bombTargets = []
+  selectedBombTarget = null
+  landingSpots = []
+  showBuilderActions = false
+  builderPlacementMode = null
+  builderPlacementSpots = []
 
   if (piece.type === 'train') {
     validMoves = getValidMovesForTrain(piece)
@@ -812,7 +1600,7 @@ function selectPiece(piece: Piece) {
         // Switch turns and increment turn count
         if (currentTurn === 'yellow') yellowTurnCount++
         else greenTurnCount++
-        currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+        switchTurn()
         render()
         return
       } else {
@@ -870,6 +1658,102 @@ function selectPiece(piece: Piece) {
     }
     showSoldierActions = false
     actionMode = 'shoot'
+  } else if (piece.type === 'suv') {
+    // SUV can only move, cannot shoot
+    validMoves = getValidMovesForSuv(piece)
+    showSoldierActions = false
+  } else if (piece.type === 'sub') {
+    // Submarine moves 2 forward, can ram ships
+    validMoves = getValidMovesForSub(piece)
+    showSoldierActions = false
+    if (validMoves.length === 0) {
+      message = "No valid moves"
+    }
+  } else if (piece.type === 'hacker') {
+    // Hacker can hack enemy pieces
+    validMoves = []
+    showSoldierActions = false
+    hackTargets = []
+    selectedHackTarget = null
+    showHackActions = false
+
+    if (!isHackerReadyForTeam(piece.team)) {
+      const teamTurns = piece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+      message = `Hacker not ready yet! (${teamTurns}/${HACKER_READY_TURN} turns)`
+    } else if (isHackerOnCooldown(piece)) {
+      const remaining = getHackerCooldownRemaining(piece)
+      message = `Hacker on cooldown! (${remaining} turns)`
+    } else {
+      // Get all enemy pieces that can be hacked
+      hackTargets = pieces.filter(p => p.team !== piece.team && p.type !== 'hacker')
+      if (hackTargets.length === 0) {
+        message = "No targets to hack"
+      } else {
+        message = "Select enemy piece to hack"
+      }
+    }
+  } else if (piece.type === 'fighter') {
+    // Fighter can bomb enemy pieces and then land nearby
+    validMoves = []
+    showSoldierActions = false
+    bombTargets = []
+    selectedBombTarget = null
+    landingSpots = []
+
+    if (!isFighterReadyForTeam(piece.team)) {
+      const teamTurns = piece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+      message = `Fighter not ready yet! (${teamTurns}/${FIGHTER_READY_TURN} turns)`
+    } else if (isFighterOnCooldown(piece)) {
+      const remaining = getFighterCooldownRemaining(piece)
+      message = `Fighter on cooldown! (${remaining} turns)`
+    } else {
+      // Get all enemy pieces that can be bombed
+      bombTargets = getValidBombTargets(piece)
+      if (bombTargets.length === 0) {
+        message = "No targets in range"
+      } else {
+        message = "Select enemy piece to bomb"
+      }
+    }
+  } else if (piece.type === 'builder') {
+    // Builder can move and build barricades/artillery/spikes
+    validMoves = getValidMovesForBuilder(piece)
+    showSoldierActions = false
+    showBuilderActions = true
+    builderPlacementMode = null
+    builderPlacementSpots = []
+
+    const canBarricade = canBuilderBuildBarricade(piece)
+    const canArtillery = canBuilderBuildArtillery(piece)
+    const canSpike = canBuilderBuildSpike(piece)
+
+    if (!canBarricade && !canArtillery && !canSpike) {
+      const teamTurns = piece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+      if (teamTurns < BUILDER_READY_TURN) {
+        message = `Builder ready at turn ${BUILDER_READY_TURN} (${teamTurns}/${BUILDER_READY_TURN})`
+      } else {
+        message = "Builder: move or wait for cooldown"
+      }
+    } else {
+      message = "Builder: choose action"
+    }
+  } else if (piece.type === 'artillery') {
+    // Artillery can fire at random position
+    validMoves = []
+    showSoldierActions = false
+
+    const teamTurns = piece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+    if (teamTurns < ARTILLERY_READY_TURN) {
+      message = `Artillery ready at turn ${ARTILLERY_READY_TURN} (${teamTurns}/${ARTILLERY_READY_TURN})`
+    } else {
+      message = "Click to fire artillery (random target)"
+      // Will handle firing in handleSquareClick
+    }
+  } else if (piece.type === 'barricade') {
+    // Barricade cannot move
+    validMoves = []
+    showSoldierActions = false
+    message = "Barricade: blocks movement and shots"
   }
 
   render()
@@ -948,13 +1832,20 @@ function movePiece(col: string, row: number) {
       else greenTurnCount++
 
       // Switch turns
-      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+      switchTurn()
 
       // Deselect
       selectedPiece = null
       validMoves = []
 
       render()
+      return
+    }
+
+    // Special case: moving behind friendly barricade
+    if (pieceAtTarget.type === 'barricade' && pieceAtTarget.team === selectedPiece.team) {
+      // Move the piece to the same square as the barricade
+      completMove(col, row, null)
       return
     }
 
@@ -971,6 +1862,7 @@ function movePiece(col: string, row: number) {
       const index = pieces.indexOf(pieceAtTarget)
       pieces.splice(index, 1)
       capturedPieces.push(pieceAtTarget)
+      checkBuilderCaptured(pieceAtTarget, selectedPiece.team)
       message = `Rammed enemy ${pieceAtTarget.type} (+${pieceAtTarget.points} points)!`
 
       // Calculate position 1 square before target
@@ -1012,7 +1904,7 @@ function movePiece(col: string, row: number) {
       else greenTurnCount++
 
       // Switch turns
-      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+      switchTurn()
 
       // Deselect
       selectedPiece = null
@@ -1064,7 +1956,7 @@ function movePiece(col: string, row: number) {
         if (selectedPiece.team === 'yellow') yellowTurnCount++
         else greenTurnCount++
 
-        currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+        switchTurn()
         selectedPiece = null
         validMoves = []
 
@@ -1142,6 +2034,7 @@ function animateTrainHit(train: Piece, target: Piece, targetCol: string, targetR
       const index = pieces.indexOf(target)
       pieces.splice(index, 1)
       capturedPieces.push(target)
+      checkBuilderCaptured(target, movingTeam)
 
       render()
 
@@ -1171,7 +2064,7 @@ function animateTrainHit(train: Piece, target: Piece, targetCol: string, targetR
         else greenTurnCount++
 
         // Switch turns
-        currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+        switchTurn()
 
         // Deselect
         selectedPiece = null
@@ -1264,7 +2157,7 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
       else greenTurnCount++
 
       // Switch turns
-      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+      switchTurn()
 
       render()
 
@@ -1307,7 +2200,7 @@ function confirmEnterTunnel() {
   else greenTurnCount++
 
   // Switch turns
-  currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+  switchTurn()
 
   // Reset state
   selectedPiece = null
@@ -1365,7 +2258,7 @@ function confirmExitTunnel() {
   else greenTurnCount++
 
   // Switch turns
-  currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+  switchTurn()
 
   // Reset state
   selectedPiece = null
@@ -1394,7 +2287,9 @@ function shootPiece(col: string, row: number) {
     return
   }
 
-  const pieceAtTarget = getPieceAt(col, row)
+  // Check for barricade first - barricades block shots to pieces behind them
+  const barricadeAtTarget = getBarricadeAt(col, row)
+  const pieceAtTarget = barricadeAtTarget || getPieceExcludingBarricade(col, row)
   if (!pieceAtTarget) {
     message = "No target to shoot!"
     render()
@@ -1403,6 +2298,38 @@ function shootPiece(col: string, row: number) {
 
   const shooter = selectedPiece
   const shootingTeam = shooter.team
+
+  // Handle shooting barricade - destroy it
+  if (pieceAtTarget.type === 'barricade') {
+    const index = pieces.indexOf(pieceAtTarget)
+    pieces.splice(index, 1)
+    message = `Destroyed enemy barricade!`
+
+    // Log the shot
+    moveLog.push({
+      from: `${shooter.col}${shooter.row}`,
+      to: `${col}${row}`,
+      piece: shooter.type,
+      team: shootingTeam,
+      captured: 'barricade'
+    })
+
+    // Increment turn count
+    if (shootingTeam === 'yellow') yellowTurnCount++
+    else greenTurnCount++
+
+    // Switch turns
+    switchTurn()
+
+    // Deselect
+    selectedPiece = null
+    validMoves = []
+    shootTargets = []
+    actionMode = null
+
+    render()
+    return
+  }
 
   // Handle carrier with HP
   if (pieceAtTarget.type === 'carrier' && pieceAtTarget.hp && pieceAtTarget.hp > 1) {
@@ -1428,6 +2355,7 @@ function shootPiece(col: string, row: number) {
     const index = pieces.indexOf(pieceAtTarget)
     pieces.splice(index, 1)
     capturedPieces.push(pieceAtTarget)
+    checkBuilderCaptured(pieceAtTarget, shootingTeam)
     message = `Shot enemy ${pieceAtTarget.type} (+${pieceAtTarget.points} points)!`
 
     // Log the shot
@@ -1446,7 +2374,7 @@ function shootPiece(col: string, row: number) {
   else greenTurnCount++
 
   // Switch turns
-  currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+  switchTurn()
 
   // Deselect
   selectedPiece = null
@@ -1530,7 +2458,7 @@ function launchRocket(rocket: Piece, targetCol: string, targetRow: number) {
       else greenTurnCount++
 
       // Switch turns
-      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+      switchTurn()
 
       // Clear selection
       selectedPiece = null
@@ -1559,12 +2487,13 @@ function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: 
   let totalPoints = 0
 
   for (const piece of piecesHit) {
-    // Soldiers, helicopters, ships, trains, tanks and machine guns die immediately
-    if (piece.type === 'soldier' || piece.type === 'helicopter' || piece.type === 'ship' || piece.type === 'train' || piece.type === 'tank' || piece.type === 'machinegun') {
+    // Soldiers, helicopters, ships, trains, tanks, machine guns, SUVs, hackers, subs, fighters and builders die immediately
+    if (piece.type === 'soldier' || piece.type === 'helicopter' || piece.type === 'ship' || piece.type === 'train' || piece.type === 'tank' || piece.type === 'machinegun' || piece.type === 'suv' || piece.type === 'hacker' || piece.type === 'sub' || piece.type === 'fighter' || piece.type === 'builder') {
       const index = pieces.indexOf(piece)
       if (index !== -1) {
         pieces.splice(index, 1)
         capturedPieces.push(piece)
+        checkBuilderCaptured(piece, launchingTeam)
         if (piece.team !== launchingTeam) {
           totalPoints += piece.points
         }
@@ -1600,16 +2529,387 @@ function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: 
   }
 }
 
+// Execute hack action on target
+function executeHack(action: 'forward' | 'backward' | 'freeze') {
+  if (!selectedPiece || selectedPiece.type !== 'hacker' || !selectedHackTarget) return
+
+  const hacker = selectedPiece
+  const target = selectedHackTarget
+  const hackerTeam = hacker.team
+
+  // Determine forward/backward direction for the target piece
+  const targetForward = target.team === 'yellow' ? 1 : -1
+
+  if (action === 'forward') {
+    const newRow = target.row + targetForward
+    if (newRow >= 1 && newRow <= 11) {
+      const pieceAtNew = getPieceAt(target.col, newRow)
+      if (!pieceAtNew) {
+        // Check water
+        if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
+          message = "Cannot hack into water!"
+          render()
+          return
+        }
+        target.row = newRow
+        message = `Hacked ${target.type} forward!`
+      } else {
+        message = "Cannot hack - square occupied!"
+        render()
+        return
+      }
+    } else {
+      message = "Cannot hack - edge of board!"
+      render()
+      return
+    }
+  } else if (action === 'backward') {
+    const newRow = target.row - targetForward
+    if (newRow >= 1 && newRow <= 11) {
+      const pieceAtNew = getPieceAt(target.col, newRow)
+      if (!pieceAtNew) {
+        // Check water
+        if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
+          message = "Cannot hack into water!"
+          render()
+          return
+        }
+        target.row = newRow
+        message = `Hacked ${target.type} backward!`
+      } else {
+        message = "Cannot hack - square occupied!"
+        render()
+        return
+      }
+    } else {
+      message = "Cannot hack - edge of board!"
+      render()
+      return
+    }
+  } else if (action === 'freeze') {
+    target.frozenTurns = 5
+    message = `Froze ${target.type} for 5 turns!`
+  }
+
+  // Log the hack
+  moveLog.push({
+    from: `${hacker.col}${hacker.row}`,
+    to: `${target.col}${target.row}`,
+    piece: hacker.type,
+    team: hackerTeam,
+    captured: `hack-${action}`
+  })
+
+  // Set cooldown (15 turns)
+  hacker.cooldownTurns = HACKER_COOLDOWN_TURNS
+
+  // Increment turn count
+  if (hackerTeam === 'yellow') yellowTurnCount++
+  else greenTurnCount++
+
+  // Switch turns
+  switchTurn()
+
+  // Clear state
+  selectedPiece = null
+  hackTargets = []
+  selectedHackTarget = null
+  showHackActions = false
+
+  render()
+}
+
+// Cancel hack target selection
+function cancelHackTarget() {
+  selectedHackTarget = null
+  showHackActions = false
+  message = "Select enemy piece to hack"
+  render()
+}
+
+// Start bombing animation with fighter jet
+function executeBombing(fighter: Piece, target: Piece, landingCol: string, landingRow: number) {
+  // Store original position
+  const startCol = fighter.col
+  const startRow = fighter.row
+
+  // Clear selection state
+  selectedPiece = null
+  bombTargets = []
+  selectedBombTarget = null
+  landingSpots = []
+
+  // Start animation
+  fighterAnimation = {
+    fighter,
+    startCol,
+    startRow,
+    targetCol: target.col,
+    targetRow: target.row,
+    landingCol,
+    landingRow,
+    target,
+    phase: 'flyToTarget',
+    progress: 0
+  }
+
+  message = "Fighter incoming..."
+  animateFighter()
+}
+
+// Animate fighter jet bombing run
+function animateFighter() {
+  if (!fighterAnimation) return
+
+  const { fighter, startCol, startRow, targetCol, targetRow, landingCol, landingRow, target, phase } = fighterAnimation
+
+  fighterAnimation.progress += 0.05
+
+  if (phase === 'flyToTarget') {
+    if (fighterAnimation.progress >= 1) {
+      // Reached target, start bombing
+      fighterAnimation.phase = 'bombing'
+      fighterAnimation.progress = 0
+      message = "Dropping bomb!"
+    }
+  } else if (phase === 'bombing') {
+    if (fighterAnimation.progress >= 1) {
+      // Bomb dropped, destroy target
+      const targetIndex = pieces.indexOf(target)
+      if (targetIndex !== -1) {
+        pieces.splice(targetIndex, 1)
+        capturedPieces.push(target)
+        checkBuilderCaptured(target, fighter.team)
+      }
+      // Start flying to landing
+      fighterAnimation.phase = 'flyToLanding'
+      fighterAnimation.progress = 0
+      message = "Target destroyed!"
+    }
+  } else if (phase === 'flyToLanding') {
+    if (fighterAnimation.progress >= 1) {
+      // Landed, finish animation
+      finishBombing()
+      return
+    }
+  }
+
+  render()
+  requestAnimationFrame(animateFighter)
+}
+
+// Finish bombing after animation
+function finishBombing() {
+  if (!fighterAnimation) return
+
+  const { fighter, startCol, startRow, landingCol, landingRow, target } = fighterAnimation
+  const fighterTeam = fighter.team
+
+  // Move fighter to landing spot
+  fighter.col = landingCol
+  fighter.row = landingRow
+
+  // Log the action
+  moveLog.push({
+    from: `${startCol}${startRow}`,
+    to: `${landingCol}${landingRow}`,
+    piece: fighter.type,
+    team: fighterTeam,
+    captured: target.type,
+    capturedPoints: target.points
+  })
+
+  message = `Fighter bombed ${target.type}! (+${target.points} points)`
+
+  // Set cooldown
+  fighter.cooldownTurns = FIGHTER_COOLDOWN_TURNS
+
+  // Increment turn count
+  if (fighterTeam === 'yellow') yellowTurnCount++
+  else greenTurnCount++
+
+  // Switch turns
+  switchTurn()
+
+  // Clear animation
+  fighterAnimation = null
+
+  render()
+}
+
+// Cancel bomb target selection
+function cancelBombTarget() {
+  selectedBombTarget = null
+  landingSpots = []
+  message = "Select enemy piece to bomb"
+  render()
+}
+
+// Select builder action
+function selectBuilderAction(action: 'move' | 'barricade' | 'artillery' | 'spike') {
+  if (!selectedPiece || selectedPiece.type !== 'builder') return
+
+  if (action === 'move') {
+    builderPlacementMode = null
+    builderPlacementSpots = []
+    validMoves = getValidMovesForBuilder(selectedPiece)
+    message = "Select where to move"
+  } else if (action === 'barricade') {
+    if (!canBuilderBuildBarricade(selectedPiece)) {
+      message = "Cannot build barricade now"
+      render()
+      return
+    }
+    builderPlacementMode = 'barricade'
+    builderPlacementSpots = getValidPlacementSpots(selectedPiece)
+    validMoves = []
+    message = "Select where to place barricade"
+  } else if (action === 'artillery') {
+    if (!canBuilderBuildArtillery(selectedPiece)) {
+      message = "Cannot build artillery now"
+      render()
+      return
+    }
+    builderPlacementMode = 'artillery'
+    builderPlacementSpots = getValidPlacementSpots(selectedPiece)
+    validMoves = []
+    message = "Select where to place artillery"
+  } else if (action === 'spike') {
+    if (!canBuilderBuildSpike(selectedPiece)) {
+      message = "Cannot build spike now"
+      render()
+      return
+    }
+    builderPlacementMode = 'spike'
+    builderPlacementSpots = getValidSpikePlacementSpots(selectedPiece)
+    validMoves = []
+    message = "Select where to place spike"
+  }
+
+  render()
+}
+
+// Place barricade/artillery/spike
+function placeBuilderItem(col: string, row: number) {
+  if (!selectedPiece || selectedPiece.type !== 'builder' || !builderPlacementMode) return
+
+  const builder = selectedPiece
+  const team = builder.team
+
+  if (builderPlacementMode === 'barricade') {
+    // Create barricade
+    pieces.push({
+      type: 'barricade',
+      team: team,
+      col: col,
+      row: row,
+      points: 0
+    })
+
+    builder.barricadesBuilt = (builder.barricadesBuilt ?? 0) + 1
+    builder.barricadeCooldown = BARRICADE_COOLDOWN
+
+    message = `Barricade placed at ${col}${row}!`
+
+    moveLog.push({
+      from: `${builder.col}${builder.row}`,
+      to: `${col}${row}`,
+      piece: 'builder',
+      team: team,
+      captured: 'build-barricade'
+    })
+  } else if (builderPlacementMode === 'artillery') {
+    // Create artillery
+    pieces.push({
+      type: 'artillery',
+      team: team,
+      col: col,
+      row: row,
+      points: 0
+    })
+
+    builder.artilleryBuilt = (builder.artilleryBuilt ?? 0) + 1
+    builder.artilleryCooldown = ARTILLERY_COOLDOWN
+
+    message = `Artillery placed at ${col}${row}!`
+
+    moveLog.push({
+      from: `${builder.col}${builder.row}`,
+      to: `${col}${row}`,
+      piece: 'builder',
+      team: team,
+      captured: 'build-artillery'
+    })
+  } else if (builderPlacementMode === 'spike') {
+    // Create spike
+    pieces.push({
+      type: 'spike',
+      team: team,
+      col: col,
+      row: row,
+      points: 0,
+      turnsRemaining: SPIKE_DURATION
+    })
+
+    builder.spikesBuilt = (builder.spikesBuilt ?? 0) + 1
+    builder.spikeCooldown = SPIKE_COOLDOWN
+
+    message = `Spike placed at ${col}${row}! (${SPIKE_DURATION} turns)`
+
+    moveLog.push({
+      from: `${builder.col}${builder.row}`,
+      to: `${col}${row}`,
+      piece: 'builder',
+      team: team,
+      captured: 'build-spike'
+    })
+  }
+
+  // Increment turn count
+  if (team === 'yellow') yellowTurnCount++
+  else greenTurnCount++
+
+  // Switch turns
+  switchTurn()
+
+  // Clear state
+  selectedPiece = null
+  validMoves = []
+  showBuilderActions = false
+  builderPlacementMode = null
+  builderPlacementSpots = []
+
+  render()
+}
+
 function handleSquareClick(col: string, row: number) {
-  const piece = getPieceAt(col, row)
+  // Get pieces at this location (handles barricade + piece behind it)
+  const piecesHere = getPiecesAt(col, row)
+  // Prefer selecting the non-barricade piece (piece behind barricade)
+  const piece = piecesHere.find(p => p.type !== 'barricade') || piecesHere[0]
 
   if (selectedPiece) {
+    // If artillery is selected and clicking on it again, fire it
+    if (selectedPiece.type === 'artillery' && piece === selectedPiece) {
+      const teamTurns = selectedPiece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+      if (teamTurns >= ARTILLERY_READY_TURN) {
+        fireArtillery(selectedPiece)
+        return
+      }
+    }
+
     // If clicking on the same piece, deselect
     if (piece === selectedPiece) {
       selectedPiece = null
       validMoves = []
       shootTargets = []
       rocketTargetArea = []
+      hackTargets = []
+      selectedHackTarget = null
+      showHackActions = false
+      bombTargets = []
+      selectedBombTarget = null
+      landingSpots = []
       message = null
       actionMode = null
       showSoldierActions = false
@@ -1623,6 +2923,63 @@ function handleSquareClick(col: string, row: number) {
       if (isValidTarget) {
         launchRocket(selectedPiece, col, row)
         return
+      }
+    }
+
+    // If hacker is selected and clicking on hackable target
+    if (selectedPiece.type === 'hacker' && hackTargets.length > 0 && piece) {
+      const isHackable = hackTargets.some(t => t === piece)
+      if (isHackable) {
+        selectedHackTarget = piece
+        showHackActions = true
+        message = `Hack ${piece.type}: choose action`
+        render()
+        return
+      }
+    }
+
+    // If fighter is selected
+    if (selectedPiece.type === 'fighter') {
+      // If we already selected a bomb target, now select landing spot
+      if (selectedBombTarget && landingSpots.length > 0) {
+        const isValidLanding = landingSpots.some(s => s.col === col && s.row === row)
+        if (isValidLanding) {
+          executeBombing(selectedPiece, selectedBombTarget, col, row)
+          return
+        }
+      }
+      // Select bomb target
+      if (bombTargets.length > 0 && piece) {
+        const isBombable = bombTargets.some(t => t === piece)
+        if (isBombable) {
+          selectedBombTarget = piece
+          landingSpots = getValidLandingSpots(piece.col, piece.row)
+          message = `Bomb ${piece.type}: select landing spot (0-3 squares)`
+          render()
+          return
+        }
+      }
+    }
+
+    // If builder is in placement mode
+    if (selectedPiece.type === 'builder' && builderPlacementMode && builderPlacementSpots.length > 0) {
+      const isValidSpot = builderPlacementSpots.some(s => s.col === col && s.row === row)
+      if (isValidSpot) {
+        placeBuilderItem(col, row)
+        return
+      }
+    }
+
+    // If artillery is selected and ready to fire
+    if (selectedPiece.type === 'artillery') {
+      const teamTurns = selectedPiece.team === 'yellow' ? yellowTurnCount : greenTurnCount
+      if (teamTurns >= ARTILLERY_READY_TURN) {
+        // Clicking on artillery again fires it
+        if (piece === selectedPiece) {
+          fireArtillery(selectedPiece)
+          selectedPiece = null
+          return
+        }
       }
     }
 
@@ -1645,6 +3002,31 @@ const pieces: Piece[] = getInitialPieces()
 
 function getPieceAt(col: string, row: number): Piece | undefined {
   return pieces.find(p => p.col === col && p.row === row)
+}
+
+// Get all pieces at a position (for barricade + piece behind it)
+function getPiecesAt(col: string, row: number): Piece[] {
+  return pieces.filter(p => p.col === col && p.row === row)
+}
+
+// Get the non-barricade piece at a position (the piece standing behind barricade)
+function getPieceExcludingBarricade(col: string, row: number): Piece | undefined {
+  return pieces.find(p => p.col === col && p.row === row && p.type !== 'barricade')
+}
+
+// Get the barricade at a position
+function getBarricadeAt(col: string, row: number): Piece | undefined {
+  return pieces.find(p => p.col === col && p.row === row && p.type === 'barricade')
+}
+
+// Check if a piece can move behind a friendly barricade
+function canMoveBehindBarricade(piece: Piece, col: string, row: number): boolean {
+  const piecesAtTarget = getPiecesAt(col, row)
+  // Only allowed if there's exactly one piece and it's a friendly barricade
+  if (piecesAtTarget.length === 1 && piecesAtTarget[0].type === 'barricade' && piecesAtTarget[0].team === piece.team) {
+    return true
+  }
+  return false
 }
 
 function drawPiece(piece: Piece, x: number, y: number): string {
@@ -1986,6 +3368,55 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     `
   }
 
+  if (piece.type === 'suv') {
+    const bodyColor = piece.team === 'yellow' ? '#8b7355' : '#5a6b5a'
+    const bodyDark = piece.team === 'yellow' ? '#6b5a3d' : '#3a4b3a'
+    const windowColor = '#87ceeb'
+    // SUV design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+        <!-- Wheels -->
+        <circle cx="${x + 12}" cy="${y + 40}" r="6" fill="#1f1f1f" />
+        <circle cx="${x + 12}" cy="${y + 40}" r="4" fill="#3f3f3f" />
+        <circle cx="${x + 12}" cy="${y + 40}" r="2" fill="#5f5f5f" />
+        <circle cx="${x + 38}" cy="${y + 40}" r="6" fill="#1f1f1f" />
+        <circle cx="${x + 38}" cy="${y + 40}" r="4" fill="#3f3f3f" />
+        <circle cx="${x + 38}" cy="${y + 40}" r="2" fill="#5f5f5f" />
+        <!-- Body -->
+        <rect x="${x + 6}" y="${y + 26}" width="38" height="16" rx="3" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1.5" />
+        <!-- Roof -->
+        <rect x="${x + 10}" y="${y + 16}" width="30" height="12" rx="2" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Front windshield -->
+        <path d="M${x + 10} ${y + 26} L${x + 12} ${y + 18} L${x + 22} ${y + 18} L${x + 22} ${y + 26} Z" fill="${windowColor}" opacity="0.8" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Rear window -->
+        <path d="M${x + 28} ${y + 26} L${x + 28} ${y + 18} L${x + 38} ${y + 18} L${x + 40} ${y + 26} Z" fill="${windowColor}" opacity="0.8" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Side windows -->
+        <rect x="${x + 23}" y="${y + 18}" width="4" height="7" fill="${windowColor}" opacity="0.7" />
+        <!-- Front grille -->
+        <rect x="${x + 6}" y="${y + 30}" width="4" height="8" rx="1" fill="#2d2d2d" />
+        <line x1="${x + 7}" y1="${y + 32}" x2="${x + 9}" y2="${y + 32}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 7}" y1="${y + 34}" x2="${x + 9}" y2="${y + 34}" stroke="#4a4a4a" stroke-width="1" />
+        <line x1="${x + 7}" y1="${y + 36}" x2="${x + 9}" y2="${y + 36}" stroke="#4a4a4a" stroke-width="1" />
+        <!-- Headlights -->
+        <circle cx="${x + 8}" cy="${y + 28}" r="2" fill="#fef9c3" stroke="#eab308" stroke-width="0.5" />
+        <!-- Taillights -->
+        <rect x="${x + 42}" y="${y + 28}" width="2" height="3" fill="#ef4444" />
+        <rect x="${x + 42}" y="${y + 33}" width="2" height="3" fill="#ef4444" />
+        <!-- Door handles -->
+        <rect x="${x + 18}" y="${y + 30}" width="3" height="1" fill="#4a4a4a" />
+        <rect x="${x + 29}" y="${y + 30}" width="3" height="1" fill="#4a4a4a" />
+        <!-- Roof rack -->
+        <line x1="${x + 14}" y1="${y + 16}" x2="${x + 36}" y2="${y + 16}" stroke="${bodyDark}" stroke-width="2" />
+        <line x1="${x + 16}" y1="${y + 14}" x2="${x + 16}" y2="${y + 16}" stroke="${bodyDark}" stroke-width="1.5" />
+        <line x1="${x + 34}" y1="${y + 14}" x2="${x + 34}" y2="${y + 16}" stroke="${bodyDark}" stroke-width="1.5" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+      </g>
+    `
+  }
+
   if (piece.type === 'rocket') {
     const bodyColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
     const bodyDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
@@ -2018,6 +3449,306 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <!-- Used X mark -->
           <line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="#ef4444" stroke-width="3" />
           <line x1="${x + 35}" y1="${y + 15}" x2="${x + 15}" y2="${y + 35}" stroke="#ef4444" stroke-width="3" />
+        ` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'sub') {
+    const hullColor = piece.team === 'yellow' ? '#4a4a4a' : '#3a4a3a'
+    const hullDark = piece.team === 'yellow' ? '#2d2d2d' : '#1d2d1d'
+    const frozen = piece.frozenTurns && piece.frozenTurns > 0
+    // Submarine design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Water/bubbles -->
+        <circle cx="${x + 10}" cy="${y + 12}" r="2" fill="#87ceeb" opacity="0.6" />
+        <circle cx="${x + 15}" cy="${y + 8}" r="1.5" fill="#87ceeb" opacity="0.5" />
+        <circle cx="${x + 8}" cy="${y + 6}" r="1" fill="#87ceeb" opacity="0.4" />
+        <!-- Hull (submarine body) -->
+        <ellipse cx="${x + 25}" cy="${y + 30}" rx="20" ry="10" fill="${hullColor}" stroke="${hullDark}" stroke-width="1.5" />
+        <!-- Hull top highlight -->
+        <ellipse cx="${x + 25}" cy="${y + 26}" rx="16" ry="5" fill="${hullColor}" opacity="0.8" />
+        <!-- Conning tower (sail) -->
+        <rect x="${x + 18}" y="${y + 16}" width="14" height="12" rx="2" fill="${hullColor}" stroke="${hullDark}" stroke-width="1" />
+        <!-- Periscope -->
+        <rect x="${x + 24}" y="${y + 6}" width="2" height="12" fill="#3d3d3d" />
+        <rect x="${x + 22}" y="${y + 4}" width="6" height="4" rx="1" fill="#2d2d2d" />
+        <!-- Periscope lens -->
+        <rect x="${x + 23}" y="${y + 5}" width="4" height="2" fill="#87ceeb" opacity="0.8" />
+        <!-- Windows on tower -->
+        <circle cx="${x + 22}" cy="${y + 20}" r="2" fill="#87ceeb" opacity="0.6" />
+        <circle cx="${x + 28}" cy="${y + 20}" r="2" fill="#87ceeb" opacity="0.6" />
+        <!-- Hull details -->
+        <line x1="${x + 8}" y1="${y + 30}" x2="${x + 42}" y2="${y + 30}" stroke="${hullDark}" stroke-width="1" />
+        <!-- Propeller area -->
+        <ellipse cx="${x + 44}" cy="${y + 30}" rx="3" ry="6" fill="${hullDark}" />
+        <!-- Front torpedo tubes -->
+        <circle cx="${x + 6}" cy="${y + 28}" r="2" fill="#2d2d2d" />
+        <circle cx="${x + 6}" cy="${y + 32}" r="2" fill="#2d2d2d" />
+        <!-- Dive planes -->
+        <rect x="${x + 5}" y="${y + 26}" width="6" height="2" fill="${hullDark}" />
+        <rect x="${x + 39}" y="${y + 26}" width="6" height="2" fill="${hullDark}" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${frozen ? `
+          <!-- Frozen indicator -->
+          <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
+          <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
+        ` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'fighter') {
+    const bodyColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
+    const bodyDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
+    const cockpitColor = '#87ceeb'
+    const frozen = piece.frozenTurns && piece.frozenTurns > 0
+    const onCooldown = piece.cooldownTurns && piece.cooldownTurns > 0
+    // Fighter jet design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+        <!-- Fuselage (body) -->
+        <ellipse cx="${x + 25}" cy="${y + 28}" rx="8" ry="18" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Nose cone -->
+        <path d="M${x + 20} ${y + 10} L${x + 25} ${y + 2} L${x + 30} ${y + 10} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Cockpit -->
+        <ellipse cx="${x + 25}" cy="${y + 16}" rx="5" ry="6" fill="${cockpitColor}" stroke="#5a9ab8" stroke-width="1" opacity="0.9" />
+        <ellipse cx="${x + 25}" cy="${y + 14}" rx="3" ry="3" fill="white" opacity="0.3" />
+        <!-- Wings -->
+        <path d="M${x + 17} ${y + 26} L${x + 3} ${y + 34} L${x + 5} ${y + 38} L${x + 17} ${y + 32} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <path d="M${x + 33} ${y + 26} L${x + 47} ${y + 34} L${x + 45} ${y + 38} L${x + 33} ${y + 32} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Wing missiles -->
+        <ellipse cx="${x + 8}" cy="${y + 36}" rx="2" ry="5" fill="#ef4444" stroke="#b91c1c" stroke-width="0.5" />
+        <ellipse cx="${x + 42}" cy="${y + 36}" rx="2" ry="5" fill="#ef4444" stroke="#b91c1c" stroke-width="0.5" />
+        <!-- Tail fins -->
+        <path d="M${x + 22} ${y + 42} L${x + 18} ${y + 48} L${x + 22} ${y + 46} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="0.5" />
+        <path d="M${x + 28} ${y + 42} L${x + 32} ${y + 48} L${x + 28} ${y + 46} Z" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="0.5" />
+        <!-- Vertical stabilizer -->
+        <path d="M${x + 23} ${y + 38} L${x + 25} ${y + 32} L${x + 27} ${y + 38} Z" fill="${bodyDark}" />
+        <!-- Engine exhaust -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="4" ry="2" fill="#2d2d2d" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        <!-- Cooldown indicator -->
+        ${onCooldown ? `
+          <circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#ef4444" opacity="0.8" />
+          <text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="white">${piece.cooldownTurns}</text>
+        ` : ''}
+        ${frozen ? `
+          <!-- Frozen indicator -->
+          <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
+          <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
+        ` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'hacker') {
+    const bodyColor = piece.team === 'yellow' ? '#1a1a2e' : '#1a2e1a'
+    const bodyDark = piece.team === 'yellow' ? '#0f0f1a' : '#0f1a0f'
+    const screenColor = '#00ff00'
+    const frozen = piece.frozenTurns && piece.frozenTurns > 0
+    // Hacker design - person at computer
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="4" fill="rgba(0,0,0,0.3)" />
+        <!-- Desk -->
+        <rect x="${x + 8}" y="${y + 36}" width="34" height="8" rx="1" fill="#4a3728" stroke="#2d1f14" stroke-width="1" />
+        <!-- Chair back -->
+        <rect x="${x + 14}" y="${y + 24}" width="22" height="14" rx="2" fill="#2d2d2d" stroke="#1a1a1a" stroke-width="1" />
+        <!-- Monitor -->
+        <rect x="${x + 18}" y="${y + 26}" width="14" height="10" rx="1" fill="#1a1a1a" stroke="#333" stroke-width="1" />
+        <!-- Screen -->
+        <rect x="${x + 19}" y="${y + 27}" width="12" height="8" fill="${bodyColor}" />
+        <!-- Code on screen -->
+        <line x1="${x + 20}" y1="${y + 29}" x2="${x + 26}" y2="${y + 29}" stroke="${screenColor}" stroke-width="1" opacity="0.8" />
+        <line x1="${x + 20}" y1="${y + 31}" x2="${x + 29}" y2="${y + 31}" stroke="${screenColor}" stroke-width="1" opacity="0.6" />
+        <line x1="${x + 20}" y1="${y + 33}" x2="${x + 24}" y2="${y + 33}" stroke="${screenColor}" stroke-width="1" opacity="0.7" />
+        <!-- Monitor stand -->
+        <rect x="${x + 23}" y="${y + 36}" width="4" height="2" fill="#333" />
+        <!-- Keyboard -->
+        <rect x="${x + 10}" y="${y + 38}" width="12" height="4" rx="1" fill="#333" />
+        <rect x="${x + 11}" y="${y + 39}" width="10" height="2" fill="#4a4a4a" />
+        <!-- Person body (hoodie) -->
+        <ellipse cx="${x + 25}" cy="${y + 20}" rx="8" ry="6" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Hood -->
+        <path d="M${x + 17} ${y + 22} Q${x + 25} ${y + 10} ${x + 33} ${y + 22}" fill="${bodyColor}" stroke="${bodyDark}" stroke-width="1" />
+        <!-- Face (shadowed) -->
+        <ellipse cx="${x + 25}" cy="${y + 18}" rx="5" ry="4" fill="#2d2d2d" />
+        <!-- Glasses/eyes glow -->
+        <rect x="${x + 21}" y="${y + 16}" width="3" height="2" fill="${screenColor}" opacity="0.8" />
+        <rect x="${x + 26}" y="${y + 16}" width="3" height="2" fill="${screenColor}" opacity="0.8" />
+        <!-- Arms on keyboard -->
+        <ellipse cx="${x + 16}" cy="${y + 34}" rx="3" ry="2" fill="${bodyColor}" />
+        <ellipse cx="${x + 34}" cy="${y + 34}" rx="3" ry="2" fill="${bodyColor}" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        <!-- Cooldown indicator -->
+        ${piece.cooldownTurns && piece.cooldownTurns > 0 ? `
+          <circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#ef4444" opacity="0.8" />
+          <text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="white">${piece.cooldownTurns}</text>
+        ` : ''}
+        ${frozen ? `
+          <!-- Frozen indicator -->
+          <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
+          <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
+        ` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'builder') {
+    const vestColor = piece.team === 'yellow' ? '#f59e0b' : '#22c55e'
+    const vestDark = piece.team === 'yellow' ? '#d97706' : '#16a34a'
+    const skinColor = '#e8c39e'
+    const skinDark = '#d4a574'
+    const frozen = piece.frozenTurns && piece.frozenTurns > 0
+    // Builder design - construction worker with tools
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 47}" rx="16" ry="4" fill="rgba(0,0,0,0.3)" />
+
+        <!-- Boots -->
+        <ellipse cx="${x + 19}" cy="${y + 45}" rx="5" ry="3" fill="#4a3728" stroke="#2d1f14" stroke-width="1" />
+        <ellipse cx="${x + 31}" cy="${y + 45}" rx="5" ry="3" fill="#4a3728" stroke="#2d1f14" stroke-width="1" />
+
+        <!-- Legs (jeans) -->
+        <rect x="${x + 16}" y="${y + 34}" width="7" height="12" rx="1" fill="#1e40af" stroke="#1e3a8a" stroke-width="0.5" />
+        <rect x="${x + 27}" y="${y + 34}" width="7" height="12" rx="1" fill="#1e40af" stroke="#1e3a8a" stroke-width="0.5" />
+
+        <!-- Torso (safety vest) -->
+        <rect x="${x + 14}" y="${y + 20}" width="22" height="16" rx="2" fill="${vestColor}" stroke="${vestDark}" stroke-width="1" />
+        <!-- Reflective stripes -->
+        <rect x="${x + 14}" y="${y + 24}" width="22" height="2" fill="#fef9c3" opacity="0.9" />
+        <rect x="${x + 14}" y="${y + 30}" width="22" height="2" fill="#fef9c3" opacity="0.9" />
+        <!-- Vest opening (shirt underneath) -->
+        <rect x="${x + 22}" y="${y + 20}" width="6" height="8" fill="#374151" />
+
+        <!-- Arms -->
+        <rect x="${x + 8}" y="${y + 22}" width="6" height="12" rx="2" fill="${vestColor}" stroke="${vestDark}" stroke-width="0.5" />
+        <rect x="${x + 36}" y="${y + 22}" width="6" height="12" rx="2" fill="${vestColor}" stroke="${vestDark}" stroke-width="0.5" />
+        <!-- Hands -->
+        <ellipse cx="${x + 11}" cy="${y + 36}" rx="3" ry="2.5" fill="${skinColor}" stroke="${skinDark}" stroke-width="0.5" />
+        <ellipse cx="${x + 39}" cy="${y + 36}" rx="3" ry="2.5" fill="${skinColor}" stroke="${skinDark}" stroke-width="0.5" />
+
+        <!-- Neck -->
+        <rect x="${x + 22}" y="${y + 14}" width="6" height="6" fill="${skinColor}" />
+
+        <!-- Head -->
+        <ellipse cx="${x + 25}" cy="${y + 12}" rx="7" ry="6" fill="${skinColor}" stroke="${skinDark}" stroke-width="0.5" />
+
+        <!-- Hard hat -->
+        <ellipse cx="${x + 25}" cy="${y + 8}" rx="9" ry="4" fill="#fcd34d" stroke="#f59e0b" stroke-width="1" />
+        <rect x="${x + 16}" y="${y + 6}" width="18" height="4" rx="1" fill="#fcd34d" stroke="#f59e0b" stroke-width="1" />
+        <!-- Hard hat brim -->
+        <rect x="${x + 14}" y="${y + 10}" width="22" height="2" fill="#f59e0b" />
+
+        <!-- Face -->
+        <circle cx="${x + 22}" cy="${y + 12}" r="1" fill="#1a1a1a" />
+        <circle cx="${x + 28}" cy="${y + 12}" r="1" fill="#1a1a1a" />
+        <path d="M${x + 23} ${y + 15} Q${x + 25} ${y + 16} ${x + 27} ${y + 15}" fill="none" stroke="#1a1a1a" stroke-width="0.8" />
+
+        <!-- Tool belt -->
+        <rect x="${x + 13}" y="${y + 34}" width="24" height="3" fill="#5c4033" stroke="#3d2817" stroke-width="0.5" />
+        <rect x="${x + 15}" y="${y + 33}" width="4" height="5" fill="#6b7280" rx="1" />
+        <rect x="${x + 31}" y="${y + 33}" width="4" height="5" fill="#6b7280" rx="1" />
+
+        <!-- Hammer in hand -->
+        <rect x="${x + 38}" y="${y + 28}" width="2" height="10" fill="#8b4513" stroke="#5c3d1e" stroke-width="0.5" />
+        <rect x="${x + 36}" y="${y + 26}" width="6" height="4" rx="1" fill="#6b7280" stroke="#4b5563" stroke-width="0.5" />
+
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 2}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+
+        ${frozen ? `
+          <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
+          <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
+        ` : ''}
+      </g>
+    `
+  }
+
+  if (piece.type === 'barricade') {
+    const woodColor = piece.team === 'yellow' ? '#92400e' : '#065f46'
+    const woodDark = piece.team === 'yellow' ? '#78350f' : '#064e3b'
+    // Barricade design - wooden barrier
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="3" fill="rgba(0,0,0,0.3)" />
+        <!-- Vertical posts -->
+        <rect x="${x + 8}" y="${y + 15}" width="6" height="30" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <rect x="${x + 36}" y="${y + 15}" width="6" height="30" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <!-- Horizontal planks -->
+        <rect x="${x + 6}" y="${y + 18}" width="38" height="6" rx="1" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <rect x="${x + 6}" y="${y + 28}" width="38" height="6" rx="1" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <rect x="${x + 6}" y="${y + 38}" width="38" height="6" rx="1" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <!-- Wood grain -->
+        <line x1="${x + 10}" y1="${y + 20}" x2="${x + 40}" y2="${y + 20}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
+        <line x1="${x + 10}" y1="${y + 30}" x2="${x + 40}" y2="${y + 30}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
+        <line x1="${x + 10}" y1="${y + 40}" x2="${x + 40}" y2="${y + 40}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+      </g>
+    `
+  }
+
+  if (piece.type === 'artillery') {
+    const metalColor = piece.team === 'yellow' ? '#4a4a4a' : '#3a4a3a'
+    const metalDark = piece.team === 'yellow' ? '#2d2d2d' : '#1d2d1d'
+    // Artillery cannon design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Shadow -->
+        <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="4" fill="rgba(0,0,0,0.3)" />
+        <!-- Base/platform -->
+        <rect x="${x + 8}" y="${y + 38}" width="34" height="8" rx="2" fill="${metalColor}" stroke="${metalDark}" stroke-width="1" />
+        <!-- Wheels -->
+        <circle cx="${x + 14}" cy="${y + 44}" r="5" fill="#4a4a4a" stroke="#2d2d2d" stroke-width="1" />
+        <circle cx="${x + 36}" cy="${y + 44}" r="5" fill="#4a4a4a" stroke="#2d2d2d" stroke-width="1" />
+        <circle cx="${x + 14}" cy="${y + 44}" r="2" fill="#2d2d2d" />
+        <circle cx="${x + 36}" cy="${y + 44}" r="2" fill="#2d2d2d" />
+        <!-- Cannon base -->
+        <rect x="${x + 18}" y="${y + 28}" width="14" height="12" rx="2" fill="${metalColor}" stroke="${metalDark}" stroke-width="1" />
+        <!-- Cannon barrel -->
+        <rect x="${x + 20}" y="${y + 8}" width="10" height="24" rx="2" fill="${metalColor}" stroke="${metalDark}" stroke-width="1.5" />
+        <ellipse cx="${x + 25}" cy="${y + 8}" rx="6" ry="3" fill="${metalDark}" />
+        <!-- Muzzle -->
+        <ellipse cx="${x + 25}" cy="${y + 6}" rx="4" ry="2" fill="#1a1a1a" />
+        <!-- Team indicator -->
+        <circle cx="${x + 40}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+      </g>
+    `
+  }
+
+  if (piece.type === 'spike') {
+    const spikeColor = '#6b7280'
+    const spikeDark = '#4b5563'
+    // Spike trap design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Base -->
+        <rect x="${x + 8}" y="${y + 38}" width="34" height="8" rx="1" fill="#4b5563" stroke="#374151" stroke-width="1" />
+        <!-- Spikes -->
+        <polygon points="${x + 12},${y + 38} ${x + 15},${y + 18} ${x + 18},${y + 38}" fill="${spikeColor}" stroke="${spikeDark}" stroke-width="1" />
+        <polygon points="${x + 20},${y + 38} ${x + 23},${y + 14} ${x + 26},${y + 38}" fill="${spikeColor}" stroke="${spikeDark}" stroke-width="1" />
+        <polygon points="${x + 28},${y + 38} ${x + 31},${y + 18} ${x + 34},${y + 38}" fill="${spikeColor}" stroke="${spikeDark}" stroke-width="1" />
+        <!-- Sharp tips -->
+        <circle cx="${x + 15}" cy="${y + 16}" r="2" fill="#ef4444" />
+        <circle cx="${x + 23}" cy="${y + 12}" r="2" fill="#ef4444" />
+        <circle cx="${x + 31}" cy="${y + 16}" r="2" fill="#ef4444" />
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        <!-- Timer -->
+        ${piece.turnsRemaining ? `
+          <circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#6b7280" opacity="0.8" />
+          <text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="white">${piece.turnsRemaining}</text>
         ` : ''}
       </g>
     `
@@ -2259,13 +3990,19 @@ function createBoard(): string {
         svg += `<ellipse cx="${x + 38}" cy="${y + 36}" rx="6" ry="4" fill="#c2a878" stroke="#8b7355" stroke-width="1" class="pointer-events-none" />`
       }
 
-      // Draw piece if present
+      // Draw pieces if present (handles barricade + piece behind it)
       const colLetter = columns[col]
       const rowNum = BOARD_SIZE - row
-      const piece = getPieceAt(colLetter, rowNum)
-      if (piece) {
+      const piecesHere = getPiecesAt(colLetter, rowNum)
+
+      // Separate barricade from other pieces
+      const barricade = piecesHere.find(p => p.type === 'barricade')
+      const otherPiece = piecesHere.find(p => p.type !== 'barricade')
+
+      // Draw the piece behind barricade first (so barricade appears on top)
+      if (otherPiece) {
         // Check if this piece is the charging train
-        if (trainHitAnimation && trainHitAnimation.train === piece && trainHitAnimation.phase === 'moving') {
+        if (trainHitAnimation && trainHitAnimation.train === otherPiece && trainHitAnimation.phase === 'moving') {
           const progress = (trainHitAnimation as any).progress || 0
           const targetColIndex = columns.indexOf(trainHitAnimation.targetCol)
           const targetX = LABEL_SIZE + targetColIndex * SQUARE_SIZE
@@ -2276,18 +4013,35 @@ function createBoard(): string {
 
           // Draw train at animated position with shake effect
           const shakeX = progress > 0.8 ? Math.sin(progress * 50) * 3 : 0
-          svg += drawPiece(piece, animX + shakeX, animY)
+          svg += drawPiece(otherPiece, animX + shakeX, animY)
         }
         // Check if this piece is moving
-        else if (moveAnimation && moveAnimation.piece === piece) {
+        else if (moveAnimation && moveAnimation.piece === otherPiece) {
           // Don't draw here - we'll draw at animated position below
+        }
+        // Check if fighter is in bombing animation
+        else if (fighterAnimation && fighterAnimation.fighter === otherPiece) {
+          // Don't draw here - we'll draw at animated position
         } else {
           // Highlight selected piece
-          if (selectedPiece === piece) {
+          if (selectedPiece === otherPiece) {
             svg += `<rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
           }
-          svg += drawPiece(piece, x, y)
+          // Draw piece slightly back/smaller when behind barricade
+          if (barricade) {
+            svg += drawPiece(otherPiece, x, y - 8) // Draw piece shifted up (behind barricade)
+          } else {
+            svg += drawPiece(otherPiece, x, y)
+          }
         }
+      }
+
+      // Draw barricade on top
+      if (barricade) {
+        if (selectedPiece === barricade) {
+          svg += `<rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
+        }
+        svg += drawPiece(barricade, x, y + 10) // Draw barricade at bottom of square
       }
 
       // Draw piece that is currently in move animation (at its animated position)
@@ -2346,6 +4100,80 @@ function createBoard(): string {
           <rect x="${x + 5}" y="${y + 5}" width="${SQUARE_SIZE - 10}" height="${SQUARE_SIZE - 10}" fill="#ef4444" opacity="0.3" rx="4" />
           <circle cx="${cx}" cy="${cy}" r="12" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,2" />
           <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="12" fill="#ef4444" font-weight="bold">💥</text>
+        </g>`
+      }
+
+      // Draw hack target indicator
+      const isHackTarget = hackTargets.some(t => t.col === colLetter && t.row === rowNum)
+      if (isHackTarget) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 3}" y="${y + 3}" width="${SQUARE_SIZE - 6}" height="${SQUARE_SIZE - 6}" fill="#a855f7" opacity="0.3" rx="4" />
+          <circle cx="${cx}" cy="${cy}" r="14" fill="none" stroke="#a855f7" stroke-width="2" stroke-dasharray="3,3" />
+        </g>`
+      }
+
+      // Draw selected hack target indicator
+      if (selectedHackTarget && selectedHackTarget.col === colLetter && selectedHackTarget.row === rowNum) {
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#a855f7" stroke-width="3" rx="4" />
+        </g>`
+      }
+
+      // Draw bomb target indicator (fighter)
+      const isBombTarget = bombTargets.some(t => t.col === colLetter && t.row === rowNum)
+      if (isBombTarget) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 3}" y="${y + 3}" width="${SQUARE_SIZE - 6}" height="${SQUARE_SIZE - 6}" fill="#f97316" opacity="0.3" rx="4" />
+          <circle cx="${cx}" cy="${cy}" r="14" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="3,3" />
+          <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="14" fill="#f97316">💣</text>
+        </g>`
+      }
+
+      // Draw selected bomb target indicator
+      if (selectedBombTarget && selectedBombTarget.col === colLetter && selectedBombTarget.row === rowNum) {
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="#f97316" opacity="0.4" stroke="#f97316" stroke-width="3" rx="4" />
+        </g>`
+      }
+
+      // Draw landing spot indicator (fighter)
+      const isLandingSpot = landingSpots.some(s => s.col === colLetter && s.row === rowNum)
+      if (isLandingSpot) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 4}" y="${y + 4}" width="${SQUARE_SIZE - 8}" height="${SQUARE_SIZE - 8}" fill="#22c55e" opacity="0.3" rx="4" />
+          <circle cx="${cx}" cy="${cy}" r="10" fill="none" stroke="#22c55e" stroke-width="2" />
+          <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="10" fill="#22c55e">✈</text>
+        </g>`
+      }
+
+      // Draw builder placement spot indicator
+      const isBuilderSpot = builderPlacementSpots.some(s => s.col === colLetter && s.row === rowNum)
+      if (isBuilderSpot) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        const spotColor = builderPlacementMode === 'barricade' ? '#8b4513' :
+                         builderPlacementMode === 'artillery' ? '#4a4a4a' : '#ef4444'
+        const spotIcon = builderPlacementMode === 'barricade' ? '🧱' :
+                        builderPlacementMode === 'artillery' ? '💥' : '⚠'
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 4}" y="${y + 4}" width="${SQUARE_SIZE - 8}" height="${SQUARE_SIZE - 8}" fill="${spotColor}" opacity="0.3" rx="4" />
+          <circle cx="${cx}" cy="${cy}" r="12" fill="none" stroke="${spotColor}" stroke-width="2" stroke-dasharray="4,2" />
+          <text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="14">${spotIcon}</text>
+        </g>`
+      }
+
+      // Draw frozen indicator for pieces
+      if (otherPiece && otherPiece.frozenTurns && otherPiece.frozenTurns > 0) {
+        const cx = x + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="#60a5fa" opacity="0.4" rx="4" />
+          <text x="${cx}" y="${y + 12}" text-anchor="middle" font-size="10" fill="#1e40af">❄${otherPiece.frozenTurns}</text>
         </g>`
       }
 
@@ -2442,6 +4270,81 @@ function createBoard(): string {
     }
   }
 
+  // Draw fighter animation (on top of everything)
+  if (fighterAnimation) {
+    const { fighter, startCol, startRow, targetCol, targetRow, landingCol, landingRow, phase, progress } = fighterAnimation
+
+    // Calculate positions
+    const startColIndex = columns.indexOf(startCol)
+    const startX = LABEL_SIZE + startColIndex * SQUARE_SIZE
+    const startY = (BOARD_SIZE - startRow) * SQUARE_SIZE
+
+    const targetColIndex = columns.indexOf(targetCol)
+    const targetX = LABEL_SIZE + targetColIndex * SQUARE_SIZE
+    const targetY = (BOARD_SIZE - targetRow) * SQUARE_SIZE
+
+    const landingColIndex = columns.indexOf(landingCol)
+    const landingX = LABEL_SIZE + landingColIndex * SQUARE_SIZE
+    const landingY = (BOARD_SIZE - landingRow) * SQUARE_SIZE
+
+    const teamColor = fighter.team === 'yellow' ? '#fbbf24' : '#22c55e'
+    const bodyColor = fighter.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
+
+    let currentX: number
+    let currentY: number
+
+    if (phase === 'flyToTarget') {
+      // Fly from start to target
+      currentX = startX + (targetX - startX) * progress
+      currentY = startY + (targetY - startY) * progress
+    } else if (phase === 'bombing') {
+      // Hover over target
+      currentX = targetX
+      currentY = targetY
+    } else {
+      // Fly from target to landing
+      currentX = targetX + (landingX - targetX) * progress
+      currentY = targetY + (landingY - targetY) * progress
+    }
+
+    // Draw fighter jet
+    svg += `<g class="pointer-events-none" transform="translate(${currentX}, ${currentY})">
+      <!-- Fuselage -->
+      <ellipse cx="25" cy="28" rx="8" ry="18" fill="${bodyColor}" stroke="#3a3a3a" stroke-width="1" />
+      <!-- Nose -->
+      <path d="M20 10 L25 2 L30 10 Z" fill="${bodyColor}" stroke="#3a3a3a" stroke-width="1" />
+      <!-- Cockpit -->
+      <ellipse cx="25" cy="16" rx="5" ry="6" fill="#87ceeb" stroke="#5a9ab8" stroke-width="1" opacity="0.9" />
+      <!-- Wings -->
+      <path d="M17 26 L3 34 L5 38 L17 32 Z" fill="${bodyColor}" stroke="#3a3a3a" stroke-width="1" />
+      <path d="M33 26 L47 34 L45 38 L33 32 Z" fill="${bodyColor}" stroke="#3a3a3a" stroke-width="1" />
+      <!-- Team indicator -->
+      <circle cx="25" cy="6" r="3" fill="${teamColor}" stroke="${fighter.team === 'yellow' ? '#b45309' : '#15803d'}" stroke-width="1" />
+    </g>`
+
+    // Draw bomb during bombing phase
+    if (phase === 'bombing') {
+      const bombY = targetY + 10 + progress * 30
+      const bombOpacity = 1 - progress * 0.3
+      svg += `<g class="pointer-events-none">
+        <ellipse cx="${targetX + 25}" cy="${bombY}" rx="4" ry="6" fill="#1a1a1a" opacity="${bombOpacity}" />
+        <path d="M${targetX + 21} ${bombY - 4} L${targetX + 25} ${bombY - 10} L${targetX + 29} ${bombY - 4}" fill="#ef4444" opacity="${bombOpacity}" />
+      </g>`
+
+      // Draw explosion at end of bombing
+      if (progress > 0.7) {
+        const explosionScale = (progress - 0.7) / 0.3
+        const cx = targetX + 25
+        const cy = targetY + 25
+        svg += `<g class="pointer-events-none">
+          <circle cx="${cx}" cy="${cy}" r="${15 * explosionScale}" fill="#ef4444" opacity="${0.8 * (1 - explosionScale * 0.5)}" />
+          <circle cx="${cx}" cy="${cy}" r="${10 * explosionScale}" fill="#f97316" opacity="${0.9 * (1 - explosionScale * 0.3)}" />
+          <circle cx="${cx}" cy="${cy}" r="${5 * explosionScale}" fill="#fbbf24" opacity="1" />
+        </g>`
+      }
+    }
+  }
+
   // Draw column labels (A-K) at bottom
   for (let col = 0; col < BOARD_SIZE; col++) {
     const x = LABEL_SIZE + col * SQUARE_SIZE + SQUARE_SIZE / 2
@@ -2490,7 +4393,7 @@ function createScorePanel(): string {
         <div class="flex flex-wrap gap-1 min-h-[24px]">
           ${yellowCaptured.map(p => `
             <div class="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded border border-green-700 flex items-center justify-center text-xs" title="${p.type} (${p.points}pts)">
-              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : p.type === 'rocket' ? '🚀' : p.type === 'machinegun' ? '🔫' : '?'}
+              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : p.type === 'rocket' ? '🚀' : p.type === 'machinegun' ? '🔫' : p.type === 'suv' ? '🚙' : p.type === 'hacker' ? '💻' : '?'}
             </div>
           `).join('')}
           ${yellowCaptured.length === 0 ? '<span class="text-gray-500 text-xs sm:text-sm italic">-</span>' : ''}
@@ -2506,10 +4409,21 @@ function createScorePanel(): string {
         <div class="flex flex-wrap gap-1 min-h-[24px]">
           ${greenCaptured.map(p => `
             <div class="w-5 h-5 sm:w-6 sm:h-6 bg-yellow-400 rounded border border-yellow-600 flex items-center justify-center text-xs" title="${p.type} (${p.points}pts)">
-              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : p.type === 'rocket' ? '🚀' : p.type === 'machinegun' ? '🔫' : '?'}
+              ${p.type === 'train' ? '💥' : p.type === 'soldier' ? '🩹' : p.type === 'tank' ? '💣' : p.type === 'ship' ? '⚓' : p.type === 'carrier' ? '🛫' : p.type === 'helicopter' ? '🚁' : p.type === 'rocket' ? '🚀' : p.type === 'machinegun' ? '🔫' : p.type === 'suv' ? '🚙' : p.type === 'hacker' ? '💻' : '?'}
             </div>
           `).join('')}
           ${greenCaptured.length === 0 ? '<span class="text-gray-500 text-xs sm:text-sm italic">-</span>' : ''}
+        </div>
+      </div>
+
+      <!-- Turns Remaining -->
+      <div class="border-t border-gray-700 pt-2 mt-1">
+        <div class="flex items-center justify-between text-xs sm:text-sm">
+          <span class="text-gray-400">Turns</span>
+          <span class="text-gray-300">${Math.max(yellowTurnCount, greenTurnCount)} / ${MAX_TURNS_PER_TEAM}</span>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-2 mt-1">
+          <div class="bg-blue-500 h-2 rounded-full transition-all" style="width: ${Math.min(100, (Math.max(yellowTurnCount, greenTurnCount) / MAX_TURNS_PER_TEAM) * 100)}%"></div>
         </div>
       </div>
     </div>
@@ -2525,7 +4439,7 @@ function createMoveLog(): string {
           ? '<p class="text-gray-500 italic text-xs sm:text-sm">No moves yet</p>'
           : moveLog.map((move, i) => {
               const textColor = move.team === 'yellow' ? 'text-yellow-400' : move.team === 'green' ? 'text-green-400' : 'text-gray-300'
-              const pieceIcon = move.piece === 'train' ? '🚂' : move.piece === 'soldier' ? '🎖️' : move.piece === 'tank' ? '🛡️' : move.piece === 'ship' ? '🚢' : move.piece === 'carrier' ? '🛫' : move.piece === 'helicopter' ? '🚁' : move.piece === 'rocket' ? '🚀' : move.piece === 'machinegun' ? '🔫' : ''
+              const pieceIcon = move.piece === 'train' ? '🚂' : move.piece === 'soldier' ? '🎖️' : move.piece === 'tank' ? '🛡️' : move.piece === 'ship' ? '🚢' : move.piece === 'carrier' ? '🛫' : move.piece === 'helicopter' ? '🚁' : move.piece === 'rocket' ? '🚀' : move.piece === 'machinegun' ? '🔫' : move.piece === 'suv' ? '🚙' : move.piece === 'hacker' ? '💻' : ''
               return `
               <div class="${textColor} flex flex-col">
                 <div class="flex">
@@ -2546,6 +4460,52 @@ function render() {
   const turnColor = currentTurn === 'yellow' ? 'text-yellow-400 border-yellow-400' : 'text-green-400 border-green-400'
 
   // Start screen
+  // Game over screen
+  if (gameState === 'gameOver' && winner) {
+    const yellowScore = getTeamScore('yellow')
+    const greenScore = getTeamScore('green')
+    const winnerColor = winner === 'yellow' ? '#fbbf24' : '#22c55e'
+    const winnerName = winner === 'yellow' ? 'Yellow' : 'Green'
+    const reasonText = winReason === 'builder'
+      ? `${winnerName} captured the enemy Builder!`
+      : `${winnerName} has more points after 80 turns!`
+
+    app.innerHTML = `
+      <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
+        <h1 class="text-3xl sm:text-5xl font-bold" style="color: ${winnerColor}">
+          ${winnerName} Wins!
+        </h1>
+        <p class="text-white text-lg sm:text-xl text-center">${reasonText}</p>
+        <div class="flex gap-8 text-white text-lg">
+          <div class="text-center">
+            <div class="text-2xl font-bold" style="color: #fbbf24">${yellowScore}</div>
+            <div class="text-sm opacity-70">Yellow</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold" style="color: #22c55e">${greenScore}</div>
+            <div class="text-sm opacity-70">Green</div>
+          </div>
+        </div>
+        <div class="text-white text-sm opacity-70">
+          Yellow turns: ${yellowTurnCount} | Green turns: ${greenTurnCount}
+        </div>
+        <button id="play-again-btn" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
+          Play Again
+        </button>
+        <div class="flex items-start gap-4 sm:gap-8 opacity-50">
+          <div class="flex-shrink-0" id="board-container">
+            ${createBoard()}
+          </div>
+        </div>
+      </div>
+    `
+    document.getElementById('play-again-btn')?.addEventListener('click', () => {
+      resetGame()
+      startGame()
+    })
+    return
+  }
+
   if (gameState === 'start') {
     app.innerHTML = `
       <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
@@ -2671,7 +4631,7 @@ function render() {
       selectedPiece = null
       if (currentTurn === 'yellow') yellowTurnCount++
       else greenTurnCount++
-      currentTurn = currentTurn === 'yellow' ? 'green' : 'yellow'
+      switchTurn()
       // Re-render after elimination
       setTimeout(() => render(), 100)
     }
@@ -2717,6 +4677,43 @@ function render() {
     </div>
   ` : ''
 
+  // Hack action buttons
+  const hackActionsHtml = showHackActions && selectedHackTarget ? `
+    <div class="bg-purple-900 px-2 sm:px-4 py-2 rounded-lg flex flex-wrap gap-1 sm:gap-2 items-center">
+      <span class="text-purple-200 text-xs sm:text-sm">Hack ${selectedHackTarget.type}:</span>
+      <button id="hack-forward" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        ↑ Forward
+      </button>
+      <button id="hack-backward" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        ↓ Backward
+      </button>
+      <button id="hack-freeze" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        ❄ Freeze 5
+      </button>
+      <button id="hack-cancel" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        Cancel
+      </button>
+    </div>
+  ` : ''
+
+  // Builder action buttons
+  const builderActionsHtml = showBuilderActions && selectedPiece?.type === 'builder' ? `
+    <div class="bg-amber-900 px-2 sm:px-4 py-2 rounded-lg flex flex-wrap gap-1 sm:gap-2 items-center">
+      <button id="builder-move" class="${builderPlacementMode === null ? 'bg-blue-600' : 'bg-gray-600'} hover:bg-blue-700 text-white font-bold py-2 px-3 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        🚶 Move
+      </button>
+      <button id="builder-barricade" class="${builderPlacementMode === 'barricade' ? 'bg-amber-700' : canBuilderBuildBarricade(selectedPiece) ? 'bg-amber-600 hover:bg-amber-700' : 'bg-gray-500 cursor-not-allowed'} text-white font-bold py-2 px-3 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        🧱 Barricade ${selectedPiece.barricadesBuilt || 0}/${MAX_BARRICADES_TOTAL}
+      </button>
+      <button id="builder-artillery" class="${builderPlacementMode === 'artillery' ? 'bg-gray-700' : canBuilderBuildArtillery(selectedPiece) ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-500 cursor-not-allowed'} text-white font-bold py-2 px-3 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        💥 Artillery ${selectedPiece.artilleryBuilt || 0}/${MAX_ARTILLERY_TOTAL}
+      </button>
+      <button id="builder-spike" class="${builderPlacementMode === 'spike' ? 'bg-red-700' : canBuilderBuildSpike(selectedPiece) ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-500 cursor-not-allowed'} text-white font-bold py-2 px-3 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        ⚠ Spike ${selectedPiece.spikesBuilt || 0}/${MAX_SPIKES_TOTAL}
+      </button>
+    </div>
+  ` : ''
+
   // Playing state
   app.innerHTML = `
     <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4">
@@ -2727,6 +4724,8 @@ function render() {
           <span class="${turnColor} font-bold text-sm sm:text-base">${currentTurn.toUpperCase()}'s turn</span>
         </div>
         ${actionButtonsHtml}
+        ${hackActionsHtml}
+        ${builderActionsHtml}
         ${message && !forcedSoldier ? `<div class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs sm:text-sm">${message}</div>` : ''}
         <button id="reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors">
           Reset
@@ -2751,6 +4750,18 @@ function render() {
   document.getElementById('action-move')?.addEventListener('click', () => selectSoldierAction('move'))
   document.getElementById('action-shoot')?.addEventListener('click', () => selectSoldierAction('shoot'))
   document.getElementById('action-exit')?.addEventListener('click', showTunnelExitConfirm)
+
+  // Add hack action listeners
+  document.getElementById('hack-forward')?.addEventListener('click', () => executeHack('forward'))
+  document.getElementById('hack-backward')?.addEventListener('click', () => executeHack('backward'))
+  document.getElementById('hack-freeze')?.addEventListener('click', () => executeHack('freeze'))
+  document.getElementById('hack-cancel')?.addEventListener('click', cancelHackTarget)
+
+  // Add builder action listeners
+  document.getElementById('builder-move')?.addEventListener('click', () => selectBuilderAction('move'))
+  document.getElementById('builder-barricade')?.addEventListener('click', () => selectBuilderAction('barricade'))
+  document.getElementById('builder-artillery')?.addEventListener('click', () => selectBuilderAction('artillery'))
+  document.getElementById('builder-spike')?.addEventListener('click', () => selectBuilderAction('spike'))
 
   // Add click event listeners for game board
   const svg = document.querySelector('#board-container svg')
