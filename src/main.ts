@@ -1849,6 +1849,13 @@ function movePiece(col: string, row: number) {
       return
     }
 
+    // Special case: soldier in tunnel moving under an enemy piece (no capture)
+    if (selectedPiece.type === 'soldier' && selectedPiece.inTunnel && !move.canCapture) {
+      // Move under the enemy piece without capturing
+      completMove(col, row, null)
+      return
+    }
+
     if (pieceAtTarget.team === selectedPiece.team) {
       message = "There is already a piece of your team there!"
       render()
