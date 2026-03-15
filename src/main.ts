@@ -414,9 +414,10 @@ function getValidMovesForBuilder(piece: Piece): { col: string; row: number; canC
     // Cannot go on water (row 6, except bridge)
     if (row === 6 && col !== 'F') continue
 
-    const pieceAtTarget = getPieceAt(col, row)
+    const pieceAtTarget = getPieceAtAboveGround(col, row)
 
     // Builder cannot capture normally - just check for empty squares or move behind friendly barricade
+    // Can move onto squares with tunnel soldiers (they're underground)
     if (!pieceAtTarget) {
       moves.push({ col, row, canCapture: false })
     } else if (canMoveBehindBarricade(piece, col, row)) {
@@ -881,7 +882,7 @@ function getValidMovesForTrain(piece: Piece): { col: string; row: number; canCap
       // Check if this square is in the train's zone
       if (!isTrainSquare(col, row, zone)) break
 
-      const pieceAtTarget = getPieceAt(col, row)
+      const pieceAtTarget = getPieceAtAboveGround(col, row)
 
       if (pieceAtTarget) {
         // Can move behind friendly barricade
@@ -962,12 +963,13 @@ function getValidMovesForSoldier(piece: Piece): { col: string; row: number; canC
     if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
 
     const col = columns[colIndex]
-    const pieceAtTarget = getPieceAt(col, row)
+    const pieceAtTarget = getPieceAtAboveGround(col, row)
 
     // Cannot move onto water (row 6, except bridge at F6)
     if (row === 6 && col !== 'F') continue
 
     // Soldiers cannot capture by moving, but can move behind friendly barricade
+    // Can move onto squares with tunnel soldiers (they're underground)
     if (pieceAtTarget) {
       if (canMoveBehindBarricade(piece, col, row)) {
         moves.push({ col, row, canCapture: false })
@@ -1068,13 +1070,14 @@ function getValidMovesForTank(piece: Piece): { col: string; row: number; canCapt
         // Cannot pass through water
         if (midRow === 6 && midCol !== 'F') break
 
-        const pieceInPath = getPieceAt(midCol, midRow)
+        const pieceInPath = getPieceAtAboveGround(midCol, midRow)
         if (pieceInPath) break
       }
 
-      const pieceAtTarget = getPieceAt(col, row)
+      const pieceAtTarget = getPieceAtAboveGround(col, row)
 
       // Tanks cannot capture by moving (they shoot), but can move behind friendly barricade
+      // Can move onto squares with tunnel soldiers (they're underground)
       if (pieceAtTarget) {
         if (canMoveBehindBarricade(piece, col, row)) {
           moves.push({ col, row, canCapture: false })
@@ -1132,11 +1135,11 @@ function getValidMovesForSuv(piece: Piece): { col: string; row: number; canCaptu
         // Cannot pass through water
         if (midRow === 6 && midCol !== 'F') break
 
-        const pieceInPath = getPieceAt(midCol, midRow)
+        const pieceInPath = getPieceAtAboveGround(midCol, midRow)
         if (pieceInPath) break
       }
 
-      const pieceAtTarget = getPieceAt(col, row)
+      const pieceAtTarget = getPieceAtAboveGround(col, row)
 
       if (pieceAtTarget) {
         // Can move behind friendly barricade
@@ -1175,13 +1178,14 @@ function getValidMovesForSuv(piece: Piece): { col: string; row: number; canCaptu
         // Cannot pass through water
         if (midRow === 6 && midCol !== 'F') break
 
-        const pieceInPath = getPieceAt(midCol, midRow)
+        const pieceInPath = getPieceAtAboveGround(midCol, midRow)
         if (pieceInPath) break
       }
 
-      const pieceAtTarget = getPieceAt(col, row)
+      const pieceAtTarget = getPieceAtAboveGround(col, row)
 
       // Cannot capture diagonally, but can move behind friendly barricade
+      // Can move onto squares with tunnel soldiers (they're underground)
       if (pieceAtTarget) {
         if (canMoveBehindBarricade(piece, col, row)) {
           moves.push({ col, row, canCapture: false })
@@ -1499,7 +1503,7 @@ function getValidMovesForHelicopter(piece: Piece): { col: string; row: number; c
     // Can't move to current position
     if (pad.col === piece.col && pad.row === piece.row) continue
 
-    const pieceAtTarget = getPieceAt(pad.col, pad.row)
+    const pieceAtTarget = getPieceAtAboveGround(pad.col, pad.row)
 
     if (pieceAtTarget) {
       // Can capture enemy on helipad, but NOT other helicopters
@@ -1852,6 +1856,13 @@ function movePiece(col: string, row: number) {
     // Special case: soldier in tunnel moving under an enemy piece (no capture)
     if (selectedPiece.type === 'soldier' && selectedPiece.inTunnel && !move.canCapture) {
       // Move under the enemy piece without capturing
+      completMove(col, row, null)
+      return
+    }
+
+    // Special case: enemy soldier is in tunnel (underground) - cannot be captured, move above them
+    if (pieceAtTarget.type === 'soldier' && pieceAtTarget.inTunnel) {
+      // Move on top of the tunnel soldier without capturing
       completMove(col, row, null)
       return
     }
@@ -3024,6 +3035,11 @@ const pieces: Piece[] = getInitialPieces()
 
 function getPieceAt(col: string, row: number): Piece | undefined {
   return pieces.find(p => p.col === col && p.row === row)
+}
+
+// Get piece at position, ignoring soldiers in tunnels (they're underground)
+function getPieceAtAboveGround(col: string, row: number): Piece | undefined {
+  return pieces.find(p => p.col === col && p.row === row && !(p.type === 'soldier' && p.inTunnel))
 }
 
 // Get all pieces at a position (for barricade + piece behind it)
