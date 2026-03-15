@@ -2487,8 +2487,12 @@ function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: 
   let totalPoints = 0
 
   for (const piece of piecesHit) {
-    // Soldiers, helicopters, ships, trains, tanks, machine guns, SUVs, hackers, subs, fighters and builders die immediately
-    if (piece.type === 'soldier' || piece.type === 'helicopter' || piece.type === 'ship' || piece.type === 'train' || piece.type === 'tank' || piece.type === 'machinegun' || piece.type === 'suv' || piece.type === 'hacker' || piece.type === 'sub' || piece.type === 'fighter' || piece.type === 'builder') {
+    // Protected pieces: builder, fighter, hacker, rocket cannot be destroyed by rockets
+    if (piece.type === 'builder' || piece.type === 'fighter' || piece.type === 'hacker' || piece.type === 'rocket') {
+      continue  // Skip these pieces - they are immune to rocket damage
+    }
+    // Soldiers, helicopters, ships, trains, tanks, machine guns, SUVs, and subs die immediately
+    if (piece.type === 'soldier' || piece.type === 'helicopter' || piece.type === 'ship' || piece.type === 'train' || piece.type === 'tank' || piece.type === 'machinegun' || piece.type === 'suv' || piece.type === 'sub') {
       const index = pieces.indexOf(piece)
       if (index !== -1) {
         pieces.splice(index, 1)
@@ -2898,8 +2902,16 @@ function handleSquareClick(col: string, row: number) {
       }
     }
 
-    // If clicking on the same piece, deselect
+    // If clicking on the same piece, deselect (unless forced to leave trench)
     if (piece === selectedPiece) {
+      // Check if this is a forced trench soldier - cannot deselect
+      const forcedSoldier = checkForcedTrenchExit()
+      if (forcedSoldier && piece === forcedSoldier) {
+        message = `⚠️ Soldier MUST leave the trench! Click a valid destination.`
+        render()
+        return
+      }
+
       selectedPiece = null
       validMoves = []
       shootTargets = []
