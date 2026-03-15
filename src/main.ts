@@ -2894,10 +2894,13 @@ function placeBuilderItem(col: string, row: number) {
 }
 
 function handleSquareClick(col: string, row: number) {
-  // Get pieces at this location (handles barricade + piece behind it)
+  // Get pieces at this location (handles barricade + piece behind it, or tunnel soldier + above ground piece)
   const piecesHere = getPiecesAt(col, row)
-  // Prefer selecting the non-barricade piece (piece behind barricade)
-  const piece = piecesHere.find(p => p.type !== 'barricade') || piecesHere[0]
+  // Prefer selecting: 1) current team's piece, 2) non-barricade piece, 3) first piece
+  // This handles tunnel soldiers under enemy pieces - select the one matching current turn
+  const piece = piecesHere.find(p => p.team === currentTurn && p.type !== 'barricade')
+    || piecesHere.find(p => p.type !== 'barricade')
+    || piecesHere[0]
 
   if (selectedPiece) {
     // If artillery is selected and clicking on it again, fire it
