@@ -1789,7 +1789,11 @@ function selectSoldierAction(action: 'move' | 'shoot') {
     } else if (selectedPiece.type === 'ship') {
       shootTargets = getShootTargetsForShip(selectedPiece)
     }
-    message = null
+    if (shootTargets.length === 0) {
+      message = "No targets in range!"
+    } else {
+      message = null
+    }
   }
 
   render()
