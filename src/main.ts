@@ -1616,18 +1616,21 @@ function selectPiece(piece: Piece) {
       validMoves = []
       message = `In trench (${turnsInTrench}/3 turns)`
     } else {
-      // Show action selection for soldier
+      // Auto-select move action, but keep buttons visible to switch
       showSoldierActions = true
-      validMoves = []
+      actionMode = 'move'
+      validMoves = getValidMovesForSoldier(piece)
     }
   } else if (piece.type === 'tank') {
-    // Tank has move and shoot options
-    showSoldierActions = true  // Reuse soldier action buttons
-    validMoves = []
-  } else if (piece.type === 'ship') {
-    // Ship has move and shoot options
+    // Auto-select move action, but keep buttons visible to switch
     showSoldierActions = true
-    validMoves = []
+    actionMode = 'move'
+    validMoves = getValidMovesForTank(piece)
+  } else if (piece.type === 'ship') {
+    // Auto-select move action, but keep buttons visible to switch
+    showSoldierActions = true
+    actionMode = 'move'
+    validMoves = getValidMovesForShip(piece)
   } else if (piece.type === 'carrier') {
     // Carrier can only move (captures by ramming), no shooting
     validMoves = getValidMovesForCarrier(piece)
