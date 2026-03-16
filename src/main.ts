@@ -25,77 +25,261 @@ function initAudio() {
   }
 }
 
+// Create white noise buffer for explosion/gunshot sounds
+function createNoiseBuffer(duration: number): AudioBuffer {
+  const sampleRate = audioContext!.sampleRate
+  const bufferSize = sampleRate * duration
+  const buffer = audioContext!.createBuffer(1, bufferSize, sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1
+  }
+  return buffer
+}
+
 function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 'tick') {
   if (!soundEnabled || !audioContext) return
 
-  const oscillator = audioContext.createOscillator()
-  const gainNode = audioContext.createGain()
-
-  oscillator.connect(gainNode)
-  gainNode.connect(audioContext.destination)
+  const now = audioContext.currentTime
 
   switch (type) {
-    case 'move':
-      oscillator.frequency.value = 300
-      oscillator.type = 'sine'
-      gainNode.gain.value = 0.1
-      oscillator.start()
-      oscillator.stop(audioContext.currentTime + 0.1)
+    case 'move': {
+      // Chess piece "clack" - wooden tap sound
+      const osc1 = audioContext.createOscillator()
+      const osc2 = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 2000
+
+      osc1.type = 'triangle'
+      osc1.frequency.setValueAtTime(800, now)
+      osc1.frequency.exponentialRampToValueAtTime(300, now + 0.05)
+
+      osc2.type = 'sine'
+      osc2.frequency.setValueAtTime(400, now)
+      osc2.frequency.exponentialRampToValueAtTime(150, now + 0.05)
+
+      gain.gain.setValueAtTime(0.15, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+
+      osc1.connect(filter)
+      osc2.connect(filter)
+      filter.connect(gain)
+      gain.connect(audioContext.destination)
+
+      osc1.start(now)
+      osc2.start(now)
+      osc1.stop(now + 0.1)
+      osc2.stop(now + 0.1)
       break
-    case 'capture':
-      oscillator.frequency.value = 200
-      oscillator.type = 'sawtooth'
-      gainNode.gain.value = 0.15
-      oscillator.start()
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-      oscillator.stop(audioContext.currentTime + 0.3)
+    }
+
+    case 'capture': {
+      // Impact "thump" with crunch - piece being taken
+      const osc = audioContext.createOscillator()
+      const noise = audioContext.createBufferSource()
+      const gainOsc = audioContext.createGain()
+      const gainNoise = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+
+      // Low thump
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(150, now)
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.15)
+      gainOsc.gain.setValueAtTime(0.3, now)
+      gainOsc.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+
+      // Crunch noise
+      noise.buffer = createNoiseBuffer(0.1)
+      filter.type = 'bandpass'
+      filter.frequency.value = 1000
+      filter.Q.value = 1
+      gainNoise.gain.setValueAtTime(0.15, now)
+      gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+
+      osc.connect(gainOsc)
+      gainOsc.connect(audioContext.destination)
+      noise.connect(filter)
+      filter.connect(gainNoise)
+      gainNoise.connect(audioContext.destination)
+
+      osc.start(now)
+      noise.start(now)
+      osc.stop(now + 0.25)
+      noise.stop(now + 0.15)
       break
-    case 'shoot':
-      oscillator.frequency.value = 800
-      oscillator.type = 'square'
-      gainNode.gain.value = 0.1
-      oscillator.start()
-      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.15)
-      oscillator.stop(audioContext.currentTime + 0.15)
+    }
+
+    case 'shoot': {
+      // Gunshot/laser - sharp attack with quick decay
+      const noise = audioContext.createBufferSource()
+      const osc = audioContext.createOscillator()
+      const gainNoise = audioContext.createGain()
+      const gainOsc = audioContext.createGain()
+      const filterNoise = audioContext.createBiquadFilter()
+      const filterOsc = audioContext.createBiquadFilter()
+
+      // Sharp noise burst (gunshot crack)
+      noise.buffer = createNoiseBuffer(0.15)
+      filterNoise.type = 'highpass'
+      filterNoise.frequency.setValueAtTime(2000, now)
+      filterNoise.frequency.exponentialRampToValueAtTime(500, now + 0.1)
+      gainNoise.gain.setValueAtTime(0.25, now)
+      gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+
+      // Low punch
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(400, now)
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08)
+      filterOsc.type = 'lowpass'
+      filterOsc.frequency.value = 500
+      gainOsc.gain.setValueAtTime(0.2, now)
+      gainOsc.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+
+      noise.connect(filterNoise)
+      filterNoise.connect(gainNoise)
+      gainNoise.connect(audioContext.destination)
+
+      osc.connect(filterOsc)
+      filterOsc.connect(gainOsc)
+      gainOsc.connect(audioContext.destination)
+
+      noise.start(now)
+      osc.start(now)
+      noise.stop(now + 0.15)
+      osc.stop(now + 0.15)
       break
-    case 'explosion':
-      oscillator.frequency.value = 100
-      oscillator.type = 'sawtooth'
-      gainNode.gain.value = 0.2
-      oscillator.start()
-      oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.5)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-      oscillator.stop(audioContext.currentTime + 0.5)
+    }
+
+    case 'explosion': {
+      // Deep explosion with rumble and debris
+      const noise = audioContext.createBufferSource()
+      const osc = audioContext.createOscillator()
+      const gainNoise = audioContext.createGain()
+      const gainOsc = audioContext.createGain()
+      const filterNoise = audioContext.createBiquadFilter()
+
+      // Rumbling noise
+      noise.buffer = createNoiseBuffer(0.8)
+      filterNoise.type = 'lowpass'
+      filterNoise.frequency.setValueAtTime(1000, now)
+      filterNoise.frequency.exponentialRampToValueAtTime(100, now + 0.5)
+      gainNoise.gain.setValueAtTime(0.4, now)
+      gainNoise.gain.setValueAtTime(0.3, now + 0.1)
+      gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
+
+      // Deep boom
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(80, now)
+      osc.frequency.exponentialRampToValueAtTime(20, now + 0.4)
+      gainOsc.gain.setValueAtTime(0.4, now)
+      gainOsc.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+
+      noise.connect(filterNoise)
+      filterNoise.connect(gainNoise)
+      gainNoise.connect(audioContext.destination)
+
+      osc.connect(gainOsc)
+      gainOsc.connect(audioContext.destination)
+
+      noise.start(now)
+      osc.start(now)
+      noise.stop(now + 0.8)
+      osc.stop(now + 0.6)
       break
-    case 'click':
-      oscillator.frequency.value = 600
-      oscillator.type = 'sine'
-      gainNode.gain.value = 0.05
-      oscillator.start()
-      oscillator.stop(audioContext.currentTime + 0.05)
+    }
+
+    case 'click': {
+      // Soft UI click - like a button press
+      const osc = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(1800, now)
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.03)
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 3000
+
+      gain.gain.setValueAtTime(0.08, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(audioContext.destination)
+
+      osc.start(now)
+      osc.stop(now + 0.05)
       break
-    case 'win':
-      // Play a victory fanfare
-      const notes = [523, 659, 784, 1047] // C5, E5, G5, C6
-      notes.forEach((freq, i) => {
+    }
+
+    case 'win': {
+      // Victory fanfare - triumphant chord progression
+      const playNote = (freq: number, startTime: number, duration: number) => {
         const osc = audioContext!.createOscillator()
+        const osc2 = audioContext!.createOscillator()
         const gain = audioContext!.createGain()
-        osc.connect(gain)
-        gain.connect(audioContext!.destination)
+
+        osc.type = 'triangle'
         osc.frequency.value = freq
-        osc.type = 'sine'
-        gain.gain.value = 0.1
-        osc.start(audioContext!.currentTime + i * 0.15)
-        osc.stop(audioContext!.currentTime + i * 0.15 + 0.3)
-      })
-      return
-    case 'tick':
-      oscillator.frequency.value = 1000
-      oscillator.type = 'sine'
-      gainNode.gain.value = 0.05
-      oscillator.start()
-      oscillator.stop(audioContext.currentTime + 0.02)
+        osc2.type = 'sine'
+        osc2.frequency.value = freq * 2 // Octave up
+
+        gain.gain.setValueAtTime(0.001, startTime)
+        gain.gain.exponentialRampToValueAtTime(0.12, startTime + 0.02)
+        gain.gain.setValueAtTime(0.1, startTime + duration * 0.7)
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+        osc.connect(gain)
+        osc2.connect(gain)
+        gain.connect(audioContext!.destination)
+
+        osc.start(startTime)
+        osc2.start(startTime)
+        osc.stop(startTime + duration)
+        osc2.stop(startTime + duration)
+      }
+
+      // C major arpeggio then final chord
+      playNote(523, now, 0.15)        // C5
+      playNote(659, now + 0.1, 0.15)  // E5
+      playNote(784, now + 0.2, 0.15)  // G5
+      playNote(1047, now + 0.3, 0.4)  // C6 (longer)
+      // Final chord
+      playNote(523, now + 0.35, 0.5)
+      playNote(659, now + 0.35, 0.5)
+      playNote(784, now + 0.35, 0.5)
       break
+    }
+
+    case 'tick': {
+      // Clock tick - mechanical click
+      const osc = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+
+      osc.type = 'square'
+      osc.frequency.setValueAtTime(2500, now)
+      osc.frequency.setValueAtTime(1500, now + 0.01)
+
+      filter.type = 'bandpass'
+      filter.frequency.value = 2000
+      filter.Q.value = 5
+
+      gain.gain.setValueAtTime(0.06, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(audioContext.destination)
+
+      osc.start(now)
+      osc.stop(now + 0.03)
+      break
+    }
   }
 }
 
