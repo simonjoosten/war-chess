@@ -12,6 +12,11 @@ let yellowTimeRemaining = 0 // in seconds
 let greenTimeRemaining = 0 // in seconds
 let timerInterval: number | null = null
 
+// Score penalties (for timeout)
+let yellowPenalty = 0
+let greenPenalty = 0
+const TIMEOUT_PENALTY = 10
+
 // Audio settings
 let soundEnabled = true
 let musicEnabled = false
@@ -297,6 +302,7 @@ const translations: Record<Language, Record<string, string>> = {
     timerOn: 'On',
     timerMinutesLabel: 'Minutes per player',
     timeUp: 'Time is up!',
+    timeUpPenalty: '{team} ran out of time! (-10 points)',
     // Audio settings
     soundLabel: 'Sound Effects',
     musicLabel: 'Music',
@@ -396,6 +402,7 @@ const translations: Record<Language, Record<string, string>> = {
     timerOn: 'Aan',
     timerMinutesLabel: 'Minuten per speler',
     timeUp: 'Tijd is op!',
+    timeUpPenalty: '{team} heeft geen tijd meer! (-10 punten)',
     soundLabel: 'Geluidseffecten',
     musicLabel: 'Muziek',
     on: 'Aan',
@@ -483,6 +490,7 @@ const translations: Record<Language, Record<string, string>> = {
     timerOn: 'An',
     timerMinutesLabel: 'Minuten pro Spieler',
     timeUp: 'Zeit ist um!',
+    timeUpPenalty: '{team} hat keine Zeit mehr! (-10 Punkte)',
     soundLabel: 'Soundeffekte',
     musicLabel: 'Musik',
     on: 'An',
@@ -570,6 +578,7 @@ const translations: Record<Language, Record<string, string>> = {
     timerOn: 'Activé',
     timerMinutesLabel: 'Minutes par joueur',
     timeUp: 'Temps écoulé!',
+    timeUpPenalty: '{team} n\'a plus de temps! (-10 points)',
     soundLabel: 'Effets sonores',
     musicLabel: 'Musique',
     on: 'Activé',
@@ -657,6 +666,7 @@ const translations: Record<Language, Record<string, string>> = {
     timerOn: 'Encendido',
     timerMinutesLabel: 'Minutos por jugador',
     timeUp: '¡Se acabó el tiempo!',
+    timeUpPenalty: '¡{team} se quedó sin tiempo! (-10 puntos)',
     soundLabel: 'Efectos de sonido',
     musicLabel: 'Música',
     on: 'Encendido',
@@ -802,9 +812,11 @@ interface Move {
 }
 
 function getTeamScore(team: Team): number {
-  return capturedPieces
+  const capturePoints = capturedPieces
     .filter(p => p.team !== team)
     .reduce((sum, p) => sum + p.points, 0)
+  const penalty = team === 'yellow' ? yellowPenalty : greenPenalty
+  return capturePoints - penalty
 }
 
 let moveLog: Move[] = []
@@ -1591,12 +1603,19 @@ function stopTimer() {
 
 function handleTimeOut(team: Team) {
   stopTimer()
-  playSound('win')
+  playSound('explosion') // Dramatic sound for timeout
+
+  // Apply -10 penalty to the team that ran out of time
+  if (team === 'yellow') {
+    yellowPenalty += TIMEOUT_PENALTY
+  } else {
+    greenPenalty += TIMEOUT_PENALTY
+  }
 
   const yellowScore = getTeamScore('yellow')
   const greenScore = getTeamScore('green')
 
-  // Winner is determined by points
+  // Winner is determined by points (after penalty)
   if (yellowScore > greenScore) {
     winner = 'yellow'
   } else if (greenScore > yellowScore) {
@@ -1608,7 +1627,8 @@ function handleTimeOut(team: Team) {
 
   winReason = 'points'
   gameState = 'gameOver'
-  message = t('timeUp')
+  message = t('timeUpPenalty').replace('{team}', team === 'yellow' ? t('yellowTeam') : t('greenTeam'))
+  playSound('win')
   render()
 }
 
@@ -1666,6 +1686,10 @@ function resetGame() {
   stopTimer()
   yellowTimeRemaining = timerMinutes * 60
   greenTimeRemaining = timerMinutes * 60
+
+  // Reset penalties
+  yellowPenalty = 0
+  greenPenalty = 0
 
   render()
 }
