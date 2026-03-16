@@ -118,43 +118,84 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
     }
 
     case 'shoot': {
-      // Gunshot/laser - sharp attack with quick decay
-      const noise = audioContext.createBufferSource()
-      const osc = audioContext.createOscillator()
-      const gainNoise = audioContext.createGain()
-      const gainOsc = audioContext.createGain()
-      const filterNoise = audioContext.createBiquadFilter()
-      const filterOsc = audioContext.createBiquadFilter()
+      // Realistic gunshot with shell casing ejection
+      // Part 1: BANG - "sptjge" - the gunshot
+      const bang = audioContext.createBufferSource()
+      const bangFilter = audioContext.createBiquadFilter()
+      const bangGain = audioContext.createGain()
+      const punch = audioContext.createOscillator()
+      const punchGain = audioContext.createGain()
 
-      // Sharp noise burst (gunshot crack)
-      noise.buffer = createNoiseBuffer(0.15)
-      filterNoise.type = 'highpass'
-      filterNoise.frequency.setValueAtTime(2000, now)
-      filterNoise.frequency.exponentialRampToValueAtTime(500, now + 0.1)
-      gainNoise.gain.setValueAtTime(0.25, now)
-      gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+      // Sharp crack
+      bang.buffer = createNoiseBuffer(0.12)
+      bangFilter.type = 'bandpass'
+      bangFilter.frequency.setValueAtTime(3000, now)
+      bangFilter.frequency.exponentialRampToValueAtTime(800, now + 0.05)
+      bangFilter.Q.value = 2
+      bangGain.gain.setValueAtTime(0.35, now)
+      bangGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
 
-      // Low punch
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(400, now)
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08)
-      filterOsc.type = 'lowpass'
-      filterOsc.frequency.value = 500
-      gainOsc.gain.setValueAtTime(0.2, now)
-      gainOsc.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+      // Low thump of the shot
+      punch.type = 'sine'
+      punch.frequency.setValueAtTime(200, now)
+      punch.frequency.exponentialRampToValueAtTime(40, now + 0.1)
+      punchGain.gain.setValueAtTime(0.3, now)
+      punchGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
 
-      noise.connect(filterNoise)
-      filterNoise.connect(gainNoise)
-      gainNoise.connect(audioContext.destination)
+      bang.connect(bangFilter)
+      bangFilter.connect(bangGain)
+      bangGain.connect(audioContext.destination)
+      punch.connect(punchGain)
+      punchGain.connect(audioContext.destination)
 
-      osc.connect(filterOsc)
-      filterOsc.connect(gainOsc)
-      gainOsc.connect(audioContext.destination)
+      bang.start(now)
+      punch.start(now)
+      bang.stop(now + 0.12)
+      punch.stop(now + 0.15)
 
-      noise.start(now)
-      osc.start(now)
-      noise.stop(now + 0.15)
-      osc.stop(now + 0.15)
+      // Part 2: Shell casing - "tjsjt" - metallic tink after delay
+      const shellDelay = 0.15 // delay after shot
+
+      // High metallic ping (shell hitting ground)
+      const shell1 = audioContext.createOscillator()
+      const shell1Gain = audioContext.createGain()
+      shell1.type = 'triangle'
+      shell1.frequency.setValueAtTime(4500, now + shellDelay)
+      shell1.frequency.exponentialRampToValueAtTime(2000, now + shellDelay + 0.05)
+      shell1Gain.gain.setValueAtTime(0.08, now + shellDelay)
+      shell1Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.08)
+      shell1.connect(shell1Gain)
+      shell1Gain.connect(audioContext.destination)
+      shell1.start(now + shellDelay)
+      shell1.stop(now + shellDelay + 0.1)
+
+      // Second bounce (quieter)
+      const shell2 = audioContext.createOscillator()
+      const shell2Gain = audioContext.createGain()
+      shell2.type = 'triangle'
+      shell2.frequency.setValueAtTime(3800, now + shellDelay + 0.08)
+      shell2.frequency.exponentialRampToValueAtTime(1500, now + shellDelay + 0.12)
+      shell2Gain.gain.setValueAtTime(0.04, now + shellDelay + 0.08)
+      shell2Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.15)
+      shell2.connect(shell2Gain)
+      shell2Gain.connect(audioContext.destination)
+      shell2.start(now + shellDelay + 0.08)
+      shell2.stop(now + shellDelay + 0.18)
+
+      // Tiny metallic rattle
+      const rattle = audioContext.createBufferSource()
+      const rattleFilter = audioContext.createBiquadFilter()
+      const rattleGain = audioContext.createGain()
+      rattle.buffer = createNoiseBuffer(0.1)
+      rattleFilter.type = 'highpass'
+      rattleFilter.frequency.value = 6000
+      rattleGain.gain.setValueAtTime(0.03, now + shellDelay + 0.05)
+      rattleGain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.12)
+      rattle.connect(rattleFilter)
+      rattleFilter.connect(rattleGain)
+      rattleGain.connect(audioContext.destination)
+      rattle.start(now + shellDelay + 0.05)
+      rattle.stop(now + shellDelay + 0.15)
       break
     }
 
