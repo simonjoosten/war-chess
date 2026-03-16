@@ -5,6 +5,100 @@ type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
 let currentLanguage: Language = 'en'
 let showSettings = false
 
+// Timer settings (chess clock style)
+let timerEnabled = false
+let timerMinutes = 10 // Default 10 minutes per player
+let yellowTimeRemaining = 0 // in seconds
+let greenTimeRemaining = 0 // in seconds
+let timerInterval: number | null = null
+
+// Audio settings
+let soundEnabled = true
+let musicEnabled = false
+
+// Audio context for sound effects
+let audioContext: AudioContext | null = null
+
+function initAudio() {
+  if (!audioContext) {
+    audioContext = new AudioContext()
+  }
+}
+
+function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 'tick') {
+  if (!soundEnabled || !audioContext) return
+
+  const oscillator = audioContext.createOscillator()
+  const gainNode = audioContext.createGain()
+
+  oscillator.connect(gainNode)
+  gainNode.connect(audioContext.destination)
+
+  switch (type) {
+    case 'move':
+      oscillator.frequency.value = 300
+      oscillator.type = 'sine'
+      gainNode.gain.value = 0.1
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.1)
+      break
+    case 'capture':
+      oscillator.frequency.value = 200
+      oscillator.type = 'sawtooth'
+      gainNode.gain.value = 0.15
+      oscillator.start()
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+      oscillator.stop(audioContext.currentTime + 0.3)
+      break
+    case 'shoot':
+      oscillator.frequency.value = 800
+      oscillator.type = 'square'
+      gainNode.gain.value = 0.1
+      oscillator.start()
+      oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.15)
+      oscillator.stop(audioContext.currentTime + 0.15)
+      break
+    case 'explosion':
+      oscillator.frequency.value = 100
+      oscillator.type = 'sawtooth'
+      gainNode.gain.value = 0.2
+      oscillator.start()
+      oscillator.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.5)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+      oscillator.stop(audioContext.currentTime + 0.5)
+      break
+    case 'click':
+      oscillator.frequency.value = 600
+      oscillator.type = 'sine'
+      gainNode.gain.value = 0.05
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.05)
+      break
+    case 'win':
+      // Play a victory fanfare
+      const notes = [523, 659, 784, 1047] // C5, E5, G5, C6
+      notes.forEach((freq, i) => {
+        const osc = audioContext!.createOscillator()
+        const gain = audioContext!.createGain()
+        osc.connect(gain)
+        gain.connect(audioContext!.destination)
+        osc.frequency.value = freq
+        osc.type = 'sine'
+        gain.gain.value = 0.1
+        osc.start(audioContext!.currentTime + i * 0.15)
+        osc.stop(audioContext!.currentTime + i * 0.15 + 0.3)
+      })
+      return
+    case 'tick':
+      oscillator.frequency.value = 1000
+      oscillator.type = 'sine'
+      gainNode.gain.value = 0.05
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.02)
+      break
+  }
+}
+
 const translations: Record<Language, Record<string, string>> = {
   en: {
     // Start screen
@@ -13,6 +107,17 @@ const translations: Record<Language, Record<string, string>> = {
     settingsButton: 'Settings',
     backButton: 'Back',
     languageLabel: 'Language',
+    // Timer settings
+    timerLabel: 'Chess Clock',
+    timerOff: 'Off',
+    timerOn: 'On',
+    timerMinutesLabel: 'Minutes per player',
+    timeUp: 'Time is up!',
+    // Audio settings
+    soundLabel: 'Sound Effects',
+    musicLabel: 'Music',
+    on: 'On',
+    off: 'Off',
     // Game
     yellowTurn: "YELLOW's turn",
     greenTurn: "GREEN's turn",
@@ -26,18 +131,58 @@ const translations: Record<Language, Record<string, string>> = {
     selectTarget: 'Select target to shoot',
     mustLeaveTrench: 'Soldier MUST leave the trench! Click a valid destination.',
     enteredTrench: 'Entered the trench!',
+    enteredTrenchTurn: 'Entered the trench! (Turn {0}/3)',
+    leftTrench: 'Left the trench!',
     enteredTunnel: 'Entered the tunnel!',
     exitedTunnel: 'Exited the tunnel!',
+    soldierTrapped: 'Soldier trapped in trench - eliminated!',
     helicopterLaunched: 'Helicopter launched!',
+    helicopterLanded: 'Helicopter landed on carrier!',
     selectHelipad: 'Select helipad to land helicopter',
     noHelipads: 'No available helipads to land on!',
     cannotMoveThere: 'You cannot move there!',
+    cannotShootThere: 'You cannot shoot there!',
+    noTargetToShoot: 'No target to shoot!',
     teamPieceBlocking: 'There is already a piece of your team there!',
     notYourTurn: "It's not your turn!",
     pieceFrozen: 'This piece is frozen!',
     rocketNotReady: 'Rocket not ready yet!',
     rocketUsed: 'This rocket has already been used!',
     selectRocketTarget: 'Select target for rocket (3x3 explosion area)',
+    rocketLaunching: 'Rocket launching...',
+    rocketExploded: 'Rocket exploded!',
+    selectHackTarget: 'Select enemy piece to hack',
+    noHackTargets: 'No targets to hack',
+    selectBombTarget: 'Select enemy piece to bomb',
+    noBombTargets: 'No targets in range',
+    // Hack errors
+    cannotHackWater: 'Cannot hack into water!',
+    cannotHackOccupied: 'Cannot hack - square occupied!',
+    cannotHackEdge: 'Cannot hack - edge of board!',
+    hackerCooldown: 'Hacker on cooldown!',
+    hackerNotReady: 'Hacker not ready yet!',
+    // Fighter
+    fighterIncoming: 'Fighter incoming...',
+    droppingBomb: 'Dropping bomb!',
+    targetDestroyed: 'Target destroyed!',
+    // Builder
+    builderChooseAction: 'Builder: choose action',
+    builderWaitCooldown: 'Builder: move or wait for cooldown',
+    selectWhereToMove: 'Select where to move',
+    cannotBuildBarricade: 'Cannot build barricade now',
+    selectPlaceBarricade: 'Select where to place barricade',
+    cannotBuildArtillery: 'Cannot build artillery now',
+    selectPlaceArtillery: 'Select where to place artillery',
+    cannotBuildSpike: 'Cannot build spike now',
+    selectPlaceSpike: 'Select where to place spike',
+    // Artillery
+    artilleryNoTargets: 'Artillery has no valid targets!',
+    clickToFireArtillery: 'Click to fire artillery (random target)',
+    // Barricade
+    barricadeInfo: 'Barricade: blocks movement and shots',
+    // Other
+    noValidMoves: 'No valid moves',
+    charging: 'Charging...',
     gameOverPoints: 'wins by points!',
     gameOverBuilder: 'wins by capturing the Builder!',
     // Confirm dialogs
@@ -50,6 +195,11 @@ const translations: Record<Language, Record<string, string>> = {
     score: 'Score',
     moves: 'Moves',
     captured: 'Captured',
+    // Team names
+    yellowTeam: 'Yellow',
+    greenTeam: 'Green',
+    yellowTurns: 'Yellow turns',
+    greenTurns: 'Green turns',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -57,6 +207,15 @@ const translations: Record<Language, Record<string, string>> = {
     settingsButton: 'Instellingen',
     backButton: 'Terug',
     languageLabel: 'Taal',
+    timerLabel: 'Schaakklok',
+    timerOff: 'Uit',
+    timerOn: 'Aan',
+    timerMinutesLabel: 'Minuten per speler',
+    timeUp: 'Tijd is op!',
+    soundLabel: 'Geluidseffecten',
+    musicLabel: 'Muziek',
+    on: 'Aan',
+    off: 'Uit',
     yellowTurn: 'GEEL aan zet',
     greenTurn: 'GROEN aan zet',
     resetButton: 'Reset',
@@ -68,18 +227,52 @@ const translations: Record<Language, Record<string, string>> = {
     selectTarget: 'Selecteer doel om te schieten',
     mustLeaveTrench: 'Soldaat MOET de loopgraaf verlaten! Klik op een geldige bestemming.',
     enteredTrench: 'Loopgraaf betreden!',
+    enteredTrenchTurn: 'Loopgraaf betreden! (Beurt {0}/3)',
+    leftTrench: 'Loopgraaf verlaten!',
     enteredTunnel: 'Tunnel betreden!',
     exitedTunnel: 'Tunnel verlaten!',
+    soldierTrapped: 'Soldaat vast in loopgraaf - uitgeschakeld!',
     helicopterLaunched: 'Helicopter gelanceerd!',
+    helicopterLanded: 'Helicopter geland op carrier!',
     selectHelipad: 'Selecteer helipad om te landen',
     noHelipads: 'Geen beschikbare helipads om te landen!',
     cannotMoveThere: 'Je kunt daar niet heen!',
+    cannotShootThere: 'Je kunt daar niet schieten!',
+    noTargetToShoot: 'Geen doel om te schieten!',
     teamPieceBlocking: 'Er staat al een stuk van jouw team!',
     notYourTurn: 'Het is niet jouw beurt!',
     pieceFrozen: 'Dit stuk is bevroren!',
     rocketNotReady: 'Raket nog niet klaar!',
     rocketUsed: 'Deze raket is al gebruikt!',
     selectRocketTarget: 'Selecteer doel voor raket (3x3 explosie)',
+    rocketLaunching: 'Raket lanceren...',
+    rocketExploded: 'Raket ontploft!',
+    selectHackTarget: 'Selecteer vijandelijk stuk om te hacken',
+    noHackTargets: 'Geen doelen om te hacken',
+    selectBombTarget: 'Selecteer vijandelijk stuk om te bombarderen',
+    noBombTargets: 'Geen doelen in bereik',
+    cannotHackWater: 'Kan niet in water hacken!',
+    cannotHackOccupied: 'Kan niet hacken - veld bezet!',
+    cannotHackEdge: 'Kan niet hacken - rand van bord!',
+    hackerCooldown: 'Hacker aan het opladen!',
+    hackerNotReady: 'Hacker nog niet klaar!',
+    fighterIncoming: 'Gevechtsvliegtuig nadert...',
+    droppingBomb: 'Bom laten vallen!',
+    targetDestroyed: 'Doel vernietigd!',
+    builderChooseAction: 'Bouwer: kies actie',
+    builderWaitCooldown: 'Bouwer: bewegen of wachten',
+    selectWhereToMove: 'Selecteer waar te bewegen',
+    cannotBuildBarricade: 'Kan nu geen barricade bouwen',
+    selectPlaceBarricade: 'Selecteer plek voor barricade',
+    cannotBuildArtillery: 'Kan nu geen artillerie bouwen',
+    selectPlaceArtillery: 'Selecteer plek voor artillerie',
+    cannotBuildSpike: 'Kan nu geen spike bouwen',
+    selectPlaceSpike: 'Selecteer plek voor spike',
+    artilleryNoTargets: 'Artillerie heeft geen doelen!',
+    clickToFireArtillery: 'Klik om artillerie te vuren',
+    barricadeInfo: 'Barricade: blokkeert beweging en schoten',
+    noValidMoves: 'Geen geldige zetten',
+    charging: 'Opladen...',
     gameOverPoints: 'wint op punten!',
     gameOverBuilder: 'wint door de Bouwer te vangen!',
     confirmReset: 'Weet je zeker dat je het spel wilt resetten?',
@@ -90,6 +283,10 @@ const translations: Record<Language, Record<string, string>> = {
     score: 'Score',
     moves: 'Zetten',
     captured: 'Gevangen',
+    yellowTeam: 'Geel',
+    greenTeam: 'Groen',
+    yellowTurns: 'Gele beurten',
+    greenTurns: 'Groene beurten',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -97,6 +294,15 @@ const translations: Record<Language, Record<string, string>> = {
     settingsButton: 'Einstellungen',
     backButton: 'Zurück',
     languageLabel: 'Sprache',
+    timerLabel: 'Schachuhr',
+    timerOff: 'Aus',
+    timerOn: 'An',
+    timerMinutesLabel: 'Minuten pro Spieler',
+    timeUp: 'Zeit ist um!',
+    soundLabel: 'Soundeffekte',
+    musicLabel: 'Musik',
+    on: 'An',
+    off: 'Aus',
     yellowTurn: 'GELB ist dran',
     greenTurn: 'GRÜN ist dran',
     resetButton: 'Zurücksetzen',
@@ -108,18 +314,52 @@ const translations: Record<Language, Record<string, string>> = {
     selectTarget: 'Ziel zum Schießen auswählen',
     mustLeaveTrench: 'Soldat MUSS den Graben verlassen! Klicke auf ein gültiges Ziel.',
     enteredTrench: 'Graben betreten!',
+    enteredTrenchTurn: 'Graben betreten! (Zug {0}/3)',
+    leftTrench: 'Graben verlassen!',
     enteredTunnel: 'Tunnel betreten!',
     exitedTunnel: 'Tunnel verlassen!',
+    soldierTrapped: 'Soldat im Graben gefangen - eliminiert!',
     helicopterLaunched: 'Hubschrauber gestartet!',
+    helicopterLanded: 'Hubschrauber auf Träger gelandet!',
     selectHelipad: 'Hubschrauberlandeplatz auswählen',
     noHelipads: 'Keine verfügbaren Landeplätze!',
     cannotMoveThere: 'Du kannst dich nicht dorthin bewegen!',
+    cannotShootThere: 'Du kannst dort nicht schießen!',
+    noTargetToShoot: 'Kein Ziel zum Schießen!',
     teamPieceBlocking: 'Dort steht bereits eine Figur deines Teams!',
     notYourTurn: 'Du bist nicht dran!',
     pieceFrozen: 'Diese Figur ist eingefroren!',
     rocketNotReady: 'Rakete noch nicht bereit!',
     rocketUsed: 'Diese Rakete wurde bereits benutzt!',
     selectRocketTarget: 'Ziel für Rakete auswählen (3x3 Explosion)',
+    rocketLaunching: 'Rakete startet...',
+    rocketExploded: 'Rakete explodiert!',
+    selectHackTarget: 'Feindliche Figur zum Hacken auswählen',
+    noHackTargets: 'Keine Ziele zum Hacken',
+    selectBombTarget: 'Feindliche Figur zum Bombardieren auswählen',
+    noBombTargets: 'Keine Ziele in Reichweite',
+    cannotHackWater: 'Kann nicht ins Wasser hacken!',
+    cannotHackOccupied: 'Kann nicht hacken - Feld besetzt!',
+    cannotHackEdge: 'Kann nicht hacken - Rand des Spielfelds!',
+    hackerCooldown: 'Hacker lädt auf!',
+    hackerNotReady: 'Hacker noch nicht bereit!',
+    fighterIncoming: 'Kampfjet im Anflug...',
+    droppingBomb: 'Bombe abwerfen!',
+    targetDestroyed: 'Ziel zerstört!',
+    builderChooseAction: 'Bauer: Aktion wählen',
+    builderWaitCooldown: 'Bauer: bewegen oder warten',
+    selectWhereToMove: 'Wähle wohin bewegen',
+    cannotBuildBarricade: 'Kann jetzt keine Barrikade bauen',
+    selectPlaceBarricade: 'Wähle Platz für Barrikade',
+    cannotBuildArtillery: 'Kann jetzt keine Artillerie bauen',
+    selectPlaceArtillery: 'Wähle Platz für Artillerie',
+    cannotBuildSpike: 'Kann jetzt keine Spikes bauen',
+    selectPlaceSpike: 'Wähle Platz für Spikes',
+    artilleryNoTargets: 'Artillerie hat keine Ziele!',
+    clickToFireArtillery: 'Klicken um Artillerie zu feuern',
+    barricadeInfo: 'Barrikade: blockiert Bewegung und Schüsse',
+    noValidMoves: 'Keine gültigen Züge',
+    charging: 'Aufladen...',
     gameOverPoints: 'gewinnt nach Punkten!',
     gameOverBuilder: 'gewinnt durch Eroberung des Bauers!',
     confirmReset: 'Möchtest du das Spiel wirklich zurücksetzen?',
@@ -130,6 +370,10 @@ const translations: Record<Language, Record<string, string>> = {
     score: 'Punktzahl',
     moves: 'Züge',
     captured: 'Erobert',
+    yellowTeam: 'Gelb',
+    greenTeam: 'Grün',
+    yellowTurns: 'Gelbe Züge',
+    greenTurns: 'Grüne Züge',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -137,6 +381,15 @@ const translations: Record<Language, Record<string, string>> = {
     settingsButton: 'Paramètres',
     backButton: 'Retour',
     languageLabel: 'Langue',
+    timerLabel: 'Pendule d\'échecs',
+    timerOff: 'Désactivé',
+    timerOn: 'Activé',
+    timerMinutesLabel: 'Minutes par joueur',
+    timeUp: 'Temps écoulé!',
+    soundLabel: 'Effets sonores',
+    musicLabel: 'Musique',
+    on: 'Activé',
+    off: 'Désactivé',
     yellowTurn: 'Tour de JAUNE',
     greenTurn: 'Tour de VERT',
     resetButton: 'Réinitialiser',
@@ -148,18 +401,52 @@ const translations: Record<Language, Record<string, string>> = {
     selectTarget: 'Sélectionnez une cible',
     mustLeaveTrench: 'Le soldat DOIT quitter la tranchée! Cliquez sur une destination.',
     enteredTrench: 'Tranchée entrée!',
+    enteredTrenchTurn: 'Tranchée entrée! (Tour {0}/3)',
+    leftTrench: 'Tranchée quittée!',
     enteredTunnel: 'Tunnel entré!',
     exitedTunnel: 'Tunnel quitté!',
+    soldierTrapped: 'Soldat piégé dans la tranchée - éliminé!',
     helicopterLaunched: 'Hélicoptère lancé!',
+    helicopterLanded: 'Hélicoptère atterri sur le porte-avions!',
     selectHelipad: 'Sélectionnez un héliport',
     noHelipads: 'Pas d\'héliports disponibles!',
     cannotMoveThere: 'Vous ne pouvez pas aller là!',
+    cannotShootThere: 'Vous ne pouvez pas tirer là!',
+    noTargetToShoot: 'Pas de cible à tirer!',
     teamPieceBlocking: 'Il y a déjà une pièce de votre équipe!',
     notYourTurn: 'Ce n\'est pas votre tour!',
     pieceFrozen: 'Cette pièce est gelée!',
     rocketNotReady: 'Fusée pas encore prête!',
     rocketUsed: 'Cette fusée a déjà été utilisée!',
     selectRocketTarget: 'Sélectionnez la cible (explosion 3x3)',
+    rocketLaunching: 'Fusée en lancement...',
+    rocketExploded: 'Fusée explosée!',
+    selectHackTarget: 'Sélectionnez une pièce ennemie à pirater',
+    noHackTargets: 'Pas de cibles à pirater',
+    selectBombTarget: 'Sélectionnez une pièce ennemie à bombarder',
+    noBombTargets: 'Pas de cibles à portée',
+    cannotHackWater: 'Impossible de pirater dans l\'eau!',
+    cannotHackOccupied: 'Impossible de pirater - case occupée!',
+    cannotHackEdge: 'Impossible de pirater - bord du plateau!',
+    hackerCooldown: 'Pirate en recharge!',
+    hackerNotReady: 'Pirate pas encore prêt!',
+    fighterIncoming: 'Chasseur en approche...',
+    droppingBomb: 'Largage de bombe!',
+    targetDestroyed: 'Cible détruite!',
+    builderChooseAction: 'Constructeur: choisir action',
+    builderWaitCooldown: 'Constructeur: déplacer ou attendre',
+    selectWhereToMove: 'Sélectionnez où déplacer',
+    cannotBuildBarricade: 'Impossible de construire maintenant',
+    selectPlaceBarricade: 'Sélectionnez où placer barricade',
+    cannotBuildArtillery: 'Impossible de construire artillerie',
+    selectPlaceArtillery: 'Sélectionnez où placer artillerie',
+    cannotBuildSpike: 'Impossible de construire spike',
+    selectPlaceSpike: 'Sélectionnez où placer spike',
+    artilleryNoTargets: 'L\'artillerie n\'a pas de cibles!',
+    clickToFireArtillery: 'Cliquez pour tirer artillerie',
+    barricadeInfo: 'Barricade: bloque mouvement et tirs',
+    noValidMoves: 'Pas de mouvements valides',
+    charging: 'Chargement...',
     gameOverPoints: 'gagne aux points!',
     gameOverBuilder: 'gagne en capturant le Constructeur!',
     confirmReset: 'Voulez-vous vraiment réinitialiser?',
@@ -170,6 +457,10 @@ const translations: Record<Language, Record<string, string>> = {
     score: 'Score',
     moves: 'Coups',
     captured: 'Capturé',
+    yellowTeam: 'Jaune',
+    greenTeam: 'Vert',
+    yellowTurns: 'Tours jaunes',
+    greenTurns: 'Tours verts',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -177,6 +468,15 @@ const translations: Record<Language, Record<string, string>> = {
     settingsButton: 'Configuración',
     backButton: 'Volver',
     languageLabel: 'Idioma',
+    timerLabel: 'Reloj de ajedrez',
+    timerOff: 'Apagado',
+    timerOn: 'Encendido',
+    timerMinutesLabel: 'Minutos por jugador',
+    timeUp: '¡Se acabó el tiempo!',
+    soundLabel: 'Efectos de sonido',
+    musicLabel: 'Música',
+    on: 'Encendido',
+    off: 'Apagado',
     yellowTurn: 'Turno de AMARILLO',
     greenTurn: 'Turno de VERDE',
     resetButton: 'Reiniciar',
@@ -188,18 +488,52 @@ const translations: Record<Language, Record<string, string>> = {
     selectTarget: 'Selecciona un objetivo',
     mustLeaveTrench: '¡El soldado DEBE salir de la trinchera! Haz clic en un destino.',
     enteredTrench: '¡Trinchera entrada!',
+    enteredTrenchTurn: '¡Trinchera entrada! (Turno {0}/3)',
+    leftTrench: '¡Trinchera abandonada!',
     enteredTunnel: '¡Túnel entrado!',
     exitedTunnel: '¡Túnel salido!',
+    soldierTrapped: '¡Soldado atrapado en trinchera - eliminado!',
     helicopterLaunched: '¡Helicóptero lanzado!',
+    helicopterLanded: '¡Helicóptero aterrizó en el portaaviones!',
     selectHelipad: 'Selecciona un helipuerto',
     noHelipads: '¡No hay helipuertos disponibles!',
     cannotMoveThere: '¡No puedes ir ahí!',
+    cannotShootThere: '¡No puedes disparar ahí!',
+    noTargetToShoot: '¡No hay objetivo para disparar!',
     teamPieceBlocking: '¡Ya hay una pieza de tu equipo ahí!',
     notYourTurn: '¡No es tu turno!',
     pieceFrozen: '¡Esta pieza está congelada!',
     rocketNotReady: '¡Cohete no está listo!',
     rocketUsed: '¡Este cohete ya fue usado!',
     selectRocketTarget: 'Selecciona objetivo (explosión 3x3)',
+    rocketLaunching: 'Cohete lanzando...',
+    rocketExploded: '¡Cohete explotó!',
+    selectHackTarget: 'Selecciona pieza enemiga para hackear',
+    noHackTargets: 'No hay objetivos para hackear',
+    selectBombTarget: 'Selecciona pieza enemiga para bombardear',
+    noBombTargets: 'No hay objetivos en rango',
+    cannotHackWater: '¡No se puede hackear al agua!',
+    cannotHackOccupied: '¡No se puede hackear - casilla ocupada!',
+    cannotHackEdge: '¡No se puede hackear - borde del tablero!',
+    hackerCooldown: '¡Hacker recargando!',
+    hackerNotReady: '¡Hacker no está listo!',
+    fighterIncoming: 'Caza en camino...',
+    droppingBomb: '¡Lanzando bomba!',
+    targetDestroyed: '¡Objetivo destruido!',
+    builderChooseAction: 'Constructor: elegir acción',
+    builderWaitCooldown: 'Constructor: mover o esperar',
+    selectWhereToMove: 'Selecciona dónde mover',
+    cannotBuildBarricade: 'No se puede construir barricada ahora',
+    selectPlaceBarricade: 'Selecciona dónde colocar barricada',
+    cannotBuildArtillery: 'No se puede construir artillería ahora',
+    selectPlaceArtillery: 'Selecciona dónde colocar artillería',
+    cannotBuildSpike: 'No se puede construir spike ahora',
+    selectPlaceSpike: 'Selecciona dónde colocar spike',
+    artilleryNoTargets: '¡La artillería no tiene objetivos!',
+    clickToFireArtillery: 'Haz clic para disparar artillería',
+    barricadeInfo: 'Barricada: bloquea movimiento y disparos',
+    noValidMoves: 'No hay movimientos válidos',
+    charging: 'Cargando...',
     gameOverPoints: '¡gana por puntos!',
     gameOverBuilder: '¡gana capturando al Constructor!',
     confirmReset: '¿Seguro que quieres reiniciar?',
@@ -210,6 +544,10 @@ const translations: Record<Language, Record<string, string>> = {
     score: 'Puntuación',
     moves: 'Movimientos',
     captured: 'Capturado',
+    yellowTeam: 'Amarillo',
+    greenTeam: 'Verde',
+    yellowTurns: 'Turnos amarillos',
+    greenTurns: 'Turnos verdes',
   }
 }
 
@@ -506,6 +844,8 @@ function switchTurn() {
     }
     winReason = 'points'
     gameState = 'gameOver'
+    stopTimer()
+    playSound('win')
   }
 }
 
@@ -515,6 +855,8 @@ function checkBuilderCaptured(capturedPiece: Piece, capturingTeam: Team) {
     winner = capturingTeam
     winReason = 'builder'
     gameState = 'gameOver'
+    stopTimer()
+    playSound('win')
   }
 }
 
@@ -869,7 +1211,7 @@ function fireArtillery(artillery: Piece) {
   }
 
   if (validTargets.length === 0) {
-    message = "Artillery has no valid targets!"
+    message = t('artilleryNoTargets')
     return
   }
 
@@ -1011,7 +1353,85 @@ function getInitialPieces(): Piece[] {
 
 function startGame() {
   gameState = 'playing'
+  initAudio()
+
+  // Initialize timer if enabled
+  if (timerEnabled) {
+    yellowTimeRemaining = timerMinutes * 60
+    greenTimeRemaining = timerMinutes * 60
+    startTimer()
+  }
+
   render()
+}
+
+function startTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+  }
+
+  timerInterval = window.setInterval(() => {
+    if (gameState !== 'playing') return
+
+    // Decrement current player's time
+    if (currentTurn === 'yellow') {
+      yellowTimeRemaining--
+      if (yellowTimeRemaining <= 10 && yellowTimeRemaining > 0) {
+        playSound('tick')
+      }
+      if (yellowTimeRemaining <= 0) {
+        yellowTimeRemaining = 0
+        handleTimeOut('yellow')
+      }
+    } else {
+      greenTimeRemaining--
+      if (greenTimeRemaining <= 10 && greenTimeRemaining > 0) {
+        playSound('tick')
+      }
+      if (greenTimeRemaining <= 0) {
+        greenTimeRemaining = 0
+        handleTimeOut('green')
+      }
+    }
+
+    render()
+  }, 1000)
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+}
+
+function handleTimeOut(team: Team) {
+  stopTimer()
+  playSound('win')
+
+  const yellowScore = getTeamScore('yellow')
+  const greenScore = getTeamScore('green')
+
+  // Winner is determined by points
+  if (yellowScore > greenScore) {
+    winner = 'yellow'
+  } else if (greenScore > yellowScore) {
+    winner = 'green'
+  } else {
+    // Tie goes to the team that didn't run out of time
+    winner = team === 'yellow' ? 'green' : 'yellow'
+  }
+
+  winReason = 'points'
+  gameState = 'gameOver'
+  message = t('timeUp')
+  render()
+}
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 function showResetConfirm() {
@@ -1057,6 +1477,12 @@ function resetGame() {
   greenTurnCount = 0
   winner = null
   winReason = null
+
+  // Reset timer
+  stopTimer()
+  yellowTimeRemaining = timerMinutes * 60
+  greenTimeRemaining = timerMinutes * 60
+
   render()
 }
 
@@ -1787,7 +2213,7 @@ function launchHelicopterFromCarrier() {
   }
 
   if (helicopterLaunchSpots.length === 0) {
-    message = "No available helipads to land on!"
+    message = t('noHelipads')
     render()
     return
   }
@@ -1795,7 +2221,7 @@ function launchHelicopterFromCarrier() {
   helicopterLaunchMode = true
   showCarrierActions = false
   validMoves = []
-  message = "Select helipad to land helicopter"
+  message = t('selectHelipad')
   render()
 }
 
@@ -1885,6 +2311,7 @@ function selectPiece(piece: Piece) {
   actionMode = null
   shootTargets = []
   hackTargets = []
+  playSound('click')
   selectedHackTarget = null
   showHackActions = false
   bombTargets = []
@@ -1915,7 +2342,7 @@ function selectPiece(piece: Piece) {
 
       if (validMoves.length === 0) {
         // Cannot leave trench - soldier is eliminated
-        message = "Soldier trapped in trench - eliminated!"
+        message = t('soldierTrapped')
         const index = pieces.indexOf(piece)
         pieces.splice(index, 1)
         capturedPieces.push(piece)
@@ -1972,7 +2399,7 @@ function selectPiece(piece: Piece) {
   } else if (piece.type === 'rocket') {
     // Rocket can target 3x3 area
     if (piece.used) {
-      message = "This rocket has already been used!"
+      message = t('rocketUsed')
       validMoves = []
     } else if (!isRocketReadyForTeam(piece.team)) {
       const teamTurns = piece.team === 'yellow' ? yellowTurnCount : greenTurnCount
@@ -1980,7 +2407,7 @@ function selectPiece(piece: Piece) {
       validMoves = []
     } else {
       rocketTargetArea = getValidTargetsForRocket(piece).map(t => ({ col: t.col, row: t.row }))
-      message = "Select target for rocket (3x3 explosion area)"
+      message = t('selectRocketTarget')
       validMoves = []
     }
     showSoldierActions = false
@@ -1989,9 +2416,9 @@ function selectPiece(piece: Piece) {
     validMoves = []
     shootTargets = getShootTargetsForMachineGun(piece)
     if (shootTargets.length === 0) {
-      message = "No targets in range"
+      message = t('noBombTargets')
     } else {
-      message = "Select target to shoot"
+      message = t('selectTarget')
     }
     showSoldierActions = false
     actionMode = 'shoot'
@@ -2004,7 +2431,7 @@ function selectPiece(piece: Piece) {
     validMoves = getValidMovesForSub(piece)
     showSoldierActions = false
     if (validMoves.length === 0) {
-      message = "No valid moves"
+      message = t('noValidMoves')
     }
   } else if (piece.type === 'hacker') {
     // Hacker can hack enemy pieces
@@ -2021,12 +2448,12 @@ function selectPiece(piece: Piece) {
       const remaining = getHackerCooldownRemaining(piece)
       message = `Hacker on cooldown! (${remaining} turns)`
     } else {
-      // Get all enemy pieces that can be hacked
-      hackTargets = pieces.filter(p => p.team !== piece.team && p.type !== 'hacker')
+      // Get all enemy pieces that can be hacked (rockets, machine gunners, and soldiers in tunnels are immune)
+      hackTargets = pieces.filter(p => p.team !== piece.team && p.type !== 'hacker' && p.type !== 'rocket' && p.type !== 'machinegun' && !(p.type === 'soldier' && p.inTunnel))
       if (hackTargets.length === 0) {
-        message = "No targets to hack"
+        message = t('noHackTargets')
       } else {
-        message = "Select enemy piece to hack"
+        message = t('selectHackTarget')
       }
     }
   } else if (piece.type === 'fighter') {
@@ -2047,9 +2474,9 @@ function selectPiece(piece: Piece) {
       // Get all enemy pieces that can be bombed
       bombTargets = getValidBombTargets(piece)
       if (bombTargets.length === 0) {
-        message = "No targets in range"
+        message = t('noBombTargets')
       } else {
-        message = "Select enemy piece to bomb"
+        message = t('selectBombTarget')
       }
     }
   } else if (piece.type === 'builder') {
@@ -2071,10 +2498,10 @@ function selectPiece(piece: Piece) {
       if (teamTurns < BUILDER_READY_TURN) {
         message = `Builder ready at turn ${BUILDER_READY_TURN} (${teamTurns}/${BUILDER_READY_TURN})`
       } else {
-        message = "Builder: move or wait for cooldown"
+        message = t('builderWaitCooldown')
       }
     } else {
-      message = "Builder: choose action"
+      message = t('builderChooseAction')
     }
   } else if (piece.type === 'artillery') {
     // Artillery can fire at random position
@@ -2085,14 +2512,14 @@ function selectPiece(piece: Piece) {
     if (teamTurns < ARTILLERY_READY_TURN) {
       message = `Artillery ready at turn ${ARTILLERY_READY_TURN} (${teamTurns}/${ARTILLERY_READY_TURN})`
     } else {
-      message = "Click to fire artillery (random target)"
+      message = t('clickToFireArtillery')
       // Will handle firing in handleSquareClick
     }
   } else if (piece.type === 'barricade') {
     // Barricade cannot move
     validMoves = []
     showSoldierActions = false
-    message = "Barricade: blocks movement and shots"
+    message = t('barricadeInfo')
   }
 
   render()
@@ -2145,7 +2572,7 @@ function movePiece(col: string, row: number) {
   const move = validMoves.find(m => m.col === col && m.row === row)
 
   if (!move) {
-    message = "You cannot move there!"
+    message = t('cannotMoveThere')
     render()
     return
   }
@@ -2160,7 +2587,7 @@ function movePiece(col: string, row: number) {
       const heliIndex = pieces.indexOf(selectedPiece)
       pieces.splice(heliIndex, 1)
 
-      message = "Helicopter landed on carrier!"
+      message = t('helicopterLanded')
 
       // Log the move
       moveLog.push({
@@ -2207,7 +2634,7 @@ function movePiece(col: string, row: number) {
     }
 
     if (pieceAtTarget.team === selectedPiece.team) {
-      message = "There is already a piece of your team there!"
+      message = t('teamPieceBlocking')
       render()
       return
     } else if (selectedPiece.type === 'train') {
@@ -2360,7 +2787,7 @@ function animateTrainHit(train: Piece, target: Piece, targetCol: string, targetR
     targetRow: targetRow,
     phase: 'moving'
   }
-  message = "Charging..."
+  message = t('charging')
   render()
 
   const chargeDuration = 400
@@ -2445,6 +2872,13 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   const fromCol = piece.col
   const fromRow = piece.row
 
+  // Play sound
+  if (capturedPiece) {
+    playSound('capture')
+  } else {
+    playSound('move')
+  }
+
   // Start movement animation
   moveAnimation = {
     piece: piece,
@@ -2496,13 +2930,13 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
         const currentTeamTurn = movingTeam === 'yellow' ? yellowTurnCount : greenTurnCount
         piece.inTrench = true
         piece.trenchEnteredOnTurn = currentTeamTurn
-        message = "Entered the trench! (Turn 0/3)"
+        message = t('enteredTrenchTurn').replace('{0}', '0')
       }
       // If soldier was in trench and is leaving
       else if (piece.type === 'soldier' && piece.inTrench && !isTrenchSquare(col, row)) {
         piece.inTrench = false
         piece.trenchEnteredOnTurn = undefined
-        message = "Left the trench!"
+        message = t('leftTrench')
       }
 
       // Move the piece
@@ -2550,7 +2984,7 @@ function confirmEnterTunnel() {
     team: movingTeam
   })
 
-  message = "Entered the tunnel!"
+  message = t('enteredTunnel')
 
   // Increment turn count
   if (movingTeam === 'yellow') yellowTurnCount++
@@ -2608,7 +3042,7 @@ function confirmExitTunnel() {
     team: movingTeam
   })
 
-  message = "Exited the tunnel!"
+  message = t('exitedTunnel')
 
   // Increment turn count
   if (movingTeam === 'yellow') yellowTurnCount++
@@ -2639,7 +3073,7 @@ function shootPiece(col: string, row: number) {
 
   const target = shootTargets.find(t => t.col === col && t.row === row)
   if (!target) {
-    message = "You cannot shoot there!"
+    message = t('cannotShootThere')
     render()
     return
   }
@@ -2648,13 +3082,15 @@ function shootPiece(col: string, row: number) {
   const barricadeAtTarget = getBarricadeAt(col, row)
   const pieceAtTarget = barricadeAtTarget || getPieceExcludingBarricade(col, row)
   if (!pieceAtTarget) {
-    message = "No target to shoot!"
+    message = t('noTargetToShoot')
     render()
     return
   }
 
   const shooter = selectedPiece
   const shootingTeam = shooter.team
+
+  playSound('shoot')
 
   // Handle shooting barricade - destroy it
   if (pieceAtTarget.type === 'barricade') {
@@ -2756,7 +3192,7 @@ function launchRocket(rocket: Piece, targetCol: string, targetRow: number) {
     progress: 0
   }
 
-  message = "Rocket launching..."
+  message = t('rocketLaunching')
   render()
 
   const launchDuration = 600
@@ -2883,10 +3319,12 @@ function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: 
     // Other pieces (rocket) are not affected for now
   }
 
+  playSound('explosion')
+
   if (totalPoints > 0) {
     message = `Rocket exploded! (+${totalPoints} points)`
   } else {
-    message = "Rocket exploded!"
+    message = t('rocketExploded')
   }
 }
 
@@ -2908,19 +3346,20 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
       if (!pieceAtNew) {
         // Check water
         if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
-          message = "Cannot hack into water!"
+          message = t('cannotHackWater')
           render()
           return
         }
         target.row = newRow
-        message = `Hacked ${target.type} forward!`
+        target.frozenTurns = 1  // Freeze for 1 turn when hacked
+        message = `Hacked ${target.type} forward! (frozen 1 turn)`
       } else {
-        message = "Cannot hack - square occupied!"
+        message = t('cannotHackOccupied')
         render()
         return
       }
     } else {
-      message = "Cannot hack - edge of board!"
+      message = t('cannotHackEdge')
       render()
       return
     }
@@ -2931,19 +3370,20 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
       if (!pieceAtNew) {
         // Check water
         if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
-          message = "Cannot hack into water!"
+          message = t('cannotHackWater')
           render()
           return
         }
         target.row = newRow
-        message = `Hacked ${target.type} backward!`
+        target.frozenTurns = 1  // Freeze for 1 turn when hacked
+        message = `Hacked ${target.type} backward! (frozen 1 turn)`
       } else {
-        message = "Cannot hack - square occupied!"
+        message = t('cannotHackOccupied')
         render()
         return
       }
     } else {
-      message = "Cannot hack - edge of board!"
+      message = t('cannotHackEdge')
       render()
       return
     }
@@ -2984,7 +3424,7 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
 function cancelHackTarget() {
   selectedHackTarget = null
   showHackActions = false
-  message = "Select enemy piece to hack"
+  message = t('selectHackTarget')
   render()
 }
 
@@ -3014,7 +3454,7 @@ function executeBombing(fighter: Piece, target: Piece, landingCol: string, landi
     progress: 0
   }
 
-  message = "Fighter incoming..."
+  message = t('fighterIncoming')
   animateFighter()
 }
 
@@ -3031,7 +3471,7 @@ function animateFighter() {
       // Reached target, start bombing
       fighterAnimation.phase = 'bombing'
       fighterAnimation.progress = 0
-      message = "Dropping bomb!"
+      message = t('droppingBomb')
     }
   } else if (phase === 'bombing') {
     if (fighterAnimation.progress >= 1) {
@@ -3045,7 +3485,7 @@ function animateFighter() {
       // Start flying to landing
       fighterAnimation.phase = 'flyToLanding'
       fighterAnimation.progress = 0
-      message = "Target destroyed!"
+      message = t('targetDestroyed')
     }
   } else if (phase === 'flyToLanding') {
     if (fighterAnimation.progress >= 1) {
@@ -3102,7 +3542,7 @@ function finishBombing() {
 function cancelBombTarget() {
   selectedBombTarget = null
   landingSpots = []
-  message = "Select enemy piece to bomb"
+  message = t('selectBombTarget')
   render()
 }
 
@@ -3116,37 +3556,37 @@ function selectBuilderAction(action: 'move' | 'barricade' | 'artillery' | 'spike
   helicopterLaunchMode = false
   helicopterLaunchSpots = []
     validMoves = getValidMovesForBuilder(selectedPiece)
-    message = "Select where to move"
+    message = t('selectWhereToMove')
   } else if (action === 'barricade') {
     if (!canBuilderBuildBarricade(selectedPiece)) {
-      message = "Cannot build barricade now"
+      message = t('cannotBuildBarricade')
       render()
       return
     }
     builderPlacementMode = 'barricade'
     builderPlacementSpots = getValidPlacementSpots(selectedPiece)
     validMoves = []
-    message = "Select where to place barricade"
+    message = t('selectPlaceBarricade')
   } else if (action === 'artillery') {
     if (!canBuilderBuildArtillery(selectedPiece)) {
-      message = "Cannot build artillery now"
+      message = t('cannotBuildArtillery')
       render()
       return
     }
     builderPlacementMode = 'artillery'
     builderPlacementSpots = getValidPlacementSpots(selectedPiece)
     validMoves = []
-    message = "Select where to place artillery"
+    message = t('selectPlaceArtillery')
   } else if (action === 'spike') {
     if (!canBuilderBuildSpike(selectedPiece)) {
-      message = "Cannot build spike now"
+      message = t('cannotBuildSpike')
       render()
       return
     }
     builderPlacementMode = 'spike'
     builderPlacementSpots = getValidSpikePlacementSpots(selectedPiece)
     validMoves = []
-    message = "Select where to place spike"
+    message = t('selectPlaceSpike')
   }
 
   render()
@@ -4785,12 +5225,12 @@ function createScorePanel(): string {
 
   return `
     <div class="bg-gray-800 rounded-lg p-3 sm:p-4 w-full lg:w-64 flex flex-col gap-3 sm:gap-4">
-      <h2 class="text-gray-200 font-bold text-base sm:text-lg border-b border-gray-700 pb-2">Score</h2>
+      <h2 class="text-gray-200 font-bold text-base sm:text-lg border-b border-gray-700 pb-2">${t('score')}</h2>
 
       <!-- Yellow Team -->
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <span class="text-yellow-400 font-bold text-sm sm:text-base">Yellow</span>
+          <span class="text-yellow-400 font-bold text-sm sm:text-base">${t('yellowTeam')}</span>
           <span class="text-yellow-400 font-bold text-lg sm:text-xl">${yellowScore}</span>
         </div>
         <div class="flex flex-wrap gap-1 min-h-[24px]">
@@ -4806,7 +5246,7 @@ function createScorePanel(): string {
       <!-- Green Team -->
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <span class="text-green-400 font-bold text-sm sm:text-base">Green</span>
+          <span class="text-green-400 font-bold text-sm sm:text-base">${t('greenTeam')}</span>
           <span class="text-green-400 font-bold text-lg sm:text-xl">${greenScore}</span>
         </div>
         <div class="flex flex-wrap gap-1 min-h-[24px]">
@@ -4868,10 +5308,10 @@ function render() {
     const yellowScore = getTeamScore('yellow')
     const greenScore = getTeamScore('green')
     const winnerColor = winner === 'yellow' ? '#fbbf24' : '#22c55e'
-    const winnerName = winner === 'yellow' ? 'Yellow' : 'Green'
+    const winnerName = winner === 'yellow' ? t('yellowTeam') : t('greenTeam')
     const reasonText = winReason === 'builder'
-      ? `${winnerName} captured the enemy Builder!`
-      : `${winnerName} has more points after 80 turns!`
+      ? `${winnerName} ${t('gameOverBuilder')}`
+      : `${winnerName} ${t('gameOverPoints')}`
 
     app.innerHTML = `
       <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
@@ -4882,15 +5322,15 @@ function render() {
         <div class="flex gap-8 text-white text-lg">
           <div class="text-center">
             <div class="text-2xl font-bold" style="color: #fbbf24">${yellowScore}</div>
-            <div class="text-sm opacity-70">Yellow</div>
+            <div class="text-sm opacity-70">${t('yellowTeam')}</div>
           </div>
           <div class="text-center">
             <div class="text-2xl font-bold" style="color: #22c55e">${greenScore}</div>
-            <div class="text-sm opacity-70">Green</div>
+            <div class="text-sm opacity-70">${t('greenTeam')}</div>
           </div>
         </div>
         <div class="text-white text-sm opacity-70">
-          Yellow turns: ${yellowTurnCount} | Green turns: ${greenTurnCount}
+          ${t('yellowTurns')}: ${yellowTurnCount} | ${t('greenTurns')}: ${greenTurnCount}
         </div>
         <button id="play-again-btn" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
           Play Again
@@ -4913,12 +5353,14 @@ function render() {
     if (showSettings) {
       // Settings screen
       app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8 overflow-y-auto">
           <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('settingsButton')}</h1>
-          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 min-w-[280px]">
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-6 min-w-[280px] max-w-[400px]">
+
+            <!-- Language -->
             <div class="flex flex-col gap-2">
               <label class="text-white font-bold">${t('languageLabel')}</label>
-              <div class="flex flex-col gap-2">
+              <div class="flex flex-wrap gap-2">
                 ${(Object.keys(languageNames) as Language[]).map(lang => `
                   <button
                     data-lang="${lang}"
@@ -4929,12 +5371,74 @@ function render() {
                 `).join('')}
               </div>
             </div>
+
+            <!-- Chess Clock Timer -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <label class="text-white font-bold">⏱️ ${t('timerLabel')}</label>
+              <div class="flex gap-2">
+                <button
+                  id="timer-off-btn"
+                  class="py-2 px-4 rounded ${!timerEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                >
+                  ${t('timerOff')}
+                </button>
+                <button
+                  id="timer-on-btn"
+                  class="py-2 px-4 rounded ${timerEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                >
+                  ${t('timerOn')}
+                </button>
+              </div>
+              ${timerEnabled ? `
+                <div class="flex flex-col gap-2 mt-2">
+                  <label class="text-gray-300 text-sm">${t('timerMinutesLabel')}</label>
+                  <div class="flex gap-2">
+                    ${[1, 3, 5, 10, 15, 30].map(mins => `
+                      <button
+                        data-minutes="${mins}"
+                        class="timer-mins-btn py-1 px-3 rounded text-sm ${timerMinutes === mins ? 'bg-green-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                      >
+                        ${mins}
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Sound Effects -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <label class="text-white font-bold">🔊 ${t('soundLabel')}</label>
+              <div class="flex gap-2">
+                <button
+                  id="sound-off-btn"
+                  class="py-2 px-4 rounded ${!soundEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                >
+                  ${t('off')}
+                </button>
+                <button
+                  id="sound-on-btn"
+                  class="py-2 px-4 rounded ${soundEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                >
+                  ${t('on')}
+                </button>
+                <button
+                  id="sound-test-btn"
+                  class="py-2 px-4 rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors text-sm"
+                >
+                  🔈 Test
+                </button>
+              </div>
+            </div>
+
           </div>
           <button id="back-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors touch-manipulation">
             ${t('backButton')}
           </button>
         </div>
       `
+
+      // Language buttons
       document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const lang = (e.target as HTMLElement).getAttribute('data-lang') as Language
@@ -4942,6 +5446,40 @@ function render() {
           render()
         })
       })
+
+      // Timer buttons
+      document.getElementById('timer-off-btn')?.addEventListener('click', () => {
+        timerEnabled = false
+        render()
+      })
+      document.getElementById('timer-on-btn')?.addEventListener('click', () => {
+        timerEnabled = true
+        render()
+      })
+      document.querySelectorAll('.timer-mins-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const mins = parseInt((e.target as HTMLElement).getAttribute('data-minutes') || '10')
+          timerMinutes = mins
+          render()
+        })
+      })
+
+      // Sound buttons
+      document.getElementById('sound-off-btn')?.addEventListener('click', () => {
+        soundEnabled = false
+        render()
+      })
+      document.getElementById('sound-on-btn')?.addEventListener('click', () => {
+        soundEnabled = true
+        initAudio()
+        render()
+      })
+      document.getElementById('sound-test-btn')?.addEventListener('click', () => {
+        initAudio()
+        playSound('capture')
+      })
+
+      // Back button
       document.getElementById('back-btn')?.addEventListener('click', () => {
         showSettings = false
         render()
@@ -5069,7 +5607,7 @@ function render() {
 
     // Check if soldier can't leave - eliminate
     if (validMoves.length === 0) {
-      message = "Soldier trapped in trench - eliminated!"
+      message = t('soldierTrapped')
       const index = pieces.indexOf(forcedSoldier)
       pieces.splice(index, 1)
       capturedPieces.push(forcedSoldier)
@@ -5181,8 +5719,14 @@ function render() {
       ${forcedTrenchWarning}
       ${rocketReadyMessage}
       <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
-        <div class="bg-gray-800 px-3 py-2 rounded-lg border-2 ${turnColor}">
+        <div class="bg-gray-800 px-3 py-2 rounded-lg border-2 ${turnColor} flex items-center gap-3">
           <span class="${turnColor} font-bold text-sm sm:text-base">${currentTurn === 'yellow' ? t('yellowTurn') : t('greenTurn')}</span>
+          ${timerEnabled ? `
+            <div class="flex gap-2 text-xs sm:text-sm">
+              <span class="px-2 py-1 rounded ${currentTurn === 'yellow' ? 'bg-yellow-600 text-black font-bold' : 'bg-gray-700 text-yellow-400'}">${formatTime(yellowTimeRemaining)}</span>
+              <span class="px-2 py-1 rounded ${currentTurn === 'green' ? 'bg-green-600 text-black font-bold' : 'bg-gray-700 text-green-400'}">${formatTime(greenTimeRemaining)}</span>
+            </div>
+          ` : ''}
         </div>
         ${actionButtonsHtml}
         ${hackActionsHtml}
