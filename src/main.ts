@@ -177,6 +177,7 @@ let landingSpots: { col: string; row: number }[] = []  // Valid landing spots af
 
 // Builder state
 let showBuilderActions = false  // Show builder action buttons
+let showCarrierActions = false  // Show carrier action buttons (launch helicopter)
 let builderPlacementMode: 'barricade' | 'artillery' | 'spike' | null = null
 let builderPlacementSpots: { col: string; row: number }[] = []  // Valid spots for placement
 
@@ -813,6 +814,7 @@ function resetGame() {
   selectedBombTarget = null
   landingSpots = []
   showBuilderActions = false
+  showCarrierActions = false
   builderPlacementMode = null
   builderPlacementSpots = []
   message = null
@@ -1532,6 +1534,53 @@ function getValidMovesForHelicopter(piece: Piece): { col: string; row: number; c
   return moves
 }
 
+// Launch helicopter from carrier
+function launchHelicopterFromCarrier() {
+  if (!selectedPiece || selectedPiece.type !== 'carrier' || !selectedPiece.hasHelicopter) return
+
+  const carrier = selectedPiece
+
+  // Create a new helicopter piece at the carrier's position
+  const newHelicopter: Piece = {
+    type: 'helicopter',
+    team: carrier.team,
+    col: carrier.col,
+    row: carrier.row,
+    points: 8
+  }
+
+  // Add helicopter to pieces
+  pieces.push(newHelicopter)
+
+  // Remove helicopter from carrier
+  carrier.hasHelicopter = false
+
+  // Log the launch
+  moveLog.push({
+    from: `${carrier.col}${carrier.row}`,
+    to: `${carrier.col}${carrier.row}`,
+    piece: 'helicopter',
+    team: carrier.team,
+    captured: 'launched'
+  })
+
+  message = "Helicopter launched!"
+
+  // Increment turn count
+  if (carrier.team === 'yellow') yellowTurnCount++
+  else greenTurnCount++
+
+  // Switch turns
+  switchTurn()
+
+  // Clear selection
+  selectedPiece = null
+  validMoves = []
+  showCarrierActions = false
+
+  render()
+}
+
 function selectPiece(piece: Piece) {
   // Check if it's this team's turn
   if (piece.team !== currentTurn) {
@@ -1566,6 +1615,7 @@ function selectPiece(piece: Piece) {
   selectedBombTarget = null
   landingSpots = []
   showBuilderActions = false
+  showCarrierActions = false
   builderPlacementMode = null
   builderPlacementSpots = []
 
@@ -1632,9 +1682,11 @@ function selectPiece(piece: Piece) {
     actionMode = 'move'
     validMoves = getValidMovesForShip(piece)
   } else if (piece.type === 'carrier') {
-    // Carrier can only move (captures by ramming), no shooting
+    // Carrier can move (captures by ramming)
     validMoves = getValidMovesForCarrier(piece)
     showSoldierActions = false
+    // Show launch button if helicopter is on carrier
+    showCarrierActions = piece.hasHelicopter === true
   } else if (piece.type === 'helicopter') {
     // Helicopter can fly to helipads or own carriers
     validMoves = getValidMovesForHelicopter(piece)
@@ -2905,6 +2957,7 @@ function placeBuilderItem(col: string, row: number) {
   selectedPiece = null
   validMoves = []
   showBuilderActions = false
+  showCarrierActions = false
   builderPlacementMode = null
   builderPlacementSpots = []
 
@@ -4759,6 +4812,15 @@ function render() {
     </div>
   ` : ''
 
+  // Carrier action buttons (launch helicopter)
+  const carrierActionsHtml = showCarrierActions && selectedPiece?.type === 'carrier' && selectedPiece.hasHelicopter ? `
+    <div class="bg-sky-900 px-2 sm:px-4 py-2 rounded-lg flex flex-wrap gap-1 sm:gap-2 items-center">
+      <button id="carrier-launch" class="bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
+        🚁 Launch Helicopter
+      </button>
+    </div>
+  ` : ''
+
   // Playing state
   app.innerHTML = `
     <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4">
@@ -4771,6 +4833,7 @@ function render() {
         ${actionButtonsHtml}
         ${hackActionsHtml}
         ${builderActionsHtml}
+        ${carrierActionsHtml}
         ${message && !forcedSoldier ? `<div class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs sm:text-sm">${message}</div>` : ''}
         <button id="reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors">
           Reset
@@ -4807,6 +4870,9 @@ function render() {
   document.getElementById('builder-barricade')?.addEventListener('click', () => selectBuilderAction('barricade'))
   document.getElementById('builder-artillery')?.addEventListener('click', () => selectBuilderAction('artillery'))
   document.getElementById('builder-spike')?.addEventListener('click', () => selectBuilderAction('spike'))
+
+  // Add carrier action listeners
+  document.getElementById('carrier-launch')?.addEventListener('click', launchHelicopterFromCarrier)
 
   // Add click event listeners for game board
   const svg = document.querySelector('#board-container svg')
