@@ -179,6 +179,10 @@ let landingSpots: { col: string; row: number }[] = []  // Valid landing spots af
 let showBuilderActions = false  // Show builder action buttons
 let showCarrierActions = false  // Show carrier action buttons (launch helicopter)
 let builderPlacementMode: 'barricade' | 'artillery' | 'spike' | null = null
+
+// Carrier helicopter launch state
+let helicopterLaunchMode = false
+let helicopterLaunchSpots: { col: string; row: number }[] = []
 let builderPlacementSpots: { col: string; row: number }[] = []  // Valid spots for placement
 
 // Check if rockets are ready for a specific team
@@ -817,6 +821,8 @@ function resetGame() {
   showCarrierActions = false
   builderPlacementMode = null
   builderPlacementSpots = []
+  helicopterLaunchMode = false
+  helicopterLaunchSpots = []
   message = null
   currentTurn = 'yellow'
   gameState = 'start'
@@ -1534,22 +1540,65 @@ function getValidMovesForHelicopter(piece: Piece): { col: string; row: number; c
   return moves
 }
 
-// Launch helicopter from carrier
+// Launch helicopter from carrier - show valid landing spots
 function launchHelicopterFromCarrier() {
   if (!selectedPiece || selectedPiece.type !== 'carrier' || !selectedPiece.hasHelicopter) return
 
-  const carrier = selectedPiece
+  // Get valid helipad destinations
+  const helipads = [
+    { col: 'C', row: 5 },
+    { col: 'C', row: 7 },
+    { col: 'I', row: 5 },
+    { col: 'I', row: 7 },
+  ]
 
-  // Create a new helicopter piece at the carrier's position
+  helicopterLaunchSpots = []
+  for (const pad of helipads) {
+    const pieceAtPad = getPieceAtAboveGround(pad.col, pad.row)
+    // Can land on empty helipad or capture enemy (except other helicopters)
+    if (!pieceAtPad || (pieceAtPad.team !== selectedPiece.team && pieceAtPad.type !== 'helicopter')) {
+      helicopterLaunchSpots.push(pad)
+    }
+  }
+
+  if (helicopterLaunchSpots.length === 0) {
+    message = "No available helipads to land on!"
+    render()
+    return
+  }
+
+  helicopterLaunchMode = true
+  showCarrierActions = false
+  validMoves = []
+  message = "Select helipad to land helicopter"
+  render()
+}
+
+// Complete helicopter launch to selected helipad
+function completeHelicopterLaunch(col: string, row: number) {
+  if (!selectedPiece || selectedPiece.type !== 'carrier' || !helicopterLaunchMode) return
+
+  const carrier = selectedPiece
+  const pieceAtTarget = getPieceAtAboveGround(col, row)
+
+  // Capture enemy if present
+  if (pieceAtTarget && pieceAtTarget.team !== carrier.team) {
+    const index = pieces.indexOf(pieceAtTarget)
+    if (index !== -1) {
+      pieces.splice(index, 1)
+      capturedPieces.push(pieceAtTarget)
+      checkBuilderCaptured(pieceAtTarget, carrier.team)
+    }
+  }
+
+  // Create helicopter at destination
   const newHelicopter: Piece = {
     type: 'helicopter',
     team: carrier.team,
-    col: carrier.col,
-    row: carrier.row,
+    col: col,
+    row: row,
     points: 8
   }
-
-  // Add helicopter to pieces
   pieces.push(newHelicopter)
 
   // Remove helicopter from carrier
@@ -1558,13 +1607,13 @@ function launchHelicopterFromCarrier() {
   // Log the launch
   moveLog.push({
     from: `${carrier.col}${carrier.row}`,
-    to: `${carrier.col}${carrier.row}`,
+    to: `${col}${row}`,
     piece: 'helicopter',
     team: carrier.team,
-    captured: 'launched'
+    captured: pieceAtTarget ? pieceAtTarget.type : 'launched'
   })
 
-  message = "Helicopter launched!"
+  message = pieceAtTarget ? `Helicopter launched and captured ${pieceAtTarget.type}!` : "Helicopter launched!"
 
   // Increment turn count
   if (carrier.team === 'yellow') yellowTurnCount++
@@ -1576,6 +1625,8 @@ function launchHelicopterFromCarrier() {
   // Clear selection
   selectedPiece = null
   validMoves = []
+  helicopterLaunchMode = false
+  helicopterLaunchSpots = []
   showCarrierActions = false
 
   render()
@@ -1618,6 +1669,8 @@ function selectPiece(piece: Piece) {
   showCarrierActions = false
   builderPlacementMode = null
   builderPlacementSpots = []
+  helicopterLaunchMode = false
+  helicopterLaunchSpots = []
 
   if (piece.type === 'train') {
     validMoves = getValidMovesForTrain(piece)
@@ -1781,6 +1834,8 @@ function selectPiece(piece: Piece) {
     showBuilderActions = true
     builderPlacementMode = null
     builderPlacementSpots = []
+  helicopterLaunchMode = false
+  helicopterLaunchSpots = []
 
     const canBarricade = canBuilderBuildBarricade(piece)
     const canArtillery = canBuilderBuildArtillery(piece)
@@ -2833,6 +2888,8 @@ function selectBuilderAction(action: 'move' | 'barricade' | 'artillery' | 'spike
   if (action === 'move') {
     builderPlacementMode = null
     builderPlacementSpots = []
+  helicopterLaunchMode = false
+  helicopterLaunchSpots = []
     validMoves = getValidMovesForBuilder(selectedPiece)
     message = "Select where to move"
   } else if (action === 'barricade') {
@@ -2960,6 +3017,8 @@ function placeBuilderItem(col: string, row: number) {
   showCarrierActions = false
   builderPlacementMode = null
   builderPlacementSpots = []
+  helicopterLaunchMode = false
+  helicopterLaunchSpots = []
 
   render()
 }
@@ -2974,6 +3033,15 @@ function handleSquareClick(col: string, row: number) {
     || piecesHere[0]
 
   if (selectedPiece) {
+    // If in helicopter launch mode, try to land on clicked helipad
+    if (helicopterLaunchMode && selectedPiece.type === 'carrier') {
+      const isValidLaunchSpot = helicopterLaunchSpots.some(s => s.col === col && s.row === row)
+      if (isValidLaunchSpot) {
+        completeHelicopterLaunch(col, row)
+        return
+      }
+    }
+
     // If artillery is selected and clicking on it again, fire it
     if (selectedPiece.type === 'artillery' && piece === selectedPiece) {
       const teamTurns = selectedPiece.team === 'yellow' ? yellowTurnCount : greenTurnCount
@@ -4263,6 +4331,18 @@ function createBoard(): string {
           <rect x="${x + 4}" y="${y + 4}" width="${SQUARE_SIZE - 8}" height="${SQUARE_SIZE - 8}" fill="${spotColor}" opacity="0.3" rx="4" />
           <circle cx="${cx}" cy="${cy}" r="12" fill="none" stroke="${spotColor}" stroke-width="2" stroke-dasharray="4,2" />
           <text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="14">${spotIcon}</text>
+        </g>`
+      }
+
+      // Draw helicopter launch spot indicator
+      const isHelicopterLaunchSpot = helicopterLaunchSpots.some(s => s.col === colLetter && s.row === rowNum)
+      if (isHelicopterLaunchSpot) {
+        const cx = x + SQUARE_SIZE / 2
+        const cy = y + SQUARE_SIZE / 2
+        svg += `<g class="pointer-events-none">
+          <rect x="${x + 4}" y="${y + 4}" width="${SQUARE_SIZE - 8}" height="${SQUARE_SIZE - 8}" fill="#0ea5e9" opacity="0.3" rx="4" />
+          <circle cx="${cx}" cy="${cy}" r="12" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-dasharray="4,2" />
+          <text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="14">🚁</text>
         </g>`
       }
 
