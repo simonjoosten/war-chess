@@ -23,6 +23,8 @@ let musicEnabled = false
 let masterVolume = 0.8 // 0-1
 let musicVolume = 0.5 // 0-1
 let sfxVolume = 0.8 // 0-1
+type MusicStyle = 'epic' | 'ambient' | 'tension' | 'electronic'
+let musicStyle: MusicStyle = 'epic'
 let musicGainNode: GainNode | null = null
 let musicInterval: number | null = null
 let musicPhase = 0 // Track musical sections
@@ -120,7 +122,7 @@ function initAudio() {
   }
 }
 
-// Epic cinematic war music
+// Music generation based on style
 function startMusic() {
   if (!audioContext || musicInterval) return
 
@@ -130,6 +132,405 @@ function startMusic() {
 
   measureCount = 0
   musicPhase = 0
+
+  // Start the appropriate music style
+  switch (musicStyle) {
+    case 'ambient':
+      startAmbientMusic()
+      break
+    case 'tension':
+      startTensionMusic()
+      break
+    case 'electronic':
+      startElectronicMusic()
+      break
+    case 'epic':
+    default:
+      startEpicMusic()
+      break
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AMBIENT MUSIC - Calm, peaceful background
+// ═══════════════════════════════════════════════════════════════════════════
+function startAmbientMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // Peaceful C major scale
+  const scale = {
+    C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
+    C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00
+  }
+
+  function playAmbientPad() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Peaceful chord progressions - C major based
+    const chords = [
+      [scale.C3, scale.E3, scale.G3],    // C major
+      [scale.A2, scale.C3, scale.E3],    // Am
+      [scale.F2, scale.A2, scale.C3],    // F major
+      [scale.G2, scale.B2, scale.D3],    // G major
+    ]
+    const chord = chords[measureCount % chords.length]
+
+    chord.forEach((freq, i) => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      osc.type = 'sine'
+      osc.frequency.value = freq
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 600
+      filter.Q.value = 0.5
+
+      // Very slow swell
+      gain.gain.setValueAtTime(0.001, now + i * 0.2)
+      gain.gain.linearRampToValueAtTime(0.04, now + 2)
+      gain.gain.setValueAtTime(0.035, now + 6)
+      gain.gain.linearRampToValueAtTime(0.001, now + 8)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+      osc.start(now + i * 0.2)
+      osc.stop(now + 8.5)
+    })
+  }
+
+  function playAmbientArpeggio() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const notes = [scale.C4, scale.E4, scale.G4, scale.E4, scale.C4]
+    notes.forEach((freq, i) => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.value = freq
+
+      gain.gain.setValueAtTime(0.001, now + i * 0.8)
+      gain.gain.linearRampToValueAtTime(0.025, now + i * 0.8 + 0.1)
+      gain.gain.linearRampToValueAtTime(0.001, now + i * 0.8 + 0.7)
+
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+      osc.start(now + i * 0.8)
+      osc.stop(now + i * 0.8 + 0.8)
+    })
+  }
+
+  // Start with pad
+  playAmbientPad()
+
+  const measureDuration = 4000 // Slower - 4 seconds per measure
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+
+    // Pad every 2 measures
+    if (measureCount % 2 === 0) {
+      playAmbientPad()
+    }
+
+    // Occasional arpeggios
+    if (measureCount % 3 === 0) {
+      playAmbientArpeggio()
+    }
+  }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TENSION MUSIC - Suspenseful, building
+// ═══════════════════════════════════════════════════════════════════════════
+function startTensionMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // Diminished/tense scale
+  const scale = {
+    C2: 65.41, Db2: 69.30, E2: 82.41, F2: 87.31, Gb2: 92.50, A2: 110.00, Bb2: 116.54,
+    C3: 130.81, Db3: 138.59, E3: 164.81, F3: 174.61, Gb3: 185.00, A3: 220.00, Bb3: 233.08,
+    C4: 261.63, E4: 329.63
+  }
+
+  function playTensionDrone() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Low ominous drone
+    const drone = audioContext.createOscillator()
+    const droneGain = audioContext.createGain()
+    const droneFilter = audioContext.createBiquadFilter()
+
+    drone.type = 'sawtooth'
+    drone.frequency.value = scale.C2
+
+    droneFilter.type = 'lowpass'
+    droneFilter.frequency.setValueAtTime(100, now)
+    droneFilter.frequency.linearRampToValueAtTime(200, now + 2)
+    droneFilter.frequency.linearRampToValueAtTime(80, now + 3.5)
+
+    droneGain.gain.setValueAtTime(0.001, now)
+    droneGain.gain.linearRampToValueAtTime(0.08, now + 0.5)
+    droneGain.gain.setValueAtTime(0.07, now + 3)
+    droneGain.gain.linearRampToValueAtTime(0.001, now + 4)
+
+    drone.connect(droneFilter)
+    droneFilter.connect(droneGain)
+    droneGain.connect(musicGainNode)
+    drone.start(now)
+    drone.stop(now + 4.2)
+  }
+
+  function playTensionPulse() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Heartbeat-like pulse
+    for (let i = 0; i < 4; i++) {
+      const pulse = audioContext.createOscillator()
+      const pulseGain = audioContext.createGain()
+
+      pulse.type = 'sine'
+      pulse.frequency.setValueAtTime(40, now + i * 0.5)
+      pulse.frequency.exponentialRampToValueAtTime(25, now + i * 0.5 + 0.15)
+
+      pulseGain.gain.setValueAtTime(0.2, now + i * 0.5)
+      pulseGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.5 + 0.25)
+
+      pulse.connect(pulseGain)
+      pulseGain.connect(musicGainNode)
+      pulse.start(now + i * 0.5)
+      pulse.stop(now + i * 0.5 + 0.3)
+    }
+  }
+
+  function playTensionStinger() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Dissonant stinger
+    const notes = [scale.C3, scale.Db3, scale.Gb3]
+    notes.forEach((freq) => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+
+      gain.gain.setValueAtTime(0.001, now)
+      gain.gain.linearRampToValueAtTime(0.06, now + 0.1)
+      gain.gain.linearRampToValueAtTime(0.001, now + 1.5)
+
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+      osc.start(now)
+      osc.stop(now + 1.6)
+    })
+  }
+
+  // Start with drone
+  playTensionDrone()
+  playTensionPulse()
+
+  const measureDuration = 2000
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+
+    // Always pulse
+    playTensionPulse()
+
+    // Drone every 2 measures
+    if (measureCount % 2 === 0) {
+      playTensionDrone()
+    }
+
+    // Stinger occasionally
+    if (measureCount % 4 === 3) {
+      playTensionStinger()
+    }
+  }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ELECTRONIC MUSIC - Techno/synth style
+// ═══════════════════════════════════════════════════════════════════════════
+function startElectronicMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // Electronic scale
+  const scale = {
+    A2: 110.00, C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
+    A3: 220.00, C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00,
+    A4: 440.00
+  }
+
+  function playElectroBass() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const bassPattern = [scale.A2, 0, scale.A2, 0, scale.C3, 0, scale.D3, scale.E3]
+
+    bassPattern.forEach((freq, i) => {
+      if (freq === 0) return
+
+      const bass = audioContext!.createOscillator()
+      const bassGain = audioContext!.createGain()
+      const bassFilter = audioContext!.createBiquadFilter()
+
+      bass.type = 'sawtooth'
+      bass.frequency.value = freq
+
+      bassFilter.type = 'lowpass'
+      bassFilter.frequency.setValueAtTime(800, now + i * 0.125)
+      bassFilter.frequency.exponentialRampToValueAtTime(200, now + i * 0.125 + 0.1)
+
+      bassGain.gain.setValueAtTime(0.15, now + i * 0.125)
+      bassGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.125 + 0.12)
+
+      bass.connect(bassFilter)
+      bassFilter.connect(bassGain)
+      bassGain.connect(musicGainNode!)
+      bass.start(now + i * 0.125)
+      bass.stop(now + i * 0.125 + 0.15)
+    })
+  }
+
+  function playElectroKick() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // 4-on-the-floor kick
+    for (let i = 0; i < 4; i++) {
+      const kick = audioContext.createOscillator()
+      const kickGain = audioContext.createGain()
+
+      kick.type = 'sine'
+      kick.frequency.setValueAtTime(150, now + i * 0.25)
+      kick.frequency.exponentialRampToValueAtTime(40, now + i * 0.25 + 0.08)
+
+      kickGain.gain.setValueAtTime(0.3, now + i * 0.25)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.25 + 0.15)
+
+      kick.connect(kickGain)
+      kickGain.connect(musicGainNode)
+      kick.start(now + i * 0.25)
+      kick.stop(now + i * 0.25 + 0.2)
+    }
+  }
+
+  function playElectroHiHat() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    for (let i = 0; i < 8; i++) {
+      const hat = audioContext.createBufferSource()
+      const hatGain = audioContext.createGain()
+      const hatFilter = audioContext.createBiquadFilter()
+
+      hat.buffer = createNoiseBuffer(0.05)
+      hatFilter.type = 'highpass'
+      hatFilter.frequency.value = 8000
+
+      hatGain.gain.setValueAtTime(0.08, now + i * 0.125)
+      hatGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.125 + 0.04)
+
+      hat.connect(hatFilter)
+      hatFilter.connect(hatGain)
+      hatGain.connect(musicGainNode)
+      hat.start(now + i * 0.125)
+      hat.stop(now + i * 0.125 + 0.06)
+    }
+  }
+
+  function playElectroSynth() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const notes = [scale.A4, scale.E4, scale.G4, scale.D4]
+    const note = notes[measureCount % notes.length]
+
+    const synth = audioContext.createOscillator()
+    const synth2 = audioContext.createOscillator()
+    const synthGain = audioContext.createGain()
+    const synthFilter = audioContext.createBiquadFilter()
+
+    synth.type = 'square'
+    synth.frequency.value = note
+    synth2.type = 'sawtooth'
+    synth2.frequency.value = note * 1.01 // Slight detune
+
+    synthFilter.type = 'lowpass'
+    synthFilter.frequency.setValueAtTime(2000, now)
+    synthFilter.frequency.exponentialRampToValueAtTime(500, now + 0.8)
+    synthFilter.Q.value = 5
+
+    synthGain.gain.setValueAtTime(0.001, now)
+    synthGain.gain.linearRampToValueAtTime(0.06, now + 0.05)
+    synthGain.gain.setValueAtTime(0.04, now + 0.3)
+    synthGain.gain.linearRampToValueAtTime(0.001, now + 0.9)
+
+    synth.connect(synthFilter)
+    synth2.connect(synthFilter)
+    synthFilter.connect(synthGain)
+    synthGain.connect(musicGainNode)
+    synth.start(now)
+    synth2.start(now)
+    synth.stop(now + 1)
+    synth2.stop(now + 1)
+  }
+
+  // Start with kick and bass
+  playElectroKick()
+  playElectroBass()
+
+  const measureDuration = 1000 // Fast - 1 second per measure (120 BPM feel)
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+
+    // Always kick
+    playElectroKick()
+
+    // Hi-hat pattern
+    if (measureCount % 2 === 0) {
+      playElectroHiHat()
+    }
+
+    // Bass every measure
+    playElectroBass()
+
+    // Synth every 4 measures
+    if (measureCount % 4 === 0) {
+      playElectroSynth()
+    }
+  }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EPIC WAR MUSIC - Cinematic orchestral
+// ═══════════════════════════════════════════════════════════════════════════
+function startEpicMusic() {
+  if (!audioContext || !musicGainNode) return
 
   // D minor scale frequencies for war/dark feel
   const scale = {
@@ -1203,6 +1604,11 @@ const translations: Record<Language, Record<string, string>> = {
     masterVolumeLabel: 'Master Volume',
     musicVolumeLabel: 'Music Volume',
     sfxVolumeLabel: 'Effects Volume',
+    musicStyleLabel: 'Music Style',
+    styleEpic: 'Epic War',
+    styleAmbient: 'Calm',
+    styleTension: 'Suspense',
+    styleElectronic: 'Electronic',
     on: 'On',
     off: 'Off',
     // Visual settings
@@ -1325,6 +1731,11 @@ const translations: Record<Language, Record<string, string>> = {
     masterVolumeLabel: 'Hoofdvolume',
     musicVolumeLabel: 'Muziekvolume',
     sfxVolumeLabel: 'Effectenvolume',
+    musicStyleLabel: 'Muziekstijl',
+    styleEpic: 'Episch',
+    styleAmbient: 'Rustig',
+    styleTension: 'Spanning',
+    styleElectronic: 'Elektronisch',
     on: 'Aan',
     off: 'Uit',
     visualSettingsTitle: 'Visueel',
@@ -1433,6 +1844,11 @@ const translations: Record<Language, Record<string, string>> = {
     masterVolumeLabel: 'Gesamtlautstärke',
     musicVolumeLabel: 'Musiklautstärke',
     sfxVolumeLabel: 'Effektlautstärke',
+    musicStyleLabel: 'Musikstil',
+    styleEpic: 'Episch',
+    styleAmbient: 'Ruhig',
+    styleTension: 'Spannung',
+    styleElectronic: 'Elektronisch',
     on: 'An',
     off: 'Aus',
     visualSettingsTitle: 'Visuell',
@@ -1541,6 +1957,11 @@ const translations: Record<Language, Record<string, string>> = {
     masterVolumeLabel: 'Volume principal',
     musicVolumeLabel: 'Volume musique',
     sfxVolumeLabel: 'Volume effets',
+    musicStyleLabel: 'Style musique',
+    styleEpic: 'Épique',
+    styleAmbient: 'Calme',
+    styleTension: 'Suspense',
+    styleElectronic: 'Électronique',
     on: 'Activé',
     off: 'Désactivé',
     visualSettingsTitle: 'Visuel',
@@ -1649,6 +2070,11 @@ const translations: Record<Language, Record<string, string>> = {
     masterVolumeLabel: 'Volumen principal',
     musicVolumeLabel: 'Volumen música',
     sfxVolumeLabel: 'Volumen efectos',
+    musicStyleLabel: 'Estilo música',
+    styleEpic: 'Épico',
+    styleAmbient: 'Tranquilo',
+    styleTension: 'Suspenso',
+    styleElectronic: 'Electrónico',
     on: 'Encendido',
     off: 'Apagado',
     visualSettingsTitle: 'Visual',
@@ -6716,19 +7142,56 @@ function render() {
               </div>
             </div>
 
-            <!-- Volume Sliders -->
-            <div class="flex flex-col gap-3 ${!soundEnabled && !musicEnabled ? 'opacity-50' : ''}">
+            <!-- Volume Controls with + - buttons -->
+            <div class="flex flex-col gap-4 ${!soundEnabled && !musicEnabled ? 'opacity-50' : ''}">
+              <!-- Master Volume -->
               <div class="flex flex-col gap-1">
-                <label class="text-gray-300 text-sm">${t('masterVolumeLabel')}: ${Math.round(masterVolume * 100)}%</label>
-                <input type="range" id="master-volume" min="0" max="100" value="${masterVolume * 100}" class="w-full accent-blue-500">
+                <label class="text-gray-300 text-sm">${t('masterVolumeLabel')}</label>
+                <div class="flex items-center gap-2">
+                  <button id="master-vol-down" class="w-10 h-10 rounded bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold">−</button>
+                  <div class="flex-1 h-8 bg-gray-700 rounded overflow-hidden relative">
+                    <div class="h-full bg-blue-500 transition-all" style="width: ${masterVolume * 100}%"></div>
+                    <span class="absolute inset-0 flex items-center justify-center text-white text-sm font-bold">${Math.round(masterVolume * 100)}%</span>
+                  </div>
+                  <button id="master-vol-up" class="w-10 h-10 rounded bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold">+</button>
+                </div>
               </div>
+
+              <!-- Music Volume -->
               <div class="flex flex-col gap-1">
-                <label class="text-gray-300 text-sm">${t('musicVolumeLabel')}: ${Math.round(musicVolume * 100)}%</label>
-                <input type="range" id="music-volume" min="0" max="100" value="${musicVolume * 100}" class="w-full accent-purple-500">
+                <label class="text-gray-300 text-sm">${t('musicVolumeLabel')}</label>
+                <div class="flex items-center gap-2">
+                  <button id="music-vol-down" class="w-10 h-10 rounded bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold">−</button>
+                  <div class="flex-1 h-8 bg-gray-700 rounded overflow-hidden relative">
+                    <div class="h-full bg-purple-500 transition-all" style="width: ${musicVolume * 100}%"></div>
+                    <span class="absolute inset-0 flex items-center justify-center text-white text-sm font-bold">${Math.round(musicVolume * 100)}%</span>
+                  </div>
+                  <button id="music-vol-up" class="w-10 h-10 rounded bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold">+</button>
+                </div>
               </div>
+
+              <!-- SFX Volume -->
               <div class="flex flex-col gap-1">
-                <label class="text-gray-300 text-sm">${t('sfxVolumeLabel')}: ${Math.round(sfxVolume * 100)}%</label>
-                <input type="range" id="sfx-volume" min="0" max="100" value="${sfxVolume * 100}" class="w-full accent-green-500">
+                <label class="text-gray-300 text-sm">${t('sfxVolumeLabel')}</label>
+                <div class="flex items-center gap-2">
+                  <button id="sfx-vol-down" class="w-10 h-10 rounded bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold">−</button>
+                  <div class="flex-1 h-8 bg-gray-700 rounded overflow-hidden relative">
+                    <div class="h-full bg-green-500 transition-all" style="width: ${sfxVolume * 100}%"></div>
+                    <span class="absolute inset-0 flex items-center justify-center text-white text-sm font-bold">${Math.round(sfxVolume * 100)}%</span>
+                  </div>
+                  <button id="sfx-vol-up" class="w-10 h-10 rounded bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Music Style -->
+            <div class="flex flex-col gap-2">
+              <label class="text-gray-300 text-sm">${t('musicStyleLabel')}</label>
+              <div class="flex flex-wrap gap-2">
+                <button data-style="epic" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'epic' ? 'bg-red-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleEpic')}</button>
+                <button data-style="ambient" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'ambient' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleAmbient')}</button>
+                <button data-style="tension" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'tension' ? 'bg-orange-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleTension')}</button>
+                <button data-style="electronic" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'electronic' ? 'bg-cyan-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleElectronic')}</button>
               </div>
             </div>
 
@@ -6862,21 +7325,47 @@ function render() {
         render()
       })
 
-      // Volume sliders
-      document.getElementById('master-volume')?.addEventListener('input', (e) => {
-        masterVolume = parseInt((e.target as HTMLInputElement).value) / 100
+      // Volume buttons with +/- controls
+      document.getElementById('master-vol-down')?.addEventListener('click', () => {
+        masterVolume = Math.max(0, masterVolume - 0.1)
+        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
         render()
       })
-      document.getElementById('music-volume')?.addEventListener('input', (e) => {
-        musicVolume = parseInt((e.target as HTMLInputElement).value) / 100
-        if (musicGainNode) {
-          musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
-        }
+      document.getElementById('master-vol-up')?.addEventListener('click', () => {
+        masterVolume = Math.min(1, masterVolume + 0.1)
+        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
         render()
       })
-      document.getElementById('sfx-volume')?.addEventListener('input', (e) => {
-        sfxVolume = parseInt((e.target as HTMLInputElement).value) / 100
+      document.getElementById('music-vol-down')?.addEventListener('click', () => {
+        musicVolume = Math.max(0, musicVolume - 0.1)
+        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
         render()
+      })
+      document.getElementById('music-vol-up')?.addEventListener('click', () => {
+        musicVolume = Math.min(1, musicVolume + 0.1)
+        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+        render()
+      })
+      document.getElementById('sfx-vol-down')?.addEventListener('click', () => {
+        sfxVolume = Math.max(0, sfxVolume - 0.1)
+        render()
+      })
+      document.getElementById('sfx-vol-up')?.addEventListener('click', () => {
+        sfxVolume = Math.min(1, sfxVolume + 0.1)
+        render()
+      })
+
+      // Music style buttons
+      document.querySelectorAll('.style-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const newStyle = (e.target as HTMLElement).getAttribute('data-style') as MusicStyle
+          musicStyle = newStyle
+          if (musicEnabled) {
+            stopMusic()
+            startMusic()
+          }
+          render()
+        })
       })
 
       // Theme buttons
