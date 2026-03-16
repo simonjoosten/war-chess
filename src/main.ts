@@ -20,6 +20,9 @@ const TIMEOUT_PENALTY = 10
 // Audio settings
 let soundEnabled = true
 let musicEnabled = false
+let musicGainNode: GainNode | null = null
+let musicOscillators: OscillatorNode[] = []
+let musicInterval: number | null = null
 
 // Audio context for sound effects
 let audioContext: AudioContext | null = null
@@ -28,6 +31,141 @@ function initAudio() {
   if (!audioContext) {
     audioContext = new AudioContext()
   }
+}
+
+// Procedural war-style ambient music
+function startMusic() {
+  if (!audioContext || musicInterval) return
+
+  musicGainNode = audioContext.createGain()
+  musicGainNode.gain.value = 0.08 // Low volume so it doesn't overpower sound effects
+  musicGainNode.connect(audioContext.destination)
+
+  // War drums - deep rhythmic pulse
+  function playDrumBeat() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const now = audioContext.currentTime
+
+    // Deep bass drum
+    const kick = audioContext.createOscillator()
+    const kickGain = audioContext.createGain()
+    kick.type = 'sine'
+    kick.frequency.setValueAtTime(80, now)
+    kick.frequency.exponentialRampToValueAtTime(40, now + 0.15)
+    kickGain.gain.setValueAtTime(0.4, now)
+    kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
+    kick.connect(kickGain)
+    kickGain.connect(musicGainNode)
+    kick.start(now)
+    kick.stop(now + 0.25)
+
+    // Secondary beat with slight delay
+    const kick2 = audioContext.createOscillator()
+    const kick2Gain = audioContext.createGain()
+    kick2.type = 'sine'
+    kick2.frequency.setValueAtTime(60, now + 0.4)
+    kick2.frequency.exponentialRampToValueAtTime(35, now + 0.55)
+    kick2Gain.gain.setValueAtTime(0.25, now + 0.4)
+    kick2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55)
+    kick2.connect(kick2Gain)
+    kick2Gain.connect(musicGainNode)
+    kick2.start(now + 0.4)
+    kick2.stop(now + 0.6)
+  }
+
+  // Dark ambient drone
+  function playDrone() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const now = audioContext.currentTime
+
+    // Low drone oscillator
+    const drone = audioContext.createOscillator()
+    const droneGain = audioContext.createGain()
+    const droneFilter = audioContext.createBiquadFilter()
+    drone.type = 'sawtooth'
+    drone.frequency.value = 55 // Low A
+    droneFilter.type = 'lowpass'
+    droneFilter.frequency.value = 200
+    droneGain.gain.setValueAtTime(0.001, now)
+    droneGain.gain.linearRampToValueAtTime(0.15, now + 0.5)
+    droneGain.gain.linearRampToValueAtTime(0.12, now + 2)
+    droneGain.gain.linearRampToValueAtTime(0.001, now + 2.5)
+    drone.connect(droneFilter)
+    droneFilter.connect(droneGain)
+    droneGain.connect(musicGainNode)
+    drone.start(now)
+    drone.stop(now + 3)
+
+    // Harmonic
+    const drone2 = audioContext.createOscillator()
+    const drone2Gain = audioContext.createGain()
+    drone2.type = 'triangle'
+    drone2.frequency.value = 82.5 // Perfect fifth above
+    drone2Gain.gain.setValueAtTime(0.001, now)
+    drone2Gain.gain.linearRampToValueAtTime(0.08, now + 0.8)
+    drone2Gain.gain.linearRampToValueAtTime(0.001, now + 2.8)
+    drone2.connect(drone2Gain)
+    drone2Gain.connect(musicGainNode)
+    drone2.start(now)
+    drone2.stop(now + 3)
+  }
+
+  // Occasional tension notes
+  function playTension() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    if (Math.random() > 0.3) return // Only 30% chance
+
+    const now = audioContext.currentTime
+    const notes = [110, 116.5, 130.8, 146.8] // Minor scale tones
+    const note = notes[Math.floor(Math.random() * notes.length)]
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+    osc.type = 'sine'
+    osc.frequency.value = note
+    filter.type = 'lowpass'
+    filter.frequency.value = 800
+    gain.gain.setValueAtTime(0.001, now)
+    gain.gain.linearRampToValueAtTime(0.06, now + 0.3)
+    gain.gain.linearRampToValueAtTime(0.001, now + 1.5)
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode)
+    osc.start(now)
+    osc.stop(now + 1.6)
+  }
+
+  // Start the music loops
+  playDrumBeat()
+  playDrone()
+
+  let beatCount = 0
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    beatCount++
+    playDrumBeat()
+    if (beatCount % 4 === 0) {
+      playDrone()
+      playTension()
+    }
+  }, 800)
+}
+
+function stopMusic() {
+  if (musicInterval) {
+    clearInterval(musicInterval)
+    musicInterval = null
+  }
+  musicOscillators.forEach(osc => {
+    try { osc.stop() } catch {}
+  })
+  musicOscillators = []
 }
 
 // Create white noise buffer for explosion/gunshot sounds
@@ -42,61 +180,88 @@ function createNoiseBuffer(duration: number): AudioBuffer {
   return buffer
 }
 
-function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 'tick') {
+type SoundType = 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 'tick' |
+  'walk' | 'engine' | 'train' | 'hack' | 'build' | 'boat' | 'helicopter' | 'plane' | 'rocket'
+
+function playSound(type: SoundType) {
   if (!soundEnabled || !audioContext) return
 
   const now = audioContext.currentTime
 
   switch (type) {
-    case 'move': {
-      // Chess piece "clack" - wooden tap sound
-      const osc1 = audioContext.createOscillator()
-      const osc2 = audioContext.createOscillator()
-      const gain = audioContext.createGain()
-      const filter = audioContext.createBiquadFilter()
+    case 'move':
+    case 'walk': {
+      // Soldier footsteps - march sound
+      for (let i = 0; i < 3; i++) {
+        const step = audioContext.createBufferSource()
+        const stepFilter = audioContext.createBiquadFilter()
+        const stepGain = audioContext.createGain()
+        step.buffer = createNoiseBuffer(0.08)
+        stepFilter.type = 'lowpass'
+        stepFilter.frequency.value = 800
+        stepGain.gain.setValueAtTime(0.15, now + i * 0.12)
+        stepGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.08)
+        step.connect(stepFilter)
+        stepFilter.connect(stepGain)
+        stepGain.connect(audioContext.destination)
+        step.start(now + i * 0.12)
+        step.stop(now + i * 0.12 + 0.1)
+      }
+      break
+    }
 
-      filter.type = 'lowpass'
-      filter.frequency.value = 2000
+    case 'engine': {
+      // Motor start + running - vroom vroom
+      const engineOsc = audioContext.createOscillator()
+      const engineOsc2 = audioContext.createOscillator()
+      const engineGain = audioContext.createGain()
+      const engineFilter = audioContext.createBiquadFilter()
 
-      osc1.type = 'triangle'
-      osc1.frequency.setValueAtTime(800, now)
-      osc1.frequency.exponentialRampToValueAtTime(300, now + 0.05)
+      // Engine start - rising frequency
+      engineOsc.type = 'sawtooth'
+      engineOsc.frequency.setValueAtTime(40, now)
+      engineOsc.frequency.exponentialRampToValueAtTime(80, now + 0.15)
+      engineOsc.frequency.setValueAtTime(70, now + 0.2)
+      engineOsc.frequency.exponentialRampToValueAtTime(90, now + 0.4)
 
-      osc2.type = 'sine'
-      osc2.frequency.setValueAtTime(400, now)
-      osc2.frequency.exponentialRampToValueAtTime(150, now + 0.05)
+      engineOsc2.type = 'square'
+      engineOsc2.frequency.setValueAtTime(20, now)
+      engineOsc2.frequency.exponentialRampToValueAtTime(40, now + 0.15)
 
-      gain.gain.setValueAtTime(0.15, now)
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+      engineFilter.type = 'lowpass'
+      engineFilter.frequency.value = 300
 
-      osc1.connect(filter)
-      osc2.connect(filter)
-      filter.connect(gain)
-      gain.connect(audioContext.destination)
+      engineGain.gain.setValueAtTime(0.001, now)
+      engineGain.gain.exponentialRampToValueAtTime(0.25, now + 0.1)
+      engineGain.gain.setValueAtTime(0.2, now + 0.25)
+      engineGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
 
-      osc1.start(now)
-      osc2.start(now)
-      osc1.stop(now + 0.1)
-      osc2.stop(now + 0.1)
+      engineOsc.connect(engineFilter)
+      engineOsc2.connect(engineFilter)
+      engineFilter.connect(engineGain)
+      engineGain.connect(audioContext.destination)
+
+      engineOsc.start(now)
+      engineOsc2.start(now)
+      engineOsc.stop(now + 0.55)
+      engineOsc2.stop(now + 0.55)
       break
     }
 
     case 'capture': {
-      // Impact "thump" with crunch - piece being taken
+      // Impact "thump" with crunch
       const osc = audioContext.createOscillator()
       const noise = audioContext.createBufferSource()
       const gainOsc = audioContext.createGain()
       const gainNoise = audioContext.createGain()
       const filter = audioContext.createBiquadFilter()
 
-      // Low thump
       osc.type = 'sine'
       osc.frequency.setValueAtTime(150, now)
       osc.frequency.exponentialRampToValueAtTime(50, now + 0.15)
       gainOsc.gain.setValueAtTime(0.3, now)
       gainOsc.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
 
-      // Crunch noise
       noise.buffer = createNoiseBuffer(0.1)
       filter.type = 'bandpass'
       filter.frequency.value = 1000
@@ -118,15 +283,13 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
     }
 
     case 'shoot': {
-      // Realistic gunshot with shell casing ejection
-      // Part 1: BANG - "sptjge" - the gunshot
+      // Gunshot with shell casing
       const bang = audioContext.createBufferSource()
       const bangFilter = audioContext.createBiquadFilter()
       const bangGain = audioContext.createGain()
       const punch = audioContext.createOscillator()
       const punchGain = audioContext.createGain()
 
-      // Sharp crack
       bang.buffer = createNoiseBuffer(0.12)
       bangFilter.type = 'bandpass'
       bangFilter.frequency.setValueAtTime(3000, now)
@@ -135,7 +298,6 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
       bangGain.gain.setValueAtTime(0.35, now)
       bangGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
 
-      // Low thump of the shot
       punch.type = 'sine'
       punch.frequency.setValueAtTime(200, now)
       punch.frequency.exponentialRampToValueAtTime(40, now + 0.1)
@@ -153,10 +315,8 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
       bang.stop(now + 0.12)
       punch.stop(now + 0.15)
 
-      // Part 2: Shell casing eject + fall - "tjsjt" - LOUDER metallic sounds
-      const shellDelay = 0.18 // delay after shot
-
-      // Shell eject click (mechanical sound)
+      // Shell casing
+      const shellDelay = 0.18
       const eject = audioContext.createOscillator()
       const ejectGain = audioContext.createGain()
       eject.type = 'square'
@@ -169,7 +329,6 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
       eject.start(now + shellDelay)
       eject.stop(now + shellDelay + 0.06)
 
-      // Shell hitting ground - loud metallic PING
       const shell1 = audioContext.createOscillator()
       const shell1Gain = audioContext.createGain()
       shell1.type = 'triangle'
@@ -181,134 +340,404 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
       shell1Gain.connect(audioContext.destination)
       shell1.start(now + shellDelay + 0.08)
       shell1.stop(now + shellDelay + 0.25)
-
-      // Second bounce - still audible
-      const shell2 = audioContext.createOscillator()
-      const shell2Gain = audioContext.createGain()
-      shell2.type = 'triangle'
-      shell2.frequency.setValueAtTime(2000, now + shellDelay + 0.2)
-      shell2.frequency.exponentialRampToValueAtTime(600, now + shellDelay + 0.28)
-      shell2Gain.gain.setValueAtTime(0.12, now + shellDelay + 0.2)
-      shell2Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.35)
-      shell2.connect(shell2Gain)
-      shell2Gain.connect(audioContext.destination)
-      shell2.start(now + shellDelay + 0.2)
-      shell2.stop(now + shellDelay + 0.4)
-
-      // Metallic rattle/roll
-      const rattle = audioContext.createBufferSource()
-      const rattleFilter = audioContext.createBiquadFilter()
-      const rattleGain = audioContext.createGain()
-      rattle.buffer = createNoiseBuffer(0.2)
-      rattleFilter.type = 'bandpass'
-      rattleFilter.frequency.value = 3000
-      rattleFilter.Q.value = 3
-      rattleGain.gain.setValueAtTime(0.15, now + shellDelay + 0.12)
-      rattleGain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.35)
-      rattle.connect(rattleFilter)
-      rattleFilter.connect(rattleGain)
-      rattleGain.connect(audioContext.destination)
-      rattle.start(now + shellDelay + 0.12)
-      rattle.stop(now + shellDelay + 0.4)
       break
     }
 
     case 'explosion': {
-      // Deep explosion with rumble and debris
-      const noise = audioContext.createBufferSource()
-      const osc = audioContext.createOscillator()
-      const gainNoise = audioContext.createGain()
-      const gainOsc = audioContext.createGain()
-      const filterNoise = audioContext.createBiquadFilter()
+      // Deep "PSJGOOP" explosion - heavy emphasis on the GOOP
+      // Initial PSJ - sharp attack
+      const attack = audioContext.createBufferSource()
+      const attackFilter = audioContext.createBiquadFilter()
+      const attackGain = audioContext.createGain()
+      attack.buffer = createNoiseBuffer(0.1)
+      attackFilter.type = 'highpass'
+      attackFilter.frequency.value = 1500
+      attackGain.gain.setValueAtTime(0.5, now)
+      attackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
+      attack.connect(attackFilter)
+      attackFilter.connect(attackGain)
+      attackGain.connect(audioContext.destination)
+      attack.start(now)
+      attack.stop(now + 0.1)
 
-      // Rumbling noise
-      noise.buffer = createNoiseBuffer(0.8)
-      filterNoise.type = 'lowpass'
-      filterNoise.frequency.setValueAtTime(1000, now)
-      filterNoise.frequency.exponentialRampToValueAtTime(100, now + 0.5)
-      gainNoise.gain.setValueAtTime(0.4, now)
-      gainNoise.gain.setValueAtTime(0.3, now + 0.1)
-      gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
+      // GOOP - deep resonant boom
+      const goop1 = audioContext.createOscillator()
+      const goop2 = audioContext.createOscillator()
+      const goopGain = audioContext.createGain()
+      goop1.type = 'sine'
+      goop1.frequency.setValueAtTime(60, now + 0.03)
+      goop1.frequency.exponentialRampToValueAtTime(25, now + 0.6)
+      goop2.type = 'sine'
+      goop2.frequency.setValueAtTime(45, now + 0.03)
+      goop2.frequency.exponentialRampToValueAtTime(18, now + 0.7)
+      goopGain.gain.setValueAtTime(0.5, now + 0.03)
+      goopGain.gain.setValueAtTime(0.6, now + 0.1)
+      goopGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8)
+      goop1.connect(goopGain)
+      goop2.connect(goopGain)
+      goopGain.connect(audioContext.destination)
+      goop1.start(now + 0.03)
+      goop2.start(now + 0.03)
+      goop1.stop(now + 0.9)
+      goop2.stop(now + 0.9)
 
-      // Deep boom
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(80, now)
-      osc.frequency.exponentialRampToValueAtTime(20, now + 0.4)
-      gainOsc.gain.setValueAtTime(0.4, now)
-      gainOsc.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+      // Rumble debris
+      const rumble = audioContext.createBufferSource()
+      const rumbleFilter = audioContext.createBiquadFilter()
+      const rumbleGain = audioContext.createGain()
+      rumble.buffer = createNoiseBuffer(1)
+      rumbleFilter.type = 'lowpass'
+      rumbleFilter.frequency.setValueAtTime(400, now)
+      rumbleFilter.frequency.exponentialRampToValueAtTime(80, now + 0.8)
+      rumbleGain.gain.setValueAtTime(0.4, now + 0.05)
+      rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 1)
+      rumble.connect(rumbleFilter)
+      rumbleFilter.connect(rumbleGain)
+      rumbleGain.connect(audioContext.destination)
+      rumble.start(now + 0.05)
+      rumble.stop(now + 1.1)
+      break
+    }
 
-      noise.connect(filterNoise)
-      filterNoise.connect(gainNoise)
-      gainNoise.connect(audioContext.destination)
+    case 'rocket': {
+      // Rocket launch and fly - "trggooprgorgorogrgo"
+      // Launch whoosh
+      const launch = audioContext.createBufferSource()
+      const launchFilter = audioContext.createBiquadFilter()
+      const launchGain = audioContext.createGain()
+      launch.buffer = createNoiseBuffer(1.5)
+      launchFilter.type = 'bandpass'
+      launchFilter.frequency.setValueAtTime(200, now)
+      launchFilter.frequency.exponentialRampToValueAtTime(2000, now + 0.3)
+      launchFilter.frequency.setValueAtTime(1500, now + 0.5)
+      launchFilter.Q.value = 2
+      launchGain.gain.setValueAtTime(0.001, now)
+      launchGain.gain.exponentialRampToValueAtTime(0.4, now + 0.2)
+      launchGain.gain.setValueAtTime(0.3, now + 0.8)
+      launchGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4)
+      launch.connect(launchFilter)
+      launchFilter.connect(launchGain)
+      launchGain.connect(audioContext.destination)
+      launch.start(now)
+      launch.stop(now + 1.5)
 
-      osc.connect(gainOsc)
-      gainOsc.connect(audioContext.destination)
+      // Rocket engine rumble - oscillating
+      for (let i = 0; i < 8; i++) {
+        const rumble = audioContext.createOscillator()
+        const rumbleGain = audioContext.createGain()
+        rumble.type = 'sawtooth'
+        rumble.frequency.setValueAtTime(80 + i * 10, now + i * 0.12)
+        rumble.frequency.setValueAtTime(60 + i * 5, now + i * 0.12 + 0.06)
+        rumbleGain.gain.setValueAtTime(0.12, now + i * 0.12)
+        rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.1)
+        rumble.connect(rumbleGain)
+        rumbleGain.connect(audioContext.destination)
+        rumble.start(now + i * 0.12)
+        rumble.stop(now + i * 0.12 + 0.12)
+      }
+      break
+    }
 
-      noise.start(now)
-      osc.start(now)
-      noise.stop(now + 0.8)
-      osc.stop(now + 0.6)
+    case 'train': {
+      // Train sound - choo choo + wheels
+      // Steam whistle
+      const whistle = audioContext.createOscillator()
+      const whistle2 = audioContext.createOscillator()
+      const whistleGain = audioContext.createGain()
+      whistle.type = 'sine'
+      whistle.frequency.setValueAtTime(800, now)
+      whistle.frequency.setValueAtTime(750, now + 0.3)
+      whistle2.type = 'sine'
+      whistle2.frequency.setValueAtTime(600, now)
+      whistle2.frequency.setValueAtTime(570, now + 0.3)
+      whistleGain.gain.setValueAtTime(0.001, now)
+      whistleGain.gain.exponentialRampToValueAtTime(0.2, now + 0.05)
+      whistleGain.gain.setValueAtTime(0.18, now + 0.4)
+      whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+      whistle.connect(whistleGain)
+      whistle2.connect(whistleGain)
+      whistleGain.connect(audioContext.destination)
+      whistle.start(now)
+      whistle2.start(now)
+      whistle.stop(now + 0.55)
+      whistle2.stop(now + 0.55)
+
+      // Chug chug wheels
+      for (let i = 0; i < 4; i++) {
+        const chug = audioContext.createBufferSource()
+        const chugFilter = audioContext.createBiquadFilter()
+        const chugGain = audioContext.createGain()
+        chug.buffer = createNoiseBuffer(0.1)
+        chugFilter.type = 'lowpass'
+        chugFilter.frequency.value = 400
+        chugGain.gain.setValueAtTime(0.2, now + 0.1 + i * 0.15)
+        chugGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1 + i * 0.15 + 0.1)
+        chug.connect(chugFilter)
+        chugFilter.connect(chugGain)
+        chugGain.connect(audioContext.destination)
+        chug.start(now + 0.1 + i * 0.15)
+        chug.stop(now + 0.1 + i * 0.15 + 0.12)
+      }
+      break
+    }
+
+    case 'hack': {
+      // Typing + send + hack/error beep
+      // Rapid typing
+      for (let i = 0; i < 8; i++) {
+        const key = audioContext.createOscillator()
+        const keyGain = audioContext.createGain()
+        key.type = 'square'
+        key.frequency.value = 1800 + Math.random() * 400
+        keyGain.gain.setValueAtTime(0.06, now + i * 0.04)
+        keyGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.04 + 0.02)
+        key.connect(keyGain)
+        keyGain.connect(audioContext.destination)
+        key.start(now + i * 0.04)
+        key.stop(now + i * 0.04 + 0.03)
+      }
+
+      // Send beep
+      const send = audioContext.createOscillator()
+      const sendGain = audioContext.createGain()
+      send.type = 'sine'
+      send.frequency.setValueAtTime(1200, now + 0.35)
+      send.frequency.setValueAtTime(1600, now + 0.4)
+      sendGain.gain.setValueAtTime(0.15, now + 0.35)
+      sendGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+      send.connect(sendGain)
+      sendGain.connect(audioContext.destination)
+      send.start(now + 0.35)
+      send.stop(now + 0.55)
+
+      // Error/hack confirmation sound
+      const hack1 = audioContext.createOscillator()
+      const hack2 = audioContext.createOscillator()
+      const hackGain = audioContext.createGain()
+      hack1.type = 'square'
+      hack1.frequency.value = 440
+      hack2.type = 'square'
+      hack2.frequency.value = 880
+      hackGain.gain.setValueAtTime(0.12, now + 0.55)
+      hackGain.gain.setValueAtTime(0.001, now + 0.6)
+      hackGain.gain.setValueAtTime(0.12, now + 0.65)
+      hackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75)
+      hack1.connect(hackGain)
+      hack2.connect(hackGain)
+      hackGain.connect(audioContext.destination)
+      hack1.start(now + 0.55)
+      hack2.start(now + 0.55)
+      hack1.stop(now + 0.8)
+      hack2.stop(now + 0.8)
+      break
+    }
+
+    case 'build': {
+      // Construction sound - hammering + drilling
+      // Hammer hits
+      for (let i = 0; i < 3; i++) {
+        const hammer = audioContext.createOscillator()
+        const hammerNoise = audioContext.createBufferSource()
+        const hammerGain = audioContext.createGain()
+        const noiseGain = audioContext.createGain()
+
+        hammer.type = 'sine'
+        hammer.frequency.setValueAtTime(200, now + i * 0.18)
+        hammer.frequency.exponentialRampToValueAtTime(100, now + i * 0.18 + 0.05)
+        hammerGain.gain.setValueAtTime(0.25, now + i * 0.18)
+        hammerGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.08)
+
+        hammerNoise.buffer = createNoiseBuffer(0.05)
+        noiseGain.gain.setValueAtTime(0.2, now + i * 0.18)
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.05)
+
+        hammer.connect(hammerGain)
+        hammerGain.connect(audioContext.destination)
+        hammerNoise.connect(noiseGain)
+        noiseGain.connect(audioContext.destination)
+
+        hammer.start(now + i * 0.18)
+        hammerNoise.start(now + i * 0.18)
+        hammer.stop(now + i * 0.18 + 0.1)
+        hammerNoise.stop(now + i * 0.18 + 0.06)
+      }
+
+      // Completion ding
+      const ding = audioContext.createOscillator()
+      const dingGain = audioContext.createGain()
+      ding.type = 'sine'
+      ding.frequency.value = 1200
+      dingGain.gain.setValueAtTime(0.15, now + 0.6)
+      dingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
+      ding.connect(dingGain)
+      dingGain.connect(audioContext.destination)
+      ding.start(now + 0.6)
+      ding.stop(now + 0.95)
+      break
+    }
+
+    case 'boat': {
+      // Boat/submarine - water splash + motor
+      // Water splash
+      const splash = audioContext.createBufferSource()
+      const splashFilter = audioContext.createBiquadFilter()
+      const splashGain = audioContext.createGain()
+      splash.buffer = createNoiseBuffer(0.4)
+      splashFilter.type = 'bandpass'
+      splashFilter.frequency.setValueAtTime(1000, now)
+      splashFilter.frequency.exponentialRampToValueAtTime(300, now + 0.3)
+      splashFilter.Q.value = 1
+      splashGain.gain.setValueAtTime(0.25, now)
+      splashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+      splash.connect(splashFilter)
+      splashFilter.connect(splashGain)
+      splashGain.connect(audioContext.destination)
+      splash.start(now)
+      splash.stop(now + 0.4)
+
+      // Underwater motor hum
+      const motor = audioContext.createOscillator()
+      const motorGain = audioContext.createGain()
+      const motorFilter = audioContext.createBiquadFilter()
+      motor.type = 'sawtooth'
+      motor.frequency.setValueAtTime(60, now + 0.1)
+      motor.frequency.setValueAtTime(80, now + 0.3)
+      motor.frequency.setValueAtTime(70, now + 0.5)
+      motorFilter.type = 'lowpass'
+      motorFilter.frequency.value = 200
+      motorGain.gain.setValueAtTime(0.001, now + 0.1)
+      motorGain.gain.exponentialRampToValueAtTime(0.2, now + 0.2)
+      motorGain.gain.setValueAtTime(0.15, now + 0.5)
+      motorGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
+      motor.connect(motorFilter)
+      motorFilter.connect(motorGain)
+      motorGain.connect(audioContext.destination)
+      motor.start(now + 0.1)
+      motor.stop(now + 0.75)
+      break
+    }
+
+    case 'helicopter': {
+      // Helicopter rotor - thup thup thup
+      for (let i = 0; i < 6; i++) {
+        const blade = audioContext.createOscillator()
+        const bladeGain = audioContext.createGain()
+        const bladeFilter = audioContext.createBiquadFilter()
+
+        blade.type = 'sawtooth'
+        blade.frequency.setValueAtTime(80, now + i * 0.08)
+        blade.frequency.exponentialRampToValueAtTime(40, now + i * 0.08 + 0.04)
+
+        bladeFilter.type = 'lowpass'
+        bladeFilter.frequency.value = 300
+
+        bladeGain.gain.setValueAtTime(0.2, now + i * 0.08)
+        bladeGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.06)
+
+        blade.connect(bladeFilter)
+        bladeFilter.connect(bladeGain)
+        bladeGain.connect(audioContext.destination)
+
+        blade.start(now + i * 0.08)
+        blade.stop(now + i * 0.08 + 0.08)
+      }
+
+      // High whine
+      const whine = audioContext.createOscillator()
+      const whineGain = audioContext.createGain()
+      whine.type = 'sine'
+      whine.frequency.setValueAtTime(400, now)
+      whine.frequency.setValueAtTime(500, now + 0.2)
+      whine.frequency.setValueAtTime(450, now + 0.4)
+      whineGain.gain.setValueAtTime(0.08, now)
+      whineGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
+      whine.connect(whineGain)
+      whineGain.connect(audioContext.destination)
+      whine.start(now)
+      whine.stop(now + 0.55)
+      break
+    }
+
+    case 'plane': {
+      // Fighter jet - whoosh + bomb drop
+      // Jet engine whoosh
+      const jet = audioContext.createBufferSource()
+      const jetFilter = audioContext.createBiquadFilter()
+      const jetGain = audioContext.createGain()
+      jet.buffer = createNoiseBuffer(0.8)
+      jetFilter.type = 'bandpass'
+      jetFilter.frequency.setValueAtTime(500, now)
+      jetFilter.frequency.exponentialRampToValueAtTime(2000, now + 0.2)
+      jetFilter.frequency.exponentialRampToValueAtTime(800, now + 0.6)
+      jetFilter.Q.value = 2
+      jetGain.gain.setValueAtTime(0.001, now)
+      jetGain.gain.exponentialRampToValueAtTime(0.35, now + 0.15)
+      jetGain.gain.setValueAtTime(0.3, now + 0.4)
+      jetGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
+      jet.connect(jetFilter)
+      jetFilter.connect(jetGain)
+      jetGain.connect(audioContext.destination)
+      jet.start(now)
+      jet.stop(now + 0.8)
+
+      // Bomb whistle
+      const bomb = audioContext.createOscillator()
+      const bombGain = audioContext.createGain()
+      bomb.type = 'sine'
+      bomb.frequency.setValueAtTime(1500, now + 0.3)
+      bomb.frequency.exponentialRampToValueAtTime(300, now + 0.7)
+      bombGain.gain.setValueAtTime(0.001, now + 0.3)
+      bombGain.gain.exponentialRampToValueAtTime(0.2, now + 0.4)
+      bombGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
+      bomb.connect(bombGain)
+      bombGain.connect(audioContext.destination)
+      bomb.start(now + 0.3)
+      bomb.stop(now + 0.75)
       break
     }
 
     case 'click': {
-      // Soft UI click - like a button press
+      // Soft UI click
       const osc = audioContext.createOscillator()
       const gain = audioContext.createGain()
-      const filter = audioContext.createBiquadFilter()
-
       osc.type = 'sine'
       osc.frequency.setValueAtTime(1800, now)
       osc.frequency.exponentialRampToValueAtTime(1200, now + 0.03)
-
-      filter.type = 'lowpass'
-      filter.frequency.value = 3000
-
       gain.gain.setValueAtTime(0.08, now)
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
-
-      osc.connect(filter)
-      filter.connect(gain)
+      osc.connect(gain)
       gain.connect(audioContext.destination)
-
       osc.start(now)
       osc.stop(now + 0.05)
       break
     }
 
     case 'win': {
-      // Victory fanfare - triumphant chord progression
+      // Victory fanfare
       const playNote = (freq: number, startTime: number, duration: number) => {
         const osc = audioContext!.createOscillator()
         const osc2 = audioContext!.createOscillator()
         const gain = audioContext!.createGain()
-
         osc.type = 'triangle'
         osc.frequency.value = freq
         osc2.type = 'sine'
-        osc2.frequency.value = freq * 2 // Octave up
-
+        osc2.frequency.value = freq * 2
         gain.gain.setValueAtTime(0.001, startTime)
         gain.gain.exponentialRampToValueAtTime(0.12, startTime + 0.02)
         gain.gain.setValueAtTime(0.1, startTime + duration * 0.7)
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-
         osc.connect(gain)
         osc2.connect(gain)
         gain.connect(audioContext!.destination)
-
         osc.start(startTime)
         osc2.start(startTime)
         osc.stop(startTime + duration)
         osc2.stop(startTime + duration)
       }
-
-      // C major arpeggio then final chord
-      playNote(523, now, 0.15)        // C5
-      playNote(659, now + 0.1, 0.15)  // E5
-      playNote(784, now + 0.2, 0.15)  // G5
-      playNote(1047, now + 0.3, 0.4)  // C6 (longer)
-      // Final chord
+      playNote(523, now, 0.15)
+      playNote(659, now + 0.1, 0.15)
+      playNote(784, now + 0.2, 0.15)
+      playNote(1047, now + 0.3, 0.4)
       playNote(523, now + 0.35, 0.5)
       playNote(659, now + 0.35, 0.5)
       playNote(784, now + 0.35, 0.5)
@@ -316,26 +745,21 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
     }
 
     case 'tick': {
-      // Clock tick - mechanical click
+      // Clock tick
       const osc = audioContext.createOscillator()
       const gain = audioContext.createGain()
       const filter = audioContext.createBiquadFilter()
-
       osc.type = 'square'
       osc.frequency.setValueAtTime(2500, now)
       osc.frequency.setValueAtTime(1500, now + 0.01)
-
       filter.type = 'bandpass'
       filter.frequency.value = 2000
       filter.Q.value = 5
-
       gain.gain.setValueAtTime(0.06, now)
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
-
       osc.connect(filter)
       filter.connect(gain)
       gain.connect(audioContext.destination)
-
       osc.start(now)
       osc.stop(now + 0.03)
       break
@@ -1613,6 +2037,11 @@ function startGame() {
     startTimer()
   }
 
+  // Start music if enabled
+  if (musicEnabled) {
+    startMusic()
+  }
+
   render()
 }
 
@@ -1745,6 +2174,9 @@ function resetGame() {
   // Reset penalties
   yellowPenalty = 0
   greenPenalty = 0
+
+  // Stop music
+  stopMusic()
 
   render()
 }
@@ -2492,6 +2924,9 @@ function launchHelicopterFromCarrier() {
 function completeHelicopterLaunch(col: string, row: number) {
   if (!selectedPiece || selectedPiece.type !== 'carrier' || !helicopterLaunchMode) return
 
+  // Play helicopter sound
+  playSound('helicopter')
+
   const carrier = selectedPiece
   const pieceAtTarget = getPieceAtAboveGround(col, row)
 
@@ -3135,11 +3570,39 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   const fromCol = piece.col
   const fromRow = piece.row
 
-  // Play sound
+  // Play sound based on piece type
   if (capturedPiece) {
     playSound('capture')
   } else {
-    playSound('move')
+    // Play appropriate move sound based on piece type
+    switch (piece.type) {
+      case 'soldier':
+        playSound('walk')
+        break
+      case 'tank':
+      case 'suv':
+        playSound('engine')
+        break
+      case 'train':
+        playSound('train')
+        break
+      case 'ship':
+      case 'sub':
+      case 'carrier':
+        playSound('boat')
+        break
+      case 'helicopter':
+        playSound('helicopter')
+        break
+      case 'hacker':
+        playSound('hack')
+        break
+      case 'builder':
+        playSound('build')
+        break
+      default:
+        playSound('move')
+    }
   }
 
   // Start movement animation
@@ -3446,6 +3909,9 @@ function shootPiece(col: string, row: number) {
 function launchRocket(rocket: Piece, targetCol: string, targetRow: number) {
   const launchingTeam = rocket.team
 
+  // Play rocket sound
+  playSound('rocket')
+
   // Start rocket animation
   rocketAnimation = {
     rocket: rocket,
@@ -3655,6 +4121,9 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
     message = `Froze ${target.type} for 5 turns!`
   }
 
+  // Play hack sound
+  playSound('hack')
+
   // Log the hack
   moveLog.push({
     from: `${hacker.col}${hacker.row}`,
@@ -3702,6 +4171,9 @@ function executeBombing(fighter: Piece, target: Piece, landingCol: string, landi
   bombTargets = []
   selectedBombTarget = null
   landingSpots = []
+
+  // Play plane sound
+  playSound('plane')
 
   // Start animation
   fighterAnimation = {
@@ -3861,6 +4333,9 @@ function placeBuilderItem(col: string, row: number) {
 
   const builder = selectedPiece
   const team = builder.team
+
+  // Play build sound
+  playSound('build')
 
   if (builderPlacementMode === 'barricade') {
     // Create barricade
@@ -5694,6 +6169,25 @@ function render() {
               </div>
             </div>
 
+            <!-- Music setting -->
+            <div class="flex flex-col gap-2">
+              <label class="text-white font-bold">🎵 ${t('musicLabel')}</label>
+              <div class="flex gap-2">
+                <button
+                  id="music-off-btn"
+                  class="py-2 px-4 rounded ${!musicEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                >
+                  ${t('off')}
+                </button>
+                <button
+                  id="music-on-btn"
+                  class="py-2 px-4 rounded ${musicEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                >
+                  ${t('on')}
+                </button>
+              </div>
+            </div>
+
           </div>
           <button id="back-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors touch-manipulation">
             ${t('backButton')}
@@ -5740,6 +6234,19 @@ function render() {
       document.getElementById('sound-test-btn')?.addEventListener('click', () => {
         initAudio()
         playSound('capture')
+      })
+
+      // Music buttons
+      document.getElementById('music-off-btn')?.addEventListener('click', () => {
+        musicEnabled = false
+        stopMusic()
+        render()
+      })
+      document.getElementById('music-on-btn')?.addEventListener('click', () => {
+        musicEnabled = true
+        initAudio()
+        startMusic()
+        render()
       })
 
       // Back button
