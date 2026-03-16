@@ -21,8 +21,9 @@ const TIMEOUT_PENALTY = 10
 let soundEnabled = true
 let musicEnabled = false
 let musicGainNode: GainNode | null = null
-let musicOscillators: OscillatorNode[] = []
 let musicInterval: number | null = null
+let musicPhase = 0 // Track musical sections
+let measureCount = 0 // Track measures for structure
 
 // Audio context for sound effects
 let audioContext: AudioContext | null = null
@@ -33,128 +34,414 @@ function initAudio() {
   }
 }
 
-// Procedural war-style ambient music
+// Epic cinematic war music
 function startMusic() {
   if (!audioContext || musicInterval) return
 
   musicGainNode = audioContext.createGain()
-  musicGainNode.gain.value = 0.08 // Low volume so it doesn't overpower sound effects
+  musicGainNode.gain.value = 0.12 // Master volume
   musicGainNode.connect(audioContext.destination)
 
-  // War drums - deep rhythmic pulse
-  function playDrumBeat() {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
+  measureCount = 0
+  musicPhase = 0
 
-    const now = audioContext.currentTime
-
-    // Deep bass drum
-    const kick = audioContext.createOscillator()
-    const kickGain = audioContext.createGain()
-    kick.type = 'sine'
-    kick.frequency.setValueAtTime(80, now)
-    kick.frequency.exponentialRampToValueAtTime(40, now + 0.15)
-    kickGain.gain.setValueAtTime(0.4, now)
-    kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2)
-    kick.connect(kickGain)
-    kickGain.connect(musicGainNode)
-    kick.start(now)
-    kick.stop(now + 0.25)
-
-    // Secondary beat with slight delay
-    const kick2 = audioContext.createOscillator()
-    const kick2Gain = audioContext.createGain()
-    kick2.type = 'sine'
-    kick2.frequency.setValueAtTime(60, now + 0.4)
-    kick2.frequency.exponentialRampToValueAtTime(35, now + 0.55)
-    kick2Gain.gain.setValueAtTime(0.25, now + 0.4)
-    kick2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55)
-    kick2.connect(kick2Gain)
-    kick2Gain.connect(musicGainNode)
-    kick2.start(now + 0.4)
-    kick2.stop(now + 0.6)
+  // D minor scale frequencies for war/dark feel
+  const scale = {
+    D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54, C3: 130.81,
+    D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08, C4: 261.63,
+    D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00
   }
 
-  // Dark ambient drone
-  function playDrone() {
+  // ═══════════════════════════════════════════════════════════════
+  // EPIC WAR DRUMS - Multiple layers
+  // ═══════════════════════════════════════════════════════════════
+  function playEpicDrums(pattern: number) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
-
     const now = audioContext.currentTime
+    const beatTime = 0.5 // 120 BPM
 
-    // Low drone oscillator
-    const drone = audioContext.createOscillator()
-    const droneGain = audioContext.createGain()
-    const droneFilter = audioContext.createBiquadFilter()
-    drone.type = 'sawtooth'
-    drone.frequency.value = 55 // Low A
-    droneFilter.type = 'lowpass'
-    droneFilter.frequency.value = 200
-    droneGain.gain.setValueAtTime(0.001, now)
-    droneGain.gain.linearRampToValueAtTime(0.15, now + 0.5)
-    droneGain.gain.linearRampToValueAtTime(0.12, now + 2)
-    droneGain.gain.linearRampToValueAtTime(0.001, now + 2.5)
-    drone.connect(droneFilter)
-    droneFilter.connect(droneGain)
-    droneGain.connect(musicGainNode)
-    drone.start(now)
-    drone.stop(now + 3)
+    // Pattern variations for different intensities
+    const patterns = [
+      // Pattern 0: Basic march - BOOM - - BOOM BOOM
+      [1, 0, 0, 1, 1, 0, 0, 0],
+      // Pattern 1: Building - BOOM - BOOM - BOOM BOOM -
+      [1, 0, 1, 0, 1, 1, 0, 0],
+      // Pattern 2: Intense - BOOM BOOM - BOOM BOOM BOOM - BOOM
+      [1, 1, 0, 1, 1, 1, 0, 1],
+      // Pattern 3: Epic climax
+      [1, 1, 1, 0, 1, 1, 1, 1]
+    ]
+    const currentPattern = patterns[pattern % patterns.length]
 
-    // Harmonic
-    const drone2 = audioContext.createOscillator()
-    const drone2Gain = audioContext.createGain()
-    drone2.type = 'triangle'
-    drone2.frequency.value = 82.5 // Perfect fifth above
-    drone2Gain.gain.setValueAtTime(0.001, now)
-    drone2Gain.gain.linearRampToValueAtTime(0.08, now + 0.8)
-    drone2Gain.gain.linearRampToValueAtTime(0.001, now + 2.8)
-    drone2.connect(drone2Gain)
-    drone2Gain.connect(musicGainNode)
-    drone2.start(now)
-    drone2.stop(now + 3)
+    currentPattern.forEach((hit, i) => {
+      if (hit) {
+        const time = now + (i * beatTime / 2)
+
+        // Main taiko-style kick
+        const kick = audioContext!.createOscillator()
+        const kickGain = audioContext!.createGain()
+        const kickFilter = audioContext!.createBiquadFilter()
+        kick.type = 'sine'
+        kick.frequency.setValueAtTime(100, time)
+        kick.frequency.exponentialRampToValueAtTime(35, time + 0.2)
+        kickFilter.type = 'lowpass'
+        kickFilter.frequency.value = 150
+        kickGain.gain.setValueAtTime(0.5, time)
+        kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.3)
+        kick.connect(kickFilter)
+        kickFilter.connect(kickGain)
+        kickGain.connect(musicGainNode!)
+        kick.start(time)
+        kick.stop(time + 0.35)
+
+        // Add body/resonance layer
+        const body = audioContext!.createOscillator()
+        const bodyGain = audioContext!.createGain()
+        body.type = 'triangle'
+        body.frequency.setValueAtTime(55, time)
+        body.frequency.exponentialRampToValueAtTime(30, time + 0.25)
+        bodyGain.gain.setValueAtTime(0.3, time)
+        bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.4)
+        body.connect(bodyGain)
+        bodyGain.connect(musicGainNode!)
+        body.start(time)
+        body.stop(time + 0.45)
+      }
+    })
+
+    // Snare/rim hits on off-beats (pattern dependent)
+    if (pattern >= 1) {
+      [1, 3, 5, 7].forEach((i) => {
+        if (Math.random() > 0.5) {
+          const time = now + (i * beatTime / 2)
+          const snare = audioContext!.createBufferSource()
+          const snareGain = audioContext!.createGain()
+          const snareFilter = audioContext!.createBiquadFilter()
+          snare.buffer = createNoiseBuffer(0.1)
+          snareFilter.type = 'highpass'
+          snareFilter.frequency.value = 2000
+          snareGain.gain.setValueAtTime(0.15, time)
+          snareGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08)
+          snare.connect(snareFilter)
+          snareFilter.connect(snareGain)
+          snareGain.connect(musicGainNode!)
+          snare.start(time)
+          snare.stop(time + 0.12)
+        }
+      })
+    }
+
+    // Tom fills on climax
+    if (pattern >= 2 && measureCount % 4 === 3) {
+      const tomFreqs = [180, 150, 120, 90]
+      tomFreqs.forEach((freq, i) => {
+        const time = now + 1.5 + (i * 0.12)
+        const tom = audioContext!.createOscillator()
+        const tomGain = audioContext!.createGain()
+        tom.type = 'sine'
+        tom.frequency.setValueAtTime(freq, time)
+        tom.frequency.exponentialRampToValueAtTime(freq * 0.6, time + 0.15)
+        tomGain.gain.setValueAtTime(0.25, time)
+        tomGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2)
+        tom.connect(tomGain)
+        tomGain.connect(musicGainNode!)
+        tom.start(time)
+        tom.stop(time + 0.25)
+      })
+    }
   }
 
-  // Occasional tension notes
-  function playTension() {
+  // ═══════════════════════════════════════════════════════════════
+  // STRING PADS - Rich, evolving harmonies
+  // ═══════════════════════════════════════════════════════════════
+  function playStringPad(chordIndex: number) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
-    if (Math.random() > 0.3) return // Only 30% chance
-
     const now = audioContext.currentTime
-    const notes = [110, 116.5, 130.8, 146.8] // Minor scale tones
-    const note = notes[Math.floor(Math.random() * notes.length)]
 
-    const osc = audioContext.createOscillator()
-    const gain = audioContext.createGain()
-    const filter = audioContext.createBiquadFilter()
-    osc.type = 'sine'
-    osc.frequency.value = note
-    filter.type = 'lowpass'
-    filter.frequency.value = 800
-    gain.gain.setValueAtTime(0.001, now)
-    gain.gain.linearRampToValueAtTime(0.06, now + 0.3)
-    gain.gain.linearRampToValueAtTime(0.001, now + 1.5)
-    osc.connect(filter)
-    filter.connect(gain)
-    gain.connect(musicGainNode)
-    osc.start(now)
-    osc.stop(now + 1.6)
+    // D minor chord progressions
+    const chords = [
+      [scale.D3, scale.F3, scale.A3],           // Dm
+      [scale.Bb2, scale.D3, scale.F3],          // Bb
+      [scale.C3, scale.E3, scale.G3],           // C
+      [scale.A2, scale.C3, scale.E3],           // Am
+      [scale.G2, scale.Bb2, scale.D3],          // Gm
+      [scale.D3, scale.F3, scale.A3, scale.D4], // Dm (octave)
+    ]
+
+    const chord = chords[chordIndex % chords.length]
+    const duration = 4 // 4 seconds per chord
+
+    chord.forEach((freq, i) => {
+      // Main string voice
+      const osc1 = audioContext!.createOscillator()
+      const osc2 = audioContext!.createOscillator()
+      const osc3 = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      // Slightly detuned oscillators for richness
+      osc1.type = 'sawtooth'
+      osc1.frequency.value = freq
+      osc2.type = 'sawtooth'
+      osc2.frequency.value = freq * 1.003 // Slight detune
+      osc3.type = 'triangle'
+      osc3.frequency.value = freq * 0.998 // Slight detune other way
+
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(400, now)
+      filter.frequency.linearRampToValueAtTime(800, now + 1)
+      filter.frequency.linearRampToValueAtTime(500, now + duration - 0.5)
+      filter.Q.value = 1
+
+      // Swell envelope
+      gain.gain.setValueAtTime(0.001, now)
+      gain.gain.linearRampToValueAtTime(0.06, now + 0.8)
+      gain.gain.setValueAtTime(0.05, now + duration - 1)
+      gain.gain.linearRampToValueAtTime(0.001, now + duration)
+
+      osc1.connect(filter)
+      osc2.connect(filter)
+      osc3.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc1.start(now + i * 0.05) // Slight stagger for realism
+      osc2.start(now + i * 0.05)
+      osc3.start(now + i * 0.05)
+      osc1.stop(now + duration + 0.5)
+      osc2.stop(now + duration + 0.5)
+      osc3.stop(now + duration + 0.5)
+    })
   }
 
-  // Start the music loops
-  playDrumBeat()
-  playDrone()
+  // ═══════════════════════════════════════════════════════════════
+  // BRASS FANFARE - Heroic moments
+  // ═══════════════════════════════════════════════════════════════
+  function playBrassFanfare(type: 'short' | 'epic') {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
 
-  let beatCount = 0
+    const playBrassNote = (freq: number, startTime: number, duration: number, volume: number) => {
+      // Multiple oscillators for brass-like tone
+      const osc1 = audioContext!.createOscillator()
+      const osc2 = audioContext!.createOscillator()
+      const osc3 = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      osc1.type = 'sawtooth'
+      osc1.frequency.value = freq
+      osc2.type = 'square'
+      osc2.frequency.value = freq * 2 // Octave
+      osc3.type = 'sawtooth'
+      osc3.frequency.value = freq * 1.5 // Fifth
+
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(800, startTime)
+      filter.frequency.linearRampToValueAtTime(2000, startTime + 0.1)
+      filter.frequency.linearRampToValueAtTime(1200, startTime + duration)
+
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(volume, startTime + 0.05)
+      gain.gain.setValueAtTime(volume * 0.8, startTime + duration * 0.7)
+      gain.gain.linearRampToValueAtTime(0.001, startTime + duration)
+
+      osc1.connect(filter)
+      osc2.connect(filter)
+      osc3.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc1.start(startTime)
+      osc2.start(startTime)
+      osc3.start(startTime)
+      osc1.stop(startTime + duration + 0.1)
+      osc2.stop(startTime + duration + 0.1)
+      osc3.stop(startTime + duration + 0.1)
+    }
+
+    if (type === 'short') {
+      // Short heroic stab
+      playBrassNote(scale.D4, now, 0.3, 0.12)
+      playBrassNote(scale.A3, now, 0.3, 0.10)
+      playBrassNote(scale.F3, now, 0.3, 0.08)
+    } else {
+      // Epic fanfare melody
+      playBrassNote(scale.D4, now, 0.4, 0.10)
+      playBrassNote(scale.A3, now, 0.4, 0.08)
+      playBrassNote(scale.F4, now + 0.4, 0.3, 0.12)
+      playBrassNote(scale.A3, now + 0.4, 0.3, 0.08)
+      playBrassNote(scale.A4, now + 0.7, 0.6, 0.14)
+      playBrassNote(scale.D4, now + 0.7, 0.6, 0.10)
+      playBrassNote(scale.F4, now + 0.7, 0.6, 0.08)
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BASS LINE - Deep, powerful foundation
+  // ═══════════════════════════════════════════════════════════════
+  function playBassLine(noteIndex: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const bassNotes = [scale.D2, scale.Bb2, scale.C3, scale.A2, scale.G2, scale.D2]
+    const freq = bassNotes[noteIndex % bassNotes.length]
+
+    // Deep sub bass
+    const sub = audioContext.createOscillator()
+    const subGain = audioContext.createGain()
+    sub.type = 'sine'
+    sub.frequency.value = freq
+    subGain.gain.setValueAtTime(0.001, now)
+    subGain.gain.linearRampToValueAtTime(0.2, now + 0.1)
+    subGain.gain.setValueAtTime(0.15, now + 1.5)
+    subGain.gain.linearRampToValueAtTime(0.001, now + 2)
+    sub.connect(subGain)
+    subGain.connect(musicGainNode)
+    sub.start(now)
+    sub.stop(now + 2.1)
+
+    // Growly upper bass
+    const upper = audioContext.createOscillator()
+    const upperGain = audioContext.createGain()
+    const upperFilter = audioContext.createBiquadFilter()
+    upper.type = 'sawtooth'
+    upper.frequency.value = freq * 2
+    upperFilter.type = 'lowpass'
+    upperFilter.frequency.value = 250
+    upperGain.gain.setValueAtTime(0.001, now)
+    upperGain.gain.linearRampToValueAtTime(0.08, now + 0.1)
+    upperGain.gain.linearRampToValueAtTime(0.001, now + 1.8)
+    upper.connect(upperFilter)
+    upperFilter.connect(upperGain)
+    upperGain.connect(musicGainNode)
+    upper.start(now)
+    upper.stop(now + 2)
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ATMOSPHERIC ELEMENTS - Wind, tension
+  // ═══════════════════════════════════════════════════════════════
+  function playAtmosphere() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Wind/breath sound
+    const wind = audioContext.createBufferSource()
+    const windGain = audioContext.createGain()
+    const windFilter = audioContext.createBiquadFilter()
+    wind.buffer = createNoiseBuffer(6)
+    windFilter.type = 'bandpass'
+    windFilter.frequency.setValueAtTime(400, now)
+    windFilter.frequency.linearRampToValueAtTime(800, now + 3)
+    windFilter.frequency.linearRampToValueAtTime(300, now + 5.5)
+    windFilter.Q.value = 2
+    windGain.gain.setValueAtTime(0.001, now)
+    windGain.gain.linearRampToValueAtTime(0.04, now + 1)
+    windGain.gain.setValueAtTime(0.03, now + 4)
+    windGain.gain.linearRampToValueAtTime(0.001, now + 5.8)
+    wind.connect(windFilter)
+    windFilter.connect(windGain)
+    windGain.connect(musicGainNode)
+    wind.start(now)
+    wind.stop(now + 6)
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CINEMATIC HIT - Big impact moments
+  // ═══════════════════════════════════════════════════════════════
+  function playCinematicHit() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Sub boom
+    const boom = audioContext.createOscillator()
+    const boomGain = audioContext.createGain()
+    boom.type = 'sine'
+    boom.frequency.setValueAtTime(60, now)
+    boom.frequency.exponentialRampToValueAtTime(20, now + 0.5)
+    boomGain.gain.setValueAtTime(0.5, now)
+    boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8)
+    boom.connect(boomGain)
+    boomGain.connect(musicGainNode)
+    boom.start(now)
+    boom.stop(now + 0.9)
+
+    // Crash layer
+    const crash = audioContext.createBufferSource()
+    const crashGain = audioContext.createGain()
+    const crashFilter = audioContext.createBiquadFilter()
+    crash.buffer = createNoiseBuffer(1.5)
+    crashFilter.type = 'highpass'
+    crashFilter.frequency.value = 1000
+    crashGain.gain.setValueAtTime(0.25, now)
+    crashGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2)
+    crash.connect(crashFilter)
+    crashFilter.connect(crashGain)
+    crashGain.connect(musicGainNode)
+    crash.start(now)
+    crash.stop(now + 1.5)
+
+    // Brass accent
+    playBrassFanfare('short')
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MAIN MUSIC LOOP - Orchestrates everything
+  // ═══════════════════════════════════════════════════════════════
+
+  // Initial atmosphere
+  playAtmosphere()
+  playStringPad(0)
+  playBassLine(0)
+
+  const measureDuration = 2000 // 2 seconds per measure (120 BPM)
+
   musicInterval = window.setInterval(() => {
     if (!musicEnabled) {
       stopMusic()
       return
     }
-    beatCount++
-    playDrumBeat()
-    if (beatCount % 4 === 0) {
-      playDrone()
-      playTension()
+
+    measureCount++
+
+    // Determine intensity phase (cycles every 16 measures)
+    const cyclePosition = measureCount % 16
+    if (cyclePosition < 4) musicPhase = 0       // Calm/building
+    else if (cyclePosition < 8) musicPhase = 1  // Medium intensity
+    else if (cyclePosition < 12) musicPhase = 2 // High intensity
+    else musicPhase = 3                          // Climax/release
+
+    // Always play drums with increasing intensity
+    playEpicDrums(musicPhase)
+
+    // String pads every 2 measures
+    if (measureCount % 2 === 0) {
+      playStringPad(Math.floor(measureCount / 2) % 6)
     }
-  }, 800)
+
+    // Bass line every measure
+    playBassLine(measureCount % 6)
+
+    // Brass fanfares at key moments
+    if (cyclePosition === 7) {
+      playBrassFanfare('short')
+    }
+    if (cyclePosition === 11) {
+      playBrassFanfare('epic')
+    }
+
+    // Cinematic hit at climax
+    if (cyclePosition === 15) {
+      playCinematicHit()
+    }
+
+    // Atmosphere refresh every 8 measures
+    if (measureCount % 8 === 0) {
+      playAtmosphere()
+    }
+
+  }, measureDuration)
 }
 
 function stopMusic() {
@@ -162,10 +449,8 @@ function stopMusic() {
     clearInterval(musicInterval)
     musicInterval = null
   }
-  musicOscillators.forEach(osc => {
-    try { osc.stop() } catch {}
-  })
-  musicOscillators = []
+  measureCount = 0
+  musicPhase = 0
 }
 
 // Create white noise buffer for explosion/gunshot sounds
@@ -697,18 +982,35 @@ function playSound(type: SoundType) {
     }
 
     case 'click': {
-      // Soft UI click
-      const osc = audioContext.createOscillator()
-      const gain = audioContext.createGain()
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(1800, now)
-      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.03)
-      gain.gain.setValueAtTime(0.08, now)
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04)
-      osc.connect(gain)
-      gain.connect(audioContext.destination)
-      osc.start(now)
-      osc.stop(now + 0.05)
+      // Crisp tick sound - like a chess piece being placed
+      const tick = audioContext.createOscillator()
+      const tickGain = audioContext.createGain()
+      const tickFilter = audioContext.createBiquadFilter()
+      tick.type = 'square'
+      tick.frequency.setValueAtTime(3000, now)
+      tick.frequency.exponentialRampToValueAtTime(1500, now + 0.008)
+      tickFilter.type = 'highpass'
+      tickFilter.frequency.value = 1000
+      tickGain.gain.setValueAtTime(0.12, now)
+      tickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015)
+      tick.connect(tickFilter)
+      tickFilter.connect(tickGain)
+      tickGain.connect(audioContext.destination)
+      tick.start(now)
+      tick.stop(now + 0.02)
+
+      // Small resonance for body
+      const body = audioContext.createOscillator()
+      const bodyGain = audioContext.createGain()
+      body.type = 'sine'
+      body.frequency.setValueAtTime(800, now)
+      body.frequency.exponentialRampToValueAtTime(400, now + 0.02)
+      bodyGain.gain.setValueAtTime(0.06, now)
+      bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
+      body.connect(bodyGain)
+      bodyGain.connect(audioContext.destination)
+      body.start(now)
+      body.stop(now + 0.03)
       break
     }
 
