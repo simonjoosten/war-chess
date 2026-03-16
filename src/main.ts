@@ -153,49 +153,63 @@ function playSound(type: 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 
       bang.stop(now + 0.12)
       punch.stop(now + 0.15)
 
-      // Part 2: Shell casing - "tjsjt" - metallic tink after delay
-      const shellDelay = 0.15 // delay after shot
+      // Part 2: Shell casing eject + fall - "tjsjt" - LOUDER metallic sounds
+      const shellDelay = 0.18 // delay after shot
 
-      // High metallic ping (shell hitting ground)
+      // Shell eject click (mechanical sound)
+      const eject = audioContext.createOscillator()
+      const ejectGain = audioContext.createGain()
+      eject.type = 'square'
+      eject.frequency.setValueAtTime(1200, now + shellDelay)
+      eject.frequency.exponentialRampToValueAtTime(400, now + shellDelay + 0.03)
+      ejectGain.gain.setValueAtTime(0.2, now + shellDelay)
+      ejectGain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.05)
+      eject.connect(ejectGain)
+      ejectGain.connect(audioContext.destination)
+      eject.start(now + shellDelay)
+      eject.stop(now + shellDelay + 0.06)
+
+      // Shell hitting ground - loud metallic PING
       const shell1 = audioContext.createOscillator()
       const shell1Gain = audioContext.createGain()
       shell1.type = 'triangle'
-      shell1.frequency.setValueAtTime(4500, now + shellDelay)
-      shell1.frequency.exponentialRampToValueAtTime(2000, now + shellDelay + 0.05)
-      shell1Gain.gain.setValueAtTime(0.08, now + shellDelay)
-      shell1Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.08)
+      shell1.frequency.setValueAtTime(2500, now + shellDelay + 0.08)
+      shell1.frequency.exponentialRampToValueAtTime(800, now + shellDelay + 0.15)
+      shell1Gain.gain.setValueAtTime(0.25, now + shellDelay + 0.08)
+      shell1Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.2)
       shell1.connect(shell1Gain)
       shell1Gain.connect(audioContext.destination)
-      shell1.start(now + shellDelay)
-      shell1.stop(now + shellDelay + 0.1)
+      shell1.start(now + shellDelay + 0.08)
+      shell1.stop(now + shellDelay + 0.25)
 
-      // Second bounce (quieter)
+      // Second bounce - still audible
       const shell2 = audioContext.createOscillator()
       const shell2Gain = audioContext.createGain()
       shell2.type = 'triangle'
-      shell2.frequency.setValueAtTime(3800, now + shellDelay + 0.08)
-      shell2.frequency.exponentialRampToValueAtTime(1500, now + shellDelay + 0.12)
-      shell2Gain.gain.setValueAtTime(0.04, now + shellDelay + 0.08)
-      shell2Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.15)
+      shell2.frequency.setValueAtTime(2000, now + shellDelay + 0.2)
+      shell2.frequency.exponentialRampToValueAtTime(600, now + shellDelay + 0.28)
+      shell2Gain.gain.setValueAtTime(0.12, now + shellDelay + 0.2)
+      shell2Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.35)
       shell2.connect(shell2Gain)
       shell2Gain.connect(audioContext.destination)
-      shell2.start(now + shellDelay + 0.08)
-      shell2.stop(now + shellDelay + 0.18)
+      shell2.start(now + shellDelay + 0.2)
+      shell2.stop(now + shellDelay + 0.4)
 
-      // Tiny metallic rattle
+      // Metallic rattle/roll
       const rattle = audioContext.createBufferSource()
       const rattleFilter = audioContext.createBiquadFilter()
       const rattleGain = audioContext.createGain()
-      rattle.buffer = createNoiseBuffer(0.1)
-      rattleFilter.type = 'highpass'
-      rattleFilter.frequency.value = 6000
-      rattleGain.gain.setValueAtTime(0.03, now + shellDelay + 0.05)
-      rattleGain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.12)
+      rattle.buffer = createNoiseBuffer(0.2)
+      rattleFilter.type = 'bandpass'
+      rattleFilter.frequency.value = 3000
+      rattleFilter.Q.value = 3
+      rattleGain.gain.setValueAtTime(0.15, now + shellDelay + 0.12)
+      rattleGain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.35)
       rattle.connect(rattleFilter)
       rattleFilter.connect(rattleGain)
       rattleGain.connect(audioContext.destination)
-      rattle.start(now + shellDelay + 0.05)
-      rattle.stop(now + shellDelay + 0.15)
+      rattle.start(now + shellDelay + 0.12)
+      rattle.stop(now + shellDelay + 0.4)
       break
     }
 
