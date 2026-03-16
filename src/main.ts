@@ -1,5 +1,230 @@
 import './style.css'
 
+// Language settings
+type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
+let currentLanguage: Language = 'en'
+let showSettings = false
+
+const translations: Record<Language, Record<string, string>> = {
+  en: {
+    // Start screen
+    startTitle: 'War Chess',
+    startButton: 'Start Game',
+    settingsButton: 'Settings',
+    backButton: 'Back',
+    languageLabel: 'Language',
+    // Game
+    yellowTurn: "YELLOW's turn",
+    greenTurn: "GREEN's turn",
+    resetButton: 'Reset',
+    moveButton: 'Move',
+    shootButton: 'Shoot',
+    exitButton: 'Exit',
+    launchHelicopter: 'Launch Helicopter',
+    // Messages
+    noTargetsInRange: 'No targets in range!',
+    selectTarget: 'Select target to shoot',
+    mustLeaveTrench: 'Soldier MUST leave the trench! Click a valid destination.',
+    enteredTrench: 'Entered the trench!',
+    enteredTunnel: 'Entered the tunnel!',
+    exitedTunnel: 'Exited the tunnel!',
+    helicopterLaunched: 'Helicopter launched!',
+    selectHelipad: 'Select helipad to land helicopter',
+    noHelipads: 'No available helipads to land on!',
+    cannotMoveThere: 'You cannot move there!',
+    teamPieceBlocking: 'There is already a piece of your team there!',
+    notYourTurn: "It's not your turn!",
+    pieceFrozen: 'This piece is frozen!',
+    rocketNotReady: 'Rocket not ready yet!',
+    rocketUsed: 'This rocket has already been used!',
+    selectRocketTarget: 'Select target for rocket (3x3 explosion area)',
+    gameOverPoints: 'wins by points!',
+    gameOverBuilder: 'wins by capturing the Builder!',
+    // Confirm dialogs
+    confirmReset: 'Are you sure you want to reset the game?',
+    confirmYes: 'Yes',
+    confirmNo: 'No',
+    confirmEnterTunnel: 'Enter the tunnel?',
+    confirmExitTunnel: 'Exit the tunnel?',
+    // Score
+    score: 'Score',
+    moves: 'Moves',
+    captured: 'Captured',
+  },
+  nl: {
+    startTitle: 'Oorlog Schaak',
+    startButton: 'Start Spel',
+    settingsButton: 'Instellingen',
+    backButton: 'Terug',
+    languageLabel: 'Taal',
+    yellowTurn: 'GEEL aan zet',
+    greenTurn: 'GROEN aan zet',
+    resetButton: 'Reset',
+    moveButton: 'Bewegen',
+    shootButton: 'Schieten',
+    exitButton: 'Uitgang',
+    launchHelicopter: 'Lanceer Helicopter',
+    noTargetsInRange: 'Geen doelen in bereik!',
+    selectTarget: 'Selecteer doel om te schieten',
+    mustLeaveTrench: 'Soldaat MOET de loopgraaf verlaten! Klik op een geldige bestemming.',
+    enteredTrench: 'Loopgraaf betreden!',
+    enteredTunnel: 'Tunnel betreden!',
+    exitedTunnel: 'Tunnel verlaten!',
+    helicopterLaunched: 'Helicopter gelanceerd!',
+    selectHelipad: 'Selecteer helipad om te landen',
+    noHelipads: 'Geen beschikbare helipads om te landen!',
+    cannotMoveThere: 'Je kunt daar niet heen!',
+    teamPieceBlocking: 'Er staat al een stuk van jouw team!',
+    notYourTurn: 'Het is niet jouw beurt!',
+    pieceFrozen: 'Dit stuk is bevroren!',
+    rocketNotReady: 'Raket nog niet klaar!',
+    rocketUsed: 'Deze raket is al gebruikt!',
+    selectRocketTarget: 'Selecteer doel voor raket (3x3 explosie)',
+    gameOverPoints: 'wint op punten!',
+    gameOverBuilder: 'wint door de Bouwer te vangen!',
+    confirmReset: 'Weet je zeker dat je het spel wilt resetten?',
+    confirmYes: 'Ja',
+    confirmNo: 'Nee',
+    confirmEnterTunnel: 'Tunnel betreden?',
+    confirmExitTunnel: 'Tunnel verlaten?',
+    score: 'Score',
+    moves: 'Zetten',
+    captured: 'Gevangen',
+  },
+  de: {
+    startTitle: 'Kriegsschach',
+    startButton: 'Spiel Starten',
+    settingsButton: 'Einstellungen',
+    backButton: 'Zurück',
+    languageLabel: 'Sprache',
+    yellowTurn: 'GELB ist dran',
+    greenTurn: 'GRÜN ist dran',
+    resetButton: 'Zurücksetzen',
+    moveButton: 'Bewegen',
+    shootButton: 'Schießen',
+    exitButton: 'Ausgang',
+    launchHelicopter: 'Hubschrauber starten',
+    noTargetsInRange: 'Keine Ziele in Reichweite!',
+    selectTarget: 'Ziel zum Schießen auswählen',
+    mustLeaveTrench: 'Soldat MUSS den Graben verlassen! Klicke auf ein gültiges Ziel.',
+    enteredTrench: 'Graben betreten!',
+    enteredTunnel: 'Tunnel betreten!',
+    exitedTunnel: 'Tunnel verlassen!',
+    helicopterLaunched: 'Hubschrauber gestartet!',
+    selectHelipad: 'Hubschrauberlandeplatz auswählen',
+    noHelipads: 'Keine verfügbaren Landeplätze!',
+    cannotMoveThere: 'Du kannst dich nicht dorthin bewegen!',
+    teamPieceBlocking: 'Dort steht bereits eine Figur deines Teams!',
+    notYourTurn: 'Du bist nicht dran!',
+    pieceFrozen: 'Diese Figur ist eingefroren!',
+    rocketNotReady: 'Rakete noch nicht bereit!',
+    rocketUsed: 'Diese Rakete wurde bereits benutzt!',
+    selectRocketTarget: 'Ziel für Rakete auswählen (3x3 Explosion)',
+    gameOverPoints: 'gewinnt nach Punkten!',
+    gameOverBuilder: 'gewinnt durch Eroberung des Bauers!',
+    confirmReset: 'Möchtest du das Spiel wirklich zurücksetzen?',
+    confirmYes: 'Ja',
+    confirmNo: 'Nein',
+    confirmEnterTunnel: 'Tunnel betreten?',
+    confirmExitTunnel: 'Tunnel verlassen?',
+    score: 'Punktzahl',
+    moves: 'Züge',
+    captured: 'Erobert',
+  },
+  fr: {
+    startTitle: 'Échecs de Guerre',
+    startButton: 'Commencer',
+    settingsButton: 'Paramètres',
+    backButton: 'Retour',
+    languageLabel: 'Langue',
+    yellowTurn: 'Tour de JAUNE',
+    greenTurn: 'Tour de VERT',
+    resetButton: 'Réinitialiser',
+    moveButton: 'Déplacer',
+    shootButton: 'Tirer',
+    exitButton: 'Sortie',
+    launchHelicopter: 'Lancer Hélicoptère',
+    noTargetsInRange: 'Pas de cibles à portée!',
+    selectTarget: 'Sélectionnez une cible',
+    mustLeaveTrench: 'Le soldat DOIT quitter la tranchée! Cliquez sur une destination.',
+    enteredTrench: 'Tranchée entrée!',
+    enteredTunnel: 'Tunnel entré!',
+    exitedTunnel: 'Tunnel quitté!',
+    helicopterLaunched: 'Hélicoptère lancé!',
+    selectHelipad: 'Sélectionnez un héliport',
+    noHelipads: 'Pas d\'héliports disponibles!',
+    cannotMoveThere: 'Vous ne pouvez pas aller là!',
+    teamPieceBlocking: 'Il y a déjà une pièce de votre équipe!',
+    notYourTurn: 'Ce n\'est pas votre tour!',
+    pieceFrozen: 'Cette pièce est gelée!',
+    rocketNotReady: 'Fusée pas encore prête!',
+    rocketUsed: 'Cette fusée a déjà été utilisée!',
+    selectRocketTarget: 'Sélectionnez la cible (explosion 3x3)',
+    gameOverPoints: 'gagne aux points!',
+    gameOverBuilder: 'gagne en capturant le Constructeur!',
+    confirmReset: 'Voulez-vous vraiment réinitialiser?',
+    confirmYes: 'Oui',
+    confirmNo: 'Non',
+    confirmEnterTunnel: 'Entrer dans le tunnel?',
+    confirmExitTunnel: 'Quitter le tunnel?',
+    score: 'Score',
+    moves: 'Coups',
+    captured: 'Capturé',
+  },
+  es: {
+    startTitle: 'Ajedrez de Guerra',
+    startButton: 'Iniciar Juego',
+    settingsButton: 'Configuración',
+    backButton: 'Volver',
+    languageLabel: 'Idioma',
+    yellowTurn: 'Turno de AMARILLO',
+    greenTurn: 'Turno de VERDE',
+    resetButton: 'Reiniciar',
+    moveButton: 'Mover',
+    shootButton: 'Disparar',
+    exitButton: 'Salida',
+    launchHelicopter: 'Lanzar Helicóptero',
+    noTargetsInRange: '¡No hay objetivos en rango!',
+    selectTarget: 'Selecciona un objetivo',
+    mustLeaveTrench: '¡El soldado DEBE salir de la trinchera! Haz clic en un destino.',
+    enteredTrench: '¡Trinchera entrada!',
+    enteredTunnel: '¡Túnel entrado!',
+    exitedTunnel: '¡Túnel salido!',
+    helicopterLaunched: '¡Helicóptero lanzado!',
+    selectHelipad: 'Selecciona un helipuerto',
+    noHelipads: '¡No hay helipuertos disponibles!',
+    cannotMoveThere: '¡No puedes ir ahí!',
+    teamPieceBlocking: '¡Ya hay una pieza de tu equipo ahí!',
+    notYourTurn: '¡No es tu turno!',
+    pieceFrozen: '¡Esta pieza está congelada!',
+    rocketNotReady: '¡Cohete no está listo!',
+    rocketUsed: '¡Este cohete ya fue usado!',
+    selectRocketTarget: 'Selecciona objetivo (explosión 3x3)',
+    gameOverPoints: '¡gana por puntos!',
+    gameOverBuilder: '¡gana capturando al Constructor!',
+    confirmReset: '¿Seguro que quieres reiniciar?',
+    confirmYes: 'Sí',
+    confirmNo: 'No',
+    confirmEnterTunnel: '¿Entrar al túnel?',
+    confirmExitTunnel: '¿Salir del túnel?',
+    score: 'Puntuación',
+    moves: 'Movimientos',
+    captured: 'Capturado',
+  }
+}
+
+const languageNames: Record<Language, string> = {
+  en: 'English',
+  nl: 'Nederlands',
+  de: 'Deutsch',
+  fr: 'Français',
+  es: 'Español'
+}
+
+function t(key: string): string {
+  return translations[currentLanguage][key] || translations['en'][key] || key
+}
+
 const BOARD_SIZE = 11
 const SQUARE_SIZE = 50
 const LABEL_SIZE = 30
@@ -1900,7 +2125,7 @@ function selectSoldierAction(action: 'move' | 'shoot') {
       shootTargets = getShootTargetsForShip(selectedPiece)
     }
     if (shootTargets.length === 0) {
-      message = "No targets in range!"
+      message = t('noTargetsInRange')
     } else {
       message = null
     }
@@ -4611,7 +4836,7 @@ function createScorePanel(): string {
 function createMoveLog(): string {
   return `
     <div class="bg-gray-800 rounded-lg p-3 sm:p-4 w-full lg:w-64 flex-1 flex flex-col min-h-0 max-h-40 lg:max-h-none">
-      <h2 class="text-gray-200 font-bold text-base sm:text-lg mb-2 sm:mb-3 border-b border-gray-700 pb-2">Moves</h2>
+      <h2 class="text-gray-200 font-bold text-base sm:text-lg mb-2 sm:mb-3 border-b border-gray-700 pb-2">${t('moveButton')}s</h2>
       <div id="move-list" class="flex-1 overflow-y-auto space-y-1 text-xs sm:text-sm font-mono min-h-0">
         ${moveLog.length === 0
           ? '<p class="text-gray-500 italic text-xs sm:text-sm">No moves yet</p>'
@@ -4685,12 +4910,57 @@ function render() {
   }
 
   if (gameState === 'start') {
+    if (showSettings) {
+      // Settings screen
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('settingsButton')}</h1>
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 min-w-[280px]">
+            <div class="flex flex-col gap-2">
+              <label class="text-white font-bold">${t('languageLabel')}</label>
+              <div class="flex flex-col gap-2">
+                ${(Object.keys(languageNames) as Language[]).map(lang => `
+                  <button
+                    data-lang="${lang}"
+                    class="lang-btn py-2 px-4 rounded ${currentLanguage === lang ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
+                  >
+                    ${languageNames[lang]}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          <button id="back-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors touch-manipulation">
+            ${t('backButton')}
+          </button>
+        </div>
+      `
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const lang = (e.target as HTMLElement).getAttribute('data-lang') as Language
+          currentLanguage = lang
+          render()
+        })
+      })
+      document.getElementById('back-btn')?.addEventListener('click', () => {
+        showSettings = false
+        render()
+      })
+      return
+    }
+
+    // Start screen
     app.innerHTML = `
       <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
-        <h1 class="text-2xl sm:text-4xl font-bold text-white">War Chess</h1>
-        <button id="start-btn" class="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
-          Start Game
-        </button>
+        <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('startTitle')}</h1>
+        <div class="flex flex-col gap-3">
+          <button id="start-btn" class="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
+            ${t('startButton')}
+          </button>
+          <button id="settings-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
+            ⚙️ ${t('settingsButton')}
+          </button>
+        </div>
         <div class="flex items-start gap-4 sm:gap-8 opacity-50">
           <div class="flex-shrink-0" id="board-container">
             ${createBoard()}
@@ -4699,6 +4969,10 @@ function render() {
       </div>
     `
     document.getElementById('start-btn')?.addEventListener('click', startGame)
+    document.getElementById('settings-btn')?.addEventListener('click', () => {
+      showSettings = true
+      render()
+    })
     return
   }
 
@@ -4707,13 +4981,13 @@ function render() {
     app.innerHTML = `
       <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4">
         <div class="bg-gray-800 p-4 sm:p-6 rounded-lg flex flex-col items-center gap-4 mx-4">
-          <p class="text-white text-base sm:text-lg text-center">Reset the game?</p>
+          <p class="text-white text-base sm:text-lg text-center">${t('confirmReset')}</p>
           <div class="flex gap-3 sm:gap-4">
             <button id="confirm-reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition-colors touch-manipulation">
-              Yes
+              ${t('confirmYes')}
             </button>
             <button id="cancel-reset-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition-colors touch-manipulation">
-              No
+              ${t('confirmNo')}
             </button>
           </div>
         </div>
@@ -4840,16 +5114,16 @@ function render() {
   const actionButtonsHtml = showActionButtons ? `
     <div class="bg-gray-800 px-2 sm:px-4 py-2 rounded-lg flex gap-1 sm:gap-2">
       <button id="action-move" class="${moveButtonClass} text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
-        Move
+        ${t('moveButton')}
       </button>
       ${!selectedPiece?.inTunnel ? `
         <button id="action-shoot" class="${shootButtonClass} text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
-          Shoot
+          ${t('shootButton')}
         </button>
       ` : ''}
       ${canExit ? `
         <button id="action-exit" class="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
-          Exit
+          ${t('exitButton')}
         </button>
       ` : ''}
     </div>
@@ -4896,7 +5170,7 @@ function render() {
   const carrierActionsHtml = showCarrierActions && selectedPiece?.type === 'carrier' && selectedPiece.hasHelicopter ? `
     <div class="bg-sky-900 px-2 sm:px-4 py-2 rounded-lg flex flex-wrap gap-1 sm:gap-2 items-center">
       <button id="carrier-launch" class="bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
-        🚁 Launch Helicopter
+        🚁 ${t('launchHelicopter')}
       </button>
     </div>
   ` : ''
@@ -4908,7 +5182,7 @@ function render() {
       ${rocketReadyMessage}
       <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
         <div class="bg-gray-800 px-3 py-2 rounded-lg border-2 ${turnColor}">
-          <span class="${turnColor} font-bold text-sm sm:text-base">${currentTurn.toUpperCase()}'s turn</span>
+          <span class="${turnColor} font-bold text-sm sm:text-base">${currentTurn === 'yellow' ? t('yellowTurn') : t('greenTurn')}</span>
         </div>
         ${actionButtonsHtml}
         ${hackActionsHtml}
@@ -4916,7 +5190,7 @@ function render() {
         ${carrierActionsHtml}
         ${message && !forcedSoldier ? `<div class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs sm:text-sm">${message}</div>` : ''}
         <button id="reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors">
-          Reset
+          ${t('resetButton')}
         </button>
       </div>
       <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 w-full max-w-4xl">
