@@ -20,9 +20,95 @@ const TIMEOUT_PENALTY = 10
 // Audio settings
 let soundEnabled = true
 let musicEnabled = false
+let masterVolume = 0.8 // 0-1
+let musicVolume = 0.5 // 0-1
+let sfxVolume = 0.8 // 0-1
 let musicGainNode: GainNode | null = null
 let musicInterval: number | null = null
 let musicPhase = 0 // Track musical sections
+
+// Visual settings
+type BoardTheme = 'classic' | 'dark' | 'light' | 'wood'
+let boardTheme: BoardTheme = 'classic'
+let animationSpeed: 'fast' | 'normal' | 'slow' = 'normal'
+let screenShakeEnabled = true
+let showCoordinates = true
+
+// Accessibility settings
+let colorBlindMode = false
+let highContrastMode = false
+let largeUIMode = false
+
+// Fullscreen
+let isFullscreen = false
+
+// Theme color palettes
+function getThemeColors(): { light: string; dark: string } {
+  switch (boardTheme) {
+    case 'dark':
+      return { light: '#4a5568', dark: '#2d3748' }
+    case 'light':
+      return { light: '#e2e8f0', dark: '#cbd5e0' }
+    case 'wood':
+      return { light: '#d4a574', dark: '#8b6914' }
+    case 'classic':
+    default:
+      return { light: '#86a876', dark: '#d4c87a' }
+  }
+}
+
+// Team colors (colorblind-friendly alternatives)
+function getTeamColor(team: 'yellow' | 'green'): string {
+  if (colorBlindMode) {
+    // Blue vs Orange - more distinguishable
+    return team === 'yellow' ? '#f97316' : '#3b82f6'
+  }
+  return team === 'yellow' ? '#eab308' : '#22c55e'
+}
+
+function getTeamBgColor(team: 'yellow' | 'green'): string {
+  if (colorBlindMode) {
+    return team === 'yellow' ? 'bg-orange-500' : 'bg-blue-500'
+  }
+  return team === 'yellow' ? 'bg-yellow-500' : 'bg-green-500'
+}
+
+function getTeamTextColor(team: 'yellow' | 'green'): string {
+  if (colorBlindMode) {
+    return team === 'yellow' ? 'text-orange-500' : 'text-blue-500'
+  }
+  return team === 'yellow' ? 'text-yellow-500' : 'text-green-500'
+}
+
+// Animation duration based on speed setting
+function getAnimationDuration(): number {
+  switch (animationSpeed) {
+    case 'fast': return 150
+    case 'slow': return 500
+    case 'normal':
+    default: return 250
+  }
+}
+
+// Screen shake effect
+function triggerScreenShake() {
+  if (!screenShakeEnabled) return
+  const app = document.getElementById('app')
+  if (app) {
+    app.classList.add('shake')
+    setTimeout(() => app.classList.remove('shake'), 300)
+  }
+}
+
+// UI size class
+function getUISize(): string {
+  return largeUIMode ? 'text-lg' : 'text-base'
+}
+
+function getButtonSize(): string {
+  return largeUIMode ? 'py-4 px-6 text-xl' : 'py-2 px-4 text-base'
+}
+
 let measureCount = 0 // Track measures for structure
 
 // Audio context for sound effects
@@ -39,7 +125,7 @@ function startMusic() {
   if (!audioContext || musicInterval) return
 
   musicGainNode = audioContext.createGain()
-  musicGainNode.gain.value = 0.12 // Master volume
+  musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
   musicGainNode.connect(audioContext.destination)
 
   measureCount = 0
@@ -215,65 +301,79 @@ function startMusic() {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // BRASS FANFARE - Heroic moments
+  // WAR HORNS - Deep, powerful horn sounds (no harmonica!)
   // ═══════════════════════════════════════════════════════════════
-  function playBrassFanfare(type: 'short' | 'epic') {
+  function playWarHorn(type: 'short' | 'epic') {
     if (!audioContext || !musicEnabled || !musicGainNode) return
     const now = audioContext.currentTime
 
-    const playBrassNote = (freq: number, startTime: number, duration: number, volume: number) => {
-      // Multiple oscillators for brass-like tone
-      const osc1 = audioContext!.createOscillator()
-      const osc2 = audioContext!.createOscillator()
-      const osc3 = audioContext!.createOscillator()
+    const playHornNote = (freq: number, startTime: number, duration: number, volume: number) => {
+      // French horn-like tone using sine waves with natural harmonics
+      // NO square waves to avoid harmonica sound
+      const fundamental = audioContext!.createOscillator()
+      const second = audioContext!.createOscillator()
+      const third = audioContext!.createOscillator()
       const gain = audioContext!.createGain()
       const filter = audioContext!.createBiquadFilter()
 
-      osc1.type = 'sawtooth'
-      osc1.frequency.value = freq
-      osc2.type = 'square'
-      osc2.frequency.value = freq * 2 // Octave
-      osc3.type = 'sawtooth'
-      osc3.frequency.value = freq * 1.5 // Fifth
+      // Use only sine waves for warm, round horn tone
+      fundamental.type = 'sine'
+      fundamental.frequency.value = freq
+      second.type = 'sine'
+      second.frequency.value = freq * 2 // Octave (quieter)
+      third.type = 'sine'
+      third.frequency.value = freq * 3 // 12th (very quiet, adds brightness)
 
+      // Warm lowpass filter - keeps it from sounding nasal
       filter.type = 'lowpass'
-      filter.frequency.setValueAtTime(800, startTime)
-      filter.frequency.linearRampToValueAtTime(2000, startTime + 0.1)
-      filter.frequency.linearRampToValueAtTime(1200, startTime + duration)
+      filter.frequency.setValueAtTime(500, startTime)
+      filter.frequency.linearRampToValueAtTime(900, startTime + 0.08)
+      filter.frequency.linearRampToValueAtTime(600, startTime + duration)
+      filter.Q.value = 0.5
 
+      // Horn-like envelope with slight attack
       gain.gain.setValueAtTime(0.001, startTime)
-      gain.gain.linearRampToValueAtTime(volume, startTime + 0.05)
-      gain.gain.setValueAtTime(volume * 0.8, startTime + duration * 0.7)
+      gain.gain.linearRampToValueAtTime(volume, startTime + 0.06)
+      gain.gain.setValueAtTime(volume * 0.9, startTime + duration * 0.5)
       gain.gain.linearRampToValueAtTime(0.001, startTime + duration)
 
-      osc1.connect(filter)
-      osc2.connect(filter)
-      osc3.connect(filter)
+      // Connect with different volumes for natural harmonic balance
+      const fundGain = audioContext!.createGain()
+      const secGain = audioContext!.createGain()
+      const thirdGain = audioContext!.createGain()
+      fundGain.gain.value = 1.0
+      secGain.gain.value = 0.3
+      thirdGain.gain.value = 0.1
+
+      fundamental.connect(fundGain)
+      second.connect(secGain)
+      third.connect(thirdGain)
+      fundGain.connect(filter)
+      secGain.connect(filter)
+      thirdGain.connect(filter)
       filter.connect(gain)
       gain.connect(musicGainNode!)
 
-      osc1.start(startTime)
-      osc2.start(startTime)
-      osc3.start(startTime)
-      osc1.stop(startTime + duration + 0.1)
-      osc2.stop(startTime + duration + 0.1)
-      osc3.stop(startTime + duration + 0.1)
+      fundamental.start(startTime)
+      second.start(startTime)
+      third.start(startTime)
+      fundamental.stop(startTime + duration + 0.1)
+      second.stop(startTime + duration + 0.1)
+      third.stop(startTime + duration + 0.1)
     }
 
     if (type === 'short') {
-      // Short heroic stab
-      playBrassNote(scale.D4, now, 0.3, 0.12)
-      playBrassNote(scale.A3, now, 0.3, 0.10)
-      playBrassNote(scale.F3, now, 0.3, 0.08)
+      // Short war horn blast - lower notes for power
+      playHornNote(scale.D3, now, 0.4, 0.15)
+      playHornNote(scale.A2, now, 0.4, 0.12)
     } else {
-      // Epic fanfare melody
-      playBrassNote(scale.D4, now, 0.4, 0.10)
-      playBrassNote(scale.A3, now, 0.4, 0.08)
-      playBrassNote(scale.F4, now + 0.4, 0.3, 0.12)
-      playBrassNote(scale.A3, now + 0.4, 0.3, 0.08)
-      playBrassNote(scale.A4, now + 0.7, 0.6, 0.14)
-      playBrassNote(scale.D4, now + 0.7, 0.6, 0.10)
-      playBrassNote(scale.F4, now + 0.7, 0.6, 0.08)
+      // Epic horn call - like a battle horn
+      playHornNote(scale.D3, now, 0.5, 0.12)
+      playHornNote(scale.A2, now, 0.5, 0.10)
+      playHornNote(scale.D3, now + 0.5, 0.3, 0.14)
+      playHornNote(scale.F3, now + 0.8, 0.7, 0.16)
+      playHornNote(scale.D3, now + 0.8, 0.7, 0.12)
+      playHornNote(scale.A2, now + 0.8, 0.7, 0.10)
     }
   }
 
@@ -383,7 +483,7 @@ function startMusic() {
     crash.stop(now + 1.5)
 
     // Brass accent
-    playBrassFanfare('short')
+    playWarHorn('short')
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -425,10 +525,10 @@ function startMusic() {
 
     // Brass fanfares at key moments
     if (cyclePosition === 7) {
-      playBrassFanfare('short')
+      playWarHorn('short')
     }
     if (cyclePosition === 11) {
-      playBrassFanfare('epic')
+      playWarHorn('epic')
     }
 
     // Cinematic hit at climax
@@ -468,9 +568,22 @@ function createNoiseBuffer(duration: number): AudioBuffer {
 type SoundType = 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 'tick' |
   'walk' | 'engine' | 'train' | 'hack' | 'build' | 'boat' | 'helicopter' | 'plane' | 'rocket'
 
+// Master gain node for SFX
+let sfxGainNode: GainNode | null = null
+
+function getSfxGain(): GainNode {
+  if (!sfxGainNode && audioContext) {
+    sfxGainNode = audioContext.createGain()
+    sfxGainNode.connect(audioContext.destination)
+  }
+  sfxGainNode!.gain.value = sfxVolume * masterVolume
+  return sfxGainNode!
+}
+
 function playSound(type: SoundType) {
   if (!soundEnabled || !audioContext) return
 
+  const sfxOutput = getSfxGain()
   const now = audioContext.currentTime
 
   switch (type) {
@@ -488,7 +601,7 @@ function playSound(type: SoundType) {
         stepGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.08)
         step.connect(stepFilter)
         stepFilter.connect(stepGain)
-        stepGain.connect(audioContext.destination)
+        stepGain.connect(sfxOutput)
         step.start(now + i * 0.12)
         step.stop(now + i * 0.12 + 0.1)
       }
@@ -524,7 +637,7 @@ function playSound(type: SoundType) {
       engineOsc.connect(engineFilter)
       engineOsc2.connect(engineFilter)
       engineFilter.connect(engineGain)
-      engineGain.connect(audioContext.destination)
+      engineGain.connect(sfxOutput)
 
       engineOsc.start(now)
       engineOsc2.start(now)
@@ -555,10 +668,10 @@ function playSound(type: SoundType) {
       gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
 
       osc.connect(gainOsc)
-      gainOsc.connect(audioContext.destination)
+      gainOsc.connect(sfxOutput)
       noise.connect(filter)
       filter.connect(gainNoise)
-      gainNoise.connect(audioContext.destination)
+      gainNoise.connect(sfxOutput)
 
       osc.start(now)
       noise.start(now)
@@ -591,9 +704,9 @@ function playSound(type: SoundType) {
 
       bang.connect(bangFilter)
       bangFilter.connect(bangGain)
-      bangGain.connect(audioContext.destination)
+      bangGain.connect(sfxOutput)
       punch.connect(punchGain)
-      punchGain.connect(audioContext.destination)
+      punchGain.connect(sfxOutput)
 
       bang.start(now)
       punch.start(now)
@@ -610,7 +723,7 @@ function playSound(type: SoundType) {
       ejectGain.gain.setValueAtTime(0.2, now + shellDelay)
       ejectGain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.05)
       eject.connect(ejectGain)
-      ejectGain.connect(audioContext.destination)
+      ejectGain.connect(sfxOutput)
       eject.start(now + shellDelay)
       eject.stop(now + shellDelay + 0.06)
 
@@ -622,7 +735,7 @@ function playSound(type: SoundType) {
       shell1Gain.gain.setValueAtTime(0.25, now + shellDelay + 0.08)
       shell1Gain.gain.exponentialRampToValueAtTime(0.001, now + shellDelay + 0.2)
       shell1.connect(shell1Gain)
-      shell1Gain.connect(audioContext.destination)
+      shell1Gain.connect(sfxOutput)
       shell1.start(now + shellDelay + 0.08)
       shell1.stop(now + shellDelay + 0.25)
       break
@@ -641,7 +754,7 @@ function playSound(type: SoundType) {
       attackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08)
       attack.connect(attackFilter)
       attackFilter.connect(attackGain)
-      attackGain.connect(audioContext.destination)
+      attackGain.connect(sfxOutput)
       attack.start(now)
       attack.stop(now + 0.1)
 
@@ -660,7 +773,7 @@ function playSound(type: SoundType) {
       goopGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8)
       goop1.connect(goopGain)
       goop2.connect(goopGain)
-      goopGain.connect(audioContext.destination)
+      goopGain.connect(sfxOutput)
       goop1.start(now + 0.03)
       goop2.start(now + 0.03)
       goop1.stop(now + 0.9)
@@ -678,7 +791,7 @@ function playSound(type: SoundType) {
       rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 1)
       rumble.connect(rumbleFilter)
       rumbleFilter.connect(rumbleGain)
-      rumbleGain.connect(audioContext.destination)
+      rumbleGain.connect(sfxOutput)
       rumble.start(now + 0.05)
       rumble.stop(now + 1.1)
       break
@@ -702,7 +815,7 @@ function playSound(type: SoundType) {
       launchGain.gain.exponentialRampToValueAtTime(0.001, now + 1.4)
       launch.connect(launchFilter)
       launchFilter.connect(launchGain)
-      launchGain.connect(audioContext.destination)
+      launchGain.connect(sfxOutput)
       launch.start(now)
       launch.stop(now + 1.5)
 
@@ -716,7 +829,7 @@ function playSound(type: SoundType) {
         rumbleGain.gain.setValueAtTime(0.12, now + i * 0.12)
         rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.1)
         rumble.connect(rumbleGain)
-        rumbleGain.connect(audioContext.destination)
+        rumbleGain.connect(sfxOutput)
         rumble.start(now + i * 0.12)
         rumble.stop(now + i * 0.12 + 0.12)
       }
@@ -741,7 +854,7 @@ function playSound(type: SoundType) {
       whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
       whistle.connect(whistleGain)
       whistle2.connect(whistleGain)
-      whistleGain.connect(audioContext.destination)
+      whistleGain.connect(sfxOutput)
       whistle.start(now)
       whistle2.start(now)
       whistle.stop(now + 0.55)
@@ -759,7 +872,7 @@ function playSound(type: SoundType) {
         chugGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1 + i * 0.15 + 0.1)
         chug.connect(chugFilter)
         chugFilter.connect(chugGain)
-        chugGain.connect(audioContext.destination)
+        chugGain.connect(sfxOutput)
         chug.start(now + 0.1 + i * 0.15)
         chug.stop(now + 0.1 + i * 0.15 + 0.12)
       }
@@ -777,7 +890,7 @@ function playSound(type: SoundType) {
         keyGain.gain.setValueAtTime(0.06, now + i * 0.04)
         keyGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.04 + 0.02)
         key.connect(keyGain)
-        keyGain.connect(audioContext.destination)
+        keyGain.connect(sfxOutput)
         key.start(now + i * 0.04)
         key.stop(now + i * 0.04 + 0.03)
       }
@@ -791,7 +904,7 @@ function playSound(type: SoundType) {
       sendGain.gain.setValueAtTime(0.15, now + 0.35)
       sendGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
       send.connect(sendGain)
-      sendGain.connect(audioContext.destination)
+      sendGain.connect(sfxOutput)
       send.start(now + 0.35)
       send.stop(now + 0.55)
 
@@ -809,7 +922,7 @@ function playSound(type: SoundType) {
       hackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75)
       hack1.connect(hackGain)
       hack2.connect(hackGain)
-      hackGain.connect(audioContext.destination)
+      hackGain.connect(sfxOutput)
       hack1.start(now + 0.55)
       hack2.start(now + 0.55)
       hack1.stop(now + 0.8)
@@ -837,9 +950,9 @@ function playSound(type: SoundType) {
         noiseGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.05)
 
         hammer.connect(hammerGain)
-        hammerGain.connect(audioContext.destination)
+        hammerGain.connect(sfxOutput)
         hammerNoise.connect(noiseGain)
-        noiseGain.connect(audioContext.destination)
+        noiseGain.connect(sfxOutput)
 
         hammer.start(now + i * 0.18)
         hammerNoise.start(now + i * 0.18)
@@ -855,7 +968,7 @@ function playSound(type: SoundType) {
       dingGain.gain.setValueAtTime(0.15, now + 0.6)
       dingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9)
       ding.connect(dingGain)
-      dingGain.connect(audioContext.destination)
+      dingGain.connect(sfxOutput)
       ding.start(now + 0.6)
       ding.stop(now + 0.95)
       break
@@ -876,7 +989,7 @@ function playSound(type: SoundType) {
       splashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
       splash.connect(splashFilter)
       splashFilter.connect(splashGain)
-      splashGain.connect(audioContext.destination)
+      splashGain.connect(sfxOutput)
       splash.start(now)
       splash.stop(now + 0.4)
 
@@ -896,7 +1009,7 @@ function playSound(type: SoundType) {
       motorGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
       motor.connect(motorFilter)
       motorFilter.connect(motorGain)
-      motorGain.connect(audioContext.destination)
+      motorGain.connect(sfxOutput)
       motor.start(now + 0.1)
       motor.stop(now + 0.75)
       break
@@ -921,7 +1034,7 @@ function playSound(type: SoundType) {
 
         blade.connect(bladeFilter)
         bladeFilter.connect(bladeGain)
-        bladeGain.connect(audioContext.destination)
+        bladeGain.connect(sfxOutput)
 
         blade.start(now + i * 0.08)
         blade.stop(now + i * 0.08 + 0.08)
@@ -937,7 +1050,7 @@ function playSound(type: SoundType) {
       whineGain.gain.setValueAtTime(0.08, now)
       whineGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5)
       whine.connect(whineGain)
-      whineGain.connect(audioContext.destination)
+      whineGain.connect(sfxOutput)
       whine.start(now)
       whine.stop(now + 0.55)
       break
@@ -961,7 +1074,7 @@ function playSound(type: SoundType) {
       jetGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
       jet.connect(jetFilter)
       jetFilter.connect(jetGain)
-      jetGain.connect(audioContext.destination)
+      jetGain.connect(sfxOutput)
       jet.start(now)
       jet.stop(now + 0.8)
 
@@ -975,7 +1088,7 @@ function playSound(type: SoundType) {
       bombGain.gain.exponentialRampToValueAtTime(0.2, now + 0.4)
       bombGain.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
       bomb.connect(bombGain)
-      bombGain.connect(audioContext.destination)
+      bombGain.connect(sfxOutput)
       bomb.start(now + 0.3)
       bomb.stop(now + 0.75)
       break
@@ -995,7 +1108,7 @@ function playSound(type: SoundType) {
       tickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015)
       tick.connect(tickFilter)
       tickFilter.connect(tickGain)
-      tickGain.connect(audioContext.destination)
+      tickGain.connect(sfxOutput)
       tick.start(now)
       tick.stop(now + 0.02)
 
@@ -1008,7 +1121,7 @@ function playSound(type: SoundType) {
       bodyGain.gain.setValueAtTime(0.06, now)
       bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
       body.connect(bodyGain)
-      bodyGain.connect(audioContext.destination)
+      bodyGain.connect(sfxOutput)
       body.start(now)
       body.stop(now + 0.03)
       break
@@ -1061,7 +1174,7 @@ function playSound(type: SoundType) {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
       osc.connect(filter)
       filter.connect(gain)
-      gain.connect(audioContext.destination)
+      gain.connect(sfxOutput)
       osc.start(now)
       osc.stop(now + 0.03)
       break
@@ -1087,8 +1200,31 @@ const translations: Record<Language, Record<string, string>> = {
     // Audio settings
     soundLabel: 'Sound Effects',
     musicLabel: 'Music',
+    masterVolumeLabel: 'Master Volume',
+    musicVolumeLabel: 'Music Volume',
+    sfxVolumeLabel: 'Effects Volume',
     on: 'On',
     off: 'Off',
+    // Visual settings
+    visualSettingsTitle: 'Visual',
+    boardThemeLabel: 'Board Theme',
+    themeClassic: 'Classic',
+    themeDark: 'Dark',
+    themeLight: 'Light',
+    themeWood: 'Wood',
+    animationSpeedLabel: 'Animation Speed',
+    speedFast: 'Fast',
+    speedNormal: 'Normal',
+    speedSlow: 'Slow',
+    screenShakeLabel: 'Screen Shake',
+    showCoordinatesLabel: 'Show Coordinates',
+    // Accessibility settings
+    accessibilityTitle: 'Accessibility',
+    colorBlindLabel: 'Colorblind Mode',
+    highContrastLabel: 'High Contrast',
+    largeUILabel: 'Large UI',
+    // Fullscreen
+    fullscreenLabel: 'Fullscreen',
     // Game
     yellowTurn: "YELLOW's turn",
     greenTurn: "GREEN's turn",
@@ -1186,8 +1322,28 @@ const translations: Record<Language, Record<string, string>> = {
     timeUpPenalty: '{team} heeft geen tijd meer! (-10 punten)',
     soundLabel: 'Geluidseffecten',
     musicLabel: 'Muziek',
+    masterVolumeLabel: 'Hoofdvolume',
+    musicVolumeLabel: 'Muziekvolume',
+    sfxVolumeLabel: 'Effectenvolume',
     on: 'Aan',
     off: 'Uit',
+    visualSettingsTitle: 'Visueel',
+    boardThemeLabel: 'Bordthema',
+    themeClassic: 'Klassiek',
+    themeDark: 'Donker',
+    themeLight: 'Licht',
+    themeWood: 'Hout',
+    animationSpeedLabel: 'Animatiesnelheid',
+    speedFast: 'Snel',
+    speedNormal: 'Normaal',
+    speedSlow: 'Langzaam',
+    screenShakeLabel: 'Scherm Schudden',
+    showCoordinatesLabel: 'Coördinaten Tonen',
+    accessibilityTitle: 'Toegankelijkheid',
+    colorBlindLabel: 'Kleurenblind Modus',
+    highContrastLabel: 'Hoog Contrast',
+    largeUILabel: 'Grote UI',
+    fullscreenLabel: 'Volledig Scherm',
     yellowTurn: 'GEEL aan zet',
     greenTurn: 'GROEN aan zet',
     resetButton: 'Reset',
@@ -1274,8 +1430,28 @@ const translations: Record<Language, Record<string, string>> = {
     timeUpPenalty: '{team} hat keine Zeit mehr! (-10 Punkte)',
     soundLabel: 'Soundeffekte',
     musicLabel: 'Musik',
+    masterVolumeLabel: 'Gesamtlautstärke',
+    musicVolumeLabel: 'Musiklautstärke',
+    sfxVolumeLabel: 'Effektlautstärke',
     on: 'An',
     off: 'Aus',
+    visualSettingsTitle: 'Visuell',
+    boardThemeLabel: 'Spielbrettthema',
+    themeClassic: 'Klassisch',
+    themeDark: 'Dunkel',
+    themeLight: 'Hell',
+    themeWood: 'Holz',
+    animationSpeedLabel: 'Animationsgeschwindigkeit',
+    speedFast: 'Schnell',
+    speedNormal: 'Normal',
+    speedSlow: 'Langsam',
+    screenShakeLabel: 'Bildschirmschütteln',
+    showCoordinatesLabel: 'Koordinaten anzeigen',
+    accessibilityTitle: 'Barrierefreiheit',
+    colorBlindLabel: 'Farbenblindmodus',
+    highContrastLabel: 'Hoher Kontrast',
+    largeUILabel: 'Große UI',
+    fullscreenLabel: 'Vollbild',
     yellowTurn: 'GELB ist dran',
     greenTurn: 'GRÜN ist dran',
     resetButton: 'Zurücksetzen',
@@ -1362,8 +1538,28 @@ const translations: Record<Language, Record<string, string>> = {
     timeUpPenalty: '{team} n\'a plus de temps! (-10 points)',
     soundLabel: 'Effets sonores',
     musicLabel: 'Musique',
+    masterVolumeLabel: 'Volume principal',
+    musicVolumeLabel: 'Volume musique',
+    sfxVolumeLabel: 'Volume effets',
     on: 'Activé',
     off: 'Désactivé',
+    visualSettingsTitle: 'Visuel',
+    boardThemeLabel: 'Thème du plateau',
+    themeClassic: 'Classique',
+    themeDark: 'Sombre',
+    themeLight: 'Clair',
+    themeWood: 'Bois',
+    animationSpeedLabel: 'Vitesse animation',
+    speedFast: 'Rapide',
+    speedNormal: 'Normal',
+    speedSlow: 'Lent',
+    screenShakeLabel: 'Secousse écran',
+    showCoordinatesLabel: 'Afficher coordonnées',
+    accessibilityTitle: 'Accessibilité',
+    colorBlindLabel: 'Mode daltonien',
+    highContrastLabel: 'Contraste élevé',
+    largeUILabel: 'Grande interface',
+    fullscreenLabel: 'Plein écran',
     yellowTurn: 'Tour de JAUNE',
     greenTurn: 'Tour de VERT',
     resetButton: 'Réinitialiser',
@@ -1450,8 +1646,28 @@ const translations: Record<Language, Record<string, string>> = {
     timeUpPenalty: '¡{team} se quedó sin tiempo! (-10 puntos)',
     soundLabel: 'Efectos de sonido',
     musicLabel: 'Música',
+    masterVolumeLabel: 'Volumen principal',
+    musicVolumeLabel: 'Volumen música',
+    sfxVolumeLabel: 'Volumen efectos',
     on: 'Encendido',
     off: 'Apagado',
+    visualSettingsTitle: 'Visual',
+    boardThemeLabel: 'Tema del tablero',
+    themeClassic: 'Clásico',
+    themeDark: 'Oscuro',
+    themeLight: 'Claro',
+    themeWood: 'Madera',
+    animationSpeedLabel: 'Velocidad animación',
+    speedFast: 'Rápido',
+    speedNormal: 'Normal',
+    speedSlow: 'Lento',
+    screenShakeLabel: 'Vibración pantalla',
+    showCoordinatesLabel: 'Mostrar coordenadas',
+    accessibilityTitle: 'Accesibilidad',
+    colorBlindLabel: 'Modo daltónico',
+    highContrastLabel: 'Alto contraste',
+    largeUILabel: 'UI grande',
+    fullscreenLabel: 'Pantalla completa',
     yellowTurn: 'Turno de AMARILLO',
     greenTurn: 'Turno de VERDE',
     resetButton: 'Reiniciar',
@@ -2390,6 +2606,7 @@ function stopTimer() {
 function handleTimeOut(team: Team) {
   stopTimer()
   playSound('explosion') // Dramatic sound for timeout
+  triggerScreenShake()
 
   // Apply -10 penalty to the team that ran out of time
   if (team === 'yellow') {
@@ -3925,7 +4142,7 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
 
   render()
 
-  const moveDuration = 250
+  const moveDuration = getAnimationDuration()
   const startTime = Date.now()
 
   function animateMove() {
@@ -4351,6 +4568,7 @@ function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: 
   }
 
   playSound('explosion')
+  triggerScreenShake()
 
   if (totalPoints > 0) {
     message = `Rocket exploded! (+${totalPoints} points)`
@@ -4901,12 +5119,19 @@ function canMoveBehindBarricade(piece: Piece, col: string, row: number): boolean
 }
 
 function drawPiece(piece: Piece, x: number, y: number): string {
-  const teamColor = piece.team === 'yellow' ? '#fbbf24' : '#22c55e'
-  const strokeColor = piece.team === 'yellow' ? '#b45309' : '#15803d'
+  const teamColor = getTeamColor(piece.team)
+  const strokeColor = colorBlindMode
+    ? (piece.team === 'yellow' ? '#c2410c' : '#1d4ed8')
+    : (piece.team === 'yellow' ? '#b45309' : '#15803d')
+  const strokeWidth = highContrastMode ? 3 : 2
 
   if (piece.type === 'train') {
-    const highlight = piece.team === 'yellow' ? '#fde047' : '#4ade80'
-    const shadow = piece.team === 'yellow' ? '#92400e' : '#166534'
+    const highlight = colorBlindMode
+      ? (piece.team === 'yellow' ? '#fb923c' : '#60a5fa')
+      : (piece.team === 'yellow' ? '#fde047' : '#4ade80')
+    const shadow = colorBlindMode
+      ? (piece.team === 'yellow' ? '#9a3412' : '#1e40af')
+      : (piece.team === 'yellow' ? '#92400e' : '#166534')
     // Train locomotive shape
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -5706,7 +5931,8 @@ function createBoard(): string {
       } else if (isHelipad(row, col)) {
         fill = '#ffffff' // White
       } else {
-        fill = isLight ? '#86a876' : '#d4c87a' // Mellow green at A1, mellow yellow alternating
+        const themeColors = getThemeColors()
+        fill = isLight ? themeColors.light : themeColors.dark
       }
 
       svg += `<rect
@@ -6449,7 +6675,7 @@ function render() {
             <!-- Sound Effects -->
             <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
               <label class="text-white font-bold">🔊 ${t('soundLabel')}</label>
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <button
                   id="sound-off-btn"
                   class="py-2 px-4 rounded ${!soundEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors"
@@ -6487,6 +6713,91 @@ function render() {
                 >
                   ${t('on')}
                 </button>
+              </div>
+            </div>
+
+            <!-- Volume Sliders -->
+            <div class="flex flex-col gap-3 ${!soundEnabled && !musicEnabled ? 'opacity-50' : ''}">
+              <div class="flex flex-col gap-1">
+                <label class="text-gray-300 text-sm">${t('masterVolumeLabel')}: ${Math.round(masterVolume * 100)}%</label>
+                <input type="range" id="master-volume" min="0" max="100" value="${masterVolume * 100}" class="w-full accent-blue-500">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-gray-300 text-sm">${t('musicVolumeLabel')}: ${Math.round(musicVolume * 100)}%</label>
+                <input type="range" id="music-volume" min="0" max="100" value="${musicVolume * 100}" class="w-full accent-purple-500">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-gray-300 text-sm">${t('sfxVolumeLabel')}: ${Math.round(sfxVolume * 100)}%</label>
+                <input type="range" id="sfx-volume" min="0" max="100" value="${sfxVolume * 100}" class="w-full accent-green-500">
+              </div>
+            </div>
+
+            <!-- Visual Settings -->
+            <div class="flex flex-col gap-3 border-t border-gray-700 pt-4">
+              <label class="text-white font-bold">🎨 ${t('visualSettingsTitle')}</label>
+
+              <!-- Board Theme -->
+              <div class="flex flex-col gap-1">
+                <label class="text-gray-300 text-sm">${t('boardThemeLabel')}</label>
+                <div class="flex flex-wrap gap-2">
+                  <button data-theme="classic" class="theme-btn py-1 px-3 rounded text-sm ${boardTheme === 'classic' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('themeClassic')}</button>
+                  <button data-theme="dark" class="theme-btn py-1 px-3 rounded text-sm ${boardTheme === 'dark' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('themeDark')}</button>
+                  <button data-theme="light" class="theme-btn py-1 px-3 rounded text-sm ${boardTheme === 'light' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('themeLight')}</button>
+                  <button data-theme="wood" class="theme-btn py-1 px-3 rounded text-sm ${boardTheme === 'wood' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('themeWood')}</button>
+                </div>
+              </div>
+
+              <!-- Animation Speed -->
+              <div class="flex flex-col gap-1">
+                <label class="text-gray-300 text-sm">${t('animationSpeedLabel')}</label>
+                <div class="flex gap-2">
+                  <button data-speed="fast" class="speed-btn py-1 px-3 rounded text-sm ${animationSpeed === 'fast' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('speedFast')}</button>
+                  <button data-speed="normal" class="speed-btn py-1 px-3 rounded text-sm ${animationSpeed === 'normal' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('speedNormal')}</button>
+                  <button data-speed="slow" class="speed-btn py-1 px-3 rounded text-sm ${animationSpeed === 'slow' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('speedSlow')}</button>
+                </div>
+              </div>
+
+              <!-- Screen Shake -->
+              <div class="flex items-center justify-between">
+                <label class="text-gray-300 text-sm">${t('screenShakeLabel')}</label>
+                <button id="screen-shake-btn" class="py-1 px-3 rounded text-sm ${screenShakeEnabled ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${screenShakeEnabled ? t('on') : t('off')}</button>
+              </div>
+
+              <!-- Show Coordinates -->
+              <div class="flex items-center justify-between">
+                <label class="text-gray-300 text-sm">${t('showCoordinatesLabel')}</label>
+                <button id="show-coords-btn" class="py-1 px-3 rounded text-sm ${showCoordinates ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${showCoordinates ? t('on') : t('off')}</button>
+              </div>
+            </div>
+
+            <!-- Accessibility Settings -->
+            <div class="flex flex-col gap-3 border-t border-gray-700 pt-4">
+              <label class="text-white font-bold">♿ ${t('accessibilityTitle')}</label>
+
+              <!-- Colorblind Mode -->
+              <div class="flex items-center justify-between">
+                <label class="text-gray-300 text-sm">${t('colorBlindLabel')}</label>
+                <button id="colorblind-btn" class="py-1 px-3 rounded text-sm ${colorBlindMode ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${colorBlindMode ? t('on') : t('off')}</button>
+              </div>
+
+              <!-- High Contrast -->
+              <div class="flex items-center justify-between">
+                <label class="text-gray-300 text-sm">${t('highContrastLabel')}</label>
+                <button id="high-contrast-btn" class="py-1 px-3 rounded text-sm ${highContrastMode ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${highContrastMode ? t('on') : t('off')}</button>
+              </div>
+
+              <!-- Large UI -->
+              <div class="flex items-center justify-between">
+                <label class="text-gray-300 text-sm">${t('largeUILabel')}</label>
+                <button id="large-ui-btn" class="py-1 px-3 rounded text-sm ${largeUIMode ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${largeUIMode ? t('on') : t('off')}</button>
+              </div>
+            </div>
+
+            <!-- Fullscreen -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <div class="flex items-center justify-between">
+                <label class="text-white font-bold">🖥️ ${t('fullscreenLabel')}</label>
+                <button id="fullscreen-btn" class="py-2 px-4 rounded ${isFullscreen ? 'bg-green-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} transition-colors">${isFullscreen ? t('on') : t('off')}</button>
               </div>
             </div>
 
@@ -6548,6 +6859,81 @@ function render() {
         musicEnabled = true
         initAudio()
         startMusic()
+        render()
+      })
+
+      // Volume sliders
+      document.getElementById('master-volume')?.addEventListener('input', (e) => {
+        masterVolume = parseInt((e.target as HTMLInputElement).value) / 100
+        render()
+      })
+      document.getElementById('music-volume')?.addEventListener('input', (e) => {
+        musicVolume = parseInt((e.target as HTMLInputElement).value) / 100
+        if (musicGainNode) {
+          musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+        }
+        render()
+      })
+      document.getElementById('sfx-volume')?.addEventListener('input', (e) => {
+        sfxVolume = parseInt((e.target as HTMLInputElement).value) / 100
+        render()
+      })
+
+      // Theme buttons
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          boardTheme = (e.target as HTMLElement).getAttribute('data-theme') as BoardTheme
+          render()
+        })
+      })
+
+      // Animation speed buttons
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          animationSpeed = (e.target as HTMLElement).getAttribute('data-speed') as 'fast' | 'normal' | 'slow'
+          render()
+        })
+      })
+
+      // Screen shake toggle
+      document.getElementById('screen-shake-btn')?.addEventListener('click', () => {
+        screenShakeEnabled = !screenShakeEnabled
+        render()
+      })
+
+      // Show coordinates toggle
+      document.getElementById('show-coords-btn')?.addEventListener('click', () => {
+        showCoordinates = !showCoordinates
+        render()
+      })
+
+      // Colorblind mode toggle
+      document.getElementById('colorblind-btn')?.addEventListener('click', () => {
+        colorBlindMode = !colorBlindMode
+        render()
+      })
+
+      // High contrast toggle
+      document.getElementById('high-contrast-btn')?.addEventListener('click', () => {
+        highContrastMode = !highContrastMode
+        render()
+      })
+
+      // Large UI toggle
+      document.getElementById('large-ui-btn')?.addEventListener('click', () => {
+        largeUIMode = !largeUIMode
+        render()
+      })
+
+      // Fullscreen toggle
+      document.getElementById('fullscreen-btn')?.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen()
+          isFullscreen = true
+        } else {
+          document.exitFullscreen()
+          isFullscreen = false
+        }
         render()
       })
 

@@ -110,3 +110,36 @@
 .animate-smoke {
   animation: smoke-rise 0.8s ease-out forwards;
 }
+
+/* Screen shake for explosions */
+.shake {
+  animation: screen-shake 0.3s ease-in-out;
+}
+
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-8px, -4px); }
+  20% { transform: translate(8px, 4px); }
+  30% { transform: translate(-6px, 2px); }
+  40% { transform: translate(6px, -2px); }
+  50% { transform: translate(-4px, 4px); }
+  60% { transform: translate(4px, -4px); }
+  70% { transform: translate(-2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  90% { transform: translate(-1px, 1px); }
+}
+
+/* High contrast mode borders */
+.high-contrast {
+  border: 3px solid white !important;
+}
+
+/* Large UI mode */
+.large-ui {
+  font-size: 1.25rem;
+}
+
+.large-ui button {
+  padding: 1rem 1.5rem;
+  font-size: 1.125rem;
+}
