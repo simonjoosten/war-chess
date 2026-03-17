@@ -284,28 +284,28 @@ let measureCount = 0 // Track measures for structure
 // Audio context for sound effects
 let audioContext: AudioContext | null = null
 
-function initAudio() {
+async function initAudio(): Promise<void> {
   if (!audioContext) {
     audioContext = new AudioContext()
   }
   // Resume audio context if suspended (browser autoplay policy)
   if (audioContext.state === 'suspended') {
-    audioContext.resume()
+    await audioContext.resume()
   }
 }
 
 // Ensure audio works on first user interaction
-function ensureAudioReady() {
-  initAudio()
+async function ensureAudioReady(): Promise<void> {
+  await initAudio()
   if (audioContext && audioContext.state === 'suspended') {
-    audioContext.resume()
+    await audioContext.resume()
   }
 }
 
 // Music generation based on style
-function startMusic() {
+async function startMusic() {
   // Ensure audio context is ready
-  ensureAudioReady()
+  await ensureAudioReady()
   if (!audioContext || musicInterval) return
 
   musicGainNode = audioContext.createGain()
@@ -2036,11 +2036,11 @@ function getSfxGain(): GainNode | null {
   return sfxGainNode
 }
 
-function playSound(type: SoundType) {
+async function playSound(type: SoundType) {
   if (!soundEnabled) return
 
   // Ensure audio context is ready
-  ensureAudioReady()
+  await ensureAudioReady()
   if (!audioContext) return
 
   const sfxOutput = getSfxGain()
@@ -4065,9 +4065,9 @@ function getInitialPieces(): Piece[] {
   ]
 }
 
-function startGame() {
+async function startGame() {
   gameState = 'playing'
-  initAudio()
+  await initAudio()
 
   // Initialize timer if enabled
   if (timerEnabled) {
@@ -4078,7 +4078,7 @@ function startGame() {
 
   // Start music if enabled
   if (musicEnabled) {
-    startMusic()
+    await startMusic()
   }
 
   render()
@@ -8532,14 +8532,14 @@ function render() {
         soundEnabled = false
         render()
       })
-      document.getElementById('sound-on-btn')?.addEventListener('click', () => {
+      document.getElementById('sound-on-btn')?.addEventListener('click', async () => {
         soundEnabled = true
-        initAudio()
+        await initAudio()
         render()
       })
-      document.getElementById('sound-test-btn')?.addEventListener('click', () => {
-        initAudio()
-        playSound('capture')
+      document.getElementById('sound-test-btn')?.addEventListener('click', async () => {
+        await initAudio()
+        await playSound('capture')
       })
 
       // Music buttons
@@ -8548,10 +8548,10 @@ function render() {
         stopMusic()
         render()
       })
-      document.getElementById('music-on-btn')?.addEventListener('click', () => {
+      document.getElementById('music-on-btn')?.addEventListener('click', async () => {
         musicEnabled = true
-        initAudio()
-        startMusic()
+        await initAudio()
+        await startMusic()
         render()
       })
 
