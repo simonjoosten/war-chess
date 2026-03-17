@@ -3726,33 +3726,33 @@ function makeBotMove() {
 
     switch (piece.type) {
       case 'soldier':
-        if (!piece.inTunnel) {
-          validMoves = getValidMovesForSoldier(piece)
-          // Soldier shooting
-          const soldierTargets = getShootTargetsForSoldier(piece)
-          for (const target of soldierTargets) {
-            const targetPiece = getPieceAt(target.col, target.row)
-            if (targetPiece && targetPiece.team === 'yellow') {
-              let shootScore = evaluateCapture(targetPiece) * 1.8
+        // Soldiers can move whether in tunnel or not
+        validMoves = getValidMovesForSoldier(piece)
 
-              // Extra bonus if this target is threatening us
-              if (canAttack(targetPiece, piece.col, piece.row)) {
-                shootScore += evaluateCapture(piece) * 0.5 // Kill the threat!
-              }
+        // Soldier shooting (works in tunnel too - shoots other tunnel soldiers)
+        const soldierTargets = getShootTargetsForSoldier(piece)
+        for (const target of soldierTargets) {
+          const targetPiece = getPieceAt(target.col, target.row)
+          if (targetPiece && targetPiece.team === 'yellow') {
+            let shootScore = evaluateCapture(targetPiece) * 1.8
 
-              // Bonus if we're safe after shooting (shooter doesn't move)
-              const pieceIsThreatened = threatenedPieces.some(t => t.piece === piece)
-              if (!pieceIsThreatened) {
-                shootScore += 5 // Safe shooting bonus
-              }
-
-              possibleMoves.push({
-                piece,
-                action: 'shoot',
-                target,
-                score: shootScore
-              })
+            // Extra bonus if this target is threatening us
+            if (canAttack(targetPiece, piece.col, piece.row)) {
+              shootScore += evaluateCapture(piece) * 0.5 // Kill the threat!
             }
+
+            // Bonus if we're safe after shooting (shooter doesn't move)
+            const pieceIsThreatened = threatenedPieces.some(t => t.piece === piece)
+            if (!pieceIsThreatened) {
+              shootScore += 5 // Safe shooting bonus
+            }
+
+            possibleMoves.push({
+              piece,
+              action: 'shoot',
+              target,
+              score: shootScore
+            })
           }
         }
         break
