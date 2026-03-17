@@ -3674,6 +3674,42 @@ function makeBotMove() {
   message = t('botThinking')
   render()
 
+  // Check for forced trench exit first - must move this soldier
+  const forcedTrenchSoldier = checkForcedTrenchExit()
+  if (forcedTrenchSoldier) {
+    // Must move this soldier out of the trench
+    const forcedMoves = getValidMovesForSoldier(forcedTrenchSoldier)
+    if (forcedMoves.length > 0) {
+      // Pick a safe move if possible
+      let bestMove = forcedMoves[0]
+      let bestScore = -Infinity
+      for (const move of forcedMoves) {
+        let score = 0
+        // Prefer captures
+        if (move.canCapture) {
+          const targetPiece = getPieceAt(move.col, move.row)
+          if (targetPiece) score += evaluateCapture(targetPiece)
+        }
+        // Avoid moving to threatened squares
+        if (!wouldBeThreatenedAt(forcedTrenchSoldier, move.col, move.row)) {
+          score += 10
+        }
+        if (score > bestScore) {
+          bestScore = score
+          bestMove = move
+        }
+      }
+
+      setTimeout(() => {
+        botThinking = false
+        selectedPiece = forcedTrenchSoldier
+        const capturedPiece = getPieceAt(bestMove.col, bestMove.row)
+        completMove(bestMove.col, bestMove.row, capturedPiece || null)
+      }, 300 * getSpeedMultiplier())
+      return
+    }
+  }
+
   // Get all green pieces that can move
   const greenPieces = pieces.filter(p => p.team === 'green' && !p.frozenTurns)
   const yellowPieces = pieces.filter(p => p.team === 'yellow')
@@ -3692,6 +3728,19 @@ function makeBotMove() {
       case 'soldier':
         if (!piece.inTunnel) {
           validMoves = getValidMovesForSoldier(piece)
+          // Soldier shooting
+          const soldierTargets = getShootTargetsForSoldier(piece)
+          for (const target of soldierTargets) {
+            const targetPiece = getPieceAt(target.col, target.row)
+            if (targetPiece && targetPiece.team === 'yellow') {
+              possibleMoves.push({
+                piece,
+                action: 'shoot',
+                target,
+                score: evaluateCapture(targetPiece) * 1.8 // Soldier shooting is very valuable
+              })
+            }
+          }
         }
         break
       case 'train':
@@ -4005,6 +4054,8 @@ function executeBotMove(chosenMove: BotMove | null) {
         shootTargets = getShootTargetsForTank(chosenMove.piece)
       } else if (chosenMove.piece.type === 'machinegun') {
         shootTargets = getShootTargetsForMachineGun(chosenMove.piece)
+      } else if (chosenMove.piece.type === 'soldier') {
+        shootTargets = getShootTargetsForSoldier(chosenMove.piece)
       }
       if (shootTargets.length > 0) {
         shootPiece(chosenMove.target.col, chosenMove.target.row)
@@ -5051,6 +5102,9 @@ function getShootTargetsForSoldier(piece: Piece): { col: string; row: number }[]
 
     if (targetRow < 1 || targetRow > 11) continue
 
+    // Check if shot is blocked by a barricade in the path
+    if (isShotBlockedByBarricade(piece.col, piece.row, piece.col, targetRow)) continue
+
     const pieceAtTarget = getPieceAt(piece.col, targetRow)
 
     // Can only shoot if there's an enemy piece there
@@ -5300,6 +5354,10 @@ function getShootTargetsForTank(piece: Piece): { col: string; row: number }[] {
       if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
 
       const col = columns[colIndex]
+
+      // Check if shot is blocked by a barricade in the path
+      if (isShotBlockedByBarricade(piece.col, piece.row, col, row)) continue
+
       const pieceAtTarget = getPieceAt(col, row)
 
       // Can only shoot if there's an enemy piece there
@@ -5378,6 +5436,10 @@ function getShootTargetsForShip(piece: Piece): { col: string; row: number }[] {
       if (colIndex < 0 || colIndex >= 11 || row < 1 || row > 11) continue
 
       const col = columns[colIndex]
+
+      // Check if shot is blocked by a barricade in the path
+      if (isShotBlockedByBarricade(piece.col, piece.row, col, row)) continue
+
       const pieceAtTarget = getPieceAt(col, row)
 
       if (pieceAtTarget && pieceAtTarget.team !== piece.team) {
@@ -5457,6 +5519,9 @@ function getShootTargetsForMachineGun(piece: Piece): { col: string; row: number 
     const targetRow = piece.row + (distance * directionSign)
 
     if (targetRow < 1 || targetRow > 11) break
+
+    // Check if shot is blocked by a barricade in the path
+    if (isShotBlockedByBarricade(piece.col, piece.row, piece.col, targetRow)) break
 
     const pieceAtTarget = getPieceAt(piece.col, targetRow)
 
@@ -7164,6 +7229,11 @@ function placeBuilderItem(col: string, row: number) {
 }
 
 function handleSquareClick(col: string, row: number) {
+  // Block clicks during bot's turn
+  if (botThinking || (botMode && currentTurn === 'green')) {
+    return
+  }
+
   // Get pieces at this location (handles barricade + piece behind it, or tunnel soldier + above ground piece)
   const piecesHere = getPiecesAt(col, row)
   // Prefer selecting: 1) current team's piece, 2) non-barricade piece, 3) first piece
