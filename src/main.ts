@@ -4137,7 +4137,9 @@ function canAttack(attacker: Piece, col: string, row: number): boolean {
   switch (attacker.type) {
     case 'soldier': {
       const moves = getValidMovesForSoldier(attacker)
-      return moves.some(m => m.col === col && m.row === row && m.canCapture)
+      const shoots = getShootTargetsForSoldier(attacker)
+      return moves.some(m => m.col === col && m.row === row && m.canCapture) ||
+             shoots.some(s => s.col === col && s.row === row)
     }
     case 'tank': {
       const moves = getValidMovesForTank(attacker)
