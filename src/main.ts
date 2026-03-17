@@ -41,6 +41,11 @@ let colorBlindMode = false
 let highContrastMode = false
 let largeUIMode = false
 
+// Bot mode
+let botMode = false
+let botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'
+let botThinking = false
+
 // Fullscreen
 let isFullscreen = false
 
@@ -2659,6 +2664,13 @@ const translations: Record<Language, Record<string, string>> = {
     // Start screen
     startTitle: 'War Chess',
     startButton: 'Start Game',
+    startVsPlayer: 'vs Player',
+    startVsBot: 'vs Bot',
+    botDifficultyLabel: 'Bot Difficulty',
+    botEasy: 'Easy',
+    botMedium: 'Medium',
+    botHard: 'Hard',
+    botThinking: 'Bot is thinking...',
     settingsButton: 'Settings',
     backButton: 'Back',
     languageLabel: 'Language',
@@ -2790,6 +2802,13 @@ const translations: Record<Language, Record<string, string>> = {
   nl: {
     startTitle: 'Oorlog Schaak',
     startButton: 'Start Spel',
+    startVsPlayer: 'vs Speler',
+    startVsBot: 'vs Bot',
+    botDifficultyLabel: 'Bot Moeilijkheid',
+    botEasy: 'Makkelijk',
+    botMedium: 'Gemiddeld',
+    botHard: 'Moeilijk',
+    botThinking: 'Bot is aan het denken...',
     settingsButton: 'Instellingen',
     backButton: 'Terug',
     languageLabel: 'Taal',
@@ -2905,6 +2924,13 @@ const translations: Record<Language, Record<string, string>> = {
   de: {
     startTitle: 'Kriegsschach',
     startButton: 'Spiel Starten',
+    startVsPlayer: 'vs Spieler',
+    startVsBot: 'vs Bot',
+    botDifficultyLabel: 'Bot Schwierigkeit',
+    botEasy: 'Einfach',
+    botMedium: 'Mittel',
+    botHard: 'Schwer',
+    botThinking: 'Bot denkt nach...',
     settingsButton: 'Einstellungen',
     backButton: 'Zurück',
     languageLabel: 'Sprache',
@@ -3020,6 +3046,13 @@ const translations: Record<Language, Record<string, string>> = {
   fr: {
     startTitle: 'Échecs de Guerre',
     startButton: 'Commencer',
+    startVsPlayer: 'vs Joueur',
+    startVsBot: 'vs Bot',
+    botDifficultyLabel: 'Difficulté Bot',
+    botEasy: 'Facile',
+    botMedium: 'Moyen',
+    botHard: 'Difficile',
+    botThinking: 'Le bot réfléchit...',
     settingsButton: 'Paramètres',
     backButton: 'Retour',
     languageLabel: 'Langue',
@@ -3135,6 +3168,13 @@ const translations: Record<Language, Record<string, string>> = {
   es: {
     startTitle: 'Ajedrez de Guerra',
     startButton: 'Iniciar Juego',
+    startVsPlayer: 'vs Jugador',
+    startVsBot: 'vs Bot',
+    botDifficultyLabel: 'Dificultad Bot',
+    botEasy: 'Fácil',
+    botMedium: 'Medio',
+    botHard: 'Difícil',
+    botThinking: 'El bot está pensando...',
     settingsButton: 'Configuración',
     backButton: 'Volver',
     languageLabel: 'Idioma',
@@ -3542,6 +3582,242 @@ function decrementSpikeTimers(team: Team) {
   }
 }
 
+// Bot AI - makes moves for the green team
+function makeBotMove() {
+  if (gameState !== 'playing' || currentTurn !== 'green' || !botMode) return
+
+  botThinking = true
+  message = t('botThinking')
+  render()
+
+  // Get all green pieces that can move
+  const greenPieces = pieces.filter(p => p.team === 'green' && !p.frozenTurns)
+
+  // Collect all possible moves
+  type BotMove = {
+    piece: Piece
+    action: 'move' | 'shoot' | 'launch' | 'artillery'
+    target?: { col: string; row: number }
+    score: number
+  }
+
+  const possibleMoves: BotMove[] = []
+
+  for (const piece of greenPieces) {
+    // Skip builder for now (complex actions)
+    if (piece.type === 'builder') continue
+
+    // Get valid moves for this piece
+    let validMoves: { col: string; row: number; canCapture?: boolean }[] = []
+
+    switch (piece.type) {
+      case 'soldier':
+        if (!piece.inTunnel) {
+          validMoves = getValidMovesForSoldier(piece)
+        }
+        break
+      case 'train':
+        validMoves = getValidMovesForTrain(piece)
+        break
+      case 'tank':
+        validMoves = getValidMovesForTank(piece)
+        // Also check shoot targets
+        const tankTargets = getShootTargetsForTank(piece)
+        for (const target of tankTargets) {
+          const targetPiece = getPieceAt(target.col, target.row)
+          if (targetPiece && targetPiece.team === 'yellow') {
+            possibleMoves.push({
+              piece,
+              action: 'shoot',
+              target,
+              score: evaluateCapture(targetPiece)
+            })
+          }
+        }
+        break
+      case 'ship':
+        validMoves = getValidMovesForShip(piece)
+        break
+      case 'carrier':
+        validMoves = getValidMovesForCarrier(piece)
+        break
+      case 'helicopter':
+        validMoves = getValidMovesForHelicopter(piece)
+        break
+      case 'machinegun':
+        // Machine gun shoots, doesn't move
+        const mgTargets = getShootTargetsForMachineGun(piece)
+        for (const target of mgTargets) {
+          const targetPiece = getPieceAt(target.col, target.row)
+          if (targetPiece && targetPiece.team === 'yellow') {
+            possibleMoves.push({
+              piece,
+              action: 'shoot',
+              target,
+              score: evaluateCapture(targetPiece)
+            })
+          }
+        }
+        break
+      case 'suv':
+        validMoves = getValidMovesForSuv(piece)
+        break
+      case 'sub':
+        validMoves = getValidMovesForSub(piece)
+        break
+      case 'rocket':
+        // Rocket can launch
+        const rocketTargets = getValidTargetsForRocket(piece)
+        for (const target of rocketTargets) {
+          // Evaluate explosion area
+          const area = getRocketExplosionArea(target.col, target.row)
+          let targetScore = 0
+          for (const sq of area) {
+            const p = getPieceAt(sq.col, sq.row)
+            if (p && p.team === 'yellow') {
+              targetScore += evaluateCapture(p)
+            }
+            if (p && p.team === 'green') {
+              targetScore -= evaluateCapture(p) * 2 // Avoid friendly fire (but we fixed this)
+            }
+          }
+          if (targetScore > 0) {
+            possibleMoves.push({
+              piece,
+              action: 'launch',
+              target,
+              score: targetScore
+            })
+          }
+        }
+        break
+      case 'artillery':
+        // Artillery fires randomly
+        possibleMoves.push({
+          piece,
+          action: 'artillery',
+          score: 5 // Medium priority
+        })
+        break
+      case 'fighter':
+        // Fighter has complex bombing mechanic - skip for now
+        break
+      case 'hacker':
+        // Hacker has complex hack mechanic - skip for now
+        break
+    }
+
+    // Add movement options
+    for (const move of validMoves) {
+      let score = 0
+      const targetPiece = getPieceAt(move.col, move.row)
+
+      if (targetPiece && targetPiece.team === 'yellow') {
+        score += evaluateCapture(targetPiece)
+      }
+
+      // Add some randomness based on difficulty
+      if (botDifficulty === 'easy') {
+        score += Math.random() * 20
+      } else if (botDifficulty === 'medium') {
+        score += Math.random() * 10
+      } else {
+        score += Math.random() * 3
+      }
+
+      // Prefer advancing towards enemy side
+      if (piece.type === 'soldier' || piece.type === 'tank') {
+        score += (11 - move.row) * 0.5 // Lower rows = closer to yellow
+      }
+
+      possibleMoves.push({
+        piece,
+        action: 'move',
+        target: move,
+        score
+      })
+    }
+  }
+
+  // Sort by score
+  possibleMoves.sort((a, b) => b.score - a.score)
+
+  // Pick move based on difficulty
+  let chosenMove: BotMove | null = null
+
+  if (possibleMoves.length > 0) {
+    if (botDifficulty === 'easy') {
+      // Random from top 50%
+      const topHalf = possibleMoves.slice(0, Math.max(1, Math.floor(possibleMoves.length / 2)))
+      chosenMove = topHalf[Math.floor(Math.random() * topHalf.length)]
+    } else if (botDifficulty === 'medium') {
+      // Random from top 25%
+      const topQuarter = possibleMoves.slice(0, Math.max(1, Math.floor(possibleMoves.length / 4)))
+      chosenMove = topQuarter[Math.floor(Math.random() * topQuarter.length)]
+    } else {
+      // Pick best move
+      chosenMove = possibleMoves[0]
+    }
+  }
+
+  // Execute the chosen move
+  setTimeout(() => {
+    botThinking = false
+
+    if (chosenMove) {
+      if (chosenMove.action === 'move' && chosenMove.target) {
+        // Select piece and move it
+        selectedPiece = chosenMove.piece
+        const capturedPiece = getPieceAt(chosenMove.target.col, chosenMove.target.row)
+        completMove(chosenMove.target.col, chosenMove.target.row, capturedPiece || null)
+      } else if (chosenMove.action === 'shoot' && chosenMove.target) {
+        // Shoot - need to set up selectedPiece and shootTargets
+        selectedPiece = chosenMove.piece
+        if (chosenMove.piece.type === 'tank') {
+          shootTargets = getShootTargetsForTank(chosenMove.piece)
+        } else if (chosenMove.piece.type === 'machinegun') {
+          shootTargets = getShootTargetsForMachineGun(chosenMove.piece)
+        }
+        shootPiece(chosenMove.target.col, chosenMove.target.row)
+      } else if (chosenMove.action === 'launch' && chosenMove.target) {
+        // Launch rocket
+        launchRocket(chosenMove.piece, chosenMove.target.col, chosenMove.target.row)
+      } else if (chosenMove.action === 'artillery') {
+        // Fire artillery
+        fireArtillery(chosenMove.piece)
+      }
+    } else {
+      // No valid moves - skip turn
+      if (currentTurn === 'green') greenTurnCount++
+      switchTurn()
+      render()
+    }
+  }, 300 * getSpeedMultiplier())
+}
+
+// Evaluate capture value for bot
+function evaluateCapture(piece: Piece): number {
+  const baseValue: Record<string, number> = {
+    soldier: 5,
+    tank: 15,
+    ship: 12,
+    carrier: 20,
+    helicopter: 10,
+    train: 15,
+    machinegun: 10,
+    suv: 8,
+    sub: 12,
+    rocket: 18,
+    fighter: 15,
+    hacker: 15,
+    builder: 100, // Very high - winning move!
+    artillery: 8,
+    barricade: 2,
+    spike: 1
+  }
+  return baseValue[piece.type] || piece.points
+}
+
 // Switch turn to the other team and handle frozen pieces
 function switchTurn() {
   const newTeam: Team = currentTurn === 'yellow' ? 'green' : 'yellow'
@@ -3571,6 +3847,13 @@ function switchTurn() {
     gameState = 'gameOver'
     stopTimer()
     playSound('win')
+  }
+
+  // Trigger bot move if it's green's turn and bot mode is enabled
+  if (botMode && currentTurn === 'green' && gameState === 'playing') {
+    setTimeout(() => {
+      makeBotMove()
+    }, 500 * getSpeedMultiplier())
   }
 }
 
@@ -8748,6 +9031,36 @@ function render() {
     app.innerHTML = `
       <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
         <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('startTitle')}</h1>
+
+        <!-- Game Mode Selection -->
+        <div class="bg-gray-800 rounded-lg p-4 flex flex-col gap-3">
+          <div class="flex gap-2">
+            <button id="mode-player-btn" class="${!botMode ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'} text-white font-bold py-2 px-4 rounded-lg transition-colors touch-manipulation">
+              👥 ${t('startVsPlayer')}
+            </button>
+            <button id="mode-bot-btn" class="${botMode ? 'bg-blue-600' : 'bg-gray-600 hover:bg-gray-500'} text-white font-bold py-2 px-4 rounded-lg transition-colors touch-manipulation">
+              🤖 ${t('startVsBot')}
+            </button>
+          </div>
+
+          ${botMode ? `
+          <div class="flex flex-col gap-2">
+            <span class="text-gray-300 text-sm">${t('botDifficultyLabel')}:</span>
+            <div class="flex gap-2">
+              <button id="diff-easy-btn" class="${botDifficulty === 'easy' ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'} text-white font-bold py-1 px-3 rounded transition-colors touch-manipulation text-sm">
+                ${t('botEasy')}
+              </button>
+              <button id="diff-medium-btn" class="${botDifficulty === 'medium' ? 'bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'} text-white font-bold py-1 px-3 rounded transition-colors touch-manipulation text-sm">
+                ${t('botMedium')}
+              </button>
+              <button id="diff-hard-btn" class="${botDifficulty === 'hard' ? 'bg-red-600' : 'bg-gray-600 hover:bg-gray-500'} text-white font-bold py-1 px-3 rounded transition-colors touch-manipulation text-sm">
+                ${t('botHard')}
+              </button>
+            </div>
+          </div>
+          ` : ''}
+        </div>
+
         <div class="flex flex-col gap-3">
           <button id="start-btn" class="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
             ${t('startButton')}
@@ -8764,6 +9077,26 @@ function render() {
       </div>
     `
     document.getElementById('start-btn')?.addEventListener('click', startGame)
+    document.getElementById('mode-player-btn')?.addEventListener('click', () => {
+      botMode = false
+      render()
+    })
+    document.getElementById('mode-bot-btn')?.addEventListener('click', () => {
+      botMode = true
+      render()
+    })
+    document.getElementById('diff-easy-btn')?.addEventListener('click', () => {
+      botDifficulty = 'easy'
+      render()
+    })
+    document.getElementById('diff-medium-btn')?.addEventListener('click', () => {
+      botDifficulty = 'medium'
+      render()
+    })
+    document.getElementById('diff-hard-btn')?.addEventListener('click', () => {
+      botDifficulty = 'hard'
+      render()
+    })
     document.getElementById('settings-btn')?.addEventListener('click', () => {
       showSettings = true
       render()
