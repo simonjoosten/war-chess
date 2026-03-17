@@ -288,6 +288,18 @@ function initAudio() {
   if (!audioContext) {
     audioContext = new AudioContext()
   }
+  // Resume audio context if suspended (browser autoplay policy)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume()
+  }
+}
+
+// Ensure audio works on first user interaction
+function ensureAudioReady() {
+  initAudio()
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume()
+  }
 }
 
 // Music generation based on style
@@ -6091,12 +6103,34 @@ function canMoveBehindBarricade(piece: Piece, col: string, row: number): boolean
   return false
 }
 
+// Colorblind symbol helper - circle for yellow/orange, triangle for green/blue
+function getColorblindSymbol(team: 'yellow' | 'green', x: number, y: number): string {
+  if (!colorBlindMode) return ''
+
+  const symbolColor = team === 'yellow' ? '#ffffff' : '#ffffff'
+  const bgColor = team === 'yellow' ? '#ea580c' : '#2563eb'
+
+  if (team === 'yellow') {
+    // Circle for yellow/orange team
+    return `
+      <circle cx="${x + 8}" cy="${y + 8}" r="6" fill="${bgColor}" stroke="${symbolColor}" stroke-width="1.5" class="pointer-events-none" />
+      <circle cx="${x + 8}" cy="${y + 8}" r="3" fill="${symbolColor}" class="pointer-events-none" />
+    `
+  } else {
+    // Triangle for green/blue team
+    return `
+      <polygon points="${x + 8},${y + 3} ${x + 14},${y + 13} ${x + 2},${y + 13}" fill="${bgColor}" stroke="${symbolColor}" stroke-width="1.5" class="pointer-events-none" />
+    `
+  }
+}
+
 function drawPiece(piece: Piece, x: number, y: number): string {
   const teamColor = getTeamColor(piece.team)
   const strokeColor = colorBlindMode
     ? (piece.team === 'yellow' ? '#c2410c' : '#1d4ed8')
     : (piece.team === 'yellow' ? '#b45309' : '#15803d')
   const strokeWidth = highContrastMode ? 3 : 2
+  const colorblindSymbol = getColorblindSymbol(piece.team, x, y)
 
   if (piece.type === 'train') {
     const highlight = colorBlindMode
@@ -6139,6 +6173,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <circle cx="${x + 7}" cy="${y + 26}" r="2.5" fill="#fef9c3" stroke="#eab308" stroke-width="0.5" />
         <!-- Cow catcher -->
         <path d="M${x + 4} ${y + 36} L${x + 6} ${y + 32} L${x + 10} ${y + 36} Z" fill="#4b5563" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6215,6 +6250,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
         ${inTrench ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#5c4033" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">⚔</text>` : ''}
         ${inTunnel ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#333" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">🚇</text>` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6263,6 +6299,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <!-- Antenna -->
         <line x1="${x + 35}" y1="${y + 12}" x2="${x + 38}" y2="${y + 4}" stroke="#4a4a4a" stroke-width="1" />
         <circle cx="${x + 38}" cy="${y + 4}" r="1" fill="#ef4444" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6305,6 +6342,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <rect x="${x + 40}" y="${y + 18}" width="6" height="4" fill="${teamColor}" stroke="${strokeColor}" stroke-width="0.5" />
         <!-- Team indicator -->
         <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6357,6 +6395,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <line x1="${x + 15}" y1="${y + 21}" x2="${x + 25}" y2="${y + 25}" stroke="#5a5a5a" stroke-width="1.5" />
           <circle cx="${x + 20}" cy="${y + 18}" r="2" fill="${teamColor}" />
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6395,6 +6434,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
         <!-- Side marking -->
         <circle cx="${x + 30}" cy="${y + 32}" r="3" fill="${teamColor}" opacity="0.8" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6433,6 +6473,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <circle cx="${x + 12}" cy="${y + 26}" r="2" fill="${metalDark}" />
         <!-- Team indicator -->
         <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6482,6 +6523,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <line x1="${x + 34}" y1="${y + 14}" x2="${x + 34}" y2="${y + 16}" stroke="${bodyDark}" stroke-width="1.5" />
         <!-- Team indicator -->
         <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6519,6 +6561,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="#ef4444" stroke-width="3" />
           <line x1="${x + 35}" y1="${y + 15}" x2="${x + 15}" y2="${y + 35}" stroke="#ef4444" stroke-width="3" />
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6565,6 +6608,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
           <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6612,6 +6656,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
           <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6667,6 +6712,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
           <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6739,6 +6785,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />
           <text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="16" fill="#3b82f6">❄</text>
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6764,6 +6811,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <line x1="${x + 10}" y1="${y + 40}" x2="${x + 40}" y2="${y + 40}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
         <!-- Team indicator -->
         <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6792,6 +6840,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <ellipse cx="${x + 25}" cy="${y + 6}" rx="4" ry="2" fill="#1a1a1a" />
         <!-- Team indicator -->
         <circle cx="${x + 40}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
       </g>
     `
   }
@@ -6819,6 +6868,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#6b7280" opacity="0.8" />
           <text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="white">${piece.turnsRemaining}</text>
         ` : ''}
+        ${colorblindSymbol}
       </g>
     `
   }
