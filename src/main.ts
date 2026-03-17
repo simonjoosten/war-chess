@@ -92,6 +92,16 @@ function getAnimationDuration(): number {
   }
 }
 
+// Speed multiplier for animations (fast = 0.5x, normal = 1x, slow = 2x)
+function getSpeedMultiplier(): number {
+  switch (animationSpeed) {
+    case 'fast': return 0.5
+    case 'slow': return 2
+    case 'normal':
+    default: return 1
+  }
+}
+
 // Screen shake effect
 function triggerScreenShake() {
   if (!screenShakeEnabled) return
@@ -173,11 +183,12 @@ function triggerShootingEffect(shooterCol: string, shooterRow: number, targetCol
 function animateShootingEffect() {
   if (!shootingEffect) return
 
+  const speedMult = getSpeedMultiplier()
   const PHASE_DURATIONS = {
-    muzzleFlash: 80,
-    bulletTravel: 150,
-    impact: 100,
-    smoke: 400
+    muzzleFlash: 80 * speedMult,
+    bulletTravel: 150 * speedMult,
+    impact: 100 * speedMult,
+    smoke: 400 * speedMult
   }
 
   const shooterPos = getBoardPixelPosition(shootingEffect.shooterCol, shootingEffect.shooterRow)
@@ -3944,6 +3955,8 @@ function fireArtillery(artillery: Piece) {
   // Show explosion at target
   explosionAt = { col: target.col, row: target.row }
   selectedPiece = null
+  playSound('explosion')
+  triggerScreenShake()
   render()
 
   // After explosion animation, complete the action
@@ -3974,7 +3987,7 @@ function fireArtillery(artillery: Piece) {
     switchTurn()
 
     render()
-  }, 500)
+  }, 500 * getSpeedMultiplier())
 }
 
 // Check if any soldier of the current team must leave the trench
@@ -5555,6 +5568,8 @@ function animateTrainHit(train: Piece, target: Piece, targetCol: string, targetR
       // Phase 2: Impact
       trainHitAnimation = { ...trainHitAnimation!, phase: 'impact' }
       explosionAt = { col: targetCol, row: targetRow }
+      playSound('explosion')
+      triggerScreenShake()
 
       // Remove target
       const index = pieces.indexOf(target)
@@ -5599,7 +5614,7 @@ function animateTrainHit(train: Piece, target: Piece, targetCol: string, targetR
         showSoldierActions = false
 
         render()
-      }, 500)
+      }, 500 * getSpeedMultiplier())
     }
   }
 
@@ -5727,7 +5742,7 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
         setTimeout(() => {
           explosionAt = null
           render()
-        }, 500)
+        }, 500 * getSpeedMultiplier())
       }
     }
   }
@@ -5971,9 +5986,10 @@ function launchRocket(rocket: Piece, targetCol: string, targetRow: number) {
   message = t('rocketLaunching')
   render()
 
-  const launchDuration = 600
-  const flyDuration = 400
-  const explosionDuration = 800
+  const speedMult = getSpeedMultiplier()
+  const launchDuration = 600 * speedMult
+  const flyDuration = 400 * speedMult
+  const explosionDuration = 800 * speedMult
   const startTime = Date.now()
 
   function animate() {
@@ -8279,6 +8295,11 @@ function createMoveLog(): string {
 
 function render() {
   const app = document.querySelector<HTMLDivElement>('#app')!
+
+  // Apply accessibility classes
+  app.classList.toggle('large-ui', largeUIMode)
+  app.classList.toggle('high-contrast', highContrastMode)
+
   const turnColor = currentTurn === 'yellow' ? 'text-yellow-400 border-yellow-400' : 'text-green-400 border-green-400'
 
   // Start screen

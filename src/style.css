@@ -129,9 +129,23 @@
   90% { transform: translate(-1px, 1px); }
 }
 
-/* High contrast mode borders */
+/* High contrast mode */
 .high-contrast {
-  border: 3px solid white !important;
+  --contrast-border: 3px solid white;
+}
+
+.high-contrast button {
+  border: 2px solid white !important;
+  font-weight: bold !important;
+}
+
+.high-contrast svg {
+  filter: contrast(1.5) brightness(1.1);
+}
+
+.high-contrast .text-gray-300,
+.high-contrast .text-gray-400 {
+  color: white !important;
 }
 
 /* Large UI mode */
@@ -140,8 +154,25 @@
 }
 
 .large-ui button {
-  padding: 1rem 1.5rem;
-  font-size: 1.125rem;
+  padding: 1rem 1.5rem !important;
+  font-size: 1.125rem !important;
+  min-height: 48px;
+}
+
+.large-ui h1 {
+  font-size: 2.5rem !important;
+}
+
+.large-ui h2 {
+  font-size: 2rem !important;
+}
+
+.large-ui .text-sm {
+  font-size: 1rem !important;
+}
+
+.large-ui .text-xs {
+  font-size: 0.875rem !important;
 }
 
 /* Shell casing animation */
