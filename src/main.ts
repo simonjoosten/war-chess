@@ -3583,6 +3583,18 @@ function decrementSpikeTimers(team: Team) {
 }
 
 // Bot AI - makes moves for the green team
+type BotMove = {
+  piece: Piece
+  action: 'move' | 'shoot' | 'launch' | 'artillery' | 'hack' | 'bomb' | 'build'
+  target?: { col: string; row: number }
+  hackAction?: 'forward' | 'backward' | 'freeze'
+  hackTarget?: Piece
+  buildType?: 'barricade' | 'artillery' | 'spike'
+  bombTarget?: Piece
+  landingSpot?: { col: string; row: number }
+  score: number
+}
+
 function makeBotMove() {
   if (gameState !== 'playing' || currentTurn !== 'green' || !botMode) return
 
@@ -3592,21 +3604,15 @@ function makeBotMove() {
 
   // Get all green pieces that can move
   const greenPieces = pieces.filter(p => p.team === 'green' && !p.frozenTurns)
+  const yellowPieces = pieces.filter(p => p.team === 'yellow')
 
   // Collect all possible moves
-  type BotMove = {
-    piece: Piece
-    action: 'move' | 'shoot' | 'launch' | 'artillery'
-    target?: { col: string; row: number }
-    score: number
-  }
-
   const possibleMoves: BotMove[] = []
 
-  for (const piece of greenPieces) {
-    // Skip builder for now (complex actions)
-    if (piece.type === 'builder') continue
+  // Check which of our pieces are under attack
+  const threatenedPieces = getThreatenedPieces('green')
 
+  for (const piece of greenPieces) {
     // Get valid moves for this piece
     let validMoves: { col: string; row: number; canCapture?: boolean }[] = []
 
@@ -3621,7 +3627,7 @@ function makeBotMove() {
         break
       case 'tank':
         validMoves = getValidMovesForTank(piece)
-        // Also check shoot targets
+        // Tank shooting
         const tankTargets = getShootTargetsForTank(piece)
         for (const target of tankTargets) {
           const targetPiece = getPieceAt(target.col, target.row)
@@ -3630,7 +3636,7 @@ function makeBotMove() {
               piece,
               action: 'shoot',
               target,
-              score: evaluateCapture(targetPiece)
+              score: evaluateCapture(targetPiece) * 1.5 // Shooting is safer than moving
             })
           }
         }
@@ -3654,7 +3660,7 @@ function makeBotMove() {
               piece,
               action: 'shoot',
               target,
-              score: evaluateCapture(targetPiece)
+              score: evaluateCapture(targetPiece) * 1.5
             })
           }
         }
@@ -3669,7 +3675,6 @@ function makeBotMove() {
         // Rocket can launch
         const rocketTargets = getValidTargetsForRocket(piece)
         for (const target of rocketTargets) {
-          // Evaluate explosion area
           const area = getRocketExplosionArea(target.col, target.row)
           let targetScore = 0
           for (const sq of area) {
@@ -3677,33 +3682,137 @@ function makeBotMove() {
             if (p && p.team === 'yellow') {
               targetScore += evaluateCapture(p)
             }
-            if (p && p.team === 'green') {
-              targetScore -= evaluateCapture(p) * 2 // Avoid friendly fire (but we fixed this)
-            }
           }
           if (targetScore > 0) {
             possibleMoves.push({
               piece,
               action: 'launch',
               target,
-              score: targetScore
+              score: targetScore * 1.2
             })
           }
         }
         break
       case 'artillery':
-        // Artillery fires randomly
         possibleMoves.push({
           piece,
           action: 'artillery',
-          score: 5 // Medium priority
+          score: 8
         })
         break
       case 'fighter':
-        // Fighter has complex bombing mechanic - skip for now
+        // Fighter bombing
+        if (isFighterReadyForTeam('green') && !isFighterOnCooldown(piece)) {
+          const bombTargets = getValidBombTargets(piece)
+          for (const target of bombTargets) {
+            const validLandingSpots = getValidLandingSpots(target.col, target.row)
+            if (validLandingSpots.length > 0) {
+              // Pick safest landing spot (furthest from enemies)
+              let bestSpot = validLandingSpots[0]
+              let bestScore = -1000
+              for (const spot of validLandingSpots) {
+                let spotScore = 0
+                // Prefer spots not threatened
+                if (!wouldBeThreatenedAt(piece, spot.col, spot.row)) {
+                  spotScore += 10
+                }
+                // Prefer spots closer to our side
+                spotScore += spot.row * 0.5
+                if (spotScore > bestScore) {
+                  bestScore = spotScore
+                  bestSpot = spot
+                }
+              }
+              possibleMoves.push({
+                piece,
+                action: 'bomb',
+                bombTarget: target,
+                landingSpot: bestSpot,
+                score: evaluateCapture(target) * 2 // Bombing is powerful
+              })
+            }
+          }
+        }
         break
       case 'hacker':
-        // Hacker has complex hack mechanic - skip for now
+        // Hacker hacking
+        if (isHackerReadyForTeam('green') && !isHackerOnCooldown(piece)) {
+          const hackableTargets = yellowPieces.filter(p =>
+            p.type !== 'hacker' && p.type !== 'rocket' && p.type !== 'machinegun' &&
+            !(p.type === 'soldier' && p.inTunnel)
+          )
+          for (const target of hackableTargets) {
+            // Freeze is good for high-value targets
+            possibleMoves.push({
+              piece,
+              action: 'hack',
+              hackTarget: target,
+              hackAction: 'freeze',
+              score: evaluateCapture(target) * 0.8
+            })
+            // Push towards water or edge
+            if (target.type !== 'sub' && target.type !== 'ship' && target.type !== 'carrier') {
+              // Try to push into water (row 6)
+              const targetForward = target.team === 'yellow' ? 1 : -1
+              const forwardRow = target.row + targetForward
+              const backwardRow = target.row - targetForward
+              if (forwardRow === 6 && target.col !== 'F') {
+                possibleMoves.push({
+                  piece,
+                  action: 'hack',
+                  hackTarget: target,
+                  hackAction: 'forward',
+                  score: evaluateCapture(target) * 1.5 // Push into water!
+                })
+              }
+              if (backwardRow === 6 && target.col !== 'F') {
+                possibleMoves.push({
+                  piece,
+                  action: 'hack',
+                  hackTarget: target,
+                  hackAction: 'backward',
+                  score: evaluateCapture(target) * 1.5
+                })
+              }
+            }
+          }
+        }
+        break
+      case 'builder':
+        // Builder building
+        if (canBuilderBuildBarricade(piece)) {
+          // Build barricade to protect pieces
+          const builderMoves = getValidMovesForBuilder(piece)
+          for (const spot of builderMoves) {
+            // Prefer building in front of valuable pieces
+            let buildScore = 5
+            // Check if this protects our pieces
+            for (const greenPiece of greenPieces) {
+              if (greenPiece.col === spot.col && Math.abs(greenPiece.row - spot.row) <= 2) {
+                buildScore += evaluateCapture(greenPiece) * 0.3
+              }
+            }
+            possibleMoves.push({
+              piece,
+              action: 'build',
+              target: spot,
+              buildType: 'barricade',
+              score: buildScore
+            })
+          }
+        }
+        if (canBuilderBuildArtillery(piece)) {
+          const builderMoves = getValidMovesForBuilder(piece)
+          for (const spot of builderMoves) {
+            possibleMoves.push({
+              piece,
+              action: 'build',
+              target: spot,
+              buildType: 'artillery',
+              score: 15 // Artillery is valuable
+            })
+          }
+        }
         break
     }
 
@@ -3712,23 +3821,34 @@ function makeBotMove() {
       let score = 0
       const targetPiece = getPieceAt(move.col, move.row)
 
+      // Capture bonus
       if (targetPiece && targetPiece.team === 'yellow') {
         score += evaluateCapture(targetPiece)
       }
 
-      // Add some randomness based on difficulty
-      if (botDifficulty === 'easy') {
-        score += Math.random() * 20
-      } else if (botDifficulty === 'medium') {
-        score += Math.random() * 10
-      } else {
-        score += Math.random() * 3
+      // Check if this piece is threatened and can escape
+      const isThreatened = threatenedPieces.some(t => t.piece === piece)
+      if (isThreatened) {
+        const stillThreatened = wouldBeThreatenedAt(piece, move.col, move.row)
+        if (!stillThreatened) {
+          score += evaluateCapture(piece) * 0.5 // Bonus for escaping
+        }
+      }
+
+      // Penalty for moving into danger
+      const movingIntoDanger = wouldBeThreatenedAt(piece, move.col, move.row)
+      if (movingIntoDanger && !targetPiece) {
+        score -= evaluateCapture(piece) * 0.3
       }
 
       // Prefer advancing towards enemy side
       if (piece.type === 'soldier' || piece.type === 'tank') {
-        score += (11 - move.row) * 0.5 // Lower rows = closer to yellow
+        score += (11 - move.row) * 0.5
       }
+
+      // Small randomness
+      const randomFactor = botDifficulty === 'easy' ? 15 : botDifficulty === 'medium' ? 8 : 2
+      score += Math.random() * randomFactor
 
       possibleMoves.push({
         piece,
@@ -3747,52 +3867,139 @@ function makeBotMove() {
 
   if (possibleMoves.length > 0) {
     if (botDifficulty === 'easy') {
-      // Random from top 50%
-      const topHalf = possibleMoves.slice(0, Math.max(1, Math.floor(possibleMoves.length / 2)))
-      chosenMove = topHalf[Math.floor(Math.random() * topHalf.length)]
+      // 30% chance to pick best move, otherwise random from top 60%
+      if (Math.random() < 0.3) {
+        chosenMove = possibleMoves[0]
+      } else {
+        const pool = possibleMoves.slice(0, Math.max(1, Math.floor(possibleMoves.length * 0.6)))
+        chosenMove = pool[Math.floor(Math.random() * pool.length)]
+      }
     } else if (botDifficulty === 'medium') {
-      // Random from top 25%
-      const topQuarter = possibleMoves.slice(0, Math.max(1, Math.floor(possibleMoves.length / 4)))
-      chosenMove = topQuarter[Math.floor(Math.random() * topQuarter.length)]
+      // 60% chance to pick best move, otherwise random from top 30%
+      if (Math.random() < 0.6) {
+        chosenMove = possibleMoves[0]
+      } else {
+        const pool = possibleMoves.slice(0, Math.max(1, Math.floor(possibleMoves.length * 0.3)))
+        chosenMove = pool[Math.floor(Math.random() * pool.length)]
+      }
     } else {
-      // Pick best move
-      chosenMove = possibleMoves[0]
+      // Hard: 90% best move, 10% second best (to avoid being too predictable)
+      if (Math.random() < 0.9 || possibleMoves.length === 1) {
+        chosenMove = possibleMoves[0]
+      } else {
+        chosenMove = possibleMoves[1]
+      }
     }
   }
 
   // Execute the chosen move
   setTimeout(() => {
     botThinking = false
-
-    if (chosenMove) {
-      if (chosenMove.action === 'move' && chosenMove.target) {
-        // Select piece and move it
-        selectedPiece = chosenMove.piece
-        const capturedPiece = getPieceAt(chosenMove.target.col, chosenMove.target.row)
-        completMove(chosenMove.target.col, chosenMove.target.row, capturedPiece || null)
-      } else if (chosenMove.action === 'shoot' && chosenMove.target) {
-        // Shoot - need to set up selectedPiece and shootTargets
-        selectedPiece = chosenMove.piece
-        if (chosenMove.piece.type === 'tank') {
-          shootTargets = getShootTargetsForTank(chosenMove.piece)
-        } else if (chosenMove.piece.type === 'machinegun') {
-          shootTargets = getShootTargetsForMachineGun(chosenMove.piece)
-        }
-        shootPiece(chosenMove.target.col, chosenMove.target.row)
-      } else if (chosenMove.action === 'launch' && chosenMove.target) {
-        // Launch rocket
-        launchRocket(chosenMove.piece, chosenMove.target.col, chosenMove.target.row)
-      } else if (chosenMove.action === 'artillery') {
-        // Fire artillery
-        fireArtillery(chosenMove.piece)
-      }
-    } else {
-      // No valid moves - skip turn
-      if (currentTurn === 'green') greenTurnCount++
-      switchTurn()
-      render()
-    }
+    executeBotMove(chosenMove)
   }, 300 * getSpeedMultiplier())
+}
+
+// Execute the bot's chosen move
+function executeBotMove(chosenMove: BotMove | null) {
+  if (!chosenMove) {
+    // No valid moves - skip turn
+    if (currentTurn === 'green') greenTurnCount++
+    switchTurn()
+    render()
+    return
+  }
+
+  if (chosenMove.action === 'move' && chosenMove.target) {
+    selectedPiece = chosenMove.piece
+    const capturedPiece = getPieceAt(chosenMove.target.col, chosenMove.target.row)
+    completMove(chosenMove.target.col, chosenMove.target.row, capturedPiece || null)
+  } else if (chosenMove.action === 'shoot' && chosenMove.target) {
+    selectedPiece = chosenMove.piece
+    if (chosenMove.piece.type === 'tank') {
+      shootTargets = getShootTargetsForTank(chosenMove.piece)
+    } else if (chosenMove.piece.type === 'machinegun') {
+      shootTargets = getShootTargetsForMachineGun(chosenMove.piece)
+    }
+    shootPiece(chosenMove.target.col, chosenMove.target.row)
+  } else if (chosenMove.action === 'launch' && chosenMove.target) {
+    launchRocket(chosenMove.piece, chosenMove.target.col, chosenMove.target.row)
+  } else if (chosenMove.action === 'artillery') {
+    fireArtillery(chosenMove.piece)
+  } else if (chosenMove.action === 'hack' && chosenMove.hackTarget && chosenMove.hackAction) {
+    selectedPiece = chosenMove.piece
+    selectedHackTarget = chosenMove.hackTarget
+    executeHack(chosenMove.hackAction)
+  } else if (chosenMove.action === 'bomb' && chosenMove.bombTarget && chosenMove.landingSpot) {
+    selectedPiece = chosenMove.piece
+    executeBombing(chosenMove.piece, chosenMove.bombTarget, chosenMove.landingSpot.col, chosenMove.landingSpot.row)
+  } else if (chosenMove.action === 'build' && chosenMove.target && chosenMove.buildType) {
+    selectedPiece = chosenMove.piece
+    builderPlacementMode = chosenMove.buildType
+    placeBuilderItem(chosenMove.target.col, chosenMove.target.row)
+  }
+}
+
+// Get pieces that are threatened by enemy
+function getThreatenedPieces(team: Team): { piece: Piece; threats: Piece[] }[] {
+  const threatened: { piece: Piece; threats: Piece[] }[] = []
+  const myPieces = pieces.filter(p => p.team === team)
+  const enemyPieces = pieces.filter(p => p.team !== team)
+
+  for (const piece of myPieces) {
+    const threats: Piece[] = []
+    for (const enemy of enemyPieces) {
+      if (canAttack(enemy, piece.col, piece.row)) {
+        threats.push(enemy)
+      }
+    }
+    if (threats.length > 0) {
+      threatened.push({ piece, threats })
+    }
+  }
+  return threatened
+}
+
+// Check if a piece can attack a position
+function canAttack(attacker: Piece, col: string, row: number): boolean {
+  if (attacker.frozenTurns) return false
+
+  switch (attacker.type) {
+    case 'soldier': {
+      const moves = getValidMovesForSoldier(attacker)
+      return moves.some(m => m.col === col && m.row === row && m.canCapture)
+    }
+    case 'tank': {
+      const moves = getValidMovesForTank(attacker)
+      const shoots = getShootTargetsForTank(attacker)
+      return moves.some(m => m.col === col && m.row === row) ||
+             shoots.some(s => s.col === col && s.row === row)
+    }
+    case 'train': {
+      const moves = getValidMovesForTrain(attacker)
+      return moves.some(m => m.col === col && m.row === row && m.canCapture)
+    }
+    case 'machinegun': {
+      const targets = getShootTargetsForMachineGun(attacker)
+      return targets.some(t => t.col === col && t.row === row)
+    }
+    case 'helicopter': {
+      const moves = getValidMovesForHelicopter(attacker)
+      return moves.some(m => m.col === col && m.row === row && m.canCapture)
+    }
+    default:
+      return false
+  }
+}
+
+// Check if a piece would be threatened at a new position
+function wouldBeThreatenedAt(piece: Piece, newCol: string, newRow: number): boolean {
+  const enemyPieces = pieces.filter(p => p.team !== piece.team)
+  for (const enemy of enemyPieces) {
+    if (canAttack(enemy, newCol, newRow)) {
+      return true
+    }
+  }
+  return false
 }
 
 // Evaluate capture value for bot
