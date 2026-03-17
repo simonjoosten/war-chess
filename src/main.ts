@@ -46,6 +46,78 @@ let botMode = false
 let botDifficulty: 'easy' | 'medium' | 'hard' = 'medium'
 let botThinking = false
 
+// Bot learning system
+type BotLearningData = {
+  gamesPlayed: number
+  gamesWon: number
+  moveWeights: Record<string, number> // piece_type:action -> weight adjustment
+  captureSuccess: Record<string, number> // piece_type -> successful captures
+  threatAvoidance: number // how much to weight threat avoidance
+  aggressionLevel: number // how aggressive to play
+}
+
+let botLearning: BotLearningData = {
+  gamesPlayed: 0,
+  gamesWon: 0,
+  moveWeights: {},
+  captureSuccess: {},
+  threatAvoidance: 1.0,
+  aggressionLevel: 1.0
+}
+
+// Load bot learning data from localStorage
+function loadBotLearning() {
+  try {
+    const saved = localStorage.getItem('warChessBotLearning')
+    if (saved) {
+      botLearning = JSON.parse(saved)
+    }
+  } catch (e) {
+    console.log('Could not load bot learning data')
+  }
+}
+
+// Save bot learning data to localStorage
+function saveBotLearning() {
+  try {
+    localStorage.setItem('warChessBotLearning', JSON.stringify(botLearning))
+  } catch (e) {
+    console.log('Could not save bot learning data')
+  }
+}
+
+// Update bot learning after game ends
+function updateBotLearning(botWon: boolean) {
+  botLearning.gamesPlayed++
+  if (botWon) {
+    botLearning.gamesWon++
+    // Bot won - increase aggression slightly
+    botLearning.aggressionLevel = Math.min(2.0, botLearning.aggressionLevel + 0.05)
+  } else {
+    // Bot lost - increase threat avoidance, decrease aggression
+    botLearning.threatAvoidance = Math.min(2.0, botLearning.threatAvoidance + 0.1)
+    botLearning.aggressionLevel = Math.max(0.5, botLearning.aggressionLevel - 0.05)
+  }
+  saveBotLearning()
+}
+
+// Get learned weight for a move type
+function getLearnedWeight(pieceType: string, action: string): number {
+  const key = `${pieceType}:${action}`
+  return botLearning.moveWeights[key] || 1.0
+}
+
+// Update weight after successful action
+function learnFromMove(pieceType: string, action: string, success: boolean) {
+  const key = `${pieceType}:${action}`
+  const current = botLearning.moveWeights[key] || 1.0
+  if (success) {
+    botLearning.moveWeights[key] = Math.min(2.0, current + 0.02)
+  } else {
+    botLearning.moveWeights[key] = Math.max(0.5, current - 0.01)
+  }
+}
+
 // Fullscreen
 let isFullscreen = false
 
@@ -3821,30 +3893,35 @@ function makeBotMove() {
       let score = 0
       const targetPiece = getPieceAt(move.col, move.row)
 
-      // Capture bonus
+      // Capture bonus (with learned aggression)
       if (targetPiece && targetPiece.team === 'yellow') {
-        score += evaluateCapture(targetPiece)
+        score += evaluateCapture(targetPiece) * botLearning.aggressionLevel
+        // Track that we're considering a capture
+        learnFromMove(piece.type, 'capture', true)
       }
 
-      // Check if this piece is threatened and can escape
+      // Check if this piece is threatened and can escape (with learned threat avoidance)
       const isThreatened = threatenedPieces.some(t => t.piece === piece)
       if (isThreatened) {
         const stillThreatened = wouldBeThreatenedAt(piece, move.col, move.row)
         if (!stillThreatened) {
-          score += evaluateCapture(piece) * 0.5 // Bonus for escaping
+          score += evaluateCapture(piece) * 0.5 * botLearning.threatAvoidance // Bonus for escaping
         }
       }
 
-      // Penalty for moving into danger
+      // Penalty for moving into danger (with learned threat avoidance)
       const movingIntoDanger = wouldBeThreatenedAt(piece, move.col, move.row)
       if (movingIntoDanger && !targetPiece) {
-        score -= evaluateCapture(piece) * 0.3
+        score -= evaluateCapture(piece) * 0.3 * botLearning.threatAvoidance
       }
 
-      // Prefer advancing towards enemy side
+      // Prefer advancing towards enemy side (with learned aggression)
       if (piece.type === 'soldier' || piece.type === 'tank') {
-        score += (11 - move.row) * 0.5
+        score += (11 - move.row) * 0.5 * botLearning.aggressionLevel
       }
+
+      // Apply learned weight for this piece type and action
+      score *= getLearnedWeight(piece.type, 'move')
 
       // Small randomness
       const randomFactor = botDifficulty === 'easy' ? 15 : botDifficulty === 'medium' ? 8 : 2
@@ -3903,40 +3980,83 @@ function makeBotMove() {
 function executeBotMove(chosenMove: BotMove | null) {
   if (!chosenMove) {
     // No valid moves - skip turn
-    if (currentTurn === 'green') greenTurnCount++
-    switchTurn()
-    render()
+    botSkipTurn()
     return
   }
 
-  if (chosenMove.action === 'move' && chosenMove.target) {
-    selectedPiece = chosenMove.piece
-    const capturedPiece = getPieceAt(chosenMove.target.col, chosenMove.target.row)
-    completMove(chosenMove.target.col, chosenMove.target.row, capturedPiece || null)
-  } else if (chosenMove.action === 'shoot' && chosenMove.target) {
-    selectedPiece = chosenMove.piece
-    if (chosenMove.piece.type === 'tank') {
-      shootTargets = getShootTargetsForTank(chosenMove.piece)
-    } else if (chosenMove.piece.type === 'machinegun') {
-      shootTargets = getShootTargetsForMachineGun(chosenMove.piece)
-    }
-    shootPiece(chosenMove.target.col, chosenMove.target.row)
-  } else if (chosenMove.action === 'launch' && chosenMove.target) {
-    launchRocket(chosenMove.piece, chosenMove.target.col, chosenMove.target.row)
-  } else if (chosenMove.action === 'artillery') {
-    fireArtillery(chosenMove.piece)
-  } else if (chosenMove.action === 'hack' && chosenMove.hackTarget && chosenMove.hackAction) {
-    selectedPiece = chosenMove.piece
-    selectedHackTarget = chosenMove.hackTarget
-    executeHack(chosenMove.hackAction)
-  } else if (chosenMove.action === 'bomb' && chosenMove.bombTarget && chosenMove.landingSpot) {
-    selectedPiece = chosenMove.piece
-    executeBombing(chosenMove.piece, chosenMove.bombTarget, chosenMove.landingSpot.col, chosenMove.landingSpot.row)
-  } else if (chosenMove.action === 'build' && chosenMove.target && chosenMove.buildType) {
-    selectedPiece = chosenMove.piece
-    builderPlacementMode = chosenMove.buildType
-    placeBuilderItem(chosenMove.target.col, chosenMove.target.row)
+  // Verify piece still exists and is valid
+  if (!pieces.includes(chosenMove.piece)) {
+    console.log('Bot: piece no longer exists, skipping')
+    botSkipTurn()
+    return
   }
+
+  let moveExecuted = false
+
+  try {
+    if (chosenMove.action === 'move' && chosenMove.target) {
+      selectedPiece = chosenMove.piece
+      const capturedPiece = getPieceAt(chosenMove.target.col, chosenMove.target.row)
+      completMove(chosenMove.target.col, chosenMove.target.row, capturedPiece || null)
+      moveExecuted = true
+    } else if (chosenMove.action === 'shoot' && chosenMove.target) {
+      selectedPiece = chosenMove.piece
+      if (chosenMove.piece.type === 'tank') {
+        shootTargets = getShootTargetsForTank(chosenMove.piece)
+      } else if (chosenMove.piece.type === 'machinegun') {
+        shootTargets = getShootTargetsForMachineGun(chosenMove.piece)
+      }
+      if (shootTargets.length > 0) {
+        shootPiece(chosenMove.target.col, chosenMove.target.row)
+        moveExecuted = true
+      }
+    } else if (chosenMove.action === 'launch' && chosenMove.target) {
+      launchRocket(chosenMove.piece, chosenMove.target.col, chosenMove.target.row)
+      moveExecuted = true
+    } else if (chosenMove.action === 'artillery') {
+      fireArtillery(chosenMove.piece)
+      moveExecuted = true
+    } else if (chosenMove.action === 'hack' && chosenMove.hackTarget && chosenMove.hackAction) {
+      // Verify hack target still exists
+      if (pieces.includes(chosenMove.hackTarget)) {
+        selectedPiece = chosenMove.piece
+        selectedHackTarget = chosenMove.hackTarget
+        executeHack(chosenMove.hackAction)
+        moveExecuted = true
+      }
+    } else if (chosenMove.action === 'bomb' && chosenMove.bombTarget && chosenMove.landingSpot) {
+      // Verify bomb target still exists
+      if (pieces.includes(chosenMove.bombTarget)) {
+        selectedPiece = chosenMove.piece
+        executeBombing(chosenMove.piece, chosenMove.bombTarget, chosenMove.landingSpot.col, chosenMove.landingSpot.row)
+        moveExecuted = true
+      }
+    } else if (chosenMove.action === 'build' && chosenMove.target && chosenMove.buildType) {
+      selectedPiece = chosenMove.piece
+      builderPlacementMode = chosenMove.buildType
+      placeBuilderItem(chosenMove.target.col, chosenMove.target.row)
+      moveExecuted = true
+    }
+  } catch (e) {
+    console.error('Bot move error:', e)
+  }
+
+  // If move failed, skip turn
+  if (!moveExecuted) {
+    console.log('Bot: move failed, skipping turn')
+    botSkipTurn()
+  } else {
+    // Learn from successful move
+    learnFromMove(chosenMove.piece.type, chosenMove.action, true)
+    saveBotLearning()
+  }
+}
+
+// Bot skips turn when no valid moves
+function botSkipTurn() {
+  if (currentTurn === 'green') greenTurnCount++
+  switchTurn()
+  render()
 }
 
 // Get pieces that are threatened by enemy
@@ -4054,6 +4174,10 @@ function switchTurn() {
     gameState = 'gameOver'
     stopTimer()
     playSound('win')
+    // Update bot learning if in bot mode
+    if (botMode) {
+      updateBotLearning(winner === 'green')
+    }
   }
 
   // Trigger bot move if it's green's turn and bot mode is enabled
@@ -4072,6 +4196,10 @@ function checkBuilderCaptured(capturedPiece: Piece, capturingTeam: Team) {
     gameState = 'gameOver'
     stopTimer()
     playSound('win')
+    // Update bot learning if in bot mode
+    if (botMode) {
+      updateBotLearning(winner === 'green')
+    }
   }
 }
 
@@ -9595,5 +9723,8 @@ function render() {
     })
   }
 }
+
+// Load bot learning data on startup
+loadBotLearning()
 
 render()
