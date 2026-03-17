@@ -6109,60 +6109,111 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
   const target = selectedHackTarget
   const hackerTeam = hacker.team
 
-  // Determine forward/backward direction for the target piece
-  const targetForward = target.team === 'yellow' ? 1 : -1
+  // Submarine moves left/right instead of forward/backward
+  if (target.type === 'sub') {
+    if (action === 'forward') {
+      // For sub, "forward" means right
+      const colIndex = columns.indexOf(target.col)
+      const newColIndex = colIndex + 1
+      if (newColIndex < 11) {
+        const newCol = columns[newColIndex]
+        const pieceAtNew = getPieceAt(newCol, 6)
+        if (!pieceAtNew) {
+          target.col = newCol
+          target.frozenTurns = 1
+          message = `Hacked ${target.type} right! (frozen 1 turn)`
+        } else {
+          message = t('cannotHackOccupied')
+          render()
+          return
+        }
+      } else {
+        message = t('cannotHackEdge')
+        render()
+        return
+      }
+    } else if (action === 'backward') {
+      // For sub, "backward" means left
+      const colIndex = columns.indexOf(target.col)
+      const newColIndex = colIndex - 1
+      if (newColIndex >= 0) {
+        const newCol = columns[newColIndex]
+        const pieceAtNew = getPieceAt(newCol, 6)
+        if (!pieceAtNew) {
+          target.col = newCol
+          target.frozenTurns = 1
+          message = `Hacked ${target.type} left! (frozen 1 turn)`
+        } else {
+          message = t('cannotHackOccupied')
+          render()
+          return
+        }
+      } else {
+        message = t('cannotHackEdge')
+        render()
+        return
+      }
+    } else if (action === 'freeze') {
+      target.frozenTurns = 5
+      message = `Froze ${target.type} for 5 turns!`
+    }
+  } else {
+    // Normal pieces move forward/backward
+    // Determine forward/backward direction for the target piece
+    const targetForward = target.team === 'yellow' ? 1 : -1
 
-  if (action === 'forward') {
-    const newRow = target.row + targetForward
-    if (newRow >= 1 && newRow <= 11) {
-      const pieceAtNew = getPieceAt(target.col, newRow)
-      if (!pieceAtNew) {
-        // Check water
-        if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
-          message = t('cannotHackWater')
+    if (action === 'forward') {
+      const newRow = target.row + targetForward
+      if (newRow >= 1 && newRow <= 11) {
+        const pieceAtNew = getPieceAt(target.col, newRow)
+        if (!pieceAtNew) {
+          // Check water
+          if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
+            message = t('cannotHackWater')
+            render()
+            return
+          }
+          target.row = newRow
+          target.frozenTurns = 1  // Freeze for 1 turn when hacked
+          message = `Hacked ${target.type} forward! (frozen 1 turn)`
+        } else {
+          message = t('cannotHackOccupied')
           render()
           return
         }
-        target.row = newRow
-        target.frozenTurns = 1  // Freeze for 1 turn when hacked
-        message = `Hacked ${target.type} forward! (frozen 1 turn)`
       } else {
-        message = t('cannotHackOccupied')
+        message = t('cannotHackEdge')
         render()
         return
       }
-    } else {
-      message = t('cannotHackEdge')
-      render()
-      return
-    }
-  } else if (action === 'backward') {
-    const newRow = target.row - targetForward
-    if (newRow >= 1 && newRow <= 11) {
-      const pieceAtNew = getPieceAt(target.col, newRow)
-      if (!pieceAtNew) {
-        // Check water
-        if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
-          message = t('cannotHackWater')
+    } else if (action === 'backward') {
+      const newRow = target.row - targetForward
+      if (newRow >= 1 && newRow <= 11) {
+        const pieceAtNew = getPieceAt(target.col, newRow)
+        if (!pieceAtNew) {
+          // Check water
+          if (newRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier') {
+            message = t('cannotHackWater')
+            render()
+            return
+          }
+          target.row = newRow
+          target.frozenTurns = 1  // Freeze for 1 turn when hacked
+          message = `Hacked ${target.type} backward! (frozen 1 turn)`
+        } else {
+          message = t('cannotHackOccupied')
           render()
           return
         }
-        target.row = newRow
-        target.frozenTurns = 1  // Freeze for 1 turn when hacked
-        message = `Hacked ${target.type} backward! (frozen 1 turn)`
       } else {
-        message = t('cannotHackOccupied')
+        message = t('cannotHackEdge')
         render()
         return
       }
-    } else {
-      message = t('cannotHackEdge')
-      render()
-      return
+    } else if (action === 'freeze') {
+      target.frozenTurns = 5
+      message = `Froze ${target.type} for 5 turns!`
     }
-  } else if (action === 'freeze') {
-    target.frozenTurns = 5
-    message = `Froze ${target.type} for 5 turns!`
   }
 
   // Play hack sound
@@ -8844,15 +8895,16 @@ function render() {
     </div>
   ` : ''
 
-  // Hack action buttons
+  // Hack action buttons - submarine uses left/right instead of forward/backward
+  const isSubmarineHack = selectedHackTarget?.type === 'sub'
   const hackActionsHtml = showHackActions && selectedHackTarget ? `
     <div class="bg-purple-900 px-2 sm:px-4 py-2 rounded-lg flex flex-wrap gap-1 sm:gap-2 items-center">
       <span class="text-purple-200 text-xs sm:text-sm">Hack ${selectedHackTarget.type}:</span>
       <button id="hack-forward" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
-        ↑ Forward
+        ${isSubmarineHack ? '→ Right' : '↑ Forward'}
       </button>
       <button id="hack-backward" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
-        ↓ Backward
+        ${isSubmarineHack ? '← Left' : '↓ Backward'}
       </button>
       <button id="hack-freeze" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2 px-3 sm:px-4 rounded text-xs sm:text-sm transition-colors touch-manipulation">
         ❄ Freeze 5
