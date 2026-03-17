@@ -304,6 +304,8 @@ function ensureAudioReady() {
 
 // Music generation based on style
 function startMusic() {
+  // Ensure audio context is ready
+  ensureAudioReady()
   if (!audioContext || musicInterval) return
 
   musicGainNode = audioContext.createGain()
@@ -2024,19 +2026,25 @@ type SoundType = 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 
 // Master gain node for SFX
 let sfxGainNode: GainNode | null = null
 
-function getSfxGain(): GainNode {
-  if (!sfxGainNode && audioContext) {
+function getSfxGain(): GainNode | null {
+  if (!audioContext) return null
+  if (!sfxGainNode) {
     sfxGainNode = audioContext.createGain()
     sfxGainNode.connect(audioContext.destination)
   }
-  sfxGainNode!.gain.value = sfxVolume * masterVolume
-  return sfxGainNode!
+  sfxGainNode.gain.value = sfxVolume * masterVolume
+  return sfxGainNode
 }
 
 function playSound(type: SoundType) {
-  if (!soundEnabled || !audioContext) return
+  if (!soundEnabled) return
+
+  // Ensure audio context is ready
+  ensureAudioReady()
+  if (!audioContext) return
 
   const sfxOutput = getSfxGain()
+  if (!sfxOutput) return
   const now = audioContext.currentTime
 
   switch (type) {
