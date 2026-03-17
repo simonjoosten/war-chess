@@ -3433,7 +3433,7 @@ const ARTILLERY_COOLDOWN = 10  // Turns between artillery builds
 const BUILDER_RANGE = 5  // Range for placing barricades/artillery
 const MAX_BARRICADES_TOTAL = 5  // Max barricades a builder can ever build
 const MAX_BARRICADES_ON_BOARD = 3  // Max barricades on board per team
-const MAX_ARTILLERY_TOTAL = 2  // Max artillery a builder can ever build
+const MAX_ARTILLERY_TOTAL = 5  // Max artillery a builder can ever build
 const MAX_ARTILLERY_ON_BOARD = 1  // Max artillery on board per team
 const ARTILLERY_TARGET_RANGE = 4  // Artillery target must be within this range
 const SPIKE_READY_TURN = 10  // Builder can build spikes after this many team turns
@@ -3948,7 +3948,11 @@ function fireArtillery(artillery: Piece) {
 
   // After explosion animation, complete the action
   setTimeout(() => {
-    if (target.piece && destructibleTypes.includes(target.piece.type)) {
+    // 1 in 3 chance to hit (33%)
+    const hitChance = Math.random()
+    const didHit = hitChance < 0.33
+
+    if (didHit && target.piece && destructibleTypes.includes(target.piece.type)) {
       // Destroy the piece
       const targetIndex = pieces.indexOf(target.piece)
       if (targetIndex !== -1) {
@@ -6052,6 +6056,10 @@ function applyRocketDamage(centerCol: string, centerRow: number, launchingTeam: 
   let totalPoints = 0
 
   for (const piece of piecesHit) {
+    // Skip friendly pieces - rockets don't damage own team
+    if (piece.team === launchingTeam) {
+      continue
+    }
     // Protected pieces: builder, fighter, hacker, rocket cannot be destroyed by rockets
     if (piece.type === 'builder' || piece.type === 'fighter' || piece.type === 'hacker' || piece.type === 'rocket') {
       continue  // Skip these pieces - they are immune to rocket damage
