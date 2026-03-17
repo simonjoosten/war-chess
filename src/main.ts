@@ -3733,11 +3733,24 @@ function makeBotMove() {
           for (const target of soldierTargets) {
             const targetPiece = getPieceAt(target.col, target.row)
             if (targetPiece && targetPiece.team === 'yellow') {
+              let shootScore = evaluateCapture(targetPiece) * 1.8
+
+              // Extra bonus if this target is threatening us
+              if (canAttack(targetPiece, piece.col, piece.row)) {
+                shootScore += evaluateCapture(piece) * 0.5 // Kill the threat!
+              }
+
+              // Bonus if we're safe after shooting (shooter doesn't move)
+              const pieceIsThreatened = threatenedPieces.some(t => t.piece === piece)
+              if (!pieceIsThreatened) {
+                shootScore += 5 // Safe shooting bonus
+              }
+
               possibleMoves.push({
                 piece,
                 action: 'shoot',
                 target,
-                score: evaluateCapture(targetPiece) * 1.8 // Soldier shooting is very valuable
+                score: shootScore
               })
             }
           }
@@ -3753,11 +3766,24 @@ function makeBotMove() {
         for (const target of tankTargets) {
           const targetPiece = getPieceAt(target.col, target.row)
           if (targetPiece && targetPiece.team === 'yellow') {
+            let shootScore = evaluateCapture(targetPiece) * 1.5
+
+            // Extra bonus if this target is threatening us
+            if (canAttack(targetPiece, piece.col, piece.row)) {
+              shootScore += evaluateCapture(piece) * 0.5
+            }
+
+            // Bonus if we're safe
+            const pieceIsThreatened = threatenedPieces.some(t => t.piece === piece)
+            if (!pieceIsThreatened) {
+              shootScore += 5
+            }
+
             possibleMoves.push({
               piece,
               action: 'shoot',
               target,
-              score: evaluateCapture(targetPiece) * 1.5 // Shooting is safer than moving
+              score: shootScore
             })
           }
         }
@@ -3777,11 +3803,24 @@ function makeBotMove() {
         for (const target of mgTargets) {
           const targetPiece = getPieceAt(target.col, target.row)
           if (targetPiece && targetPiece.team === 'yellow') {
+            let shootScore = evaluateCapture(targetPiece) * 1.5
+
+            // Extra bonus if target is threatening us
+            if (canAttack(targetPiece, piece.col, piece.row)) {
+              shootScore += evaluateCapture(piece) * 0.5
+            }
+
+            // Bonus if we're safe
+            const pieceIsThreatened = threatenedPieces.some(t => t.piece === piece)
+            if (!pieceIsThreatened) {
+              shootScore += 5
+            }
+
             possibleMoves.push({
               piece,
               action: 'shoot',
               target,
-              score: evaluateCapture(targetPiece) * 1.5
+              score: shootScore
             })
           }
         }
@@ -3903,16 +3942,31 @@ function makeBotMove() {
         // Builder building
         if (canBuilderBuildBarricade(piece)) {
           // Build barricade to protect pieces
-          const builderMoves = getValidMovesForBuilder(piece)
-          for (const spot of builderMoves) {
-            // Prefer building in front of valuable pieces
+          const barricadeSpots = getValidPlacementSpots(piece)
+          for (const spot of barricadeSpots) {
+            // Prefer building in front of valuable pieces or to block enemy attacks
             let buildScore = 5
+
             // Check if this protects our pieces
             for (const greenPiece of greenPieces) {
               if (greenPiece.col === spot.col && Math.abs(greenPiece.row - spot.row) <= 2) {
                 buildScore += evaluateCapture(greenPiece) * 0.3
               }
             }
+
+            // Check if this blocks enemy shooting lanes
+            for (const yellowPiece of yellowPieces) {
+              if (yellowPiece.type === 'machinegun' || yellowPiece.type === 'soldier') {
+                // If spot is between enemy and our pieces, it's valuable
+                if (spot.col === yellowPiece.col) {
+                  const ourPiecesInLane = greenPieces.filter(p => p.col === spot.col)
+                  if (ourPiecesInLane.length > 0) {
+                    buildScore += 8
+                  }
+                }
+              }
+            }
+
             possibleMoves.push({
               piece,
               action: 'build',
@@ -3923,14 +3977,18 @@ function makeBotMove() {
           }
         }
         if (canBuilderBuildArtillery(piece)) {
-          const builderMoves = getValidMovesForBuilder(piece)
-          for (const spot of builderMoves) {
+          const artillerySpots = getValidPlacementSpots(piece)
+          for (const spot of artillerySpots) {
+            // Prefer artillery on our side of the board (closer to our base)
+            let artilleryScore = 15
+            if (spot.row >= 8) artilleryScore += 5 // Behind our lines is safer
+
             possibleMoves.push({
               piece,
               action: 'build',
               target: spot,
               buildType: 'artillery',
-              score: 15 // Artillery is valuable
+              score: artilleryScore
             })
           }
         }
@@ -3947,6 +4005,12 @@ function makeBotMove() {
         score += evaluateCapture(targetPiece) * botLearning.aggressionLevel
         // Track that we're considering a capture
         learnFromMove(piece.type, 'capture', true)
+
+        // Extra bonus if we're capturing without getting into danger
+        const wouldBeDangerous = wouldBeThreatenedAt(piece, move.col, move.row)
+        if (!wouldBeDangerous) {
+          score += evaluateCapture(targetPiece) * 0.5 // Safe capture bonus
+        }
       }
 
       // Check if this piece is threatened and can escape (with learned threat avoidance)
@@ -3954,19 +4018,51 @@ function makeBotMove() {
       if (isThreatened) {
         const stillThreatened = wouldBeThreatenedAt(piece, move.col, move.row)
         if (!stillThreatened) {
-          score += evaluateCapture(piece) * 0.5 * botLearning.threatAvoidance // Bonus for escaping
+          score += evaluateCapture(piece) * 0.8 * botLearning.threatAvoidance // Big bonus for escaping
+        } else {
+          score -= 5 // Small penalty if still threatened after moving
         }
       }
 
       // Penalty for moving into danger (with learned threat avoidance)
       const movingIntoDanger = wouldBeThreatenedAt(piece, move.col, move.row)
       if (movingIntoDanger && !targetPiece) {
-        score -= evaluateCapture(piece) * 0.3 * botLearning.threatAvoidance
+        score -= evaluateCapture(piece) * 0.6 * botLearning.threatAvoidance // Bigger penalty
       }
 
       // Prefer advancing towards enemy side (with learned aggression)
       if (piece.type === 'soldier' || piece.type === 'tank') {
-        score += (11 - move.row) * 0.5 * botLearning.aggressionLevel
+        // Only advance if not moving into danger
+        if (!movingIntoDanger) {
+          score += (11 - move.row) * 0.5 * botLearning.aggressionLevel
+        }
+      }
+
+      // Check if moving here allows us to attack next turn (strategic positioning)
+      // Create temp position to check what we could attack from there
+      const originalCol = piece.col
+      const originalRow = piece.row
+      piece.col = move.col
+      piece.row = move.row
+
+      let attackOpportunities = 0
+      if (piece.type === 'soldier') {
+        const futureTargets = getShootTargetsForSoldier(piece)
+        attackOpportunities = futureTargets.length
+      } else if (piece.type === 'tank') {
+        const futureTargets = getShootTargetsForTank(piece)
+        attackOpportunities = futureTargets.length
+      } else if (piece.type === 'machinegun') {
+        const futureTargets = getShootTargetsForMachineGun(piece)
+        attackOpportunities = futureTargets.length
+      }
+
+      piece.col = originalCol
+      piece.row = originalRow
+
+      // Bonus for strategic positioning (can attack from new position)
+      if (attackOpportunities > 0 && !movingIntoDanger) {
+        score += attackOpportunities * 3
       }
 
       // Apply learned weight for this piece type and action
