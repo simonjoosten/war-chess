@@ -23,7 +23,7 @@ let musicEnabled = false
 let masterVolume = 0.8 // 0-1
 let musicVolume = 0.5 // 0-1
 let sfxVolume = 0.8 // 0-1
-type MusicStyle = 'epic' | 'ambient' | 'tension' | 'electronic'
+type MusicStyle = 'epic' | 'ambient' | 'tension' | 'electronic' | 'orchestral' | 'retro'
 let musicStyle: MusicStyle = 'epic'
 let musicGainNode: GainNode | null = null
 let musicInterval: number | null = null
@@ -323,6 +323,12 @@ function startMusic() {
       break
     case 'electronic':
       startElectronicMusic()
+      break
+    case 'orchestral':
+      startOrchestralMusic()
+      break
+    case 'retro':
+      startRetroMusic()
       break
     case 'epic':
     default:
@@ -1053,6 +1059,521 @@ function startElectronicMusic() {
     // Riser before drops
     if (measureCount % 8 === 6) {
       playRiser()
+    }
+  }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ORCHESTRAL MUSIC - Classical melodic orchestra
+// ═══════════════════════════════════════════════════════════════════════════
+function startOrchestralMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // G major scale - bright and heroic
+  const scale = {
+    G2: 98.00, A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, Fs3: 185.00, G3: 196.00,
+    A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, Fs4: 369.99, G4: 392.00, A4: 440.00,
+    B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99
+  }
+
+  // Violin melody
+  function playViolinMelody() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const melodies = [
+      [scale.G4, scale.A4, scale.B4, scale.D5, scale.B4, scale.A4, scale.G4, scale.Fs4],
+      [scale.E4, scale.Fs4, scale.G4, scale.A4, scale.G4, scale.Fs4, scale.E4, scale.D4],
+      [scale.D4, scale.E4, scale.Fs4, scale.G4, scale.A4, scale.B4, scale.A4, scale.G4],
+      [scale.B4, scale.A4, scale.G4, scale.Fs4, scale.E4, scale.D4, scale.E4, scale.G4],
+    ]
+    const melody = melodies[measureCount % melodies.length]
+
+    melody.forEach((freq, i) => {
+      // Main violin
+      const vln1 = audioContext!.createOscillator()
+      const vln2 = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      vln1.type = 'sawtooth'
+      vln1.frequency.value = freq
+      vln2.type = 'sawtooth'
+      vln2.frequency.value = freq * 1.002 // Slight detune for richness
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 3000
+      filter.Q.value = 1
+
+      // Expressive envelope
+      const startTime = now + i * 0.25
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(0.05, startTime + 0.03)
+      gain.gain.setValueAtTime(0.04, startTime + 0.15)
+      gain.gain.linearRampToValueAtTime(0.001, startTime + 0.23)
+
+      vln1.connect(filter)
+      vln2.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+      vln1.start(startTime)
+      vln2.start(startTime)
+      vln1.stop(startTime + 0.25)
+      vln2.stop(startTime + 0.25)
+    })
+  }
+
+  // Cello bass line
+  function playCello() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const bassNotes = [scale.G2, scale.D3, scale.E3, scale.C3]
+    const note = bassNotes[measureCount % bassNotes.length]
+
+    const cello = audioContext.createOscillator()
+    const cello2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    cello.type = 'sawtooth'
+    cello.frequency.value = note
+    cello2.type = 'triangle'
+    cello2.frequency.value = note
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 800
+    filter.Q.value = 0.5
+
+    gain.gain.setValueAtTime(0.001, now)
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.1)
+    gain.gain.setValueAtTime(0.06, now + 1.5)
+    gain.gain.linearRampToValueAtTime(0.001, now + 2)
+
+    cello.connect(filter)
+    cello2.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode)
+    cello.start(now)
+    cello2.start(now)
+    cello.stop(now + 2.1)
+    cello2.stop(now + 2.1)
+  }
+
+  // French horn fanfare
+  function playHornFanfare() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const fanfare = [scale.G3, scale.B3, scale.D4, scale.G4]
+
+    fanfare.forEach((freq, i) => {
+      const horn = audioContext!.createOscillator()
+      const horn2 = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      horn.type = 'sine'
+      horn.frequency.value = freq
+      horn2.type = 'sine'
+      horn2.frequency.value = freq * 2
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 1200
+
+      const startTime = now + i * 0.3
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(0.06, startTime + 0.05)
+      gain.gain.setValueAtTime(0.05, startTime + 0.4)
+      gain.gain.linearRampToValueAtTime(0.001, startTime + 0.5)
+
+      horn.connect(filter)
+      horn2.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+      horn.start(startTime)
+      horn2.start(startTime)
+      horn.stop(startTime + 0.55)
+      horn2.stop(startTime + 0.55)
+    })
+  }
+
+  // Timpani roll
+  function playTimpani() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    for (let i = 0; i < 8; i++) {
+      const timp = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+
+      timp.type = 'sine'
+      timp.frequency.setValueAtTime(80, now + i * 0.08)
+      timp.frequency.exponentialRampToValueAtTime(60, now + i * 0.08 + 0.1)
+
+      gain.gain.setValueAtTime(0.15 + i * 0.02, now + i * 0.08)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.12)
+
+      timp.connect(gain)
+      gain.connect(musicGainNode)
+      timp.start(now + i * 0.08)
+      timp.stop(now + i * 0.08 + 0.15)
+    }
+  }
+
+  // Harp glissando
+  function playHarpGliss() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const notes = [scale.G3, scale.A3, scale.B3, scale.C4, scale.D4, scale.E4, scale.Fs4, scale.G4, scale.A4, scale.B4]
+
+    notes.forEach((freq, i) => {
+      const harp = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      harp.type = 'sine'
+      harp.frequency.value = freq
+
+      const startTime = now + i * 0.08
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(0.04, startTime + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6)
+
+      harp.connect(gain)
+      gain.connect(musicGainNode!)
+      harp.start(startTime)
+      harp.stop(startTime + 0.7)
+    })
+  }
+
+  // String chord sustain
+  function playStringChord() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const chords = [
+      [scale.G3, scale.B3, scale.D4, scale.G4],
+      [scale.E3, scale.G3, scale.B3, scale.E4],
+      [scale.C3, scale.E3, scale.G3, scale.C4],
+      [scale.D3, scale.Fs3, scale.A3, scale.D4],
+    ]
+    const chord = chords[measureCount % chords.length]
+
+    chord.forEach((freq, i) => {
+      const str1 = audioContext!.createOscillator()
+      const str2 = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      str1.type = 'sawtooth'
+      str1.frequency.value = freq
+      str2.type = 'sawtooth'
+      str2.frequency.value = freq * 1.003
+
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(500, now)
+      filter.frequency.linearRampToValueAtTime(1200, now + 1)
+      filter.frequency.linearRampToValueAtTime(600, now + 3)
+
+      gain.gain.setValueAtTime(0.001, now + i * 0.1)
+      gain.gain.linearRampToValueAtTime(0.03, now + i * 0.1 + 0.5)
+      gain.gain.setValueAtTime(0.025, now + 3)
+      gain.gain.linearRampToValueAtTime(0.001, now + 4)
+
+      str1.connect(filter)
+      str2.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+      str1.start(now + i * 0.1)
+      str2.start(now + i * 0.1)
+      str1.stop(now + 4.2)
+      str2.stop(now + 4.2)
+    })
+  }
+
+  // Start with strings and cello
+  playStringChord()
+  playCello()
+
+  const measureDuration = 2000
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+
+    // Violin melody every measure
+    playViolinMelody()
+
+    // Cello every measure
+    playCello()
+
+    // String chords every 2 measures
+    if (measureCount % 2 === 0) {
+      playStringChord()
+    }
+
+    // Horn fanfare every 4 measures
+    if (measureCount % 4 === 3) {
+      playHornFanfare()
+    }
+
+    // Timpani on climax
+    if (measureCount % 8 === 7) {
+      playTimpani()
+    }
+
+    // Harp glissando occasionally
+    if (measureCount % 6 === 5) {
+      playHarpGliss()
+    }
+  }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RETRO 8-BIT MUSIC - Chiptune style
+// ═══════════════════════════════════════════════════════════════════════════
+function startRetroMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // C major pentatonic for classic game feel
+  const scale = {
+    C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00, A3: 220.00,
+    C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00,
+    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00
+  }
+
+  // Square wave lead melody (classic chiptune)
+  function playChipLead() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const melodies = [
+      [scale.C4, scale.E4, scale.G4, scale.E4, scale.C4, scale.D4, scale.E4, scale.G4],
+      [scale.A4, scale.G4, scale.E4, scale.D4, scale.C4, scale.E4, scale.G4, scale.A4],
+      [scale.G4, scale.A4, scale.C5, scale.A4, scale.G4, scale.E4, scale.D4, scale.E4],
+      [scale.E4, scale.G4, scale.A4, scale.G4, scale.E4, scale.D4, scale.C4, scale.D4],
+    ]
+    const melody = melodies[measureCount % melodies.length]
+
+    melody.forEach((freq, i) => {
+      const lead = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      lead.type = 'square'
+      lead.frequency.value = freq
+
+      // Sharp chip attack
+      const startTime = now + i * 0.125
+      gain.gain.setValueAtTime(0.08, startTime)
+      gain.gain.setValueAtTime(0.06, startTime + 0.02)
+      gain.gain.setValueAtTime(0.001, startTime + 0.12)
+
+      lead.connect(gain)
+      gain.connect(musicGainNode!)
+      lead.start(startTime)
+      lead.stop(startTime + 0.13)
+    })
+  }
+
+  // Triangle wave bass (NES style)
+  function playChipBass() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const bassPattern = [scale.C3, scale.C3, scale.G3, scale.G3, scale.A3, scale.A3, scale.G3, 0]
+
+    bassPattern.forEach((freq, i) => {
+      if (freq === 0) return
+
+      const bass = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      bass.type = 'triangle'
+      bass.frequency.value = freq
+
+      const startTime = now + i * 0.125
+      gain.gain.setValueAtTime(0.12, startTime)
+      gain.gain.setValueAtTime(0.001, startTime + 0.12)
+
+      bass.connect(gain)
+      gain.connect(musicGainNode!)
+      bass.start(startTime)
+      bass.stop(startTime + 0.13)
+    })
+  }
+
+  // Noise drum pattern
+  function playChipDrums() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Kick on 1, 3, 5, 7 - snare on 2, 4, 6, 8
+    for (let i = 0; i < 8; i++) {
+      const isKick = i % 2 === 0
+      const startTime = now + i * 0.125
+
+      if (isKick) {
+        // Chip kick - low square pulse
+        const kick = audioContext.createOscillator()
+        const kickGain = audioContext.createGain()
+        kick.type = 'square'
+        kick.frequency.setValueAtTime(150, startTime)
+        kick.frequency.exponentialRampToValueAtTime(50, startTime + 0.05)
+        kickGain.gain.setValueAtTime(0.15, startTime)
+        kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08)
+        kick.connect(kickGain)
+        kickGain.connect(musicGainNode)
+        kick.start(startTime)
+        kick.stop(startTime + 0.1)
+      } else {
+        // Chip snare - noise burst
+        const snare = audioContext.createBufferSource()
+        const snareGain = audioContext.createGain()
+        const snareFilter = audioContext.createBiquadFilter()
+        snare.buffer = createNoiseBuffer(0.06)
+        snareFilter.type = 'highpass'
+        snareFilter.frequency.value = 4000
+        snareGain.gain.setValueAtTime(0.1, startTime)
+        snareGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.05)
+        snare.connect(snareFilter)
+        snareFilter.connect(snareGain)
+        snareGain.connect(musicGainNode)
+        snare.start(startTime)
+        snare.stop(startTime + 0.07)
+      }
+    }
+  }
+
+  // Arpeggio effect (common in chip music)
+  function playChipArp() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const arps = [
+      [scale.C4, scale.E4, scale.G4],
+      [scale.A3, scale.C4, scale.E4],
+      [scale.G3, scale.C4, scale.E4],
+      [scale.G3, scale.D4, scale.G4],
+    ]
+    const arpNotes = arps[measureCount % arps.length]
+
+    // Fast arpeggio cycle
+    for (let cycle = 0; cycle < 8; cycle++) {
+      arpNotes.forEach((freq, i) => {
+        const arp = audioContext!.createOscillator()
+        const gain = audioContext!.createGain()
+
+        arp.type = 'square'
+        arp.frequency.value = freq
+
+        const startTime = now + cycle * 0.125 + i * 0.04
+        gain.gain.setValueAtTime(0.04, startTime)
+        gain.gain.setValueAtTime(0.001, startTime + 0.035)
+
+        arp.connect(gain)
+        gain.connect(musicGainNode!)
+        arp.start(startTime)
+        arp.stop(startTime + 0.04)
+      })
+    }
+  }
+
+  // Power-up sound effect style
+  function playPowerUp() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const notes = [scale.C4, scale.E4, scale.G4, scale.C5, scale.E5, scale.G5]
+
+    notes.forEach((freq, i) => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      osc.type = 'square'
+      osc.frequency.value = freq
+
+      const startTime = now + i * 0.08
+      gain.gain.setValueAtTime(0.06, startTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15)
+
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+      osc.start(startTime)
+      osc.stop(startTime + 0.18)
+    })
+  }
+
+  // Pulse wave harmony (duty cycle variation feel)
+  function playPulseHarmony() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    const chords = [
+      [scale.C4, scale.G4],
+      [scale.A3, scale.E4],
+      [scale.G3, scale.D4],
+      [scale.G3, scale.E4],
+    ]
+    const chord = chords[measureCount % chords.length]
+
+    chord.forEach((freq) => {
+      const pulse = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      pulse.type = 'square'
+      pulse.frequency.value = freq
+
+      gain.gain.setValueAtTime(0.001, now)
+      gain.gain.linearRampToValueAtTime(0.04, now + 0.1)
+      gain.gain.setValueAtTime(0.03, now + 0.8)
+      gain.gain.linearRampToValueAtTime(0.001, now + 1)
+
+      pulse.connect(gain)
+      gain.connect(musicGainNode!)
+      pulse.start(now)
+      pulse.stop(now + 1.1)
+    })
+  }
+
+  // Start the groove
+  playChipDrums()
+  playChipBass()
+
+  const measureDuration = 1000 // Fast like classic games
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+
+    // Drums always
+    playChipDrums()
+
+    // Bass always
+    playChipBass()
+
+    // Lead melody every measure
+    playChipLead()
+
+    // Arpeggio every 2 measures
+    if (measureCount % 2 === 0) {
+      playChipArp()
+    }
+
+    // Harmony every 2 measures (offset)
+    if (measureCount % 2 === 1) {
+      playPulseHarmony()
+    }
+
+    // Power-up sound every 8 measures
+    if (measureCount % 8 === 7) {
+      playPowerUp()
     }
   }, measureDuration)
 }
@@ -2140,6 +2661,8 @@ const translations: Record<Language, Record<string, string>> = {
     styleAmbient: 'Calm',
     styleTension: 'Suspense',
     styleElectronic: 'Electronic',
+    styleOrchestral: 'Orchestral',
+    styleRetro: '8-Bit Retro',
     on: 'On',
     off: 'Off',
     // Visual settings
@@ -2267,6 +2790,8 @@ const translations: Record<Language, Record<string, string>> = {
     styleAmbient: 'Rustig',
     styleTension: 'Spanning',
     styleElectronic: 'Elektronisch',
+    styleOrchestral: 'Orkest',
+    styleRetro: '8-Bit Retro',
     on: 'Aan',
     off: 'Uit',
     visualSettingsTitle: 'Visueel',
@@ -2380,6 +2905,8 @@ const translations: Record<Language, Record<string, string>> = {
     styleAmbient: 'Ruhig',
     styleTension: 'Spannung',
     styleElectronic: 'Elektronisch',
+    styleOrchestral: 'Orchester',
+    styleRetro: '8-Bit Retro',
     on: 'An',
     off: 'Aus',
     visualSettingsTitle: 'Visuell',
@@ -2493,6 +3020,8 @@ const translations: Record<Language, Record<string, string>> = {
     styleAmbient: 'Calme',
     styleTension: 'Suspense',
     styleElectronic: 'Électronique',
+    styleOrchestral: 'Orchestral',
+    styleRetro: '8-Bit Rétro',
     on: 'Activé',
     off: 'Désactivé',
     visualSettingsTitle: 'Visuel',
@@ -2606,6 +3135,8 @@ const translations: Record<Language, Record<string, string>> = {
     styleAmbient: 'Tranquilo',
     styleTension: 'Suspenso',
     styleElectronic: 'Electrónico',
+    styleOrchestral: 'Orquestal',
+    styleRetro: '8-Bit Retro',
     on: 'Encendido',
     off: 'Apagado',
     visualSettingsTitle: 'Visual',
@@ -7881,6 +8412,8 @@ function render() {
                 <button data-style="ambient" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'ambient' ? 'bg-blue-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleAmbient')}</button>
                 <button data-style="tension" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'tension' ? 'bg-orange-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleTension')}</button>
                 <button data-style="electronic" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'electronic' ? 'bg-cyan-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleElectronic')}</button>
+                <button data-style="orchestral" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'orchestral' ? 'bg-purple-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleOrchestral')}</button>
+                <button data-style="retro" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'retro' ? 'bg-green-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleRetro')}</button>
               </div>
             </div>
 
