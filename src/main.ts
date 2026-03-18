@@ -4,6 +4,7 @@ import './style.css'
 type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
 let currentLanguage: Language = 'en'
 let showSettings = false
+let showManual = false
 
 // Timer settings (chess clock style)
 let timerEnabled = false
@@ -2870,6 +2871,17 @@ const translations: Record<Language, Record<string, string>> = {
     greenTeam: 'Green',
     yellowTurns: 'Yellow turns',
     greenTurns: 'Green turns',
+    // Manual
+    manualButton: 'How to Play',
+    manualTitle: 'How to Play',
+    manualWinTitle: 'How to Win?',
+    manualWinText: 'There are two ways to win:\n• Have the most points after 80 moves each.\n• Capture the Engineer (Builder).',
+    manualClockTitle: 'How Does the Clock Work?',
+    manualClockText: 'The chess clock can be enabled in settings. While you think, your time runs down. When you make a move, the clock switches to your opponent. If your time runs out, 10 points are deducted from your score and the game ends. Available timers: 1, 3, 5, 10, 15, 30 minutes.',
+    manualPointsTitle: 'Points',
+    manualPointsText: 'You earn points by capturing opponent pieces. After 80 moves each, the player with the most points wins. Each piece has its own point value; for example, a soldier is worth 5 points.',
+    manualMovesTitle: 'Move History',
+    manualMovesText: 'All moves are recorded below the scoreboard. You can review your game to analyze your strategies and decisions.',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -2992,6 +3004,17 @@ const translations: Record<Language, Record<string, string>> = {
     greenTeam: 'Groen',
     yellowTurns: 'Gele beurten',
     greenTurns: 'Groene beurten',
+    // Handleiding
+    manualButton: 'Speluitleg',
+    manualTitle: 'Speluitleg',
+    manualWinTitle: 'Hoe win je?',
+    manualWinText: 'Er zijn twee manieren om te winnen:\n• De meeste punten hebben na 80 zetten per speler.\n• De Ingenieur (Bouwer) vangen.',
+    manualClockTitle: 'Hoe werkt de klok?',
+    manualClockText: 'De schaakklok kan worden ingeschakeld in de instellingen. Terwijl je nadenkt, loopt je tijd af. Als je een zet doet, schakelt de klok over naar je tegenstander. Als je tijd op is, worden 10 punten van je score afgetrokken en eindigt het spel. Beschikbare timers: 1, 3, 5, 10, 15, 30 minuten.',
+    manualPointsTitle: 'Punten',
+    manualPointsText: 'Je verdient punten door stukken van je tegenstander te slaan. Na 80 zetten per speler wint de speler met de meeste punten. Elk stuk heeft zijn eigen puntenwaarde; een soldaat is bijvoorbeeld 5 punten waard.',
+    manualMovesTitle: 'Zetgeschiedenis',
+    manualMovesText: 'Alle zetten worden opgeslagen onder het scorebord. Je kunt je spel terugkijken om je strategieën en beslissingen te analyseren.',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3114,6 +3137,17 @@ const translations: Record<Language, Record<string, string>> = {
     greenTeam: 'Grün',
     yellowTurns: 'Gelbe Züge',
     greenTurns: 'Grüne Züge',
+    // Anleitung
+    manualButton: 'Spielanleitung',
+    manualTitle: 'Spielanleitung',
+    manualWinTitle: 'Wie gewinnt man?',
+    manualWinText: 'Es gibt zwei Möglichkeiten zu gewinnen:\n• Nach je 80 Zügen die meisten Punkte haben.\n• Den Ingenieur (Bauer) erobern.',
+    manualClockTitle: 'Wie funktioniert die Uhr?',
+    manualClockText: 'Die Schachuhr kann in den Einstellungen aktiviert werden. Während du nachdenkst, läuft deine Zeit ab. Wenn du einen Zug machst, wechselt die Uhr zu deinem Gegner. Wenn deine Zeit abläuft, werden 10 Punkte von deiner Punktzahl abgezogen und das Spiel endet. Verfügbare Timer: 1, 3, 5, 10, 15, 30 Minuten.',
+    manualPointsTitle: 'Punkte',
+    manualPointsText: 'Du verdienst Punkte, indem du gegnerische Figuren schlägst. Nach je 80 Zügen gewinnt der Spieler mit den meisten Punkten. Jede Figur hat ihren eigenen Punktwert; ein Soldat ist zum Beispiel 5 Punkte wert.',
+    manualMovesTitle: 'Zughistorie',
+    manualMovesText: 'Alle Züge werden unter der Punktetafel aufgezeichnet. Du kannst dein Spiel überprüfen, um deine Strategien und Entscheidungen zu analysieren.',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -3236,6 +3270,17 @@ const translations: Record<Language, Record<string, string>> = {
     greenTeam: 'Vert',
     yellowTurns: 'Tours jaunes',
     greenTurns: 'Tours verts',
+    // Manuel
+    manualButton: 'Comment jouer',
+    manualTitle: 'Comment jouer',
+    manualWinTitle: 'Comment gagner?',
+    manualWinText: 'Il y a deux façons de gagner:\n• Avoir le plus de points après 80 coups chacun.\n• Capturer l\'Ingénieur (Constructeur).',
+    manualClockTitle: 'Comment fonctionne l\'horloge?',
+    manualClockText: 'L\'horloge d\'échecs peut être activée dans les paramètres. Pendant que vous réfléchissez, votre temps s\'écoule. Quand vous jouez un coup, l\'horloge passe à votre adversaire. Si votre temps est écoulé, 10 points sont déduits de votre score et la partie se termine. Minuteries disponibles: 1, 3, 5, 10, 15, 30 minutes.',
+    manualPointsTitle: 'Points',
+    manualPointsText: 'Vous gagnez des points en capturant les pièces adverses. Après 80 coups chacun, le joueur avec le plus de points gagne. Chaque pièce a sa propre valeur; par exemple, un soldat vaut 5 points.',
+    manualMovesTitle: 'Historique des coups',
+    manualMovesText: 'Tous les coups sont enregistrés sous le tableau des scores. Vous pouvez revoir votre partie pour analyser vos stratégies et décisions.',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -3358,6 +3403,17 @@ const translations: Record<Language, Record<string, string>> = {
     greenTeam: 'Verde',
     yellowTurns: 'Turnos amarillos',
     greenTurns: 'Turnos verdes',
+    // Manual
+    manualButton: 'Cómo jugar',
+    manualTitle: 'Cómo jugar',
+    manualWinTitle: '¿Cómo ganar?',
+    manualWinText: 'Hay dos formas de ganar:\n• Tener más puntos después de 80 movimientos cada uno.\n• Capturar al Ingeniero (Constructor).',
+    manualClockTitle: '¿Cómo funciona el reloj?',
+    manualClockText: 'El reloj de ajedrez se puede activar en configuración. Mientras piensas, tu tiempo corre. Cuando haces un movimiento, el reloj cambia a tu oponente. Si tu tiempo se agota, se deducen 10 puntos de tu puntuación y el juego termina. Temporizadores disponibles: 1, 3, 5, 10, 15, 30 minutos.',
+    manualPointsTitle: 'Puntos',
+    manualPointsText: 'Ganas puntos capturando piezas del oponente. Después de 80 movimientos cada uno, el jugador con más puntos gana. Cada pieza tiene su propio valor; por ejemplo, un soldado vale 5 puntos.',
+    manualMovesTitle: 'Historial de movimientos',
+    manualMovesText: 'Todos los movimientos se registran debajo del marcador. Puedes revisar tu partida para analizar tus estrategias y decisiones.',
   }
 }
 
@@ -9390,6 +9446,13 @@ function render() {
               </div>
             </div>
 
+            <!-- How to Play -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <button id="manual-btn" class="w-full py-3 px-4 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors">
+                📖 ${t('manualButton')}
+              </button>
+            </div>
+
           </div>
           <button id="back-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors touch-manipulation">
             ${t('backButton')}
@@ -9552,9 +9615,62 @@ function render() {
         render()
       })
 
+      // Manual button
+      document.getElementById('manual-btn')?.addEventListener('click', () => {
+        showManual = true
+        showSettings = false
+        render()
+      })
+
       // Back button
       document.getElementById('back-btn')?.addEventListener('click', () => {
         showSettings = false
+        render()
+      })
+      return
+    }
+
+    // Manual screen
+    if (showManual) {
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 sm:gap-6 overflow-y-auto">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">📖 ${t('manualTitle')}</h1>
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-6 max-w-[600px] w-full">
+
+            <!-- How to Win -->
+            <div class="flex flex-col gap-2">
+              <h2 class="text-xl font-bold text-yellow-400">🏆 ${t('manualWinTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualWinText')}</p>
+            </div>
+
+            <!-- Clock -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-blue-400">⏱️ ${t('manualClockTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualClockText')}</p>
+            </div>
+
+            <!-- Points -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-green-400">⭐ ${t('manualPointsTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualPointsText')}</p>
+            </div>
+
+            <!-- Moves -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-purple-400">📋 ${t('manualMovesTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualMovesText')}</p>
+            </div>
+
+          </div>
+          <button id="manual-back-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors touch-manipulation">
+            ${t('backButton')}
+          </button>
+        </div>
+      `
+
+      document.getElementById('manual-back-btn')?.addEventListener('click', () => {
+        showManual = false
+        showSettings = true
         render()
       })
       return
