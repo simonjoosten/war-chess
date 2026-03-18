@@ -3678,7 +3678,7 @@ function makeBotMove() {
   const forcedTrenchSoldier = checkForcedTrenchExit()
   if (forcedTrenchSoldier) {
     // Must move this soldier out of the trench
-    const forcedMoves = getValidMovesForSoldier(forcedTrenchSoldier)
+    const forcedMoves = getValidMovesForSoldier(forcedTrenchSoldier).filter(m => !isTrenchSquare(m.col, m.row))
     if (forcedMoves.length > 0) {
       // Pick a safe move if possible
       let bestMove = forcedMoves[0]
@@ -3705,6 +3705,26 @@ function makeBotMove() {
         selectedPiece = forcedTrenchSoldier
         const capturedPiece = getPieceAt(bestMove.col, bestMove.row)
         completMove(bestMove.col, bestMove.row, capturedPiece || null)
+      }, 300 * getSpeedMultiplier())
+      return
+    } else {
+      // Soldier is trapped - eliminate and continue turn
+      setTimeout(() => {
+        botThinking = false
+        message = t('soldierTrapped')
+        const index = pieces.indexOf(forcedTrenchSoldier)
+        pieces.splice(index, 1)
+        capturedPieces.push(forcedTrenchSoldier)
+        moveLog.push({
+          from: `${forcedTrenchSoldier.col}${forcedTrenchSoldier.row}`,
+          to: `${forcedTrenchSoldier.col}${forcedTrenchSoldier.row}`,
+          piece: forcedTrenchSoldier.type,
+          team: forcedTrenchSoldier.team,
+          captured: 'trapped'
+        })
+        greenTurnCount++
+        switchTurn()
+        render()
       }, 300 * getSpeedMultiplier())
       return
     }
@@ -3902,14 +3922,16 @@ function makeBotMove() {
             !(p.type === 'soldier' && p.inTunnel)
           )
           for (const target of hackableTargets) {
-            // Freeze is good for high-value targets
-            possibleMoves.push({
-              piece,
-              action: 'hack',
-              hackTarget: target,
-              hackAction: 'freeze',
-              score: evaluateCapture(target) * 0.8
-            })
+            // Freeze is good for high-value targets (but can't freeze soldiers in trenches)
+            if (!(target.type === 'soldier' && target.inTrench)) {
+              possibleMoves.push({
+                piece,
+                action: 'hack',
+                hackTarget: target,
+                hackAction: 'freeze',
+                score: evaluateCapture(target) * 0.8
+              })
+            }
             // Push towards water or edge
             if (target.type !== 'sub' && target.type !== 'ship' && target.type !== 'carrier') {
               // Try to push into water (row 6)
@@ -6287,6 +6309,7 @@ function movePiece(col: string, row: number) {
         const index = pieces.indexOf(pieceAtTarget)
         pieces.splice(index, 1)
         capturedPieces.push(pieceAtTarget)
+        checkBuilderCaptured(pieceAtTarget, selectedPiece.team)
         message = `Destroyed carrier! (+${pieceAtTarget.points} points)!`
       }
     } else {
@@ -6294,6 +6317,7 @@ function movePiece(col: string, row: number) {
       const index = pieces.indexOf(pieceAtTarget)
       pieces.splice(index, 1)
       capturedPieces.push(pieceAtTarget)
+      checkBuilderCaptured(pieceAtTarget, selectedPiece.team)
       message = `Captured enemy ${pieceAtTarget.type} (+${pieceAtTarget.points} points)!`
     }
   }
@@ -7016,6 +7040,12 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
         return
       }
     } else if (action === 'freeze') {
+      // Soldiers in trenches cannot be frozen
+      if (target.type === 'soldier' && target.inTrench) {
+        message = `Cannot freeze soldier in trench!`
+        render()
+        return
+      }
       target.frozenTurns = 5
       message = `Froze ${target.type} for 5 turns!`
     }
