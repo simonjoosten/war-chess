@@ -2875,13 +2875,29 @@ const translations: Record<Language, Record<string, string>> = {
     manualButton: 'How to Play',
     manualTitle: 'How to Play',
     manualWinTitle: 'How to Win?',
-    manualWinText: 'There are two ways to win:\n• Have the most points after 80 moves each.\n• Capture the Engineer (Builder).',
+    manualWinText: 'There are two ways to win:\n• Have the most points after 80 moves each.\n• Capture the Engineer.',
     manualClockTitle: 'How Does the Clock Work?',
     manualClockText: 'The chess clock can be enabled in settings. While you think, your time runs down. When you make a move, the clock switches to your opponent. If your time runs out, 10 points are deducted from your score and the game ends. Available timers: 1, 3, 5, 10, 15, 30 minutes.',
     manualPointsTitle: 'Points',
     manualPointsText: 'You earn points by capturing opponent pieces. After 80 moves each, the player with the most points wins. Each piece has its own point value; for example, a soldier is worth 5 points.',
     manualMovesTitle: 'Move History',
     manualMovesText: 'All moves are recorded below the scoreboard. You can review your game to analyze your strategies and decisions.',
+    manualBigThreeTitle: 'The Big Three',
+    manualBigThreeText: 'The Big Three are the most important pieces in the game:',
+    manualHackerTitle: 'The Hacker',
+    manualHackerText: 'The Hacker can hack a piece after 10 moves. Press the Hacker, then press an opponent\'s piece (highlighted in purple), then choose: Freeze the piece for 5 moves, move it one square forward, or move it one square backward. The Hacker has a cooldown of 15 moves.',
+    manualEngineerTitle: 'The Engineer',
+    manualEngineerText: 'The Engineer can place barricades, spikes, or artillery. Press the Engineer, then choose what to build:\n\n• Barricade: A shield to hide behind. You have 5. Has cooldown.\n• Artillery: A cannon that shoots one random square when activated. Great chance of hitting opponents, but won\'t eliminate your own pieces. You have 5. Has cooldown.\n• Spike: If an opponent steps on it, they\'re eliminated. Useful for endgame. You have 3. Has cooldown.',
+    manualBomberTitle: 'Bomber Plane',
+    manualBomberText: 'When an opponent\'s piece enters your half (before the river), the Bomber Plane can strike! Press the Bomber, select a target (highlighted in orange), then choose a landing spot (green square with plane). The plane flies to the target, drops a bomb, and lands at your chosen spot.',
+    manualRulesTitle: 'Rules',
+    manualRulesText: '• A Bomber cannot take a Bomber\n• An Engineer cannot take an Engineer\n• A Machine Gunner cannot take a Machine Gunner\n• A Submarine cannot take a Submarine\n• A Train cannot take a Train\n• A Helicopter cannot take a Helicopter\n• A Hacker cannot hack or take a Hacker\n• A Rocket cannot take a Rocket',
+    manualSpecialTitle: 'Special Locations',
+    manualSpecialText: '• Helicopter: Can only land on helipads (white squares) or the aircraft carrier.\n• Train: Can only move on train stations (orange squares).\n• Soldier: Can enter the trench (wood square) and tunnel (gray vertical lines). No other piece can enter these.',
+    manualTrenchTitle: 'Trench & Tunnel',
+    manualTrenchText: '• Trench: Soldiers can stay for 3 moves maximum. While inside, they cannot be eliminated but can still shoot opponents. After 3 moves, they must leave.\n• Tunnel: A way to transport soldiers. You cannot shoot while inside the tunnel. Use the "move" and "shoot" buttons to switch actions.',
+    manualOtherTitle: 'Other Pieces',
+    manualOtherText: '• Machine Gunner: Cannot move. Can only shoot 4 squares in front.\n• Rocket: Cannot move until move 45. When ready, press it to see the launch range. It eliminates all pieces in the explosion area. A sign shows when it\'s ready.\n\nHave fun!',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -3008,13 +3024,29 @@ const translations: Record<Language, Record<string, string>> = {
     manualButton: 'Speluitleg',
     manualTitle: 'Speluitleg',
     manualWinTitle: 'Hoe win je?',
-    manualWinText: 'Er zijn twee manieren om te winnen:\n• De meeste punten hebben na 80 zetten per speler.\n• De Ingenieur (Bouwer) vangen.',
+    manualWinText: 'Er zijn twee manieren om te winnen:\n• De meeste punten hebben na 80 zetten per speler.\n• De Ingenieur vangen.',
     manualClockTitle: 'Hoe werkt de klok?',
     manualClockText: 'De schaakklok kan worden ingeschakeld in de instellingen. Terwijl je nadenkt, loopt je tijd af. Als je een zet doet, schakelt de klok over naar je tegenstander. Als je tijd op is, worden 10 punten van je score afgetrokken en eindigt het spel. Beschikbare timers: 1, 3, 5, 10, 15, 30 minuten.',
     manualPointsTitle: 'Punten',
     manualPointsText: 'Je verdient punten door stukken van je tegenstander te slaan. Na 80 zetten per speler wint de speler met de meeste punten. Elk stuk heeft zijn eigen puntenwaarde; een soldaat is bijvoorbeeld 5 punten waard.',
     manualMovesTitle: 'Zetgeschiedenis',
     manualMovesText: 'Alle zetten worden opgeslagen onder het scorebord. Je kunt je spel terugkijken om je strategieën en beslissingen te analyseren.',
+    manualBigThreeTitle: 'De Grote Drie',
+    manualBigThreeText: 'De Grote Drie zijn de belangrijkste stukken in het spel:',
+    manualHackerTitle: 'De Hacker',
+    manualHackerText: 'De Hacker kan een stuk hacken na 10 zetten. Druk op de Hacker, dan op een stuk van de tegenstander (paars gemarkeerd), en kies: Bevries het stuk voor 5 zetten, verplaats het één vak vooruit, of verplaats het één vak achteruit. De Hacker heeft een cooldown van 15 zetten.',
+    manualEngineerTitle: 'De Ingenieur',
+    manualEngineerText: 'De Ingenieur kan barricades, spikes of artillerie plaatsen. Druk op de Ingenieur en kies wat je wilt bouwen:\n\n• Barricade: Een schild om achter te schuilen. Je hebt er 5. Heeft cooldown.\n• Artillerie: Een kanon dat één willekeurig vak beschiet wanneer geactiveerd. Grote kans om tegenstanders te raken, maar elimineert je eigen stukken niet. Je hebt er 5. Heeft cooldown.\n• Spike: Als een tegenstander erop stapt, wordt deze geëlimineerd. Handig voor de eindfase. Je hebt er 3. Heeft cooldown.',
+    manualBomberTitle: 'Bommenwerper',
+    manualBomberText: 'Wanneer een stuk van de tegenstander jouw helft betreedt (voor de rivier), kan de Bommenwerper toeslaan! Druk op de Bommenwerper, selecteer een doelwit (oranje gemarkeerd), en kies een landingsplaats (groen vak met vliegtuig). Het vliegtuig vliegt naar het doelwit, gooit een bom, en landt op je gekozen plek.',
+    manualRulesTitle: 'Regels',
+    manualRulesText: '• Een Bommenwerper kan geen Bommenwerper pakken\n• Een Ingenieur kan geen Ingenieur pakken\n• Een Mitrailleur kan geen Mitrailleur pakken\n• Een Onderzeeër kan geen Onderzeeër pakken\n• Een Trein kan geen Trein pakken\n• Een Helikopter kan geen Helikopter pakken\n• Een Hacker kan geen Hacker hacken of pakken\n• Een Raket kan geen Raket pakken',
+    manualSpecialTitle: 'Speciale Locaties',
+    manualSpecialText: '• Helikopter: Kan alleen landen op helikopterplatforms (witte vakken) of het vliegdekschip.\n• Trein: Kan alleen bewegen op treinstations (oranje vakken).\n• Soldaat: Kan de loopgraaf (houten vak) en tunnel (grijze verticale lijnen) betreden. Geen ander stuk kan deze betreden.',
+    manualTrenchTitle: 'Loopgraaf & Tunnel',
+    manualTrenchText: '• Loopgraaf: Soldaten kunnen maximaal 3 zetten blijven. Terwijl ze erin zitten, kunnen ze niet geëlimineerd worden maar kunnen nog wel schieten. Na 3 zetten moeten ze vertrekken.\n• Tunnel: Een manier om soldaten te vervoeren. Je kunt niet schieten in de tunnel. Gebruik de "verplaats" en "schiet" knoppen om te wisselen.',
+    manualOtherTitle: 'Andere Stukken',
+    manualOtherText: '• Mitrailleur: Kan niet bewegen. Kan alleen 4 vakken vooruit schieten.\n• Raket: Kan niet bewegen tot zet 45. Wanneer klaar, druk erop om het lanceerbereik te zien. Het elimineert alle stukken in het explosiegebied. Een teken toont wanneer het klaar is.\n\nVeel plezier!',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3141,13 +3173,29 @@ const translations: Record<Language, Record<string, string>> = {
     manualButton: 'Spielanleitung',
     manualTitle: 'Spielanleitung',
     manualWinTitle: 'Wie gewinnt man?',
-    manualWinText: 'Es gibt zwei Möglichkeiten zu gewinnen:\n• Nach je 80 Zügen die meisten Punkte haben.\n• Den Ingenieur (Bauer) erobern.',
+    manualWinText: 'Es gibt zwei Möglichkeiten zu gewinnen:\n• Nach je 80 Zügen die meisten Punkte haben.\n• Den Ingenieur erobern.',
     manualClockTitle: 'Wie funktioniert die Uhr?',
     manualClockText: 'Die Schachuhr kann in den Einstellungen aktiviert werden. Während du nachdenkst, läuft deine Zeit ab. Wenn du einen Zug machst, wechselt die Uhr zu deinem Gegner. Wenn deine Zeit abläuft, werden 10 Punkte von deiner Punktzahl abgezogen und das Spiel endet. Verfügbare Timer: 1, 3, 5, 10, 15, 30 Minuten.',
     manualPointsTitle: 'Punkte',
     manualPointsText: 'Du verdienst Punkte, indem du gegnerische Figuren schlägst. Nach je 80 Zügen gewinnt der Spieler mit den meisten Punkten. Jede Figur hat ihren eigenen Punktwert; ein Soldat ist zum Beispiel 5 Punkte wert.',
     manualMovesTitle: 'Zughistorie',
     manualMovesText: 'Alle Züge werden unter der Punktetafel aufgezeichnet. Du kannst dein Spiel überprüfen, um deine Strategien und Entscheidungen zu analysieren.',
+    manualBigThreeTitle: 'Die Großen Drei',
+    manualBigThreeText: 'Die Großen Drei sind die wichtigsten Figuren im Spiel:',
+    manualHackerTitle: 'Der Hacker',
+    manualHackerText: 'Der Hacker kann eine Figur nach 10 Zügen hacken. Drücke auf den Hacker, dann auf eine gegnerische Figur (lila markiert), und wähle: Figur für 5 Züge einfrieren, ein Feld vorwärts bewegen, oder ein Feld rückwärts bewegen. Der Hacker hat eine Abklingzeit von 15 Zügen.',
+    manualEngineerTitle: 'Der Ingenieur',
+    manualEngineerText: 'Der Ingenieur kann Barrikaden, Spikes oder Artillerie platzieren. Drücke auf den Ingenieur und wähle:\n\n• Barrikade: Ein Schild zum Verstecken. Du hast 5. Hat Abklingzeit.\n• Artillerie: Eine Kanone, die ein zufälliges Feld beschießt. Hohe Trefferchance, aber eliminiert eigene Figuren nicht. Du hast 5. Hat Abklingzeit.\n• Spike: Wenn ein Gegner darauf tritt, wird er eliminiert. Nützlich im Endspiel. Du hast 3. Hat Abklingzeit.',
+    manualBomberTitle: 'Bomber',
+    manualBomberText: 'Wenn eine gegnerische Figur deine Hälfte betritt (vor dem Fluss), kann der Bomber zuschlagen! Drücke auf den Bomber, wähle ein Ziel (orange markiert), dann einen Landeplatz (grünes Feld mit Flugzeug). Das Flugzeug fliegt zum Ziel, wirft eine Bombe und landet an deinem gewählten Ort.',
+    manualRulesTitle: 'Regeln',
+    manualRulesText: '• Ein Bomber kann keinen Bomber schlagen\n• Ein Ingenieur kann keinen Ingenieur schlagen\n• Ein MG-Schütze kann keinen MG-Schützen schlagen\n• Ein U-Boot kann kein U-Boot schlagen\n• Ein Zug kann keinen Zug schlagen\n• Ein Helikopter kann keinen Helikopter schlagen\n• Ein Hacker kann keinen Hacker hacken oder schlagen\n• Eine Rakete kann keine Rakete schlagen',
+    manualSpecialTitle: 'Besondere Orte',
+    manualSpecialText: '• Helikopter: Kann nur auf Hubschrauberlandeplätzen (weiße Felder) oder dem Flugzeugträger landen.\n• Zug: Kann sich nur auf Bahnhöfen (orange Felder) bewegen.\n• Soldat: Kann den Schützengraben (Holzfeld) und Tunnel (graue vertikale Linien) betreten. Keine andere Figur kann diese betreten.',
+    manualTrenchTitle: 'Schützengraben & Tunnel',
+    manualTrenchText: '• Schützengraben: Soldaten können maximal 3 Züge bleiben. Drinnen können sie nicht eliminiert werden, aber noch schießen. Nach 3 Zügen müssen sie raus.\n• Tunnel: Ein Transportweg für Soldaten. Du kannst im Tunnel nicht schießen. Benutze die "Bewegen" und "Schießen" Tasten zum Wechseln.',
+    manualOtherTitle: 'Andere Figuren',
+    manualOtherText: '• MG-Schütze: Kann sich nicht bewegen. Kann nur 4 Felder nach vorne schießen.\n• Rakete: Kann sich erst ab Zug 45 bewegen. Wenn bereit, drücke darauf um die Reichweite zu sehen. Sie eliminiert alle Figuren im Explosionsbereich. Ein Zeichen zeigt, wann sie bereit ist.\n\nViel Spaß!',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -3274,13 +3322,29 @@ const translations: Record<Language, Record<string, string>> = {
     manualButton: 'Comment jouer',
     manualTitle: 'Comment jouer',
     manualWinTitle: 'Comment gagner?',
-    manualWinText: 'Il y a deux façons de gagner:\n• Avoir le plus de points après 80 coups chacun.\n• Capturer l\'Ingénieur (Constructeur).',
+    manualWinText: 'Il y a deux façons de gagner:\n• Avoir le plus de points après 80 coups chacun.\n• Capturer l\'Ingénieur.',
     manualClockTitle: 'Comment fonctionne l\'horloge?',
     manualClockText: 'L\'horloge d\'échecs peut être activée dans les paramètres. Pendant que vous réfléchissez, votre temps s\'écoule. Quand vous jouez un coup, l\'horloge passe à votre adversaire. Si votre temps est écoulé, 10 points sont déduits de votre score et la partie se termine. Minuteries disponibles: 1, 3, 5, 10, 15, 30 minutes.',
     manualPointsTitle: 'Points',
     manualPointsText: 'Vous gagnez des points en capturant les pièces adverses. Après 80 coups chacun, le joueur avec le plus de points gagne. Chaque pièce a sa propre valeur; par exemple, un soldat vaut 5 points.',
     manualMovesTitle: 'Historique des coups',
     manualMovesText: 'Tous les coups sont enregistrés sous le tableau des scores. Vous pouvez revoir votre partie pour analyser vos stratégies et décisions.',
+    manualBigThreeTitle: 'Les Trois Grands',
+    manualBigThreeText: 'Les Trois Grands sont les pièces les plus importantes du jeu:',
+    manualHackerTitle: 'Le Hacker',
+    manualHackerText: 'Le Hacker peut pirater une pièce après 10 coups. Appuyez sur le Hacker, puis sur une pièce adverse (surlignée en violet), et choisissez: Geler la pièce pendant 5 coups, la déplacer d\'une case en avant, ou la déplacer d\'une case en arrière. Le Hacker a un temps de recharge de 15 coups.',
+    manualEngineerTitle: 'L\'Ingénieur',
+    manualEngineerText: 'L\'Ingénieur peut placer des barricades, des pièges ou de l\'artillerie. Appuyez sur l\'Ingénieur et choisissez:\n\n• Barricade: Un bouclier pour se cacher. Vous en avez 5. A un temps de recharge.\n• Artillerie: Un canon qui tire sur une case aléatoire. Grande chance de toucher les adversaires, mais n\'élimine pas vos pièces. Vous en avez 5. A un temps de recharge.\n• Piège: Si un adversaire marche dessus, il est éliminé. Utile en fin de partie. Vous en avez 3. A un temps de recharge.',
+    manualBomberTitle: 'Bombardier',
+    manualBomberText: 'Quand une pièce adverse entre dans votre moitié (avant la rivière), le Bombardier peut frapper! Appuyez sur le Bombardier, sélectionnez une cible (surlignée en orange), puis choisissez un lieu d\'atterrissage (case verte avec avion). L\'avion vole vers la cible, largue une bombe et atterrit à l\'endroit choisi.',
+    manualRulesTitle: 'Règles',
+    manualRulesText: '• Un Bombardier ne peut pas prendre un Bombardier\n• Un Ingénieur ne peut pas prendre un Ingénieur\n• Un Mitrailleur ne peut pas prendre un Mitrailleur\n• Un Sous-marin ne peut pas prendre un Sous-marin\n• Un Train ne peut pas prendre un Train\n• Un Hélicoptère ne peut pas prendre un Hélicoptère\n• Un Hacker ne peut pas pirater ou prendre un Hacker\n• Une Fusée ne peut pas prendre une Fusée',
+    manualSpecialTitle: 'Emplacements Spéciaux',
+    manualSpecialText: '• Hélicoptère: Ne peut atterrir que sur les héliports (cases blanches) ou le porte-avions.\n• Train: Ne peut se déplacer que sur les gares (cases orange).\n• Soldat: Peut entrer dans la tranchée (case en bois) et le tunnel (lignes grises verticales). Aucune autre pièce ne peut y entrer.',
+    manualTrenchTitle: 'Tranchée & Tunnel',
+    manualTrenchText: '• Tranchée: Les soldats peuvent rester maximum 3 coups. À l\'intérieur, ils ne peuvent pas être éliminés mais peuvent encore tirer. Après 3 coups, ils doivent sortir.\n• Tunnel: Un moyen de transport pour les soldats. Vous ne pouvez pas tirer dans le tunnel. Utilisez les boutons "déplacer" et "tirer" pour changer.',
+    manualOtherTitle: 'Autres Pièces',
+    manualOtherText: '• Mitrailleur: Ne peut pas se déplacer. Peut seulement tirer 4 cases en avant.\n• Fusée: Ne peut pas se déplacer avant le coup 45. Quand prête, appuyez dessus pour voir la portée. Elle élimine toutes les pièces dans la zone d\'explosion. Un signe indique quand elle est prête.\n\nAmusez-vous bien!',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -3407,13 +3471,29 @@ const translations: Record<Language, Record<string, string>> = {
     manualButton: 'Cómo jugar',
     manualTitle: 'Cómo jugar',
     manualWinTitle: '¿Cómo ganar?',
-    manualWinText: 'Hay dos formas de ganar:\n• Tener más puntos después de 80 movimientos cada uno.\n• Capturar al Ingeniero (Constructor).',
+    manualWinText: 'Hay dos formas de ganar:\n• Tener más puntos después de 80 movimientos cada uno.\n• Capturar al Ingeniero.',
     manualClockTitle: '¿Cómo funciona el reloj?',
     manualClockText: 'El reloj de ajedrez se puede activar en configuración. Mientras piensas, tu tiempo corre. Cuando haces un movimiento, el reloj cambia a tu oponente. Si tu tiempo se agota, se deducen 10 puntos de tu puntuación y el juego termina. Temporizadores disponibles: 1, 3, 5, 10, 15, 30 minutos.',
     manualPointsTitle: 'Puntos',
     manualPointsText: 'Ganas puntos capturando piezas del oponente. Después de 80 movimientos cada uno, el jugador con más puntos gana. Cada pieza tiene su propio valor; por ejemplo, un soldado vale 5 puntos.',
     manualMovesTitle: 'Historial de movimientos',
     manualMovesText: 'Todos los movimientos se registran debajo del marcador. Puedes revisar tu partida para analizar tus estrategias y decisiones.',
+    manualBigThreeTitle: 'Los Tres Grandes',
+    manualBigThreeText: 'Los Tres Grandes son las piezas más importantes del juego:',
+    manualHackerTitle: 'El Hacker',
+    manualHackerText: 'El Hacker puede hackear una pieza después de 10 movimientos. Presiona el Hacker, luego una pieza enemiga (resaltada en púrpura), y elige: Congelar la pieza por 5 movimientos, moverla una casilla adelante, o moverla una casilla atrás. El Hacker tiene un tiempo de espera de 15 movimientos.',
+    manualEngineerTitle: 'El Ingeniero',
+    manualEngineerText: 'El Ingeniero puede colocar barricadas, trampas o artillería. Presiona el Ingeniero y elige:\n\n• Barricada: Un escudo para esconderte. Tienes 5. Tiene tiempo de espera.\n• Artillería: Un cañón que dispara a una casilla aleatoria. Gran probabilidad de golpear enemigos, pero no elimina tus piezas. Tienes 5. Tiene tiempo de espera.\n• Trampa: Si un enemigo la pisa, es eliminado. Útil para el final. Tienes 3. Tiene tiempo de espera.',
+    manualBomberTitle: 'Bombardero',
+    manualBomberText: 'Cuando una pieza enemiga entra en tu mitad (antes del río), ¡el Bombardero puede atacar! Presiona el Bombardero, selecciona un objetivo (resaltado en naranja), luego elige un lugar de aterrizaje (casilla verde con avión). El avión vuela hacia el objetivo, suelta una bomba y aterriza en tu lugar elegido.',
+    manualRulesTitle: 'Reglas',
+    manualRulesText: '• Un Bombardero no puede capturar un Bombardero\n• Un Ingeniero no puede capturar un Ingeniero\n• Un Ametrallador no puede capturar un Ametrallador\n• Un Submarino no puede capturar un Submarino\n• Un Tren no puede capturar un Tren\n• Un Helicóptero no puede capturar un Helicóptero\n• Un Hacker no puede hackear o capturar un Hacker\n• Un Cohete no puede capturar un Cohete',
+    manualSpecialTitle: 'Ubicaciones Especiales',
+    manualSpecialText: '• Helicóptero: Solo puede aterrizar en helipuertos (casillas blancas) o el portaaviones.\n• Tren: Solo puede moverse en estaciones (casillas naranjas).\n• Soldado: Puede entrar en la trinchera (casilla de madera) y el túnel (líneas grises verticales). Ninguna otra pieza puede entrar.',
+    manualTrenchTitle: 'Trinchera & Túnel',
+    manualTrenchText: '• Trinchera: Los soldados pueden quedarse máximo 3 movimientos. Adentro, no pueden ser eliminados pero pueden disparar. Después de 3 movimientos, deben salir.\n• Túnel: Una forma de transportar soldados. No puedes disparar en el túnel. Usa los botones "mover" y "disparar" para cambiar.',
+    manualOtherTitle: 'Otras Piezas',
+    manualOtherText: '• Ametrallador: No puede moverse. Solo puede disparar 4 casillas adelante.\n• Cohete: No puede moverse hasta el movimiento 45. Cuando esté listo, presiónalo para ver el alcance. Elimina todas las piezas en el área de explosión. Una señal muestra cuándo está listo.\n\n¡Diviértete!',
   }
 }
 
@@ -9659,6 +9739,54 @@ function render() {
             <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
               <h2 class="text-xl font-bold text-purple-400">📋 ${t('manualMovesTitle')}</h2>
               <p class="text-gray-200 whitespace-pre-line">${t('manualMovesText')}</p>
+            </div>
+
+            <!-- The Big Three -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-red-400">⚔️ ${t('manualBigThreeTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualBigThreeText')}</p>
+            </div>
+
+            <!-- Hacker -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-lg font-bold text-purple-300">💻 ${t('manualHackerTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualHackerText')}</p>
+            </div>
+
+            <!-- Engineer -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-lg font-bold text-orange-300">🔧 ${t('manualEngineerTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualEngineerText')}</p>
+            </div>
+
+            <!-- Bomber -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-lg font-bold text-red-300">✈️ ${t('manualBomberTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualBomberText')}</p>
+            </div>
+
+            <!-- Rules -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-cyan-400">📜 ${t('manualRulesTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualRulesText')}</p>
+            </div>
+
+            <!-- Special Locations -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-amber-400">📍 ${t('manualSpecialTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualSpecialText')}</p>
+            </div>
+
+            <!-- Trench & Tunnel -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-stone-400">🕳️ ${t('manualTrenchTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualTrenchText')}</p>
+            </div>
+
+            <!-- Other Pieces -->
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <h2 class="text-xl font-bold text-pink-400">🎯 ${t('manualOtherTitle')}</h2>
+              <p class="text-gray-200 whitespace-pre-line">${t('manualOtherText')}</p>
             </div>
 
           </div>
