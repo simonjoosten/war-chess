@@ -16,15 +16,14 @@ import {
   updateDoc
 } from 'firebase/firestore'
 
-// Firebase configuration - REPLACE WITH YOUR OWN CONFIG
-// Go to https://console.firebase.google.com to create a project
+// Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBpqBsE7bqflFdor3544DSc6HbYEAT_uxw",
+  authDomain: "war-chess-fa10a.firebaseapp.com",
+  projectId: "war-chess-fa10a",
+  storageBucket: "war-chess-fa10a.firebasestorage.app",
+  messagingSenderId: "27892295459",
+  appId: "1:27892295459:web:0d5ce47d3a4f226e86ce96"
 }
 
 // Initialize Firebase
