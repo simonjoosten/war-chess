@@ -1,4 +1,27 @@
 import './style.css'
+import {
+  initFirebase,
+  registerUser,
+  loginUser,
+  logoutUser,
+  getCurrentUser,
+  getCurrentUserData,
+  isOffline,
+  setOfflineMode,
+  saveUserData,
+  loadUserData,
+  checkBadges,
+  calculateWarBucks,
+  BADGES,
+  UserData
+} from './firebase'
+
+// Auth state
+type AuthScreen = 'none' | 'login' | 'register' | 'profile'
+let showAuthScreen: AuthScreen = 'none'
+let authError = ''
+let authLoading = false
+let firebaseInitialized = false
 
 // Language settings
 type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
@@ -2898,6 +2921,34 @@ const translations: Record<Language, Record<string, string>> = {
     manualTrenchText: '• Trench: Soldiers can stay for 3 moves maximum. While inside, they cannot be eliminated but can still shoot opponents. After 3 moves, they must leave.\n• Tunnel: A way to transport soldiers. You cannot shoot while inside the tunnel. Use the "move" and "shoot" buttons to switch actions.',
     manualOtherTitle: 'Other Pieces',
     manualOtherText: '• Machine Gunner: Cannot move. Can only shoot 4 squares in front.\n• Rocket: Cannot move until move 45. When ready, press it to see the launch range. It eliminates all pieces in the explosion area. A sign shows when it\'s ready.\n\nHave fun!',
+    // Auth
+    authLogin: 'Login',
+    authRegister: 'Create Account',
+    authLogout: 'Logout',
+    authOffline: 'Play Offline',
+    authEmail: 'Email',
+    authPassword: 'Password',
+    authUsername: 'Username',
+    authLoginButton: 'Login',
+    authRegisterButton: 'Create Account',
+    authLoading: 'Loading...',
+    authNoAccount: "Don't have an account?",
+    authHaveAccount: 'Already have an account?',
+    authOfflineWarning: 'Playing offline - progress will not be saved',
+    authWelcome: 'Welcome',
+    // Profile
+    profileTitle: 'Profile',
+    profileStats: 'Statistics',
+    profileBadges: 'Badges',
+    profileWarBucks: 'War Bucks',
+    statsGamesPlayed: 'Games Played',
+    statsGamesWon: 'Games Won',
+    statsGamesLost: 'Games Lost',
+    statsWinRate: 'Win Rate',
+    statsTotalPoints: 'Total Points',
+    statsPiecesEliminated: 'Pieces Eliminated',
+    statsEngineers: 'Engineers Captured',
+    noBadges: 'No badges yet. Keep playing!',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -3047,6 +3098,34 @@ const translations: Record<Language, Record<string, string>> = {
     manualTrenchText: '• Loopgraaf: Soldaten kunnen maximaal 3 zetten blijven. Terwijl ze erin zitten, kunnen ze niet geëlimineerd worden maar kunnen nog wel schieten. Na 3 zetten moeten ze vertrekken.\n• Tunnel: Een manier om soldaten te vervoeren. Je kunt niet schieten in de tunnel. Gebruik de "verplaats" en "schiet" knoppen om te wisselen.',
     manualOtherTitle: 'Andere Stukken',
     manualOtherText: '• Mitrailleur: Kan niet bewegen. Kan alleen 4 vakken vooruit schieten.\n• Raket: Kan niet bewegen tot zet 45. Wanneer klaar, druk erop om het lanceerbereik te zien. Het elimineert alle stukken in het explosiegebied. Een teken toont wanneer het klaar is.\n\nVeel plezier!',
+    // Auth
+    authLogin: 'Inloggen',
+    authRegister: 'Account Aanmaken',
+    authLogout: 'Uitloggen',
+    authOffline: 'Offline Spelen',
+    authEmail: 'E-mail',
+    authPassword: 'Wachtwoord',
+    authUsername: 'Gebruikersnaam',
+    authLoginButton: 'Inloggen',
+    authRegisterButton: 'Account Aanmaken',
+    authLoading: 'Laden...',
+    authNoAccount: 'Nog geen account?',
+    authHaveAccount: 'Al een account?',
+    authOfflineWarning: 'Offline spelen - voortgang wordt niet opgeslagen',
+    authWelcome: 'Welkom',
+    // Profile
+    profileTitle: 'Profiel',
+    profileStats: 'Statistieken',
+    profileBadges: 'Badges',
+    profileWarBucks: 'War Bucks',
+    statsGamesPlayed: 'Gespeelde Potjes',
+    statsGamesWon: 'Gewonnen',
+    statsGamesLost: 'Verloren',
+    statsWinRate: 'Winstpercentage',
+    statsTotalPoints: 'Totaal Punten',
+    statsPiecesEliminated: 'Stukken Geëlimineerd',
+    statsEngineers: 'Ingenieurs Gevangen',
+    noBadges: 'Nog geen badges. Blijf spelen!',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3196,6 +3275,34 @@ const translations: Record<Language, Record<string, string>> = {
     manualTrenchText: '• Schützengraben: Soldaten können maximal 3 Züge bleiben. Drinnen können sie nicht eliminiert werden, aber noch schießen. Nach 3 Zügen müssen sie raus.\n• Tunnel: Ein Transportweg für Soldaten. Du kannst im Tunnel nicht schießen. Benutze die "Bewegen" und "Schießen" Tasten zum Wechseln.',
     manualOtherTitle: 'Andere Figuren',
     manualOtherText: '• MG-Schütze: Kann sich nicht bewegen. Kann nur 4 Felder nach vorne schießen.\n• Rakete: Kann sich erst ab Zug 45 bewegen. Wenn bereit, drücke darauf um die Reichweite zu sehen. Sie eliminiert alle Figuren im Explosionsbereich. Ein Zeichen zeigt, wann sie bereit ist.\n\nViel Spaß!',
+    // Auth
+    authLogin: 'Anmelden',
+    authRegister: 'Konto erstellen',
+    authLogout: 'Abmelden',
+    authOffline: 'Offline spielen',
+    authEmail: 'E-Mail',
+    authPassword: 'Passwort',
+    authUsername: 'Benutzername',
+    authLoginButton: 'Anmelden',
+    authRegisterButton: 'Konto erstellen',
+    authLoading: 'Laden...',
+    authNoAccount: 'Noch kein Konto?',
+    authHaveAccount: 'Schon ein Konto?',
+    authOfflineWarning: 'Offline spielen - Fortschritt wird nicht gespeichert',
+    authWelcome: 'Willkommen',
+    // Profile
+    profileTitle: 'Profil',
+    profileStats: 'Statistiken',
+    profileBadges: 'Abzeichen',
+    profileWarBucks: 'War Bucks',
+    statsGamesPlayed: 'Gespielte Spiele',
+    statsGamesWon: 'Gewonnen',
+    statsGamesLost: 'Verloren',
+    statsWinRate: 'Gewinnrate',
+    statsTotalPoints: 'Gesamtpunkte',
+    statsPiecesEliminated: 'Figuren eliminiert',
+    statsEngineers: 'Ingenieure erobert',
+    noBadges: 'Noch keine Abzeichen. Weiterspielen!',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -3345,6 +3452,34 @@ const translations: Record<Language, Record<string, string>> = {
     manualTrenchText: '• Tranchée: Les soldats peuvent rester maximum 3 coups. À l\'intérieur, ils ne peuvent pas être éliminés mais peuvent encore tirer. Après 3 coups, ils doivent sortir.\n• Tunnel: Un moyen de transport pour les soldats. Vous ne pouvez pas tirer dans le tunnel. Utilisez les boutons "déplacer" et "tirer" pour changer.',
     manualOtherTitle: 'Autres Pièces',
     manualOtherText: '• Mitrailleur: Ne peut pas se déplacer. Peut seulement tirer 4 cases en avant.\n• Fusée: Ne peut pas se déplacer avant le coup 45. Quand prête, appuyez dessus pour voir la portée. Elle élimine toutes les pièces dans la zone d\'explosion. Un signe indique quand elle est prête.\n\nAmusez-vous bien!',
+    // Auth
+    authLogin: 'Connexion',
+    authRegister: 'Créer un compte',
+    authLogout: 'Déconnexion',
+    authOffline: 'Jouer hors ligne',
+    authEmail: 'E-mail',
+    authPassword: 'Mot de passe',
+    authUsername: 'Nom d\'utilisateur',
+    authLoginButton: 'Se connecter',
+    authRegisterButton: 'Créer un compte',
+    authLoading: 'Chargement...',
+    authNoAccount: 'Pas de compte?',
+    authHaveAccount: 'Déjà un compte?',
+    authOfflineWarning: 'Jeu hors ligne - la progression ne sera pas sauvegardée',
+    authWelcome: 'Bienvenue',
+    // Profile
+    profileTitle: 'Profil',
+    profileStats: 'Statistiques',
+    profileBadges: 'Badges',
+    profileWarBucks: 'War Bucks',
+    statsGamesPlayed: 'Parties jouées',
+    statsGamesWon: 'Victoires',
+    statsGamesLost: 'Défaites',
+    statsWinRate: 'Taux de victoire',
+    statsTotalPoints: 'Points totaux',
+    statsPiecesEliminated: 'Pièces éliminées',
+    statsEngineers: 'Ingénieurs capturés',
+    noBadges: 'Pas encore de badges. Continuez à jouer!',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -3494,6 +3629,34 @@ const translations: Record<Language, Record<string, string>> = {
     manualTrenchText: '• Trinchera: Los soldados pueden quedarse máximo 3 movimientos. Adentro, no pueden ser eliminados pero pueden disparar. Después de 3 movimientos, deben salir.\n• Túnel: Una forma de transportar soldados. No puedes disparar en el túnel. Usa los botones "mover" y "disparar" para cambiar.',
     manualOtherTitle: 'Otras Piezas',
     manualOtherText: '• Ametrallador: No puede moverse. Solo puede disparar 4 casillas adelante.\n• Cohete: No puede moverse hasta el movimiento 45. Cuando esté listo, presiónalo para ver el alcance. Elimina todas las piezas en el área de explosión. Una señal muestra cuándo está listo.\n\n¡Diviértete!',
+    // Auth
+    authLogin: 'Iniciar sesión',
+    authRegister: 'Crear cuenta',
+    authLogout: 'Cerrar sesión',
+    authOffline: 'Jugar sin conexión',
+    authEmail: 'Correo electrónico',
+    authPassword: 'Contraseña',
+    authUsername: 'Nombre de usuario',
+    authLoginButton: 'Iniciar sesión',
+    authRegisterButton: 'Crear cuenta',
+    authLoading: 'Cargando...',
+    authNoAccount: '¿No tienes cuenta?',
+    authHaveAccount: '¿Ya tienes cuenta?',
+    authOfflineWarning: 'Jugando sin conexión - el progreso no se guardará',
+    authWelcome: 'Bienvenido',
+    // Profile
+    profileTitle: 'Perfil',
+    profileStats: 'Estadísticas',
+    profileBadges: 'Insignias',
+    profileWarBucks: 'War Bucks',
+    statsGamesPlayed: 'Partidas jugadas',
+    statsGamesWon: 'Ganadas',
+    statsGamesLost: 'Perdidas',
+    statsWinRate: 'Tasa de victoria',
+    statsTotalPoints: 'Puntos totales',
+    statsPiecesEliminated: 'Piezas eliminadas',
+    statsEngineers: 'Ingenieros capturados',
+    noBadges: 'Sin insignias aún. ¡Sigue jugando!',
   }
 }
 
@@ -4484,6 +4647,8 @@ function switchTurn() {
     if (botMode) {
       updateBotLearning(winner === 'green')
     }
+    // Save game stats
+    saveGameStats()
   }
 
   // Trigger bot move if it's green's turn and bot mode is enabled
@@ -4506,7 +4671,62 @@ function checkBuilderCaptured(capturedPiece: Piece, capturingTeam: Team) {
     if (botMode) {
       updateBotLearning(winner === 'green')
     }
+    // Save game stats
+    saveGameStats()
   }
+}
+
+// Save game stats to user profile
+async function saveGameStats() {
+  if (isOffline() || !getCurrentUser() || !getCurrentUserData()) return
+
+  const userData = getCurrentUserData()!
+  const yellowScore = getTeamScore('yellow')
+  const greenScore = getTeamScore('green')
+
+  // Player is always yellow, bot/opponent is green
+  const playerWon = winner === 'yellow'
+  const playerScore = yellowScore
+  const opponentScore = greenScore
+  const pointDifference = Math.abs(playerScore - opponentScore)
+
+  // Calculate pieces eliminated
+  const enemyPiecesEliminated = capturedPieces.filter(p => p.team === 'green').length
+  const engineersCaptured = capturedPieces.filter(p => p.team === 'green' && p.type === 'builder').length
+
+  // Update stats
+  const newStats = {
+    ...userData.stats,
+    gamesPlayed: userData.stats.gamesPlayed + 1,
+    gamesWon: userData.stats.gamesWon + (playerWon ? 1 : 0),
+    gamesLost: userData.stats.gamesLost + (playerWon ? 0 : 1),
+    totalPointsScored: userData.stats.totalPointsScored + playerScore,
+    piecesEliminated: userData.stats.piecesEliminated + enemyPiecesEliminated,
+    engineersCaptured: userData.stats.engineersCaptured + engineersCaptured
+  }
+
+  // Calculate War Bucks reward
+  const warBucksEarned = calculateWarBucks(playerWon, pointDifference)
+  const newWarBucks = userData.warBucks + warBucksEarned
+
+  // Check for new badges
+  const updatedUserData: UserData = {
+    ...userData,
+    stats: newStats,
+    warBucks: newWarBucks
+  }
+  const newBadges = checkBadges(updatedUserData)
+  const allBadges = [...userData.badges, ...newBadges]
+
+  // Save to Firebase
+  await saveUserData({
+    stats: newStats,
+    warBucks: newWarBucks,
+    badges: allBadges
+  })
+
+  // Show reward notification (could add UI for this later)
+  console.log(`Game saved! +${warBucksEarned} War Bucks${newBadges.length > 0 ? `, New badges: ${newBadges.join(', ')}` : ''}`)
 }
 
 // Check if hacker is on cooldown
@@ -5094,6 +5314,8 @@ function handleTimeOut(team: Team) {
   gameState = 'gameOver'
   message = t('timeUpPenalty').replace('{team}', team === 'yellow' ? t('yellowTeam') : t('greenTeam'))
   playSound('win')
+  // Save game stats
+  saveGameStats()
   render()
 }
 
@@ -9804,10 +10026,241 @@ function render() {
       return
     }
 
+    // Auth screens
+    if (showAuthScreen === 'login') {
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('authLogin')}</h1>
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[350px]">
+            ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
+            <div class="flex flex-col gap-2">
+              <label class="text-gray-300 text-sm">${t('authEmail')}</label>
+              <input type="email" id="login-email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-gray-300 text-sm">${t('authPassword')}</label>
+              <input type="password" id="login-password" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="••••••••">
+            </div>
+            <button id="login-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors ${authLoading ? 'opacity-50' : ''}" ${authLoading ? 'disabled' : ''}>
+              ${authLoading ? t('authLoading') : t('authLoginButton')}
+            </button>
+            <div class="text-center text-gray-400 text-sm">
+              ${t('authNoAccount')} <button id="goto-register" class="text-blue-400 hover:underline">${t('authRegister')}</button>
+            </div>
+          </div>
+          <button id="offline-btn" class="bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded transition-colors">
+            ${t('authOffline')}
+          </button>
+        </div>
+      `
+      document.getElementById('login-btn')?.addEventListener('click', async () => {
+        const email = (document.getElementById('login-email') as HTMLInputElement)?.value
+        const password = (document.getElementById('login-password') as HTMLInputElement)?.value
+        if (!email || !password) {
+          authError = 'Please fill in all fields'
+          render()
+          return
+        }
+        authLoading = true
+        authError = ''
+        render()
+        const result = await loginUser(email, password)
+        authLoading = false
+        if (result.success) {
+          showAuthScreen = 'none'
+          // Load user settings
+          const userData = getCurrentUserData()
+          if (userData) {
+            currentLanguage = userData.settings.language as Language
+            soundEnabled = userData.settings.soundEnabled
+            musicEnabled = userData.settings.musicEnabled
+            masterVolume = userData.settings.masterVolume
+            musicVolume = userData.settings.musicVolume
+            sfxVolume = userData.settings.sfxVolume
+            musicStyle = userData.settings.musicStyle as MusicStyle
+            boardTheme = userData.settings.boardTheme as BoardTheme
+            animationSpeed = userData.settings.animationSpeed as 'fast' | 'normal' | 'slow'
+            screenShakeEnabled = userData.settings.screenShakeEnabled
+            showCoordinates = userData.settings.showCoordinates
+            colorBlindMode = userData.settings.colorBlindMode
+            highContrastMode = userData.settings.highContrastMode
+            largeUIMode = userData.settings.largeUIMode
+          }
+        } else {
+          authError = result.error || 'Login failed'
+        }
+        render()
+      })
+      document.getElementById('goto-register')?.addEventListener('click', () => {
+        showAuthScreen = 'register'
+        authError = ''
+        render()
+      })
+      document.getElementById('offline-btn')?.addEventListener('click', () => {
+        setOfflineMode(true)
+        showAuthScreen = 'none'
+        render()
+      })
+      return
+    }
+
+    if (showAuthScreen === 'register') {
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('authRegister')}</h1>
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[350px]">
+            ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
+            <div class="flex flex-col gap-2">
+              <label class="text-gray-300 text-sm">${t('authUsername')}</label>
+              <input type="text" id="register-username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="Player123">
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-gray-300 text-sm">${t('authEmail')}</label>
+              <input type="email" id="register-email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-gray-300 text-sm">${t('authPassword')}</label>
+              <input type="password" id="register-password" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="••••••••">
+            </div>
+            <button id="register-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded transition-colors ${authLoading ? 'opacity-50' : ''}" ${authLoading ? 'disabled' : ''}>
+              ${authLoading ? t('authLoading') : t('authRegisterButton')}
+            </button>
+            <div class="text-center text-gray-400 text-sm">
+              ${t('authHaveAccount')} <button id="goto-login" class="text-blue-400 hover:underline">${t('authLogin')}</button>
+            </div>
+          </div>
+          <button id="offline-btn2" class="bg-gray-600 hover:bg-gray-500 text-white py-2 px-4 rounded transition-colors">
+            ${t('authOffline')}
+          </button>
+        </div>
+      `
+      document.getElementById('register-btn')?.addEventListener('click', async () => {
+        const username = (document.getElementById('register-username') as HTMLInputElement)?.value
+        const email = (document.getElementById('register-email') as HTMLInputElement)?.value
+        const password = (document.getElementById('register-password') as HTMLInputElement)?.value
+        if (!username || !email || !password) {
+          authError = 'Please fill in all fields'
+          render()
+          return
+        }
+        authLoading = true
+        authError = ''
+        render()
+        const result = await registerUser(email, password, username)
+        authLoading = false
+        if (result.success) {
+          showAuthScreen = 'none'
+        } else {
+          authError = result.error || 'Registration failed'
+        }
+        render()
+      })
+      document.getElementById('goto-login')?.addEventListener('click', () => {
+        showAuthScreen = 'login'
+        authError = ''
+        render()
+      })
+      document.getElementById('offline-btn2')?.addEventListener('click', () => {
+        setOfflineMode(true)
+        showAuthScreen = 'none'
+        render()
+      })
+      return
+    }
+
+    if (showAuthScreen === 'profile') {
+      const userData = getCurrentUserData()
+      const winRate = userData && userData.stats.gamesPlayed > 0
+        ? Math.round((userData.stats.gamesWon / userData.stats.gamesPlayed) * 100)
+        : 0
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">👤 ${t('profileTitle')}</h1>
+          ${userData ? `
+          <div class="text-xl text-blue-400 font-bold">${userData.username}</div>
+          <div class="text-yellow-400 font-bold">💰 ${userData.warBucks} ${t('profileWarBucks')}</div>
+
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[400px]">
+            <h2 class="text-lg font-bold text-white">📊 ${t('profileStats')}</h2>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div class="text-gray-400">${t('statsGamesPlayed')}</div>
+              <div class="text-white font-bold">${userData.stats.gamesPlayed}</div>
+              <div class="text-gray-400">${t('statsGamesWon')}</div>
+              <div class="text-green-400 font-bold">${userData.stats.gamesWon}</div>
+              <div class="text-gray-400">${t('statsGamesLost')}</div>
+              <div class="text-red-400 font-bold">${userData.stats.gamesLost}</div>
+              <div class="text-gray-400">${t('statsWinRate')}</div>
+              <div class="text-white font-bold">${winRate}%</div>
+              <div class="text-gray-400">${t('statsTotalPoints')}</div>
+              <div class="text-yellow-400 font-bold">${userData.stats.totalPointsScored}</div>
+              <div class="text-gray-400">${t('statsPiecesEliminated')}</div>
+              <div class="text-white font-bold">${userData.stats.piecesEliminated}</div>
+              <div class="text-gray-400">${t('statsEngineers')}</div>
+              <div class="text-orange-400 font-bold">${userData.stats.engineersCaptured}</div>
+            </div>
+          </div>
+
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[400px]">
+            <h2 class="text-lg font-bold text-white">🏅 ${t('profileBadges')}</h2>
+            ${userData.badges.length > 0 ? `
+              <div class="flex flex-wrap gap-2">
+                ${userData.badges.map(badgeId => {
+                  const badge = Object.values(BADGES).find(b => b.id === badgeId)
+                  return badge ? `<div class="bg-gray-700 px-3 py-2 rounded flex items-center gap-2" title="${badge.description}">
+                    <span class="text-xl">${badge.icon}</span>
+                    <span class="text-white text-sm">${badge.name}</span>
+                  </div>` : ''
+                }).join('')}
+              </div>
+            ` : `<div class="text-gray-400 text-sm">${t('noBadges')}</div>`}
+          </div>
+          ` : `<div class="text-gray-400">Loading...</div>`}
+
+          <div class="flex gap-3">
+            <button id="profile-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
+              ${t('backButton')}
+            </button>
+            <button id="logout-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded transition-colors">
+              ${t('authLogout')}
+            </button>
+          </div>
+        </div>
+      `
+      document.getElementById('profile-back-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'none'
+        render()
+      })
+      document.getElementById('logout-btn')?.addEventListener('click', async () => {
+        await logoutUser()
+        setOfflineMode(false)
+        showAuthScreen = 'login'
+        render()
+      })
+      return
+    }
+
     // Start screen
+    const user = getCurrentUser()
+    const userData = getCurrentUserData()
     app.innerHTML = `
       <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
         <h1 class="text-2xl sm:text-4xl font-bold text-white">${t('startTitle')}</h1>
+
+        ${user && userData ? `
+        <div class="flex items-center gap-3 bg-gray-800 px-4 py-2 rounded-lg">
+          <span class="text-blue-400">👤 ${userData.username}</span>
+          <span class="text-yellow-400">💰 ${userData.warBucks}</span>
+          <button id="profile-btn" class="text-gray-400 hover:text-white">📊</button>
+        </div>
+        ` : isOffline() ? `
+        <div class="bg-yellow-900 text-yellow-200 px-4 py-2 rounded text-sm">
+          ⚠️ ${t('authOfflineWarning')}
+        </div>
+        ` : `
+        <button id="login-start-btn" class="bg-blue-600 hover:bg-blue-500 text-white py-2 px-4 rounded transition-colors">
+          ${t('authLogin')}
+        </button>
+        `}
 
         <!-- Game Mode Selection -->
         <div class="bg-gray-800 rounded-lg p-4 flex flex-col gap-3">
@@ -9876,6 +10329,14 @@ function render() {
     })
     document.getElementById('settings-btn')?.addEventListener('click', () => {
       showSettings = true
+      render()
+    })
+    document.getElementById('profile-btn')?.addEventListener('click', () => {
+      showAuthScreen = 'profile'
+      render()
+    })
+    document.getElementById('login-start-btn')?.addEventListener('click', () => {
+      showAuthScreen = 'login'
       render()
     })
     return
@@ -10168,5 +10629,15 @@ function render() {
 
 // Load bot learning data on startup
 loadBotLearning()
+
+// Initialize Firebase
+firebaseInitialized = initFirebase()
+if (firebaseInitialized) {
+  // Show login screen if Firebase is configured
+  showAuthScreen = 'login'
+} else {
+  // Firebase not configured - run in offline mode
+  setOfflineMode(true)
+}
 
 render()
