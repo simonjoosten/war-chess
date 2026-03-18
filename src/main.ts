@@ -3917,21 +3917,20 @@ function makeBotMove() {
       case 'hacker':
         // Hacker hacking
         if (isHackerReadyForTeam('green') && !isHackerOnCooldown(piece)) {
+          // Can't hack: hackers, rockets, machine guns, soldiers in tunnels or trenches
           const hackableTargets = yellowPieces.filter(p =>
             p.type !== 'hacker' && p.type !== 'rocket' && p.type !== 'machinegun' &&
-            !(p.type === 'soldier' && p.inTunnel)
+            !(p.type === 'soldier' && (p.inTunnel || p.inTrench))
           )
           for (const target of hackableTargets) {
-            // Freeze is good for high-value targets (but can't freeze soldiers in trenches)
-            if (!(target.type === 'soldier' && target.inTrench)) {
-              possibleMoves.push({
-                piece,
-                action: 'hack',
-                hackTarget: target,
-                hackAction: 'freeze',
-                score: evaluateCapture(target) * 0.8
-              })
-            }
+            // Freeze is good for high-value targets
+            possibleMoves.push({
+              piece,
+              action: 'hack',
+              hackTarget: target,
+              hackAction: 'freeze',
+              score: evaluateCapture(target) * 0.8
+            })
             // Push towards water or edge
             if (target.type !== 'sub' && target.type !== 'ship' && target.type !== 'carrier') {
               // Try to push into water (row 6)
@@ -6938,6 +6937,13 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
   const target = selectedHackTarget
   const hackerTeam = hacker.team
 
+  // Soldiers in trenches cannot be hacked at all
+  if (target.type === 'soldier' && target.inTrench) {
+    message = `Cannot hack soldier in trench!`
+    render()
+    return
+  }
+
   // Submarine moves left/right instead of forward/backward
   if (target.type === 'sub') {
     if (action === 'forward') {
@@ -7040,12 +7046,6 @@ function executeHack(action: 'forward' | 'backward' | 'freeze') {
         return
       }
     } else if (action === 'freeze') {
-      // Soldiers in trenches cannot be frozen
-      if (target.type === 'soldier' && target.inTrench) {
-        message = `Cannot freeze soldier in trench!`
-        render()
-        return
-      }
       target.frozenTurns = 5
       message = `Froze ${target.type} for 5 turns!`
     }
