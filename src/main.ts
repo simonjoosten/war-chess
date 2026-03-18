@@ -13,15 +13,34 @@ import {
   checkBadges,
   calculateWarBucks,
   BADGES,
-  UserData
+  UserData,
+  // Multiplayer
+  setOnline,
+  setOffline,
+  listenToOnlinePlayers,
+  stopListeningToOnlinePlayers,
+  sendGameInvite,
+  listenToInvites,
+  stopListeningToInvites,
+  acceptInvite,
+  declineInvite,
+  getOnlinePlayers,
+  getInvites,
+  OnlinePlayer,
+  GameInvite
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer'
 let showAuthScreen: AuthScreen = 'none'
 let authError = ''
 let authLoading = false
 let firebaseInitialized = false
+
+// Multiplayer state
+let onlinePlayers: OnlinePlayer[] = []
+let pendingInvites: GameInvite[] = []
+let multiplayerListening = false
 
 // Language settings
 type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
@@ -2949,6 +2968,25 @@ const translations: Record<Language, Record<string, string>> = {
     statsPiecesEliminated: 'Pieces Eliminated',
     statsEngineers: 'Engineers Captured',
     noBadges: 'No badges yet. Keep playing!',
+    // Multiplayer
+    multiplayerButton: 'Play Online',
+    multiplayerTitle: 'Play Online',
+    onlinePlayers: 'Online Players',
+    noPlayersOnline: 'No other players online',
+    sendInvite: 'Send Invite',
+    inviteSent: 'Invite sent!',
+    pendingInvites: 'Incoming Invites',
+    acceptInvite: 'Accept',
+    declineInvite: 'Decline',
+    inviteFrom: 'Invite from',
+    waitingForPlayers: 'Waiting for players...',
+    playerAvailable: 'Available',
+    playerPlaying: 'In Game',
+    refreshList: 'Refresh',
+    goOnline: 'Go Online',
+    goOfflineMulti: 'Go Offline',
+    youAreOnline: 'You are online',
+    youAreOfflineMulti: 'You are offline',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -3126,6 +3164,25 @@ const translations: Record<Language, Record<string, string>> = {
     statsPiecesEliminated: 'Stukken Geëlimineerd',
     statsEngineers: 'Ingenieurs Gevangen',
     noBadges: 'Nog geen badges. Blijf spelen!',
+    // Multiplayer
+    multiplayerButton: 'Online Spelen',
+    multiplayerTitle: 'Online Spelen',
+    onlinePlayers: 'Online Spelers',
+    noPlayersOnline: 'Geen andere spelers online',
+    sendInvite: 'Uitnodiging Sturen',
+    inviteSent: 'Uitnodiging verstuurd!',
+    pendingInvites: 'Inkomende Uitnodigingen',
+    acceptInvite: 'Accepteren',
+    declineInvite: 'Afwijzen',
+    inviteFrom: 'Uitnodiging van',
+    waitingForPlayers: 'Wachten op spelers...',
+    playerAvailable: 'Beschikbaar',
+    playerPlaying: 'In Spel',
+    refreshList: 'Vernieuwen',
+    goOnline: 'Ga Online',
+    goOfflineMulti: 'Ga Offline',
+    youAreOnline: 'Je bent online',
+    youAreOfflineMulti: 'Je bent offline',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3303,6 +3360,25 @@ const translations: Record<Language, Record<string, string>> = {
     statsPiecesEliminated: 'Figuren eliminiert',
     statsEngineers: 'Ingenieure erobert',
     noBadges: 'Noch keine Abzeichen. Weiterspielen!',
+    // Multiplayer
+    multiplayerButton: 'Online Spielen',
+    multiplayerTitle: 'Online Spielen',
+    onlinePlayers: 'Spieler Online',
+    noPlayersOnline: 'Keine anderen Spieler online',
+    sendInvite: 'Einladung Senden',
+    inviteSent: 'Einladung gesendet!',
+    pendingInvites: 'Eingehende Einladungen',
+    acceptInvite: 'Annehmen',
+    declineInvite: 'Ablehnen',
+    inviteFrom: 'Einladung von',
+    waitingForPlayers: 'Warte auf Spieler...',
+    playerAvailable: 'Verfügbar',
+    playerPlaying: 'Im Spiel',
+    refreshList: 'Aktualisieren',
+    goOnline: 'Online Gehen',
+    goOfflineMulti: 'Offline Gehen',
+    youAreOnline: 'Du bist online',
+    youAreOfflineMulti: 'Du bist offline',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -3480,6 +3556,25 @@ const translations: Record<Language, Record<string, string>> = {
     statsPiecesEliminated: 'Pièces éliminées',
     statsEngineers: 'Ingénieurs capturés',
     noBadges: 'Pas encore de badges. Continuez à jouer!',
+    // Multiplayer
+    multiplayerButton: 'Jouer en Ligne',
+    multiplayerTitle: 'Jouer en Ligne',
+    onlinePlayers: 'Joueurs en Ligne',
+    noPlayersOnline: 'Aucun autre joueur en ligne',
+    sendInvite: 'Envoyer Invitation',
+    inviteSent: 'Invitation envoyée!',
+    pendingInvites: 'Invitations Reçues',
+    acceptInvite: 'Accepter',
+    declineInvite: 'Refuser',
+    inviteFrom: 'Invitation de',
+    waitingForPlayers: 'En attente de joueurs...',
+    playerAvailable: 'Disponible',
+    playerPlaying: 'En Jeu',
+    refreshList: 'Actualiser',
+    goOnline: 'Se Connecter',
+    goOfflineMulti: 'Se Déconnecter',
+    youAreOnline: 'Vous êtes en ligne',
+    youAreOfflineMulti: 'Vous êtes hors ligne',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -3657,6 +3752,25 @@ const translations: Record<Language, Record<string, string>> = {
     statsPiecesEliminated: 'Piezas eliminadas',
     statsEngineers: 'Ingenieros capturados',
     noBadges: 'Sin insignias aún. ¡Sigue jugando!',
+    // Multiplayer
+    multiplayerButton: 'Jugar en Línea',
+    multiplayerTitle: 'Jugar en Línea',
+    onlinePlayers: 'Jugadores en Línea',
+    noPlayersOnline: 'No hay otros jugadores en línea',
+    sendInvite: 'Enviar Invitación',
+    inviteSent: '¡Invitación enviada!',
+    pendingInvites: 'Invitaciones Pendientes',
+    acceptInvite: 'Aceptar',
+    declineInvite: 'Rechazar',
+    inviteFrom: 'Invitación de',
+    waitingForPlayers: 'Esperando jugadores...',
+    playerAvailable: 'Disponible',
+    playerPlaying: 'En Juego',
+    refreshList: 'Actualizar',
+    goOnline: 'Conectarse',
+    goOfflineMulti: 'Desconectarse',
+    youAreOnline: 'Estás en línea',
+    youAreOfflineMulti: 'Estás desconectado',
   }
 }
 
@@ -10035,11 +10149,11 @@ function render() {
             ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authEmail')}</label>
-              <input type="email" id="login-email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
+              <input type="email" id="login-email" name="email" autocomplete="email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authPassword')}</label>
-              <input type="password" id="login-password" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="••••••••">
+              <input type="password" id="login-password" name="password" autocomplete="current-password" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="••••••••">
             </div>
             <button id="login-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors ${authLoading ? 'opacity-50' : ''}" ${authLoading ? 'disabled' : ''}>
               ${authLoading ? t('authLoading') : t('authLoginButton')}
@@ -10112,15 +10226,15 @@ function render() {
             ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authUsername')}</label>
-              <input type="text" id="register-username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="Player123">
+              <input type="text" id="register-username" name="username" autocomplete="username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="Player123">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authEmail')}</label>
-              <input type="email" id="register-email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
+              <input type="email" id="register-email" name="email" autocomplete="email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authPassword')}</label>
-              <input type="password" id="register-password" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="••••••••">
+              <input type="password" id="register-password" name="new-password" autocomplete="new-password" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="••••••••">
             </div>
             <button id="register-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded transition-colors ${authLoading ? 'opacity-50' : ''}" ${authLoading ? 'disabled' : ''}>
               ${authLoading ? t('authLoading') : t('authRegisterButton')}
@@ -10239,6 +10353,151 @@ function render() {
       return
     }
 
+    // Multiplayer screen
+    if (showAuthScreen === 'multiplayer') {
+      const userData = getCurrentUserData()
+
+      // Start listening if not already
+      if (!multiplayerListening && !isOffline()) {
+        multiplayerListening = true
+        setOnline()
+        listenToOnlinePlayers((players) => {
+          onlinePlayers = players
+          render()
+        })
+        listenToInvites((invites) => {
+          pendingInvites = invites
+          render()
+        })
+      }
+
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">🌐 ${t('multiplayerTitle')}</h1>
+
+          ${userData ? `
+          <div class="text-blue-400 font-bold">👤 ${userData.username}</div>
+          <div class="${multiplayerListening ? 'text-green-400' : 'text-gray-400'} text-sm">
+            ${multiplayerListening ? '🟢 ' + t('youAreOnline') : '⚫ ' + t('youAreOfflineMulti')}
+          </div>
+          ` : ''}
+
+          <!-- Pending Invites -->
+          ${pendingInvites.length > 0 ? `
+          <div class="bg-yellow-900 p-4 rounded-lg flex flex-col gap-3 w-full max-w-[400px]">
+            <h2 class="text-lg font-bold text-yellow-200">📩 ${t('pendingInvites')}</h2>
+            <div class="flex flex-col gap-2">
+              ${pendingInvites.map(invite => `
+                <div class="bg-yellow-800 p-3 rounded flex items-center justify-between">
+                  <span class="text-white">${t('inviteFrom')} <strong>${invite.fromUsername}</strong></span>
+                  <div class="flex gap-2">
+                    <button class="accept-invite-btn bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm" data-id="${invite.id}">
+                      ${t('acceptInvite')}
+                    </button>
+                    <button class="decline-invite-btn bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-id="${invite.id}">
+                      ${t('declineInvite')}
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Online Players -->
+          <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3 w-full max-w-[400px]">
+            <h2 class="text-lg font-bold text-white">👥 ${t('onlinePlayers')}</h2>
+            ${onlinePlayers.length > 0 ? `
+            <div class="flex flex-col gap-2">
+              ${onlinePlayers.map(player => `
+                <div class="bg-gray-700 p-3 rounded flex items-center justify-between">
+                  <div>
+                    <span class="text-white font-bold">${player.username}</span>
+                    <span class="text-xs ml-2 ${player.status === 'available' ? 'text-green-400' : 'text-yellow-400'}">
+                      ${player.status === 'available' ? t('playerAvailable') : t('playerPlaying')}
+                    </span>
+                  </div>
+                  ${player.status === 'available' ? `
+                  <button class="send-invite-btn bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm" data-id="${player.id}">
+                    ${t('sendInvite')}
+                  </button>
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
+            ` : `
+            <div class="text-gray-400 text-center py-4">
+              ${t('noPlayersOnline')}
+            </div>
+            `}
+          </div>
+
+          <div class="flex gap-3">
+            <button id="multiplayer-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
+              ${t('backButton')}
+            </button>
+          </div>
+        </div>
+      `
+
+      // Event listeners
+      document.getElementById('multiplayer-back-btn')?.addEventListener('click', () => {
+        // Go offline when leaving multiplayer screen
+        if (multiplayerListening) {
+          setOffline()
+          stopListeningToOnlinePlayers()
+          stopListeningToInvites()
+          multiplayerListening = false
+          onlinePlayers = []
+          pendingInvites = []
+        }
+        showAuthScreen = 'none'
+        render()
+      })
+
+      // Send invite buttons
+      document.querySelectorAll('.send-invite-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const playerId = (e.target as HTMLElement).getAttribute('data-id')
+          if (playerId) {
+            await sendGameInvite(playerId)
+            // Show feedback
+            const button = e.target as HTMLButtonElement
+            button.textContent = t('inviteSent')
+            button.disabled = true
+            button.classList.remove('bg-blue-600', 'hover:bg-blue-500')
+            button.classList.add('bg-gray-500')
+          }
+        })
+      })
+
+      // Accept invite buttons
+      document.querySelectorAll('.accept-invite-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const inviteId = (e.target as HTMLElement).getAttribute('data-id')
+          if (inviteId) {
+            const gameId = await acceptInvite(inviteId)
+            if (gameId) {
+              // TODO: Start the multiplayer game with this gameId
+              console.log('Game started:', gameId)
+            }
+          }
+        })
+      })
+
+      // Decline invite buttons
+      document.querySelectorAll('.decline-invite-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const inviteId = (e.target as HTMLElement).getAttribute('data-id')
+          if (inviteId) {
+            await declineInvite(inviteId)
+          }
+        })
+      })
+
+      return
+    }
+
     // Start screen
     const user = getCurrentUser()
     const userData = getCurrentUserData()
@@ -10295,6 +10554,11 @@ function render() {
           <button id="start-btn" class="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
             ${t('startButton')}
           </button>
+          ${user && userData ? `
+          <button id="multiplayer-btn" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
+            🌐 ${t('multiplayerButton')}
+          </button>
+          ` : ''}
           <button id="settings-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
             ⚙️ ${t('settingsButton')}
           </button>
@@ -10333,6 +10597,10 @@ function render() {
     })
     document.getElementById('profile-btn')?.addEventListener('click', () => {
       showAuthScreen = 'profile'
+      render()
+    })
+    document.getElementById('multiplayer-btn')?.addEventListener('click', () => {
+      showAuthScreen = 'multiplayer'
       render()
     })
     document.getElementById('login-start-btn')?.addEventListener('click', () => {

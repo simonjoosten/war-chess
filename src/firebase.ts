@@ -13,7 +13,15 @@ import {
   doc,
   setDoc,
   getDoc,
-  updateDoc
+  updateDoc,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  deleteDoc,
+  serverTimestamp,
+  Timestamp,
+  getDocs
 } from 'firebase/firestore'
 
 // Firebase configuration
@@ -330,4 +338,316 @@ export function calculateWarBucks(won: boolean, pointDifference: number): number
     bucks += Math.floor(pointDifference / 5) // Bonus for point difference
   }
   return bucks
+}
+
+// ==================== MULTIPLAYER ====================
+
+// Online player type
+export interface OnlinePlayer {
+  id: string
+  username: string
+  lastSeen: number
+  status: 'available' | 'playing'
+}
+
+// Game invite type
+export interface GameInvite {
+  id: string
+  fromUserId: string
+  fromUsername: string
+  toUserId: string
+  createdAt: Timestamp
+  status: 'pending' | 'accepted' | 'declined'
+}
+
+// Multiplayer game state
+export interface MultiplayerGame {
+  id: string
+  yellowPlayerId: string
+  yellowUsername: string
+  greenPlayerId: string
+  greenUsername: string
+  gameState: unknown
+  currentTurn: 'yellow' | 'green'
+  createdAt: Timestamp
+  lastMove: Timestamp
+  status: 'playing' | 'finished'
+  winner?: 'yellow' | 'green'
+}
+
+// Listeners
+let onlinePlayersUnsubscribe: (() => void) | null = null
+let invitesUnsubscribe: (() => void) | null = null
+let gameUnsubscribe: (() => void) | null = null
+
+// Online players list
+let onlinePlayers: OnlinePlayer[] = []
+let onlinePlayersCallback: ((players: OnlinePlayer[]) => void) | null = null
+
+// Game invites
+let gameInvites: GameInvite[] = []
+let invitesCallback: ((invites: GameInvite[]) => void) | null = null
+
+// Current multiplayer game
+let currentMultiplayerGame: MultiplayerGame | null = null
+let gameCallback: ((game: MultiplayerGame | null) => void) | null = null
+
+// Set user as online
+export async function setOnline(): Promise<void> {
+  if (!db || !currentUser || !currentUserData || isOfflineMode) return
+
+  try {
+    await setDoc(doc(db, 'online', currentUser.uid), {
+      id: currentUser.uid,
+      username: currentUserData.username,
+      lastSeen: serverTimestamp(),
+      status: 'available'
+    })
+  } catch (error) {
+    console.error('Error setting online:', error)
+  }
+}
+
+// Set user as offline
+export async function setOffline(): Promise<void> {
+  if (!db || !currentUser) return
+
+  try {
+    await deleteDoc(doc(db, 'online', currentUser.uid))
+  } catch (error) {
+    console.error('Error setting offline:', error)
+  }
+}
+
+// Listen for online players
+export function listenToOnlinePlayers(callback: (players: OnlinePlayer[]) => void): void {
+  if (!db) return
+
+  onlinePlayersCallback = callback
+
+  // Clean up existing listener
+  if (onlinePlayersUnsubscribe) {
+    onlinePlayersUnsubscribe()
+  }
+
+  const q = query(collection(db, 'online'))
+  onlinePlayersUnsubscribe = onSnapshot(q, (snapshot) => {
+    onlinePlayers = []
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      // Don't include self
+      if (currentUser && doc.id !== currentUser.uid) {
+        onlinePlayers.push({
+          id: doc.id,
+          username: data.username,
+          lastSeen: data.lastSeen?.toMillis() || Date.now(),
+          status: data.status
+        } as OnlinePlayer)
+      }
+    })
+    if (onlinePlayersCallback) {
+      onlinePlayersCallback(onlinePlayers)
+    }
+  })
+}
+
+// Stop listening to online players
+export function stopListeningToOnlinePlayers(): void {
+  if (onlinePlayersUnsubscribe) {
+    onlinePlayersUnsubscribe()
+    onlinePlayersUnsubscribe = null
+  }
+}
+
+// Send game invite
+export async function sendGameInvite(toUserId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    const inviteRef = doc(collection(db, 'invites'))
+    await setDoc(inviteRef, {
+      fromUserId: currentUser.uid,
+      fromUsername: currentUserData.username,
+      toUserId: toUserId,
+      createdAt: serverTimestamp(),
+      status: 'pending'
+    })
+    return true
+  } catch (error) {
+    console.error('Error sending invite:', error)
+    return false
+  }
+}
+
+// Listen for incoming invites
+export function listenToInvites(callback: (invites: GameInvite[]) => void): void {
+  if (!db || !currentUser) return
+
+  invitesCallback = callback
+
+  // Clean up existing listener
+  if (invitesUnsubscribe) {
+    invitesUnsubscribe()
+  }
+
+  const q = query(
+    collection(db, 'invites'),
+    where('toUserId', '==', currentUser.uid),
+    where('status', '==', 'pending')
+  )
+
+  invitesUnsubscribe = onSnapshot(q, (snapshot) => {
+    gameInvites = []
+    snapshot.forEach((docSnap) => {
+      gameInvites.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as GameInvite)
+    })
+    if (invitesCallback) {
+      invitesCallback(gameInvites)
+    }
+  })
+}
+
+// Stop listening to invites
+export function stopListeningToInvites(): void {
+  if (invitesUnsubscribe) {
+    invitesUnsubscribe()
+    invitesUnsubscribe = null
+  }
+}
+
+// Accept invite and create game
+export async function acceptInvite(inviteId: string): Promise<string | null> {
+  if (!db || !currentUser || !currentUserData) return null
+
+  try {
+    // Get invite data
+    const inviteDoc = await getDoc(doc(db, 'invites', inviteId))
+    if (!inviteDoc.exists()) return null
+
+    const inviteData = inviteDoc.data()
+
+    // Create game
+    const gameRef = doc(collection(db, 'games'))
+    await setDoc(gameRef, {
+      yellowPlayerId: inviteData.fromUserId,
+      yellowUsername: inviteData.fromUsername,
+      greenPlayerId: currentUser.uid,
+      greenUsername: currentUserData.username,
+      currentTurn: 'yellow',
+      createdAt: serverTimestamp(),
+      lastMove: serverTimestamp(),
+      status: 'playing',
+      gameState: null // Will be set when game starts
+    })
+
+    // Update invite status
+    await updateDoc(doc(db, 'invites', inviteId), {
+      status: 'accepted',
+      gameId: gameRef.id
+    })
+
+    return gameRef.id
+  } catch (error) {
+    console.error('Error accepting invite:', error)
+    return null
+  }
+}
+
+// Decline invite
+export async function declineInvite(inviteId: string): Promise<void> {
+  if (!db) return
+
+  try {
+    await updateDoc(doc(db, 'invites', inviteId), {
+      status: 'declined'
+    })
+  } catch (error) {
+    console.error('Error declining invite:', error)
+  }
+}
+
+// Listen to a specific game
+export function listenToGame(gameId: string, callback: (game: MultiplayerGame | null) => void): void {
+  if (!db) return
+
+  gameCallback = callback
+
+  // Clean up existing listener
+  if (gameUnsubscribe) {
+    gameUnsubscribe()
+  }
+
+  gameUnsubscribe = onSnapshot(doc(db, 'games', gameId), (docSnap) => {
+    if (docSnap.exists()) {
+      currentMultiplayerGame = {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as MultiplayerGame
+    } else {
+      currentMultiplayerGame = null
+    }
+    if (gameCallback) {
+      gameCallback(currentMultiplayerGame)
+    }
+  })
+}
+
+// Stop listening to game
+export function stopListeningToGame(): void {
+  if (gameUnsubscribe) {
+    gameUnsubscribe()
+    gameUnsubscribe = null
+  }
+  currentMultiplayerGame = null
+}
+
+// Update game state
+export async function updateGameState(gameId: string, gameState: unknown, currentTurn: 'yellow' | 'green'): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    await updateDoc(doc(db, 'games', gameId), {
+      gameState,
+      currentTurn,
+      lastMove: serverTimestamp()
+    })
+    return true
+  } catch (error) {
+    console.error('Error updating game:', error)
+    return false
+  }
+}
+
+// End game
+export async function endGame(gameId: string, winner: 'yellow' | 'green'): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    await updateDoc(doc(db, 'games', gameId), {
+      status: 'finished',
+      winner
+    })
+    return true
+  } catch (error) {
+    console.error('Error ending game:', error)
+    return false
+  }
+}
+
+// Get online players count
+export function getOnlinePlayers(): OnlinePlayer[] {
+  return onlinePlayers
+}
+
+// Get current invites
+export function getInvites(): GameInvite[] {
+  return gameInvites
+}
+
+// Get current multiplayer game
+export function getCurrentGame(): MultiplayerGame | null {
+  return currentMultiplayerGame
 }
