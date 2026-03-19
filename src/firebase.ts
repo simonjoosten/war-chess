@@ -199,13 +199,42 @@ export async function registerUser(email: string, password: string, username: st
   }
 }
 
-// Login user
-export async function loginUser(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+// Find email by username
+async function findEmailByUsername(username: string): Promise<string | null> {
+  if (!db) return null
+
+  try {
+    const q = query(collection(db, 'users'), where('username', '==', username))
+    const snapshot = await getDocs(q)
+    if (!snapshot.empty) {
+      const userData = snapshot.docs[0].data() as UserData
+      return userData.email
+    }
+    return null
+  } catch (error) {
+    console.error('Error finding email by username:', error)
+    return null
+  }
+}
+
+// Login user (accepts username or email)
+export async function loginUser(usernameOrEmail: string, password: string): Promise<{ success: boolean; error?: string }> {
   if (!auth || !db) {
     return { success: false, error: 'Firebase not initialized' }
   }
 
   try {
+    // Check if input is email or username
+    let email = usernameOrEmail
+    if (!usernameOrEmail.includes('@')) {
+      // It's a username, look up the email
+      const foundEmail = await findEmailByUsername(usernameOrEmail)
+      if (!foundEmail) {
+        return { success: false, error: 'User not found' }
+      }
+      email = foundEmail
+    }
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
@@ -234,7 +263,7 @@ export async function loginUser(email: string, password: string): Promise<{ succ
     } else if (firebaseError.code === 'auth/invalid-email') {
       errorMessage = 'Invalid email address'
     } else if (firebaseError.code === 'auth/invalid-credential') {
-      errorMessage = 'Invalid email or password'
+      errorMessage = 'Invalid username or password'
     }
     return { success: false, error: errorMessage }
   }

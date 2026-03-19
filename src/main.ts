@@ -10148,8 +10148,8 @@ function render() {
           <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[350px]">
             ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
             <div class="flex flex-col gap-2">
-              <label class="text-gray-300 text-sm">${t('authEmail')}</label>
-              <input type="email" id="login-email" name="email" autocomplete="email" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="email@example.com">
+              <label class="text-gray-300 text-sm">${t('authUsername')}</label>
+              <input type="text" id="login-username" name="username" autocomplete="username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="${t('authUsername')}">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authPassword')}</label>
@@ -10168,9 +10168,9 @@ function render() {
         </div>
       `
       document.getElementById('login-btn')?.addEventListener('click', async () => {
-        const email = (document.getElementById('login-email') as HTMLInputElement)?.value
+        const username = (document.getElementById('login-username') as HTMLInputElement)?.value
         const password = (document.getElementById('login-password') as HTMLInputElement)?.value
-        if (!email || !password) {
+        if (!username || !password) {
           authError = 'Please fill in all fields'
           render()
           return
@@ -10178,7 +10178,7 @@ function render() {
         authLoading = true
         authError = ''
         render()
-        const result = await loginUser(email, password)
+        const result = await loginUser(username, password)
         authLoading = false
         if (result.success) {
           showAuthScreen = 'none'
