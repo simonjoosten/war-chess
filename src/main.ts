@@ -36,6 +36,7 @@ let showAuthScreen: AuthScreen = 'none'
 let authError = ''
 let authLoading = false
 let firebaseInitialized = false
+let loginWithEmail = false
 
 // Multiplayer state
 let onlinePlayers: OnlinePlayer[] = []
@@ -2949,6 +2950,8 @@ const translations: Record<Language, Record<string, string>> = {
     authPassword: 'Password',
     authUsername: 'Username',
     authUsernameOrEmail: 'Username or Email',
+    authLoginWithEmail: 'Login with email instead',
+    authLoginWithUsername: 'Login with username instead',
     authLoginButton: 'Login',
     authRegisterButton: 'Create Account',
     authLoading: 'Loading...',
@@ -3146,6 +3149,8 @@ const translations: Record<Language, Record<string, string>> = {
     authPassword: 'Wachtwoord',
     authUsername: 'Gebruikersnaam',
     authUsernameOrEmail: 'Gebruikersnaam of E-mail',
+    authLoginWithEmail: 'Inloggen met e-mail',
+    authLoginWithUsername: 'Inloggen met gebruikersnaam',
     authLoginButton: 'Inloggen',
     authRegisterButton: 'Account Aanmaken',
     authLoading: 'Laden...',
@@ -3343,6 +3348,8 @@ const translations: Record<Language, Record<string, string>> = {
     authPassword: 'Passwort',
     authUsername: 'Benutzername',
     authUsernameOrEmail: 'Benutzername oder E-Mail',
+    authLoginWithEmail: 'Mit E-Mail anmelden',
+    authLoginWithUsername: 'Mit Benutzername anmelden',
     authLoginButton: 'Anmelden',
     authRegisterButton: 'Konto erstellen',
     authLoading: 'Laden...',
@@ -3540,6 +3547,8 @@ const translations: Record<Language, Record<string, string>> = {
     authPassword: 'Mot de passe',
     authUsername: 'Nom d\'utilisateur',
     authUsernameOrEmail: 'Nom d\'utilisateur ou E-mail',
+    authLoginWithEmail: 'Se connecter avec e-mail',
+    authLoginWithUsername: 'Se connecter avec nom d\'utilisateur',
     authLoginButton: 'Se connecter',
     authRegisterButton: 'Créer un compte',
     authLoading: 'Chargement...',
@@ -3737,6 +3746,8 @@ const translations: Record<Language, Record<string, string>> = {
     authPassword: 'Contraseña',
     authUsername: 'Nombre de usuario',
     authUsernameOrEmail: 'Usuario o correo electrónico',
+    authLoginWithEmail: 'Iniciar con correo electrónico',
+    authLoginWithUsername: 'Iniciar con nombre de usuario',
     authLoginButton: 'Iniciar sesión',
     authRegisterButton: 'Crear cuenta',
     authLoading: 'Cargando...',
@@ -10153,8 +10164,8 @@ function render() {
           <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[350px]">
             ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
             <div class="flex flex-col gap-2">
-              <label class="text-gray-300 text-sm">${t('authUsernameOrEmail')}</label>
-              <input type="text" id="login-username" name="username" autocomplete="username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="${t('authUsernameOrEmail')}">
+              <label class="text-gray-300 text-sm">${loginWithEmail ? t('authEmail') : t('authUsername')}</label>
+              <input type="${loginWithEmail ? 'email' : 'text'}" id="login-input" name="${loginWithEmail ? 'email' : 'username'}" autocomplete="${loginWithEmail ? 'email' : 'username'}" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="${loginWithEmail ? 'email@example.com' : t('authUsername')}">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authPassword')}</label>
@@ -10163,6 +10174,11 @@ function render() {
             <button id="login-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-colors ${authLoading ? 'opacity-50' : ''}" ${authLoading ? 'disabled' : ''}>
               ${authLoading ? t('authLoading') : t('authLoginButton')}
             </button>
+            <div class="text-center">
+              <button id="toggle-login-mode" class="text-blue-400 hover:underline text-sm">
+                ${loginWithEmail ? t('authLoginWithUsername') : t('authLoginWithEmail')}
+              </button>
+            </div>
             <div class="text-center text-gray-400 text-sm">
               ${t('authNoAccount')} <button id="goto-register" class="text-blue-400 hover:underline">${t('authRegister')}</button>
             </div>
@@ -10172,10 +10188,14 @@ function render() {
           </button>
         </div>
       `
+      document.getElementById('toggle-login-mode')?.addEventListener('click', () => {
+        loginWithEmail = !loginWithEmail
+        render()
+      })
       document.getElementById('login-btn')?.addEventListener('click', async () => {
-        const username = (document.getElementById('login-username') as HTMLInputElement)?.value
+        const loginInput = (document.getElementById('login-input') as HTMLInputElement)?.value
         const password = (document.getElementById('login-password') as HTMLInputElement)?.value
-        if (!username || !password) {
+        if (!loginInput || !password) {
           authError = 'Please fill in all fields'
           render()
           return
@@ -10183,7 +10203,7 @@ function render() {
         authLoading = true
         authError = ''
         render()
-        const result = await loginUser(username, password)
+        const result = await loginUser(loginInput, password)
         authLoading = false
         if (result.success) {
           showAuthScreen = 'none'
