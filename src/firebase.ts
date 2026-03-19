@@ -174,12 +174,24 @@ export async function registerUser(email: string, password: string, username: st
   }
 
   try {
+    // Check if username is already taken
+    const usernameDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()))
+    if (usernameDoc.exists()) {
+      return { success: false, error: 'Username already taken' }
+    }
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
     // Create user document in Firestore
     const userData = getDefaultUserData(username, email)
     await setDoc(doc(db, 'users', user.uid), userData)
+
+    // Create username -> email mapping (public, for login lookup)
+    await setDoc(doc(db, 'usernames', username.toLowerCase()), {
+      email: email,
+      uid: user.uid
+    })
 
     currentUser = user
     currentUserData = userData
@@ -199,16 +211,15 @@ export async function registerUser(email: string, password: string, username: st
   }
 }
 
-// Find email by username
+// Find email by username (uses public usernames collection)
 async function findEmailByUsername(username: string): Promise<string | null> {
   if (!db) return null
 
   try {
-    const q = query(collection(db, 'users'), where('username', '==', username))
-    const snapshot = await getDocs(q)
-    if (!snapshot.empty) {
-      const userData = snapshot.docs[0].data() as UserData
-      return userData.email
+    // Look up in the public usernames collection
+    const usernameDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()))
+    if (usernameDoc.exists()) {
+      return usernameDoc.data().email
     }
     return null
   } catch (error) {
@@ -244,6 +255,15 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
       currentUserData = userDoc.data() as UserData
       // Update last login
       await updateDoc(doc(db, 'users', user.uid), { lastLogin: Date.now() })
+
+      // Auto-create username mapping if it doesn't exist (for existing users)
+      const usernameDoc = await getDoc(doc(db, 'usernames', currentUserData.username.toLowerCase()))
+      if (!usernameDoc.exists()) {
+        await setDoc(doc(db, 'usernames', currentUserData.username.toLowerCase()), {
+          email: currentUserData.email,
+          uid: user.uid
+        })
+      }
     } else {
       // Create user data if it doesn't exist (shouldn't happen normally)
       currentUserData = getDefaultUserData(email.split('@')[0], email)

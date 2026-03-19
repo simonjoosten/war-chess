@@ -2948,6 +2948,7 @@ const translations: Record<Language, Record<string, string>> = {
     authEmail: 'Email',
     authPassword: 'Password',
     authUsername: 'Username',
+    authUsernameOrEmail: 'Username or Email',
     authLoginButton: 'Login',
     authRegisterButton: 'Create Account',
     authLoading: 'Loading...',
@@ -3144,6 +3145,7 @@ const translations: Record<Language, Record<string, string>> = {
     authEmail: 'E-mail',
     authPassword: 'Wachtwoord',
     authUsername: 'Gebruikersnaam',
+    authUsernameOrEmail: 'Gebruikersnaam of E-mail',
     authLoginButton: 'Inloggen',
     authRegisterButton: 'Account Aanmaken',
     authLoading: 'Laden...',
@@ -3340,6 +3342,7 @@ const translations: Record<Language, Record<string, string>> = {
     authEmail: 'E-Mail',
     authPassword: 'Passwort',
     authUsername: 'Benutzername',
+    authUsernameOrEmail: 'Benutzername oder E-Mail',
     authLoginButton: 'Anmelden',
     authRegisterButton: 'Konto erstellen',
     authLoading: 'Laden...',
@@ -3536,6 +3539,7 @@ const translations: Record<Language, Record<string, string>> = {
     authEmail: 'E-mail',
     authPassword: 'Mot de passe',
     authUsername: 'Nom d\'utilisateur',
+    authUsernameOrEmail: 'Nom d\'utilisateur ou E-mail',
     authLoginButton: 'Se connecter',
     authRegisterButton: 'Créer un compte',
     authLoading: 'Chargement...',
@@ -3732,6 +3736,7 @@ const translations: Record<Language, Record<string, string>> = {
     authEmail: 'Correo electrónico',
     authPassword: 'Contraseña',
     authUsername: 'Nombre de usuario',
+    authUsernameOrEmail: 'Usuario o correo electrónico',
     authLoginButton: 'Iniciar sesión',
     authRegisterButton: 'Crear cuenta',
     authLoading: 'Cargando...',
@@ -10148,8 +10153,8 @@ function render() {
           <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[350px]">
             ${authError ? `<div class="bg-red-600 text-white p-3 rounded text-sm">${authError}</div>` : ''}
             <div class="flex flex-col gap-2">
-              <label class="text-gray-300 text-sm">${t('authUsername')}</label>
-              <input type="text" id="login-username" name="username" autocomplete="username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="${t('authUsername')}">
+              <label class="text-gray-300 text-sm">${t('authUsernameOrEmail')}</label>
+              <input type="text" id="login-username" name="username" autocomplete="username" class="bg-gray-700 text-white p-3 rounded border border-gray-600 focus:border-blue-500 outline-none" placeholder="${t('authUsernameOrEmail')}">
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-gray-300 text-sm">${t('authPassword')}</label>
