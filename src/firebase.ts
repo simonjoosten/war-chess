@@ -572,8 +572,52 @@ export function stopListeningToInvites(): void {
   }
 }
 
+// Sent invites listener
+let sentInvitesUnsubscribe: (() => void) | null = null
+let sentInvitesCallback: ((invite: GameInvite & { gameId?: string }) => void) | null = null
+
+// Listen for updates to invites YOU sent
+export function listenToSentInvites(callback: (invite: GameInvite & { gameId?: string }) => void): void {
+  if (!db || !currentUser) return
+
+  sentInvitesCallback = callback
+
+  if (sentInvitesUnsubscribe) {
+    sentInvitesUnsubscribe()
+  }
+
+  const q = query(
+    collection(db, 'invites'),
+    where('fromUserId', '==', currentUser.uid)
+  )
+
+  sentInvitesUnsubscribe = onSnapshot(q, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === 'modified') {
+        const data = change.doc.data()
+        if (data.status === 'accepted' || data.status === 'declined') {
+          if (sentInvitesCallback) {
+            sentInvitesCallback({
+              id: change.doc.id,
+              ...data
+            } as GameInvite & { gameId?: string })
+          }
+        }
+      }
+    })
+  })
+}
+
+// Stop listening to sent invites
+export function stopListeningToSentInvites(): void {
+  if (sentInvitesUnsubscribe) {
+    sentInvitesUnsubscribe()
+    sentInvitesUnsubscribe = null
+  }
+}
+
 // Accept invite and create game
-export async function acceptInvite(inviteId: string): Promise<string | null> {
+export async function acceptInvite(inviteId: string): Promise<{ gameId: string; myTeam: 'yellow' | 'green' } | null> {
   if (!db || !currentUser || !currentUserData) return null
 
   try {
@@ -583,27 +627,38 @@ export async function acceptInvite(inviteId: string): Promise<string | null> {
 
     const inviteData = inviteDoc.data()
 
+    // Random team assignment
+    const accepterIsYellow = Math.random() < 0.5
+
+    const yellowPlayerId = accepterIsYellow ? currentUser.uid : inviteData.fromUserId
+    const yellowUsername = accepterIsYellow ? currentUserData.username : inviteData.fromUsername
+    const greenPlayerId = accepterIsYellow ? inviteData.fromUserId : currentUser.uid
+    const greenUsername = accepterIsYellow ? inviteData.fromUsername : currentUserData.username
+
     // Create game
     const gameRef = doc(collection(db, 'games'))
     await setDoc(gameRef, {
-      yellowPlayerId: inviteData.fromUserId,
-      yellowUsername: inviteData.fromUsername,
-      greenPlayerId: currentUser.uid,
-      greenUsername: currentUserData.username,
+      yellowPlayerId,
+      yellowUsername,
+      greenPlayerId,
+      greenUsername,
       currentTurn: 'yellow',
       createdAt: serverTimestamp(),
       lastMove: serverTimestamp(),
-      status: 'playing',
-      gameState: null // Will be set when game starts
+      status: 'waiting', // Waiting for both players to join
+      gameState: null
     })
 
-    // Update invite status
+    // Update invite status with game info
     await updateDoc(doc(db, 'invites', inviteId), {
       status: 'accepted',
       gameId: gameRef.id
     })
 
-    return gameRef.id
+    return {
+      gameId: gameRef.id,
+      myTeam: accepterIsYellow ? 'yellow' : 'green'
+    }
   } catch (error) {
     console.error('Error accepting invite:', error)
     return null
@@ -704,4 +759,46 @@ export function getInvites(): GameInvite[] {
 // Get current multiplayer game
 export function getCurrentGame(): MultiplayerGame | null {
   return currentMultiplayerGame
+}
+
+// Get my team in a game
+export function getMyTeamInGame(game: MultiplayerGame): 'yellow' | 'green' | null {
+  if (!currentUser) return null
+  if (game.yellowPlayerId === currentUser.uid) return 'yellow'
+  if (game.greenPlayerId === currentUser.uid) return 'green'
+  return null
+}
+
+// Join a game (mark as ready)
+export async function joinGame(gameId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const gameDoc = await getDoc(doc(db, 'games', gameId))
+    if (!gameDoc.exists()) return false
+
+    const gameData = gameDoc.data()
+
+    // Determine which player joined
+    const isYellow = gameData.yellowPlayerId === currentUser.uid
+    const updateData: Record<string, unknown> = {}
+
+    if (isYellow) {
+      updateData.yellowJoined = true
+    } else {
+      updateData.greenJoined = true
+    }
+
+    // Check if both players have joined
+    const otherJoined = isYellow ? gameData.greenJoined : gameData.yellowJoined
+    if (otherJoined) {
+      updateData.status = 'playing'
+    }
+
+    await updateDoc(doc(db, 'games', gameId), updateData)
+    return true
+  } catch (error) {
+    console.error('Error joining game:', error)
+    return false
+  }
 }

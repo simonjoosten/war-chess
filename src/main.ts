@@ -22,12 +22,19 @@ import {
   sendGameInvite,
   listenToInvites,
   stopListeningToInvites,
+  listenToSentInvites,
+  stopListeningToSentInvites,
   acceptInvite,
   declineInvite,
   getOnlinePlayers,
   getInvites,
+  listenToGame,
+  stopListeningToGame,
+  joinGame,
+  getMyTeamInGame,
   OnlinePlayer,
-  GameInvite
+  GameInvite,
+  MultiplayerGame
 } from './firebase'
 
 // Auth state
@@ -42,6 +49,10 @@ let loginWithEmail = false
 let onlinePlayers: OnlinePlayer[] = []
 let pendingInvites: GameInvite[] = []
 let multiplayerListening = false
+let multiplayerGameId: string | null = null
+let multiplayerTeam: 'yellow' | 'green' | null = null
+let multiplayerGame: MultiplayerGame | null = null
+let inviteDeclinedMessage: string | null = null
 
 // Language settings
 type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
@@ -2984,6 +2995,10 @@ const translations: Record<Language, Record<string, string>> = {
     declineInvite: 'Decline',
     inviteFrom: 'Invite from',
     waitingForPlayers: 'Waiting for players...',
+    waitingForOpponent: 'Waiting for opponent to join...',
+    inviteDeclined: 'declined your invite',
+    youAreYellow: 'You are Yellow',
+    youAreGreen: 'You are Green',
     playerAvailable: 'Available',
     playerPlaying: 'In Game',
     refreshList: 'Refresh',
@@ -3183,6 +3198,10 @@ const translations: Record<Language, Record<string, string>> = {
     declineInvite: 'Afwijzen',
     inviteFrom: 'Uitnodiging van',
     waitingForPlayers: 'Wachten op spelers...',
+    waitingForOpponent: 'Wachten tot tegenstander deelneemt...',
+    inviteDeclined: 'heeft je uitnodiging afgewezen',
+    youAreYellow: 'Jij bent Geel',
+    youAreGreen: 'Jij bent Groen',
     playerAvailable: 'Beschikbaar',
     playerPlaying: 'In Spel',
     refreshList: 'Vernieuwen',
@@ -3382,6 +3401,10 @@ const translations: Record<Language, Record<string, string>> = {
     declineInvite: 'Ablehnen',
     inviteFrom: 'Einladung von',
     waitingForPlayers: 'Warte auf Spieler...',
+    waitingForOpponent: 'Warte auf Gegner...',
+    inviteDeclined: 'hat deine Einladung abgelehnt',
+    youAreYellow: 'Du bist Gelb',
+    youAreGreen: 'Du bist Grün',
     playerAvailable: 'Verfügbar',
     playerPlaying: 'Im Spiel',
     refreshList: 'Aktualisieren',
@@ -3581,6 +3604,10 @@ const translations: Record<Language, Record<string, string>> = {
     declineInvite: 'Refuser',
     inviteFrom: 'Invitation de',
     waitingForPlayers: 'En attente de joueurs...',
+    waitingForOpponent: 'En attente de l\'adversaire...',
+    inviteDeclined: 'a refusé votre invitation',
+    youAreYellow: 'Vous êtes Jaune',
+    youAreGreen: 'Vous êtes Vert',
     playerAvailable: 'Disponible',
     playerPlaying: 'En Jeu',
     refreshList: 'Actualiser',
@@ -3780,6 +3807,10 @@ const translations: Record<Language, Record<string, string>> = {
     declineInvite: 'Rechazar',
     inviteFrom: 'Invitación de',
     waitingForPlayers: 'Esperando jugadores...',
+    waitingForOpponent: 'Esperando al oponente...',
+    inviteDeclined: 'rechazó tu invitación',
+    youAreYellow: 'Eres Amarillo',
+    youAreGreen: 'Eres Verde',
     playerAvailable: 'Disponible',
     playerPlaying: 'En Juego',
     refreshList: 'Actualizar',
@@ -5380,6 +5411,42 @@ async function startGame() {
   if (musicEnabled) {
     await startMusic()
   }
+
+  render()
+}
+
+// Start a multiplayer game
+async function startMultiplayerGame() {
+  if (!multiplayerGame || !multiplayerTeam) return
+
+  // Stop listening to multiplayer screen stuff
+  stopListeningToOnlinePlayers()
+  stopListeningToInvites()
+  stopListeningToSentInvites()
+  setOffline()
+
+  // Set bot mode to false for multiplayer
+  botMode = false
+
+  // Initialize game - reset pieces array
+  pieces.length = 0
+  getInitialPieces().forEach(p => pieces.push(p))
+  gameState = 'playing'
+  currentTurn = 'yellow'
+  showAuthScreen = 'none'
+  multiplayerListening = false
+
+  await initAudio()
+
+  // Start music if enabled
+  if (musicEnabled) {
+    await startMusic()
+  }
+
+  // Show which team you are
+  message = multiplayerTeam === 'yellow'
+    ? `${t('youAreYellow')} - ${t('yellowTurn')}`
+    : `${t('youAreGreen')} - ${t('yellowTurn')}`
 
   render()
 }
@@ -10403,6 +10470,31 @@ function render() {
           pendingInvites = invites
           render()
         })
+        // Listen for responses to invites we sent
+        listenToSentInvites((invite) => {
+          if (invite.status === 'declined') {
+            inviteDeclinedMessage = `${invite.toUserId} ${t('inviteDeclined')}`
+            setTimeout(() => {
+              inviteDeclinedMessage = null
+              render()
+            }, 3000)
+            render()
+          } else if (invite.status === 'accepted' && invite.gameId) {
+            // Our invite was accepted! Join the game
+            multiplayerGameId = invite.gameId
+            joinGame(invite.gameId)
+            listenToGame(invite.gameId, (game) => {
+              if (game) {
+                multiplayerGame = game
+                multiplayerTeam = getMyTeamInGame(game)
+                if (game.status === 'playing') {
+                  // Both players ready - start game!
+                  startMultiplayerGame()
+                }
+              }
+            })
+          }
+        })
       }
 
       app.innerHTML = `
@@ -10416,13 +10508,25 @@ function render() {
           </div>
           ` : ''}
 
+          ${inviteDeclinedMessage ? `
+          <div class="bg-red-600 text-white p-3 rounded text-sm">
+            ❌ ${inviteDeclinedMessage}
+          </div>
+          ` : ''}
+
+          ${multiplayerGameId ? `
+          <div class="bg-green-600 text-white p-4 rounded-lg text-center">
+            ⏳ ${t('waitingForOpponent')}
+          </div>
+          ` : ''}
+
           <!-- Pending Invites -->
           ${pendingInvites.length > 0 ? `
           <div class="bg-yellow-900 p-4 rounded-lg flex flex-col gap-3 w-full max-w-[400px]">
             <h2 class="text-lg font-bold text-yellow-200">📩 ${t('pendingInvites')}</h2>
             <div class="flex flex-col gap-2">
               ${pendingInvites.map(invite => `
-                <div class="bg-yellow-800 p-3 rounded flex items-center justify-between">
+                <div class="bg-yellow-800 p-3 rounded flex flex-col gap-2">
                   <span class="text-white">${t('inviteFrom')} <strong>${invite.fromUsername}</strong></span>
                   <div class="flex gap-2">
                     <button class="accept-invite-btn bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm" data-id="${invite.id}">
@@ -10481,6 +10585,7 @@ function render() {
           setOffline()
           stopListeningToOnlinePlayers()
           stopListeningToInvites()
+          stopListeningToSentInvites()
           multiplayerListening = false
           onlinePlayers = []
           pendingInvites = []
@@ -10510,10 +10615,23 @@ function render() {
         btn.addEventListener('click', async (e) => {
           const inviteId = (e.target as HTMLElement).getAttribute('data-id')
           if (inviteId) {
-            const gameId = await acceptInvite(inviteId)
-            if (gameId) {
-              // TODO: Start the multiplayer game with this gameId
-              console.log('Game started:', gameId)
+            const result = await acceptInvite(inviteId)
+            if (result) {
+              // Join the game
+              multiplayerGameId = result.gameId
+              multiplayerTeam = result.myTeam
+              await joinGame(result.gameId)
+              // Listen for game updates
+              listenToGame(result.gameId, (game) => {
+                if (game) {
+                  multiplayerGame = game
+                  if (game.status === 'playing') {
+                    // Both players ready - start game!
+                    startMultiplayerGame()
+                  }
+                }
+              })
+              render()
             }
           }
         })
