@@ -412,6 +412,9 @@ export interface GameInvite {
   toUserId: string
   createdAt: Timestamp
   status: 'pending' | 'accepted' | 'declined'
+  timerEnabled?: boolean
+  timerMinutes?: number
+  gameId?: string
 }
 
 // Multiplayer game state
@@ -425,8 +428,12 @@ export interface MultiplayerGame {
   currentTurn: 'yellow' | 'green'
   createdAt: Timestamp
   lastMove: Timestamp
-  status: 'playing' | 'finished'
+  status: 'waiting' | 'playing' | 'finished'
   winner?: 'yellow' | 'green'
+  timerEnabled?: boolean
+  timerMinutes?: number
+  yellowJoined?: boolean
+  greenJoined?: boolean
 }
 
 // Listeners
@@ -513,9 +520,9 @@ export function stopListeningToOnlinePlayers(): void {
   }
 }
 
-// Send game invite
-export async function sendGameInvite(toUserId: string): Promise<boolean> {
-  if (!db || !currentUser || !currentUserData) return false
+// Send game invite with optional timer settings
+export async function sendGameInvite(toUserId: string, timerEnabled: boolean = false, timerMinutes: number = 10): Promise<string | null> {
+  if (!db || !currentUser || !currentUserData) return null
 
   try {
     const inviteRef = doc(collection(db, 'invites'))
@@ -524,12 +531,14 @@ export async function sendGameInvite(toUserId: string): Promise<boolean> {
       fromUsername: currentUserData.username,
       toUserId: toUserId,
       createdAt: serverTimestamp(),
-      status: 'pending'
+      status: 'pending',
+      timerEnabled: timerEnabled,
+      timerMinutes: timerMinutes
     })
-    return true
+    return inviteRef.id
   } catch (error) {
     console.error('Error sending invite:', error)
-    return false
+    return null
   }
 }
 
@@ -635,7 +644,7 @@ export async function acceptInvite(inviteId: string): Promise<{ gameId: string; 
     const greenPlayerId = accepterIsYellow ? inviteData.fromUserId : currentUser.uid
     const greenUsername = accepterIsYellow ? inviteData.fromUsername : currentUserData.username
 
-    // Create game
+    // Create game with timer settings from invite
     const gameRef = doc(collection(db, 'games'))
     await setDoc(gameRef, {
       yellowPlayerId,
@@ -646,7 +655,11 @@ export async function acceptInvite(inviteId: string): Promise<{ gameId: string; 
       createdAt: serverTimestamp(),
       lastMove: serverTimestamp(),
       status: 'waiting', // Waiting for both players to join
-      gameState: null
+      gameState: null,
+      timerEnabled: inviteData.timerEnabled || false,
+      timerMinutes: inviteData.timerMinutes || 10,
+      yellowJoined: false,
+      greenJoined: false
     })
 
     // Update invite status with game info

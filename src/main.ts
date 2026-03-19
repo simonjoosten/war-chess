@@ -53,6 +53,9 @@ let multiplayerGameId: string | null = null
 let multiplayerTeam: 'yellow' | 'green' | null = null
 let multiplayerGame: MultiplayerGame | null = null
 let inviteDeclinedMessage: string | null = null
+let showInviteSettings: string | null = null // Player ID to invite
+let inviteTimerEnabled = false
+let inviteTimerMinutes = 10
 
 // Language settings
 type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
@@ -2997,6 +3000,7 @@ const translations: Record<Language, Record<string, string>> = {
     waitingForPlayers: 'Waiting for players...',
     waitingForOpponent: 'Waiting for opponent to join...',
     inviteDeclined: 'declined your invite',
+    inviteSettings: 'Game Settings',
     youAreYellow: 'You are Yellow',
     youAreGreen: 'You are Green',
     playerAvailable: 'Available',
@@ -3200,6 +3204,7 @@ const translations: Record<Language, Record<string, string>> = {
     waitingForPlayers: 'Wachten op spelers...',
     waitingForOpponent: 'Wachten tot tegenstander deelneemt...',
     inviteDeclined: 'heeft je uitnodiging afgewezen',
+    inviteSettings: 'Spel Instellingen',
     youAreYellow: 'Jij bent Geel',
     youAreGreen: 'Jij bent Groen',
     playerAvailable: 'Beschikbaar',
@@ -3403,6 +3408,7 @@ const translations: Record<Language, Record<string, string>> = {
     waitingForPlayers: 'Warte auf Spieler...',
     waitingForOpponent: 'Warte auf Gegner...',
     inviteDeclined: 'hat deine Einladung abgelehnt',
+    inviteSettings: 'Spieleinstellungen',
     youAreYellow: 'Du bist Gelb',
     youAreGreen: 'Du bist Grün',
     playerAvailable: 'Verfügbar',
@@ -3606,6 +3612,7 @@ const translations: Record<Language, Record<string, string>> = {
     waitingForPlayers: 'En attente de joueurs...',
     waitingForOpponent: 'En attente de l\'adversaire...',
     inviteDeclined: 'a refusé votre invitation',
+    inviteSettings: 'Paramètres de jeu',
     youAreYellow: 'Vous êtes Jaune',
     youAreGreen: 'Vous êtes Vert',
     playerAvailable: 'Disponible',
@@ -3809,6 +3816,7 @@ const translations: Record<Language, Record<string, string>> = {
     waitingForPlayers: 'Esperando jugadores...',
     waitingForOpponent: 'Esperando al oponente...',
     inviteDeclined: 'rechazó tu invitación',
+    inviteSettings: 'Ajustes del juego',
     youAreYellow: 'Eres Amarillo',
     youAreGreen: 'Eres Verde',
     playerAvailable: 'Disponible',
@@ -10542,6 +10550,39 @@ function render() {
           </div>
           ` : ''}
 
+          ${showInviteSettings ? `
+          <!-- Invite Settings Dialog -->
+          <div class="bg-blue-900 p-4 rounded-lg flex flex-col gap-3 w-full max-w-[400px]">
+            <h2 class="text-lg font-bold text-white">⚙️ ${t('inviteSettings')}</h2>
+            <div class="flex items-center justify-between">
+              <span class="text-white">${t('timerLabel')}</span>
+              <button id="invite-timer-toggle" class="${inviteTimerEnabled ? 'bg-green-600' : 'bg-gray-600'} text-white px-3 py-1 rounded text-sm">
+                ${inviteTimerEnabled ? t('on') : t('off')}
+              </button>
+            </div>
+            ${inviteTimerEnabled ? `
+            <div class="flex items-center justify-between">
+              <span class="text-white">${t('timerMinutesLabel')}</span>
+              <select id="invite-timer-minutes" class="bg-gray-700 text-white p-2 rounded">
+                <option value="1" ${inviteTimerMinutes === 1 ? 'selected' : ''}>1</option>
+                <option value="3" ${inviteTimerMinutes === 3 ? 'selected' : ''}>3</option>
+                <option value="5" ${inviteTimerMinutes === 5 ? 'selected' : ''}>5</option>
+                <option value="10" ${inviteTimerMinutes === 10 ? 'selected' : ''}>10</option>
+                <option value="15" ${inviteTimerMinutes === 15 ? 'selected' : ''}>15</option>
+                <option value="30" ${inviteTimerMinutes === 30 ? 'selected' : ''}>30</option>
+              </select>
+            </div>
+            ` : ''}
+            <div class="flex gap-2">
+              <button id="confirm-invite-btn" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded">
+                ${t('sendInvite')}
+              </button>
+              <button id="cancel-invite-btn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded">
+                ${t('confirmNo')}
+              </button>
+            </div>
+          </div>
+          ` : `
           <!-- Online Players -->
           <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3 w-full max-w-[400px]">
             <h2 class="text-lg font-bold text-white">👥 ${t('onlinePlayers')}</h2>
@@ -10569,6 +10610,7 @@ function render() {
             </div>
             `}
           </div>
+          `}
 
           <div class="flex gap-3">
             <button id="multiplayer-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
@@ -10594,20 +10636,38 @@ function render() {
         render()
       })
 
-      // Send invite buttons
+      // Send invite buttons - show settings dialog
       document.querySelectorAll('.send-invite-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', (e) => {
           const playerId = (e.target as HTMLElement).getAttribute('data-id')
           if (playerId) {
-            await sendGameInvite(playerId)
-            // Show feedback
-            const button = e.target as HTMLButtonElement
-            button.textContent = t('inviteSent')
-            button.disabled = true
-            button.classList.remove('bg-blue-600', 'hover:bg-blue-500')
-            button.classList.add('bg-gray-500')
+            showInviteSettings = playerId
+            render()
           }
         })
+      })
+
+      // Invite settings dialog handlers
+      document.getElementById('invite-timer-toggle')?.addEventListener('click', () => {
+        inviteTimerEnabled = !inviteTimerEnabled
+        render()
+      })
+
+      document.getElementById('invite-timer-minutes')?.addEventListener('change', (e) => {
+        inviteTimerMinutes = parseInt((e.target as HTMLSelectElement).value)
+      })
+
+      document.getElementById('confirm-invite-btn')?.addEventListener('click', async () => {
+        if (showInviteSettings) {
+          await sendGameInvite(showInviteSettings, inviteTimerEnabled, inviteTimerMinutes)
+          showInviteSettings = null
+          render()
+        }
+      })
+
+      document.getElementById('cancel-invite-btn')?.addEventListener('click', () => {
+        showInviteSettings = null
+        render()
       })
 
       // Accept invite buttons
