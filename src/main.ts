@@ -4360,28 +4360,37 @@ function makeBotMove() {
               hackAction: 'freeze',
               score: evaluateCapture(target) * 0.8
             })
-            // Push towards water or edge
-            if (target.type !== 'sub' && target.type !== 'ship' && target.type !== 'carrier') {
-              // Try to push into water (row 6)
-              const targetForward = target.team === 'yellow' ? 1 : -1
-              const forwardRow = target.row + targetForward
-              const backwardRow = target.row - targetForward
-              if (forwardRow === 6 && target.col !== 'F') {
+            // Push forward/backward (but NOT into water!)
+            const targetForward = target.team === 'yellow' ? 1 : -1
+            const forwardRow = target.row + targetForward
+            const backwardRow = target.row - targetForward
+
+            // Check forward push is valid (not water, not off board, not occupied)
+            if (forwardRow >= 1 && forwardRow <= 11) {
+              const isWater = forwardRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier' && target.type !== 'sub'
+              const isOccupied = getPieceAt(target.col, forwardRow)
+              if (!isWater && !isOccupied) {
                 possibleMoves.push({
                   piece,
                   action: 'hack',
                   hackTarget: target,
                   hackAction: 'forward',
-                  score: evaluateCapture(target) * 1.5 // Push into water!
+                  score: evaluateCapture(target) * 0.6
                 })
               }
-              if (backwardRow === 6 && target.col !== 'F') {
+            }
+
+            // Check backward push is valid
+            if (backwardRow >= 1 && backwardRow <= 11) {
+              const isWater = backwardRow === 6 && target.col !== 'F' && target.type !== 'ship' && target.type !== 'carrier' && target.type !== 'sub'
+              const isOccupied = getPieceAt(target.col, backwardRow)
+              if (!isWater && !isOccupied) {
                 possibleMoves.push({
                   piece,
                   action: 'hack',
                   hackTarget: target,
                   hackAction: 'backward',
-                  score: evaluateCapture(target) * 1.5
+                  score: evaluateCapture(target) * 0.6
                 })
               }
             }
