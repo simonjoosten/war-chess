@@ -174,12 +174,7 @@ export async function registerUser(email: string, password: string, username: st
   }
 
   try {
-    // Check if username is already taken
-    const usernameDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()))
-    if (usernameDoc.exists()) {
-      return { success: false, error: 'Username already taken' }
-    }
-
+    // Create Firebase auth account
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
@@ -187,11 +182,15 @@ export async function registerUser(email: string, password: string, username: st
     const userData = getDefaultUserData(username, email)
     await setDoc(doc(db, 'users', user.uid), userData)
 
-    // Create username -> email mapping (public, for login lookup)
-    await setDoc(doc(db, 'usernames', username.toLowerCase()), {
-      email: email,
-      uid: user.uid
-    })
+    // Try to create username -> email mapping (optional, for login by username)
+    try {
+      await setDoc(doc(db, 'usernames', username.toLowerCase()), {
+        email: email,
+        uid: user.uid
+      })
+    } catch (e) {
+      console.log('Could not create username mapping')
+    }
 
     currentUser = user
     currentUserData = userData
@@ -238,10 +237,11 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
     // Check if input is email or username
     let email = usernameOrEmail
     if (!usernameOrEmail.includes('@')) {
-      // It's a username, look up the email
+      // It's a username, try to look up the email
       const foundEmail = await findEmailByUsername(usernameOrEmail)
       if (!foundEmail) {
-        return { success: false, error: 'User not found' }
+        // Username lookup failed, tell user to use email instead
+        return { success: false, error: 'Username not found. Try your email.' }
       }
       email = foundEmail
     }
