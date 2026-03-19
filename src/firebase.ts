@@ -257,12 +257,17 @@ export async function loginUser(usernameOrEmail: string, password: string): Prom
       await updateDoc(doc(db, 'users', user.uid), { lastLogin: Date.now() })
 
       // Auto-create username mapping if it doesn't exist (for existing users)
-      const usernameDoc = await getDoc(doc(db, 'usernames', currentUserData.username.toLowerCase()))
-      if (!usernameDoc.exists()) {
-        await setDoc(doc(db, 'usernames', currentUserData.username.toLowerCase()), {
-          email: currentUserData.email,
-          uid: user.uid
-        })
+      // Wrapped in try-catch so login doesn't fail if this fails
+      try {
+        const usernameDoc = await getDoc(doc(db, 'usernames', currentUserData.username.toLowerCase()))
+        if (!usernameDoc.exists()) {
+          await setDoc(doc(db, 'usernames', currentUserData.username.toLowerCase()), {
+            email: currentUserData.email,
+            uid: user.uid
+          })
+        }
+      } catch (e) {
+        console.log('Could not create username mapping, will retry later')
       }
     } else {
       // Create user data if it doesn't exist (shouldn't happen normally)
