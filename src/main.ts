@@ -13,6 +13,8 @@ import {
   checkBadges,
   calculateWarBucks,
   BADGES,
+  SHOP_ITEMS,
+  ShopItem,
   UserData,
   // Multiplayer
   setOnline,
@@ -32,13 +34,15 @@ import {
   stopListeningToGame,
   joinGame,
   getMyTeamInGame,
+  updateGameState,
+  endGame,
   OnlinePlayer,
   GameInvite,
   MultiplayerGame
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop'
 let showAuthScreen: AuthScreen = 'none'
 let authError = ''
 let authLoading = false
@@ -56,6 +60,45 @@ let inviteDeclinedMessage: string | null = null
 let showInviteSettings: string | null = null // Player ID to invite
 let inviteTimerEnabled = false
 let inviteTimerMinutes = 10
+let isMyTurnInMultiplayer = false
+let waitingForOpponent = false
+
+// Serialized piece type for multiplayer sync (no circular references)
+interface SerializedPiece {
+  type: PieceType
+  team: Team
+  col: string
+  row: number
+  points: number
+  inTrench?: boolean
+  trenchEnteredOnTurn?: number
+  inTunnel?: boolean
+  hp?: number
+  hasHelicopter?: boolean
+  onCarrierId?: number // Index of carrier in pieces array instead of reference
+  used?: boolean
+  cooldownTurns?: number
+  frozenTurns?: number
+  barricadesBuilt?: number
+  artilleryBuilt?: number
+  spikesBuilt?: number
+  barricadeCooldown?: number
+  artilleryCooldown?: number
+  spikeCooldown?: number
+  turnsRemaining?: number
+}
+
+// Serialized game state for multiplayer
+interface SerializedGameState {
+  pieces: SerializedPiece[]
+  capturedPieces: SerializedPiece[]
+  currentTurn: Team
+  yellowTurnCount: number
+  greenTurnCount: number
+  gameState: string
+  winner?: Team
+  winReason?: string
+}
 
 // Language settings
 type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
@@ -3003,6 +3046,8 @@ const translations: Record<Language, Record<string, string>> = {
     inviteSettings: 'Game Settings',
     youAreYellow: 'You are Yellow',
     youAreGreen: 'You are Green',
+    yourTurn: 'Your turn!',
+    opponentsTurn: 'Opponent\'s turn',
     playerAvailable: 'Available',
     playerPlaying: 'In Game',
     refreshList: 'Refresh',
@@ -3010,6 +3055,16 @@ const translations: Record<Language, Record<string, string>> = {
     goOfflineMulti: 'Go Offline',
     youAreOnline: 'You are online',
     youAreOfflineMulti: 'You are offline',
+    // Shop
+    shopTitle: 'War Shop',
+    shopBalance: 'Balance',
+    shopBuy: 'Buy',
+    shopOwned: 'Owned',
+    shopPurchased: 'Purchased!',
+    shopNotEnough: 'Not enough War Bucks',
+    shopThemes: 'Board Themes',
+    shopSkins: 'Piece Skins',
+    shopEffects: 'Effects',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -3207,6 +3262,8 @@ const translations: Record<Language, Record<string, string>> = {
     inviteSettings: 'Spel Instellingen',
     youAreYellow: 'Jij bent Geel',
     youAreGreen: 'Jij bent Groen',
+    yourTurn: 'Jouw beurt!',
+    opponentsTurn: 'Tegenstander is aan zet',
     playerAvailable: 'Beschikbaar',
     playerPlaying: 'In Spel',
     refreshList: 'Vernieuwen',
@@ -3214,6 +3271,16 @@ const translations: Record<Language, Record<string, string>> = {
     goOfflineMulti: 'Ga Offline',
     youAreOnline: 'Je bent online',
     youAreOfflineMulti: 'Je bent offline',
+    // Shop
+    shopTitle: 'Oorlog Winkel',
+    shopBalance: 'Saldo',
+    shopBuy: 'Kopen',
+    shopOwned: 'In bezit',
+    shopPurchased: 'Gekocht!',
+    shopNotEnough: 'Niet genoeg War Bucks',
+    shopThemes: 'Bord Thema\'s',
+    shopSkins: 'Stuk Skins',
+    shopEffects: 'Effecten',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3411,6 +3478,8 @@ const translations: Record<Language, Record<string, string>> = {
     inviteSettings: 'Spieleinstellungen',
     youAreYellow: 'Du bist Gelb',
     youAreGreen: 'Du bist Grün',
+    yourTurn: 'Du bist dran!',
+    opponentsTurn: 'Gegner ist am Zug',
     playerAvailable: 'Verfügbar',
     playerPlaying: 'Im Spiel',
     refreshList: 'Aktualisieren',
@@ -3418,6 +3487,16 @@ const translations: Record<Language, Record<string, string>> = {
     goOfflineMulti: 'Offline Gehen',
     youAreOnline: 'Du bist online',
     youAreOfflineMulti: 'Du bist offline',
+    // Shop
+    shopTitle: 'Kriegsladen',
+    shopBalance: 'Guthaben',
+    shopBuy: 'Kaufen',
+    shopOwned: 'Besitz',
+    shopPurchased: 'Gekauft!',
+    shopNotEnough: 'Nicht genug War Bucks',
+    shopThemes: 'Brettthemen',
+    shopSkins: 'Figur-Skins',
+    shopEffects: 'Effekte',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -3615,6 +3694,8 @@ const translations: Record<Language, Record<string, string>> = {
     inviteSettings: 'Paramètres de jeu',
     youAreYellow: 'Vous êtes Jaune',
     youAreGreen: 'Vous êtes Vert',
+    yourTurn: 'À vous de jouer!',
+    opponentsTurn: 'Tour de l\'adversaire',
     playerAvailable: 'Disponible',
     playerPlaying: 'En Jeu',
     refreshList: 'Actualiser',
@@ -3622,6 +3703,16 @@ const translations: Record<Language, Record<string, string>> = {
     goOfflineMulti: 'Se Déconnecter',
     youAreOnline: 'Vous êtes en ligne',
     youAreOfflineMulti: 'Vous êtes hors ligne',
+    // Shop
+    shopTitle: 'Boutique de Guerre',
+    shopBalance: 'Solde',
+    shopBuy: 'Acheter',
+    shopOwned: 'Possédé',
+    shopPurchased: 'Acheté!',
+    shopNotEnough: 'Pas assez de War Bucks',
+    shopThemes: 'Thèmes de plateau',
+    shopSkins: 'Skins de pièces',
+    shopEffects: 'Effets',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -3819,6 +3910,8 @@ const translations: Record<Language, Record<string, string>> = {
     inviteSettings: 'Ajustes del juego',
     youAreYellow: 'Eres Amarillo',
     youAreGreen: 'Eres Verde',
+    yourTurn: '¡Tu turno!',
+    opponentsTurn: 'Turno del oponente',
     playerAvailable: 'Disponible',
     playerPlaying: 'En Juego',
     refreshList: 'Actualizar',
@@ -3826,6 +3919,16 @@ const translations: Record<Language, Record<string, string>> = {
     goOfflineMulti: 'Desconectarse',
     youAreOnline: 'Estás en línea',
     youAreOfflineMulti: 'Estás desconectado',
+    // Shop
+    shopTitle: 'Tienda de Guerra',
+    shopBalance: 'Saldo',
+    shopBuy: 'Comprar',
+    shopOwned: 'Comprado',
+    shopPurchased: '¡Comprado!',
+    shopNotEnough: 'No hay suficientes War Bucks',
+    shopThemes: 'Temas de tablero',
+    shopSkins: 'Skins de piezas',
+    shopEffects: 'Efectos',
   }
 }
 
@@ -3893,6 +3996,123 @@ interface Move {
   team?: Team
   captured?: string
   capturedPoints?: number
+}
+
+// Serialize game state for multiplayer sync
+function serializeGameState(): SerializedGameState {
+  const serializePiece = (p: Piece): SerializedPiece => {
+    const sp: SerializedPiece = {
+      type: p.type,
+      team: p.team,
+      col: p.col,
+      row: p.row,
+      points: p.points
+    }
+    if (p.inTrench) sp.inTrench = p.inTrench
+    if (p.trenchEnteredOnTurn !== undefined) sp.trenchEnteredOnTurn = p.trenchEnteredOnTurn
+    if (p.inTunnel) sp.inTunnel = p.inTunnel
+    if (p.hp !== undefined) sp.hp = p.hp
+    if (p.hasHelicopter) sp.hasHelicopter = p.hasHelicopter
+    if (p.onCarrier) {
+      sp.onCarrierId = pieces.indexOf(p.onCarrier)
+    }
+    if (p.used) sp.used = p.used
+    if (p.cooldownTurns !== undefined) sp.cooldownTurns = p.cooldownTurns
+    if (p.frozenTurns !== undefined) sp.frozenTurns = p.frozenTurns
+    if (p.barricadesBuilt !== undefined) sp.barricadesBuilt = p.barricadesBuilt
+    if (p.artilleryBuilt !== undefined) sp.artilleryBuilt = p.artilleryBuilt
+    if (p.spikesBuilt !== undefined) sp.spikesBuilt = p.spikesBuilt
+    if (p.barricadeCooldown !== undefined) sp.barricadeCooldown = p.barricadeCooldown
+    if (p.artilleryCooldown !== undefined) sp.artilleryCooldown = p.artilleryCooldown
+    if (p.spikeCooldown !== undefined) sp.spikeCooldown = p.spikeCooldown
+    if (p.turnsRemaining !== undefined) sp.turnsRemaining = p.turnsRemaining
+    return sp
+  }
+
+  return {
+    pieces: pieces.map(serializePiece),
+    capturedPieces: capturedPieces.map(serializePiece),
+    currentTurn,
+    yellowTurnCount,
+    greenTurnCount,
+    gameState,
+    winner: winner || undefined,
+    winReason: winReason || undefined
+  }
+}
+
+// Deserialize game state from multiplayer sync
+function deserializeGameState(state: SerializedGameState) {
+  const deserializePiece = (sp: SerializedPiece, newPieces: Piece[]): Piece => {
+    const p: Piece = {
+      type: sp.type,
+      team: sp.team,
+      col: sp.col,
+      row: sp.row,
+      points: sp.points
+    }
+    if (sp.inTrench) p.inTrench = sp.inTrench
+    if (sp.trenchEnteredOnTurn !== undefined) p.trenchEnteredOnTurn = sp.trenchEnteredOnTurn
+    if (sp.inTunnel) p.inTunnel = sp.inTunnel
+    if (sp.hp !== undefined) p.hp = sp.hp
+    if (sp.hasHelicopter) p.hasHelicopter = sp.hasHelicopter
+    // onCarrierId will be resolved after all pieces are created
+    if (sp.used) p.used = sp.used
+    if (sp.cooldownTurns !== undefined) p.cooldownTurns = sp.cooldownTurns
+    if (sp.frozenTurns !== undefined) p.frozenTurns = sp.frozenTurns
+    if (sp.barricadesBuilt !== undefined) p.barricadesBuilt = sp.barricadesBuilt
+    if (sp.artilleryBuilt !== undefined) p.artilleryBuilt = sp.artilleryBuilt
+    if (sp.spikesBuilt !== undefined) p.spikesBuilt = sp.spikesBuilt
+    if (sp.barricadeCooldown !== undefined) p.barricadeCooldown = sp.barricadeCooldown
+    if (sp.artilleryCooldown !== undefined) p.artilleryCooldown = sp.artilleryCooldown
+    if (sp.spikeCooldown !== undefined) p.spikeCooldown = sp.spikeCooldown
+    if (sp.turnsRemaining !== undefined) p.turnsRemaining = sp.turnsRemaining
+    return p
+  }
+
+  // Clear and rebuild pieces array
+  pieces.length = 0
+  const newPieces = state.pieces.map(sp => deserializePiece(sp, []))
+
+  // Resolve onCarrier references
+  state.pieces.forEach((sp, i) => {
+    if (sp.onCarrierId !== undefined && sp.onCarrierId >= 0) {
+      newPieces[i].onCarrier = newPieces[sp.onCarrierId]
+    }
+  })
+
+  newPieces.forEach(p => pieces.push(p))
+
+  // Clear and rebuild captured pieces
+  capturedPieces.length = 0
+  state.capturedPieces.forEach(sp => capturedPieces.push(deserializePiece(sp, [])))
+
+  // Update game state
+  currentTurn = state.currentTurn
+  yellowTurnCount = state.yellowTurnCount
+  greenTurnCount = state.greenTurnCount
+  gameState = state.gameState as GameState
+  winner = state.winner || null
+  winReason = (state.winReason as 'points' | 'builder') || null
+
+  // Update multiplayer turn tracking
+  if (multiplayerTeam) {
+    isMyTurnInMultiplayer = currentTurn === multiplayerTeam
+    waitingForOpponent = !isMyTurnInMultiplayer
+  }
+}
+
+// Sync game state to Firebase for multiplayer
+async function syncMultiplayerState() {
+  if (!multiplayerGameId || !multiplayerTeam) return
+
+  const state = serializeGameState()
+  await updateGameState(multiplayerGameId, state, currentTurn)
+
+  // If game is over, end the game in Firebase
+  if (gameState === 'gameOver' && winner) {
+    await endGame(multiplayerGameId, winner)
+  }
 }
 
 function getTeamScore(team: Team): number {
@@ -4805,6 +5025,18 @@ function switchTurn() {
   // Decrement spike timers
   decrementSpikeTimers(newTeam)
 
+  // Update multiplayer turn tracking
+  if (multiplayerGameId && multiplayerTeam) {
+    isMyTurnInMultiplayer = currentTurn === multiplayerTeam
+    waitingForOpponent = !isMyTurnInMultiplayer
+
+    // Sync state to Firebase after making a move
+    // Only sync if it was our turn (we just made a move)
+    if (waitingForOpponent) {
+      syncMultiplayerState()
+    }
+  }
+
   // Check for max turns win condition (after both teams have made 80 moves)
   if (yellowTurnCount >= MAX_TURNS_PER_TEAM && greenTurnCount >= MAX_TURNS_PER_TEAM) {
     const yellowScore = getTeamScore('yellow')
@@ -4827,6 +5059,11 @@ function switchTurn() {
     }
     // Save game stats
     saveGameStats()
+
+    // Sync game over state to multiplayer
+    if (multiplayerGameId) {
+      syncMultiplayerState()
+    }
   }
 
   // Trigger bot move if it's green's turn and bot mode is enabled
@@ -5425,7 +5662,7 @@ async function startGame() {
 
 // Start a multiplayer game
 async function startMultiplayerGame() {
-  if (!multiplayerGame || !multiplayerTeam) return
+  if (!multiplayerGame || !multiplayerTeam || !multiplayerGameId) return
 
   // Stop listening to multiplayer screen stuff
   stopListeningToOnlinePlayers()
@@ -5439,10 +5676,29 @@ async function startMultiplayerGame() {
   // Initialize game - reset pieces array
   pieces.length = 0
   getInitialPieces().forEach(p => pieces.push(p))
+  capturedPieces.length = 0
+  moveLog.length = 0
+  yellowTurnCount = 0
+  greenTurnCount = 0
   gameState = 'playing'
   currentTurn = 'yellow'
+  winner = null
+  winReason = null
   showAuthScreen = 'none'
   multiplayerListening = false
+
+  // Set initial turn tracking
+  isMyTurnInMultiplayer = multiplayerTeam === 'yellow'
+  waitingForOpponent = !isMyTurnInMultiplayer
+
+  // Initialize timer if enabled in the game
+  if (multiplayerGame.timerEnabled) {
+    timerEnabled = true
+    timerMinutes = multiplayerGame.timerMinutes || 10
+    yellowTimeRemaining = timerMinutes * 60
+    greenTimeRemaining = timerMinutes * 60
+    startTimer()
+  }
 
   await initAudio()
 
@@ -5451,10 +5707,43 @@ async function startMultiplayerGame() {
     await startMusic()
   }
 
+  // Listen for game state updates from opponent
+  listenToGame(multiplayerGameId, (game) => {
+    if (!game) return
+
+    // Check if the game state has been updated by opponent
+    if (game.gameState && game.currentTurn === multiplayerTeam) {
+      // Opponent made a move, apply the new state
+      const state = game.gameState as SerializedGameState
+      deserializeGameState(state)
+
+      // Play a sound to indicate opponent moved
+      playSound('move')
+
+      // Update message
+      message = multiplayerTeam === 'yellow'
+        ? `${t('youAreYellow')} - ${t('yourTurn')}`
+        : `${t('youAreGreen')} - ${t('yourTurn')}`
+
+      render()
+    }
+
+    // Check if game is over
+    if (game.status === 'finished' && game.winner) {
+      if (gameState !== 'gameOver') {
+        winner = game.winner
+        gameState = 'gameOver'
+        stopTimer()
+        playSound('win')
+        render()
+      }
+    }
+  })
+
   // Show which team you are
   message = multiplayerTeam === 'yellow'
-    ? `${t('youAreYellow')} - ${t('yellowTurn')}`
-    : `${t('youAreGreen')} - ${t('yellowTurn')}`
+    ? `${t('youAreYellow')} - ${t('yourTurn')}`
+    : `${t('youAreGreen')} - ${t('opponentsTurn')}`
 
   render()
 }
@@ -7151,16 +7440,16 @@ function confirmEnterTunnel() {
   if (movingTeam === 'yellow') yellowTurnCount++
   else greenTurnCount++
 
-  // Switch turns
-  switchTurn()
-
-  // Reset state
+  // Reset state BEFORE switchTurn so bot mode can trigger
   selectedPiece = null
   validMoves = []
   actionMode = null
   showSoldierActions = false
   pendingTunnelMove = null
   gameState = 'playing'
+
+  // Switch turns (triggers bot move if bot mode)
+  switchTurn()
 
   render()
 }
@@ -7209,16 +7498,16 @@ function confirmExitTunnel() {
   if (movingTeam === 'yellow') yellowTurnCount++
   else greenTurnCount++
 
-  // Switch turns
-  switchTurn()
-
-  // Reset state
+  // Reset state BEFORE switchTurn so bot mode can trigger
   selectedPiece = null
   validMoves = []
   actionMode = null
   showSoldierActions = false
   pendingTunnelExit = null
   gameState = 'playing'
+
+  // Switch turns (triggers bot move if bot mode)
+  switchTurn()
 
   render()
 }
@@ -7931,6 +8220,13 @@ function placeBuilderItem(col: string, row: number) {
 function handleSquareClick(col: string, row: number) {
   // Block clicks during bot's turn
   if (botThinking || (botMode && currentTurn === 'green')) {
+    return
+  }
+
+  // Block clicks when it's not your turn in multiplayer
+  if (multiplayerGameId && multiplayerTeam && !isMyTurnInMultiplayer) {
+    message = t('opponentsTurn')
+    render()
     return
   }
 
@@ -10440,6 +10736,9 @@ function render() {
           ` : `<div class="text-gray-400">Loading...</div>`}
 
           <div class="flex gap-3">
+            <button id="shop-btn" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-6 rounded transition-colors">
+              🛒 ${t('shopTitle')}
+            </button>
             <button id="profile-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
               ${t('backButton')}
             </button>
@@ -10449,6 +10748,10 @@ function render() {
           </div>
         </div>
       `
+      document.getElementById('shop-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'shop'
+        render()
+      })
       document.getElementById('profile-back-btn')?.addEventListener('click', () => {
         showAuthScreen = 'none'
         render()
@@ -10458,6 +10761,111 @@ function render() {
         setOfflineMode(false)
         showAuthScreen = 'login'
         render()
+      })
+      return
+    }
+
+    // Shop screen
+    if (showAuthScreen === 'shop') {
+      const userData = getCurrentUserData()
+      const purchasedItems = userData?.purchasedItems || []
+
+      const renderShopItems = (items: ShopItem[], category: string) => {
+        return items.map(item => {
+          const owned = purchasedItems.includes(item.id)
+          return `
+            <div class="bg-gray-700 p-4 rounded-lg flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-2xl">${item.icon}</span>
+                <span class="text-white font-bold">${item.name}</span>
+              </div>
+              <p class="text-gray-400 text-sm">${item.description}</p>
+              <div class="flex items-center justify-between mt-2">
+                <span class="text-yellow-400 font-bold">💰 ${item.price}</span>
+                ${owned
+                  ? `<span class="text-green-400 font-bold">${t('shopOwned')}</span>`
+                  : `<button class="buy-item-btn bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1 px-4 rounded text-sm transition-colors" data-item="${item.id}" data-price="${item.price}">
+                      ${t('shopBuy')}
+                    </button>`
+                }
+              </div>
+            </div>
+          `
+        }).join('')
+      }
+
+      const themes = SHOP_ITEMS.filter(i => i.type === 'theme')
+      const skins = SHOP_ITEMS.filter(i => i.type === 'piece_skin')
+      const effects = SHOP_ITEMS.filter(i => i.type === 'effect')
+
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">🛒 ${t('shopTitle')}</h1>
+          <div class="text-yellow-400 font-bold text-xl">${t('shopBalance')}: 💰 ${userData?.warBucks || 0}</div>
+
+          <div class="w-full max-w-[600px] flex flex-col gap-6">
+            <div>
+              <h2 class="text-lg font-bold text-white mb-3">🎨 ${t('shopThemes')}</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${renderShopItems(themes, 'theme')}
+              </div>
+            </div>
+
+            <div>
+              <h2 class="text-lg font-bold text-white mb-3">⚔️ ${t('shopSkins')}</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${renderShopItems(skins, 'piece_skin')}
+              </div>
+            </div>
+
+            <div>
+              <h2 class="text-lg font-bold text-white mb-3">✨ ${t('shopEffects')}</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${renderShopItems(effects, 'effect')}
+              </div>
+            </div>
+          </div>
+
+          <button id="shop-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+            ${t('backButton')}
+          </button>
+        </div>
+      `
+
+      document.getElementById('shop-back-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'profile'
+        render()
+      })
+
+      // Handle buy buttons
+      document.querySelectorAll('.buy-item-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const target = e.target as HTMLElement
+          const itemId = target.dataset.item
+          const price = parseInt(target.dataset.price || '0')
+
+          if (!userData || !itemId) return
+
+          if (userData.warBucks < price) {
+            alert(t('shopNotEnough'))
+            return
+          }
+
+          // Purchase the item
+          const newWarBucks = userData.warBucks - price
+          const newPurchasedItems = [...(userData.purchasedItems || []), itemId]
+
+          await saveUserData({
+            warBucks: newWarBucks,
+            purchasedItems: newPurchasedItems
+          })
+
+          // Reload user data
+          await loadUserData()
+
+          alert(t('shopPurchased'))
+          render()
+        })
       })
       return
     }

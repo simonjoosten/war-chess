@@ -95,7 +95,35 @@ export interface UserData {
   }
   // Bot learning data
   botLearning: Record<string, unknown>
+  // Purchased shop items
+  purchasedItems: string[]
 }
+
+// Shop items for sale
+export interface ShopItem {
+  id: string
+  name: string
+  description: string
+  price: number
+  type: 'theme' | 'piece_skin' | 'effect'
+  icon: string
+}
+
+export const SHOP_ITEMS: ShopItem[] = [
+  // Board Themes
+  { id: 'theme_desert', name: 'Desert Camo', description: 'Sandy desert battlefield theme', price: 100, type: 'theme', icon: '🏜️' },
+  { id: 'theme_arctic', name: 'Arctic Snow', description: 'Cold snowy battlefield theme', price: 100, type: 'theme', icon: '❄️' },
+  { id: 'theme_jungle', name: 'Jungle Warfare', description: 'Dense jungle battlefield theme', price: 150, type: 'theme', icon: '🌴' },
+  { id: 'theme_night', name: 'Night Ops', description: 'Dark nighttime tactical theme', price: 200, type: 'theme', icon: '🌙' },
+  { id: 'theme_ocean', name: 'Ocean Assault', description: 'Deep sea naval theme', price: 150, type: 'theme', icon: '🌊' },
+  // Piece Skins
+  { id: 'skin_gold', name: 'Golden Army', description: 'Shiny gold pieces for your team', price: 300, type: 'piece_skin', icon: '✨' },
+  { id: 'skin_cyber', name: 'Cyber Warriors', description: 'Futuristic neon piece designs', price: 250, type: 'piece_skin', icon: '🤖' },
+  { id: 'skin_stealth', name: 'Stealth Force', description: 'Dark tactical piece designs', price: 200, type: 'piece_skin', icon: '🥷' },
+  // Effects
+  { id: 'effect_fire', name: 'Fire Trail', description: 'Pieces leave fire effects when moving', price: 250, type: 'effect', icon: '🔥' },
+  { id: 'effect_lightning', name: 'Lightning Strike', description: 'Electric effects on captures', price: 300, type: 'effect', icon: '⚡' },
+]
 
 // Default user data
 export function getDefaultUserData(username: string, email: string): UserData {
@@ -131,7 +159,8 @@ export function getDefaultUserData(username: string, email: string): UserData {
       highContrastMode: false,
       largeUIMode: false
     },
-    botLearning: {}
+    botLearning: {},
+    purchasedItems: []
   }
 }
 
