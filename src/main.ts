@@ -39,6 +39,7 @@ import {
   getMyTeamInGame,
   updateGameState,
   endGame,
+  leaveGame,
   OnlinePlayer,
   GameInvite,
   MultiplayerGame,
@@ -77,6 +78,8 @@ let inviteTimerMinutes = 10
 let isMyTurnInMultiplayer = false
 let waitingForOpponent = false
 let multiplayerGameStarted = false
+let opponentLeftGame = false // Track if opponent left the game
+let showOpponentLeftModal = false // Show modal when opponent leaves
 
 // Equipped cosmetics (loaded from user data)
 let equippedTheme: string | null = null
@@ -6427,6 +6430,17 @@ async function startMultiplayerGame() {
         render()
       }
     }
+
+    // Check if opponent left the game
+    if (game.status === 'abandoned' && game.leftBy && game.leftBy !== multiplayerTeam) {
+      if (!opponentLeftGame) {
+        opponentLeftGame = true
+        showOpponentLeftModal = true
+        stopTimer()
+        playSound('click')
+        render()
+      }
+    }
   })
 
   // Show which team you are
@@ -6527,7 +6541,17 @@ function cancelReset() {
   render()
 }
 
-function resetGame() {
+async function resetGame() {
+  // If in multiplayer, notify opponent that we're leaving
+  if (multiplayerGameId && multiplayerTeam && !opponentLeftGame) {
+    await leaveGame(multiplayerGameId, multiplayerTeam)
+    stopListeningToGame()
+  }
+
+  // Reset opponent left state
+  opponentLeftGame = false
+  showOpponentLeftModal = false
+
   // Reset all game state
   pieces.length = 0
   pieces.push(...getInitialPieces())
@@ -16163,9 +16187,31 @@ function render() {
     </div>
   ` : ''
 
+  // Opponent left modal
+  const opponentLeftModalHtml = showOpponentLeftModal ? `
+    <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div class="bg-gray-800 p-6 rounded-lg max-w-md mx-4 border-2 border-red-500">
+        <h2 class="text-xl font-bold text-red-400 mb-4">Opponent Left</h2>
+        <p class="text-white mb-6">Your opponent has left the game. What would you like to do?</p>
+        <div class="flex flex-col gap-3">
+          <button id="opponent-left-menu" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded transition-colors">
+            Back to Menu
+          </button>
+          <button id="opponent-left-continue" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded transition-colors">
+            Continue Playing (Alone)
+          </button>
+          <button id="opponent-left-bot" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded transition-colors">
+            Continue with Bot
+          </button>
+        </div>
+      </div>
+    </div>
+  ` : ''
+
   // Playing state
   app.innerHTML = `
     <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4">
+      ${opponentLeftModalHtml}
       ${forcedTrenchWarning}
       ${rocketReadyMessage}
       <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
@@ -16211,6 +16257,42 @@ function render() {
 
   // Add reset button listener
   document.getElementById('reset-btn')?.addEventListener('click', showResetConfirm)
+
+  // Opponent left modal listeners
+  document.getElementById('opponent-left-menu')?.addEventListener('click', () => {
+    showOpponentLeftModal = false
+    opponentLeftGame = false
+    stopListeningToGame()
+    resetGame()
+  })
+
+  document.getElementById('opponent-left-continue')?.addEventListener('click', () => {
+    showOpponentLeftModal = false
+    // Just close the modal and let them play alone (their turn forever)
+    isMyTurnInMultiplayer = true
+    waitingForOpponent = false
+    render()
+  })
+
+  document.getElementById('opponent-left-bot')?.addEventListener('click', () => {
+    showOpponentLeftModal = false
+    opponentLeftGame = false
+    // Switch to bot mode
+    botMode = true
+    multiplayerGameId = null
+    multiplayerTeam = null
+    multiplayerGame = null
+    multiplayerGameStarted = false
+    isMyTurnInMultiplayer = false
+    waitingForOpponent = false
+    stopListeningToGame()
+    // If it was opponent's turn, trigger bot move
+    if (currentTurn === 'green') {
+      setTimeout(() => makeBotMove(), 500)
+    }
+    message = 'Continuing with Bot...'
+    render()
+  })
 
   // Add soldier action listeners
   document.getElementById('action-move')?.addEventListener('click', () => selectSoldierAction('move'))

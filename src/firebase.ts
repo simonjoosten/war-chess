@@ -642,12 +642,15 @@ export interface MultiplayerGame {
   moveCount?: number // Track total moves for sync verification
   createdAt: Timestamp
   lastMove: Timestamp
-  status: 'waiting' | 'playing' | 'finished'
+  status: 'waiting' | 'playing' | 'finished' | 'abandoned'
   winner?: 'yellow' | 'green'
   timerEnabled?: boolean
   timerMinutes?: number
   yellowJoined?: boolean
   greenJoined?: boolean
+  yellowLeft?: boolean // Track if yellow player left
+  greenLeft?: boolean // Track if green player left
+  leftBy?: 'yellow' | 'green' // Who left the game
 }
 
 // Listeners
@@ -975,6 +978,30 @@ export async function endGame(gameId: string, winner: 'yellow' | 'green'): Promi
     return true
   } catch (error) {
     console.error('Error ending game:', error)
+    return false
+  }
+}
+
+// Leave game - notify opponent that you left
+export async function leaveGame(gameId: string, team: 'yellow' | 'green'): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    const updates: Record<string, unknown> = {
+      status: 'abandoned',
+      leftBy: team
+    }
+
+    if (team === 'yellow') {
+      updates.yellowLeft = true
+    } else {
+      updates.greenLeft = true
+    }
+
+    await updateDoc(doc(db, 'games', gameId), updates)
+    return true
+  } catch (error) {
+    console.error('Error leaving game:', error)
     return false
   }
 }
