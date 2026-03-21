@@ -23,6 +23,7 @@ import {
   Timestamp,
   getDocs
 } from 'firebase/firestore'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -38,6 +39,7 @@ const firebaseConfig = {
 let app: ReturnType<typeof initializeApp> | null = null
 let auth: ReturnType<typeof getAuth> | null = null
 let db: ReturnType<typeof getFirestore> | null = null
+let functions: ReturnType<typeof getFunctions> | null = null
 
 export function initFirebase(): boolean {
   try {
@@ -49,6 +51,7 @@ export function initFirebase(): boolean {
     app = initializeApp(firebaseConfig)
     auth = getAuth(app)
     db = getFirestore(app)
+    functions = getFunctions(app, 'europe-west1') // Use your region
     return true
   } catch (error) {
     console.error('Firebase init error:', error)
@@ -1017,5 +1020,52 @@ export async function joinGame(gameId: string): Promise<boolean> {
   } catch (error) {
     console.error('Error joining game:', error)
     return false
+  }
+}
+
+// ============================================
+// PREMIUM SHOP - War Bucks Purchases
+// ============================================
+
+// War Bucks packages available for purchase
+export const WAR_BUCKS_PACKAGES = [
+  { id: 'warbucks_100', amount: 100, price: 0.99, bonus: 0 },
+  { id: 'warbucks_500', amount: 500, price: 2.99, bonus: 0 },
+  { id: 'warbucks_1200', amount: 1200, price: 4.99, bonus: 200 },   // +200 bonus
+  { id: 'warbucks_3000', amount: 3000, price: 9.99, bonus: 500 },   // +500 bonus
+  { id: 'warbucks_7000', amount: 7000, price: 19.99, bonus: 1500 }, // +1500 bonus
+]
+
+// Create a Stripe Checkout Session
+export async function createCheckoutSession(packageId: string): Promise<{ url: string } | null> {
+  if (!functions || !currentUser) return null
+
+  try {
+    const createSession = httpsCallable(functions, 'createCheckoutSession')
+    const result = await createSession({
+      packageId,
+      origin: window.location.origin
+    })
+
+    const data = result.data as { url: string; sessionId: string }
+    return { url: data.url }
+  } catch (error) {
+    console.error('Error creating checkout session:', error)
+    return null
+  }
+}
+
+// Verify payment after redirect
+export async function verifyPayment(sessionId: string): Promise<{ success: boolean; warBucksAmount?: number }> {
+  if (!functions || !currentUser) return { success: false }
+
+  try {
+    const verify = httpsCallable(functions, 'verifyPayment')
+    const result = await verify({ sessionId })
+
+    return result.data as { success: boolean; warBucksAmount?: number }
+  } catch (error) {
+    console.error('Error verifying payment:', error)
+    return { success: false }
   }
 }
