@@ -1248,7 +1248,7 @@ export async function adminGiveWarBucksToAll(amount: number): Promise<number> {
 
 export interface GameEvent {
   id: string
-  type: 'announcement' | 'maintenance' | 'event' | 'reward' | 'update'
+  type: 'announcement' | 'maintenance' | 'event' | 'reward' | 'update' | 'gamemode'
   title: string
   message: string
   icon: string
@@ -1261,6 +1261,22 @@ export interface GameEvent {
   rewardAmount?: number
   rewardItemId?: string
   claimedBy?: string[] // User IDs who claimed the reward
+  // For game mode events
+  gameMode?: 'disco' | 'jumpscare' | 'chaos' | 'mirror' | 'speed' | 'giant' | 'tiny' | 'rainbow' | 'matrix' | 'earthquake'
+}
+
+// Pre-defined special game modes
+export const SPECIAL_GAME_MODES = {
+  disco: { name: 'Disco Mode', icon: '🪩', description: 'Flashing colors and party vibes!' },
+  jumpscare: { name: 'Jumpscare Mode', icon: '👻', description: 'Random scary surprises!' },
+  chaos: { name: 'Chaos Mode', icon: '🌀', description: 'Everything is unpredictable!' },
+  mirror: { name: 'Mirror Mode', icon: '🪞', description: 'Board is mirrored!' },
+  speed: { name: 'Speed Mode', icon: '⚡', description: 'Everything moves faster!' },
+  giant: { name: 'Giant Mode', icon: '🦖', description: 'Pieces are huge!' },
+  tiny: { name: 'Tiny Mode', icon: '🐜', description: 'Pieces are tiny!' },
+  rainbow: { name: 'Rainbow Mode', icon: '🌈', description: 'Rainbow colors everywhere!' },
+  matrix: { name: 'Matrix Mode', icon: '💊', description: 'Enter the Matrix!' },
+  earthquake: { name: 'Earthquake Mode', icon: '🌋', description: 'The board is shaking!' }
 }
 
 // Create a new event
@@ -1296,6 +1312,23 @@ export async function getActiveEvents(): Promise<GameEvent[]> {
       .sort((a, b) => b.createdAt - a.createdAt)
   } catch (error) {
     console.error('Error getting events:', error)
+    return []
+  }
+}
+
+// Get active game modes
+export async function getActiveGameModes(): Promise<string[]> {
+  if (!db) return []
+
+  try {
+    const eventsSnapshot = await getDocs(collection(db, 'events'))
+    const now = Date.now()
+    return eventsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as GameEvent))
+      .filter(event => event.active && event.type === 'gamemode' && event.gameMode && (!event.expiresAt || event.expiresAt > now))
+      .map(event => event.gameMode!)
+  } catch (error) {
+    console.error('Error getting game modes:', error)
     return []
   }
 }
@@ -1381,5 +1414,118 @@ export async function claimEventReward(eventId: string): Promise<boolean> {
   } catch (error) {
     console.error('Error claiming reward:', error)
     return false
+  }
+}
+
+// ==================== ADMIN DANGER ZONE ====================
+
+// Reset all user stats
+export async function adminResetAllStats(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'))
+    let count = 0
+
+    for (const userDoc of usersSnapshot.docs) {
+      await updateDoc(doc(db, 'users', userDoc.id), {
+        stats: {
+          gamesPlayed: 0,
+          gamesWon: 0,
+          gamesLost: 0,
+          totalPointsScored: 0,
+          piecesEliminated: 0,
+          engineersCaptured: 0,
+          timePlayed: 0
+        }
+      })
+      count++
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error resetting all stats:', error)
+    return 0
+  }
+}
+
+// Reset all war bucks to 0
+export async function adminResetAllWarBucks(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'))
+    let count = 0
+
+    for (const userDoc of usersSnapshot.docs) {
+      await updateDoc(doc(db, 'users', userDoc.id), { warBucks: 0 })
+      count++
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error resetting all war bucks:', error)
+    return 0
+  }
+}
+
+// Delete all events
+export async function adminDeleteAllEvents(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const eventsSnapshot = await getDocs(collection(db, 'events'))
+    let count = 0
+
+    for (const eventDoc of eventsSnapshot.docs) {
+      await deleteDoc(doc(db, 'events', eventDoc.id))
+      count++
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error deleting all events:', error)
+    return 0
+  }
+}
+
+// Delete all games
+export async function adminDeleteAllGames(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const gamesSnapshot = await getDocs(collection(db, 'games'))
+    let count = 0
+
+    for (const gameDoc of gamesSnapshot.docs) {
+      await deleteDoc(doc(db, 'games', gameDoc.id))
+      count++
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error deleting all games:', error)
+    return 0
+  }
+}
+
+// Give all items to all users
+export async function adminGiveAllItemsToAll(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'))
+    const allItemIds = SHOP_ITEMS.map(item => item.id)
+    let count = 0
+
+    for (const userDoc of usersSnapshot.docs) {
+      await updateDoc(doc(db, 'users', userDoc.id), { purchasedItems: allItemIds })
+      count++
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error giving all items to all:', error)
+    return 0
   }
 }

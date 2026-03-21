@@ -60,7 +60,15 @@ import {
   adminGetAllEvents,
   adminDeleteEvent,
   adminToggleEvent,
-  claimEventReward
+  claimEventReward,
+  getActiveGameModes,
+  SPECIAL_GAME_MODES,
+  // Admin danger zone
+  adminResetAllStats,
+  adminResetAllWarBucks,
+  adminDeleteAllEvents,
+  adminDeleteAllGames,
+  adminGiveAllItemsToAll
 } from './firebase'
 
 // Auth state
@@ -88,6 +96,10 @@ let waitingForOpponent = false
 let multiplayerGameStarted = false
 let opponentLeftGame = false // Track if opponent left the game
 let showOpponentLeftModal = false // Show modal when opponent leaves
+
+// Active game modes (from admin events)
+let activeGameModes: string[] = []
+let lastJumpscareTime = 0
 
 // Equipped cosmetics (loaded from user data)
 let equippedTheme: string | null = null
@@ -15471,7 +15483,16 @@ function render() {
                           <option value="reward">🎁 Reward</option>
                           <option value="maintenance">🔧 Maintenance</option>
                           <option value="update">🆕 Update</option>
+                          <option value="gamemode">🎮 Game Mode</option>
                         </select>
+                        <div id="gamemode-select-container" class="hidden">
+                          <label class="text-white text-sm mb-1 block">Select Game Mode:</label>
+                          <select id="event-gamemode" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
+                            ${Object.entries(SPECIAL_GAME_MODES).map(([key, mode]) =>
+                              `<option value="${key}">${mode.icon} ${mode.name} - ${mode.description}</option>`
+                            ).join('')}
+                          </select>
+                        </div>
                         <input type="text" id="event-title" placeholder="Event title..." class="bg-gray-600 text-white px-3 py-2 rounded">
                         <textarea id="event-message" placeholder="Event message..." class="bg-gray-600 text-white px-3 py-2 rounded h-20"></textarea>
                         <div class="flex gap-2 items-center">
@@ -15521,7 +15542,7 @@ function render() {
                 <!-- System Tab -->
                 <div class="bg-gray-800 p-4 rounded-lg">
                   <h2 class="text-lg font-bold text-white mb-4">🖥️ System Stats</h2>
-                  <div class="grid grid-cols-2 gap-4">
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div class="bg-gray-700 p-4 rounded-lg text-center">
                       <div class="text-3xl font-bold text-white">${allUsers.length}</div>
                       <div class="text-gray-400 text-sm">Total Users</div>
@@ -15541,9 +15562,28 @@ function render() {
                   </div>
                 </div>
                 <div class="bg-gray-800 p-4 rounded-lg">
-                  <h2 class="text-lg font-bold text-white mb-4">🔧 Quick Actions</h2>
+                  <h2 class="text-lg font-bold text-white mb-4">🎮 Active Game Modes</h2>
+                  <div class="flex flex-wrap gap-2">
+                    ${allEvents.filter(e => e.active && e.type === 'gamemode' && e.gameMode).map(e =>
+                      `<span class="bg-purple-600 text-white px-3 py-1 rounded-full text-sm">${SPECIAL_GAME_MODES[e.gameMode as keyof typeof SPECIAL_GAME_MODES]?.icon || '🎮'} ${SPECIAL_GAME_MODES[e.gameMode as keyof typeof SPECIAL_GAME_MODES]?.name || e.gameMode}</span>`
+                    ).join('') || '<span class="text-gray-400">No active game modes</span>'}
+                  </div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">💰 Global Rewards</h2>
                   <div class="flex flex-wrap gap-2">
                     <button id="admin-give-all-bucks-sys" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded text-sm">Give All +100💰</button>
+                    <button id="admin-give-all-bucks-500" class="bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded text-sm">Give All +500💰</button>
+                    <button id="admin-give-all-items-sys" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm">Give All Items to Everyone</button>
+                  </div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-red-400 mb-4">⚠️ Danger Zone</h2>
+                  <div class="flex flex-wrap gap-2">
+                    <button id="admin-reset-all-stats" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">Reset All User Stats</button>
+                    <button id="admin-reset-all-bucks" class="bg-orange-700 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded text-sm">Reset All War Bucks</button>
+                    <button id="admin-delete-all-events" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded text-sm">Delete All Events</button>
+                    <button id="admin-delete-all-games" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded text-sm">Clear All Games</button>
                   </div>
                 </div>
               ` : ''}
@@ -15602,6 +15642,34 @@ function render() {
         document.getElementById('admin-give-all-bucks-sys')?.addEventListener('click', async () => {
           if (confirm('Give +100 to ALL?')) { const c = await adminGiveWarBucksToAll(100); alert(`Gave to ${c} users!`); renderAdminPanel() }
         })
+        document.getElementById('admin-give-all-bucks-500')?.addEventListener('click', async () => {
+          if (confirm('Give +500 to ALL?')) { const c = await adminGiveWarBucksToAll(500); alert(`Gave to ${c} users!`); renderAdminPanel() }
+        })
+        document.getElementById('admin-give-all-items-sys')?.addEventListener('click', async () => {
+          if (confirm('Give ALL ITEMS to ALL users? This is a lot!')) { const c = await adminGiveAllItemsToAll(); alert(`Gave all items to ${c} users!`); renderAdminPanel() }
+        })
+
+        // Danger zone actions
+        document.getElementById('admin-reset-all-stats')?.addEventListener('click', async () => {
+          if (confirm('⚠️ RESET ALL USER STATS? This cannot be undone!')) {
+            if (confirm('Are you REALLY sure?')) { const c = await adminResetAllStats(); alert(`Reset stats for ${c} users!`); renderAdminPanel() }
+          }
+        })
+        document.getElementById('admin-reset-all-bucks')?.addEventListener('click', async () => {
+          if (confirm('⚠️ RESET ALL WAR BUCKS TO 0? This cannot be undone!')) {
+            if (confirm('Are you REALLY sure?')) { const c = await adminResetAllWarBucks(); alert(`Reset war bucks for ${c} users!`); renderAdminPanel() }
+          }
+        })
+        document.getElementById('admin-delete-all-events')?.addEventListener('click', async () => {
+          if (confirm('⚠️ DELETE ALL EVENTS? This cannot be undone!')) {
+            const c = await adminDeleteAllEvents(); alert(`Deleted ${c} events!`); renderAdminPanel()
+          }
+        })
+        document.getElementById('admin-delete-all-games')?.addEventListener('click', async () => {
+          if (confirm('⚠️ DELETE ALL GAMES? This will end all active games!')) {
+            const c = await adminDeleteAllGames(); alert(`Deleted ${c} games!`); renderAdminPanel()
+          }
+        })
 
         // Search
         document.getElementById('admin-search')?.addEventListener('input', (e) => {
@@ -15611,19 +15679,32 @@ function render() {
 
         // Events
         document.getElementById('toggle-create-event')?.addEventListener('click', () => { showCreateEvent = !showCreateEvent; renderAdminPanel() })
+
+        // Show/hide game mode selector based on event type
+        document.getElementById('event-type')?.addEventListener('change', (e) => {
+          const container = document.getElementById('gamemode-select-container')
+          if (container) {
+            container.classList.toggle('hidden', (e.target as HTMLSelectElement).value !== 'gamemode')
+          }
+        })
+
         document.getElementById('create-event-btn')?.addEventListener('click', async () => {
           const type = (document.getElementById('event-type') as HTMLSelectElement).value as GameEvent['type']
           const title = (document.getElementById('event-title') as HTMLInputElement).value
           const message = (document.getElementById('event-message') as HTMLTextAreaElement).value
           const rewardType = (document.getElementById('event-reward-type') as HTMLSelectElement).value as 'warBucks' | 'item' | ''
           const rewardAmount = parseInt((document.getElementById('event-reward-amount') as HTMLInputElement).value) || 0
+          const gameMode = (document.getElementById('event-gamemode') as HTMLSelectElement)?.value
 
           if (!title || !message) { alert('Title and message required!'); return }
 
-          const icons: Record<string, string> = { announcement: '📢', event: '🎉', reward: '🎁', maintenance: '🔧', update: '🆕' }
+          const icons: Record<string, string> = { announcement: '📢', event: '🎉', reward: '🎁', maintenance: '🔧', update: '🆕', gamemode: '🎮' }
           await adminCreateEvent({
-            type, title, message, icon: icons[type] || '📢', active: true,
-            ...(rewardType && rewardAmount ? { rewardType, rewardAmount } : {})
+            type, title, message,
+            icon: type === 'gamemode' && gameMode ? (SPECIAL_GAME_MODES[gameMode as keyof typeof SPECIAL_GAME_MODES]?.icon || '🎮') : (icons[type] || '📢'),
+            active: true,
+            ...(rewardType && rewardAmount ? { rewardType, rewardAmount } : {}),
+            ...(type === 'gamemode' && gameMode ? { gameMode: gameMode as GameEvent['gameMode'] } : {})
           })
           showCreateEvent = false
           renderAdminPanel()
