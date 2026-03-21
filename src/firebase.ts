@@ -260,6 +260,19 @@ export const WAR_PASS_CHALLENGES: WarPassChallenge[] = [
     reward: { type: 'item', itemId: 'skin_rainbow' } },
 ]
 
+// Get scaled War Pass challenges based on completion count
+// Each completion increases requirements by 50%
+export function getScaledWarPassChallenges(completedCount: number): WarPassChallenge[] {
+  const multiplier = 1 + (completedCount * 0.5) // 1x, 1.5x, 2x, 2.5x, etc.
+
+  return WAR_PASS_CHALLENGES.map(challenge => ({
+    ...challenge,
+    requirement: Math.ceil(challenge.requirement * multiplier),
+    // Update description with new requirement
+    description: challenge.description.replace(/\d+/, String(Math.ceil(challenge.requirement * multiplier)))
+  }))
+}
+
 // Default user data
 export function getDefaultUserData(username: string, email: string): UserData {
   return {

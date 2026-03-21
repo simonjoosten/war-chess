@@ -16,6 +16,7 @@ import {
   SHOP_ITEMS,
   ShopItem,
   WAR_PASS_CHALLENGES,
+  getScaledWarPassChallenges,
   WarPassChallenge,
   UserData,
   // Multiplayer
@@ -3286,6 +3287,8 @@ const translations: Record<Language, Record<string, string>> = {
     charging: 'Charging...',
     gameOverPoints: 'wins by points!',
     gameOverBuilder: 'wins by capturing the Builder!',
+    playAgain: 'Play Again',
+    mainMenu: 'Main Menu',
     // Confirm dialogs
     confirmReset: 'Are you sure you want to reset the game?',
     confirmYes: 'Yes',
@@ -3519,6 +3522,8 @@ const translations: Record<Language, Record<string, string>> = {
     charging: 'Opladen...',
     gameOverPoints: 'wint op punten!',
     gameOverBuilder: 'wint door de Bouwer te vangen!',
+    playAgain: 'Opnieuw Spelen',
+    mainMenu: 'Hoofdmenu',
     confirmReset: 'Weet je zeker dat je het spel wilt resetten?',
     confirmYes: 'Ja',
     confirmNo: 'Nee',
@@ -3749,6 +3754,8 @@ const translations: Record<Language, Record<string, string>> = {
     charging: 'Aufladen...',
     gameOverPoints: 'gewinnt nach Punkten!',
     gameOverBuilder: 'gewinnt durch Eroberung des Bauers!',
+    playAgain: 'Nochmal Spielen',
+    mainMenu: 'Hauptmenü',
     confirmReset: 'Möchtest du das Spiel wirklich zurücksetzen?',
     confirmYes: 'Ja',
     confirmNo: 'Nein',
@@ -3979,6 +3986,8 @@ const translations: Record<Language, Record<string, string>> = {
     charging: 'Chargement...',
     gameOverPoints: 'gagne aux points!',
     gameOverBuilder: 'gagne en capturant le Constructeur!',
+    playAgain: 'Rejouer',
+    mainMenu: 'Menu Principal',
     confirmReset: 'Voulez-vous vraiment réinitialiser?',
     confirmYes: 'Oui',
     confirmNo: 'Non',
@@ -4209,6 +4218,8 @@ const translations: Record<Language, Record<string, string>> = {
     charging: 'Cargando...',
     gameOverPoints: '¡gana por puntos!',
     gameOverBuilder: '¡gana capturando al Constructor!',
+    playAgain: 'Jugar de Nuevo',
+    mainMenu: 'Menú Principal',
     confirmReset: '¿Seguro que quieres reiniciar?',
     confirmYes: 'Sí',
     confirmNo: 'No',
@@ -10442,9 +10453,14 @@ function render() {
         <div class="text-white text-sm opacity-70">
           ${t('yellowTurns')}: ${yellowTurnCount} | ${t('greenTurns')}: ${greenTurnCount}
         </div>
-        <button id="play-again-btn" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
-          Play Again
-        </button>
+        <div class="flex gap-3">
+          <button id="play-again-btn" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
+            ${t('playAgain') || 'Play Again'}
+          </button>
+          <button id="main-menu-btn" class="bg-gray-600 hover:bg-gray-500 active:bg-gray-700 text-white font-bold py-3 px-6 sm:px-8 rounded-lg text-lg sm:text-xl transition-colors touch-manipulation">
+            ${t('mainMenu') || 'Main Menu'}
+          </button>
+        </div>
         <div class="flex items-start gap-4 sm:gap-8 opacity-50">
           <div class="flex-shrink-0" id="board-container">
             ${createBoard()}
@@ -10455,6 +10471,11 @@ function render() {
     document.getElementById('play-again-btn')?.addEventListener('click', () => {
       resetGame()
       startGame()
+    })
+    document.getElementById('main-menu-btn')?.addEventListener('click', () => {
+      resetGame()
+      gameState = 'start'
+      render()
     })
     return
   }
@@ -11422,10 +11443,13 @@ function render() {
       const completedCount = userData?.warPass?.completedCount || 0
       const stats = userData?.stats || { gamesPlayed: 0, gamesWon: 0, piecesEliminated: 0, engineersCaptured: 0, totalPointsScored: 0 }
 
+      // Get scaled challenges based on how many times completed (gets harder each time)
+      const scaledChallenges = getScaledWarPassChallenges(completedCount)
+
       // Check if 24 hours have passed and all challenges are claimed - auto reset
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
       const timeSinceReset = Date.now() - lastResetTime
-      const allChallengesClaimed = WAR_PASS_CHALLENGES.every(c => claimedRewards.includes(c.id))
+      const allChallengesClaimed = scaledChallenges.every(c => claimedRewards.includes(c.id))
 
       // Calculate time until next reset
       const timeUntilReset = Math.max(0, TWENTY_FOUR_HOURS - timeSinceReset)
@@ -11525,7 +11549,7 @@ function render() {
 
           <div class="w-full max-w-[600px] flex flex-col gap-4">
             <h2 class="text-lg font-bold text-white">🎯 ${t('warPassChallenges')}</h2>
-            ${WAR_PASS_CHALLENGES.map(renderChallenge).join('')}
+            ${scaledChallenges.map(renderChallenge).join('')}
           </div>
 
           <button id="warpass-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
@@ -11547,14 +11571,14 @@ function render() {
 
           if (!userData || !challengeId) return
 
-          const challenge = WAR_PASS_CHALLENGES.find(c => c.id === challengeId)
+          const challenge = scaledChallenges.find(c => c.id === challengeId)
           if (!challenge) return
 
           // Add to claimed rewards
           const newClaimedRewards = [...(userData.warPass?.claimedRewards || []), challengeId]
 
           // Check if this completes all challenges
-          const willBeComplete = WAR_PASS_CHALLENGES.every(c =>
+          const willBeComplete = scaledChallenges.every(c =>
             c.id === challengeId || (userData.warPass?.claimedRewards || []).includes(c.id)
           )
 
