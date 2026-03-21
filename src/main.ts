@@ -41,15 +41,11 @@ import {
   endGame,
   OnlinePlayer,
   GameInvite,
-  MultiplayerGame,
-  // Premium Shop
-  WAR_BUCKS_PACKAGES,
-  createCheckoutSession,
-  verifyPayment
+  MultiplayerGame
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'premium-shop'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -3417,14 +3413,6 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Claimed',
     warPassReward: 'Reward',
     warPassCompleted: 'Completed!',
-    // Premium Shop
-    premiumShopTitle: 'Premium Shop',
-    premiumShopSubtitle: 'Get War Bucks with real money',
-    premiumShopBonus: 'Bonus',
-    premiumShopBuy: 'Buy Now',
-    premiumShopBuying: 'Processing...',
-    premiumShopPopular: 'Most Popular',
-    premiumShopBestValue: 'Best Value',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -3657,14 +3645,6 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Geclaimed',
     warPassReward: 'Beloning',
     warPassCompleted: 'Voltooid!',
-    // Premium Shop
-    premiumShopTitle: 'Premium Winkel',
-    premiumShopSubtitle: 'Koop War Bucks met echt geld',
-    premiumShopBonus: 'Bonus',
-    premiumShopBuy: 'Koop Nu',
-    premiumShopBuying: 'Verwerken...',
-    premiumShopPopular: 'Meest Populair',
-    premiumShopBestValue: 'Beste Waarde',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3897,14 +3877,6 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Eingelöst',
     warPassReward: 'Belohnung',
     warPassCompleted: 'Abgeschlossen!',
-    // Premium Shop
-    premiumShopTitle: 'Premium Shop',
-    premiumShopSubtitle: 'Kaufe War Bucks mit echtem Geld',
-    premiumShopBonus: 'Bonus',
-    premiumShopBuy: 'Jetzt Kaufen',
-    premiumShopBuying: 'Verarbeitung...',
-    premiumShopPopular: 'Beliebteste',
-    premiumShopBestValue: 'Bester Wert',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -4137,14 +4109,6 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Réclamé',
     warPassReward: 'Récompense',
     warPassCompleted: 'Terminé!',
-    // Premium Shop
-    premiumShopTitle: 'Boutique Premium',
-    premiumShopSubtitle: 'Achetez des War Bucks avec de l\'argent réel',
-    premiumShopBonus: 'Bonus',
-    premiumShopBuy: 'Acheter',
-    premiumShopBuying: 'Traitement...',
-    premiumShopPopular: 'Plus Populaire',
-    premiumShopBestValue: 'Meilleure Valeur',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -4377,14 +4341,6 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Reclamado',
     warPassReward: 'Recompensa',
     warPassCompleted: '¡Completado!',
-    // Premium Shop
-    premiumShopTitle: 'Tienda Premium',
-    premiumShopSubtitle: 'Compra War Bucks con dinero real',
-    premiumShopBonus: 'Bono',
-    premiumShopBuy: 'Comprar Ahora',
-    premiumShopBuying: 'Procesando...',
-    premiumShopPopular: 'Más Popular',
-    premiumShopBestValue: 'Mejor Valor',
   }
 }
 
@@ -11345,11 +11301,6 @@ function render() {
           <h1 class="text-2xl sm:text-4xl font-bold text-white">🛒 ${t('shopTitle')}</h1>
           <div class="text-yellow-400 font-bold text-xl">${t('shopBalance')}: 💰 ${userData?.warBucks || 0}</div>
 
-          <!-- Premium Shop Button -->
-          <button id="premium-shop-btn" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2 shadow-lg hover:scale-105 transition-all">
-            💎 ${t('premiumShopTitle')} - Koop War Bucks
-          </button>
-
           <div class="w-full max-w-[600px] flex flex-col gap-6">
             <div>
               <h2 class="text-lg font-bold text-white mb-3">🎨 ${t('shopThemes')}</h2>
@@ -11396,12 +11347,6 @@ function render() {
       document.getElementById('shop-back-btn')?.addEventListener('click', () => {
         showAuthScreen = previousAuthScreen === 'multiplayer' ? 'multiplayer' : 'profile'
         previousAuthScreen = 'none'
-        render()
-      })
-
-      document.getElementById('premium-shop-btn')?.addEventListener('click', () => {
-        previousAuthScreen = 'shop'
-        showAuthScreen = 'premium-shop'
         render()
       })
 
@@ -11674,91 +11619,6 @@ function render() {
           await loadUserData()
           alert(t('warPassCompleted'))
           render()
-        })
-      })
-      return
-    }
-
-    // Premium Shop screen
-    if (showAuthScreen === 'premium-shop') {
-      const userData = getCurrentUserData()
-
-      app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
-          <h1 class="text-2xl sm:text-4xl font-bold text-white">💎 ${t('premiumShopTitle')}</h1>
-          <p class="text-gray-400 text-center">${t('premiumShopSubtitle')}</p>
-
-          <div class="text-yellow-400 font-bold text-xl">💰 ${userData?.warBucks || 0} War Bucks</div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-[900px]">
-            ${WAR_BUCKS_PACKAGES.map((pkg, index) => {
-              const isPopular = index === 2
-              const isBestValue = index === 4
-              return `
-                <div class="relative bg-gradient-to-br ${isBestValue ? 'from-yellow-900 to-yellow-700 border-yellow-500' : isPopular ? 'from-purple-900 to-purple-700 border-purple-500' : 'from-gray-800 to-gray-700 border-gray-600'} border-2 rounded-xl p-4 flex flex-col items-center gap-3 hover:scale-105 transition-transform">
-                  ${isBestValue ? `<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full">⭐ ${t('premiumShopBestValue')}</div>` : ''}
-                  ${isPopular ? `<div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">🔥 ${t('premiumShopPopular')}</div>` : ''}
-
-                  <div class="text-4xl">💰</div>
-                  <div class="text-2xl font-bold text-white">${pkg.amount}</div>
-                  <div class="text-gray-300 text-sm">War Bucks</div>
-
-                  ${pkg.bonus > 0 ? `<div class="text-green-400 text-sm font-bold">+${pkg.bonus} ${t('premiumShopBonus')}</div>` : '<div class="h-5"></div>'}
-
-                  <button class="buy-package-btn w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg text-lg transition-colors" data-package="${pkg.id}">
-                    €${pkg.price.toFixed(2)}
-                  </button>
-                </div>
-              `
-            }).join('')}
-          </div>
-
-          <div class="bg-gray-800 p-4 rounded-lg text-center max-w-[500px] mt-4">
-            <p class="text-gray-400 text-sm">🔒 Veilige betaling via Stripe</p>
-            <p class="text-gray-500 text-xs mt-2">Betalingen worden verwerkt door Stripe. Je kreditkaart gegevens worden nooit opgeslagen op onze servers.</p>
-          </div>
-
-          <button id="premium-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
-            ${t('backButton')}
-          </button>
-        </div>
-      `
-
-      document.getElementById('premium-back-btn')?.addEventListener('click', () => {
-        showAuthScreen = previousAuthScreen || 'shop'
-        render()
-      })
-
-      // Handle buy buttons
-      document.querySelectorAll('.buy-package-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const target = e.target as HTMLButtonElement
-          const packageId = target.dataset.package
-
-          if (!packageId) return
-
-          // Disable button and show loading
-          target.disabled = true
-          target.textContent = t('premiumShopBuying')
-
-          try {
-            const result = await createCheckoutSession(packageId)
-            if (result?.url) {
-              // Redirect to Stripe Checkout
-              window.location.href = result.url
-            } else {
-              alert('Could not create checkout session')
-              target.disabled = false
-              const pkg = WAR_BUCKS_PACKAGES.find(p => p.id === packageId)
-              target.textContent = `€${pkg?.price.toFixed(2) || '?'}`
-            }
-          } catch (error) {
-            console.error('Payment error:', error)
-            alert('Payment error. Please try again.')
-            target.disabled = false
-            const pkg = WAR_BUCKS_PACKAGES.find(p => p.id === packageId)
-            target.textContent = `€${pkg?.price.toFixed(2) || '?'}`
-          }
         })
       })
       return
@@ -12477,29 +12337,7 @@ if (firebaseInitialized) {
   // Show login screen if Firebase is configured
   showAuthScreen = 'login'
 
-  // Check for payment success/cancel URL parameters
-  const urlParams = new URLSearchParams(window.location.search)
-  const paymentStatus = urlParams.get('payment')
-  const sessionId = urlParams.get('session_id')
-
-  if (paymentStatus === 'success' && sessionId) {
-    // Payment was successful - verify and show confirmation
-    (async () => {
-      const result = await verifyPayment(sessionId)
-      if (result.success && result.warBucksAmount) {
-        await loadUserData()
-        alert(`🎉 Bedankt voor je aankoop! Je hebt ${result.warBucksAmount} War Bucks ontvangen!`)
-      }
-      // Clear URL parameters
-      window.history.replaceState({}, '', window.location.pathname)
-      render()
-    })()
-  } else if (paymentStatus === 'cancelled') {
-    // Payment was cancelled
-    alert('Betaling geannuleerd.')
-    window.history.replaceState({}, '', window.location.pathname)
-  }
-} else {
+  } else {
   // Firebase not configured - run in offline mode
   setOfflineMode(true)
 }
