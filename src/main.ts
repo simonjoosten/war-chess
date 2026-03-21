@@ -9316,6 +9316,116 @@ function drawPiece(piece: Piece, x: number, y: number): string {
       `
     }
 
+    // MINIMAL SKIN - Simple geometric train
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple wheels -->
+          <circle cx="${x + 14}" cy="${y + 40}" r="5" fill="#333" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 36}" cy="${y + 40}" r="5" fill="#333" stroke="#000" stroke-width="2" />
+          <!-- Simple body -->
+          <rect x="${x + 6}" y="${y + 22}" width="38" height="16" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple cabin -->
+          <rect x="${x + 32}" y="${y + 14}" width="12" height="22" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple chimney -->
+          <rect x="${x + 10}" y="${y + 14}" width="6" height="10" fill="#333" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute choo-choo
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Bouncy wheels -->
+          <circle cx="${x + 14}" cy="${y + 40}" r="6" fill="#444" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 36}" cy="${y + 40}" r="6" fill="#444" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 14}" cy="${y + 40}" r="2" fill="#888" />
+          <circle cx="${x + 36}" cy="${y + 40}" r="2" fill="#888" />
+          <!-- Cute body -->
+          <ellipse cx="${x + 22}" cy="${y + 30}" rx="16" ry="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Train face on front -->
+          <circle cx="${x + 10}" cy="${y + 28}" r="8" fill="${sc}" stroke="#000" stroke-width="2" />
+          <!-- Big cute eyes -->
+          <ellipse cx="${x + 8}" cy="${y + 26}" rx="3" ry="4" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 9}" cy="${y + 27}" r="2" fill="#000" />
+          <circle cx="${x + 10}" cy="${y + 26}" r="0.5" fill="#fff" />
+          <!-- Cute smile -->
+          <path d="M${x + 5} ${y + 32} Q${x + 10} ${y + 36} ${x + 15} ${y + 32}" stroke="#000" stroke-width="1.5" fill="none" />
+          <!-- Chimney with puff -->
+          <rect x="${x + 16}" y="${y + 14}" width="8" height="12" rx="2" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <ellipse cx="${x + 20}" cy="${y + 10}" rx="5" ry="4" fill="#ddd" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 18}" cy="${y + 6}" rx="3" ry="2" fill="#eee" />
+          <!-- Cabin -->
+          <rect x="${x + 32}" y="${y + 18}" width="14" height="16" rx="2" fill="${sc}" stroke="#000" stroke-width="2" />
+          <rect x="${x + 34}" y="${y + 20}" width="10" height="6" fill="#88ccff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Armored train
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Heavy wheels -->
+          <circle cx="${x + 12}" cy="${y + 40}" r="6" fill="#222" stroke="#111" stroke-width="2" />
+          <circle cx="${x + 28}" cy="${y + 40}" r="6" fill="#222" stroke="#111" stroke-width="2" />
+          <circle cx="${x + 40}" cy="${y + 40}" r="5" fill="#222" stroke="#111" stroke-width="2" />
+          <!-- Armored body -->
+          <rect x="${x + 4}" y="${y + 22}" width="42" height="16" rx="2" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 8}" y="${y + 26}" width="10" height="8" fill="${camo2}" />
+          <rect x="${x + 28}" y="${y + 24}" width="8" height="6" fill="${camo2}" />
+          <!-- Gun turret -->
+          <rect x="${x + 16}" y="${y + 14}" width="14" height="10" rx="2" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 28}" y="${y + 18}" width="12" height="4" fill="#333" />
+          <!-- Armored cabin -->
+          <rect x="${x + 34}" y="${y + 14}" width="10" height="10" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 36}" y="${y + 16}" width="6" height="4" fill="#333" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Maglev train
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Magnetic field -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="${glow}" opacity="0.4"><animate attributeName="opacity" values="0.4;0.6;0.4" dur="0.8s" repeatCount="indefinite" /></ellipse>
+          <!-- Sleek body -->
+          <path d="M${x + 2} ${y + 38} Q${x - 2} ${y + 26} ${x + 8} ${y + 20} L${x + 42} ${y + 20} Q${x + 52} ${y + 26} ${x + 48} ${y + 38} Z" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Cockpit -->
+          <path d="M${x + 2} ${y + 30} Q${x + 6} ${y + 24} ${x + 16} ${y + 22} L${x + 16} ${y + 34} Z" fill="#111" stroke="${glow}" stroke-width="0.5" />
+          <path d="M${x + 4} ${y + 28} L${x + 14} ${y + 24}" stroke="${glow}" stroke-width="1" />
+          <!-- Energy line -->
+          <line x1="${x + 8}" y1="${y + 30}" x2="${x + 46}" y2="${y + 30}" stroke="${glow}" stroke-width="2"><animate attributeName="opacity" values="1;0.4;1" dur="0.5s" repeatCount="indefinite" /></line>
+          <!-- Hover pads -->
+          <ellipse cx="${x + 14}" cy="${y + 40}" rx="6" ry="2" fill="${glow}" opacity="0.6" />
+          <ellipse cx="${x + 36}" cy="${y + 40}" rx="6" ry="2" fill="${glow}" opacity="0.6" />
+          <!-- Top sensor -->
+          <rect x="${x + 30}" y="${y + 14}" width="8" height="8" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <circle cx="${x + 34}" cy="${y + 18}" r="2" fill="${glow}"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
     // DEFAULT - Train locomotive shape
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -9559,6 +9669,135 @@ function drawPiece(piece: Piece, x: number, y: number): string {
       `
     }
 
+    // MINIMAL SKIN - Clean geometric shapes
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple body - just circles and rectangles -->
+          <rect x="${x + 18}" y="${y + 32}" width="14" height="14" fill="${mc}" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 25}" cy="${y + 20}" r="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Minimal face -->
+          <line x1="${x + 21}" y1="${y + 18}" x2="${x + 23}" y2="${y + 18}" stroke="#000" stroke-width="2" />
+          <line x1="${x + 27}" y1="${y + 18}" x2="${x + 29}" y2="${y + 18}" stroke="#000" stroke-width="2" />
+          <!-- Simple gun -->
+          <rect x="${x + 32}" y="${y + 32}" width="14" height="4" fill="#333" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Fun big-eyed soldier
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="14" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Bouncy body -->
+          <ellipse cx="${x + 25}" cy="${y + 36}" rx="12" ry="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Big head -->
+          <circle cx="${x + 25}" cy="${y + 18}" r="14" fill="${sc}" stroke="#000" stroke-width="2" />
+          <!-- Helmet -->
+          <ellipse cx="${x + 25}" cy="${y + 14}" rx="12" ry="8" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Giant cute eyes -->
+          <ellipse cx="${x + 20}" cy="${y + 20}" rx="5" ry="6" fill="#fff" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 30}" cy="${y + 20}" rx="5" ry="6" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 21}" cy="${y + 21}" r="3" fill="#000" />
+          <circle cx="${x + 31}" cy="${y + 21}" r="3" fill="#000" />
+          <circle cx="${x + 22}" cy="${y + 20}" r="1" fill="#fff" />
+          <circle cx="${x + 32}" cy="${y + 20}" r="1" fill="#fff" />
+          <!-- Cute smile -->
+          <path d="M${x + 21} ${y + 28} Q${x + 25} ${y + 32} ${x + 29} ${y + 28}" stroke="#000" stroke-width="2" fill="none" />
+          <!-- Tiny arms -->
+          <ellipse cx="${x + 12}" cy="${y + 34}" rx="4" ry="6" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <ellipse cx="${x + 38}" cy="${y + 34}" rx="4" ry="6" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <!-- Little gun -->
+          <rect x="${x + 40}" y="${y + 32}" width="8" height="4" rx="2" fill="#666" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 4}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Realistic tactical soldier
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.4)" />
+          <!-- Tactical boots -->
+          <rect x="${x + 16}" y="${y + 42}" width="8" height="6" rx="1" fill="#1a1a1a" />
+          <rect x="${x + 26}" y="${y + 42}" width="8" height="6" rx="1" fill="#1a1a1a" />
+          <!-- Camo pants -->
+          <rect x="${x + 16}" y="${y + 30}" width="8" height="13" fill="${camo1}" />
+          <rect x="${x + 26}" y="${y + 30}" width="8" height="13" fill="${camo1}" />
+          <rect x="${x + 18}" y="${y + 34}" width="3" height="4" fill="${camo2}" />
+          <rect x="${x + 29}" y="${y + 36}" width="3" height="4" fill="${camo2}" />
+          <!-- Tactical vest -->
+          <rect x="${x + 12}" y="${y + 16}" width="26" height="16" rx="2" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 14}" y="${y + 18}" width="6" height="8" fill="${camo2}" rx="1" />
+          <rect x="${x + 30}" y="${y + 18}" width="6" height="8" fill="${camo2}" rx="1" />
+          <rect x="${x + 22}" y="${y + 20}" width="6" height="10" fill="#333" />
+          <!-- Arms -->
+          <rect x="${x + 8}" y="${y + 18}" width="6" height="12" rx="2" fill="${camo1}" />
+          <rect x="${x + 36}" y="${y + 18}" width="6" height="12" rx="2" fill="${camo1}" />
+          <!-- Tactical helmet with NVG mount -->
+          <ellipse cx="${x + 25}" cy="${y + 11}" rx="11" ry="9" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 22}" y="${y + 4}" width="6" height="4" fill="#333" />
+          <!-- Face paint -->
+          <ellipse cx="${x + 25}" cy="${y + 16}" rx="5" ry="4" fill="#8b7355" />
+          <line x1="${x + 20}" y1="${y + 15}" x2="${x + 24}" y2="${y + 17}" stroke="${camo2}" stroke-width="1.5" />
+          <line x1="${x + 26}" y1="${y + 17}" x2="${x + 30}" y2="${y + 15}" stroke="${camo2}" stroke-width="1.5" />
+          <!-- M4 rifle -->
+          <rect x="${x + 40}" y="${y + 22}" width="12" height="3" fill="#222" />
+          <rect x="${x + 38}" y="${y + 20}" width="4" height="8" fill="#333" />
+          <rect x="${x + 50}" y="${y + 22}" width="4" height="2" fill="#111" />
+          <circle cx="${x + 25}" cy="${y + 3}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Space marine
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.4)" />
+          <!-- Power armor boots -->
+          <rect x="${x + 15}" y="${y + 40}" width="9" height="7" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <rect x="${x + 26}" y="${y + 40}" width="9" height="7" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <!-- Power armor legs -->
+          <rect x="${x + 16}" y="${y + 30}" width="7" height="11" fill="${armor}" stroke="${glow}" stroke-width="0.5" />
+          <rect x="${x + 27}" y="${y + 30}" width="7" height="11" fill="${armor}" stroke="${glow}" stroke-width="0.5" />
+          <!-- Power armor torso -->
+          <rect x="${x + 12}" y="${y + 16}" width="26" height="16" rx="3" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Chest reactor -->
+          <circle cx="${x + 25}" cy="${y + 24}" r="4" fill="${glow}"><animate attributeName="opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite" /></circle>
+          <!-- Shoulder pads -->
+          <ellipse cx="${x + 10}" cy="${y + 18}" rx="6" ry="4" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <ellipse cx="${x + 40}" cy="${y + 18}" rx="6" ry="4" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <!-- Arms -->
+          <rect x="${x + 6}" y="${y + 20}" width="6" height="12" rx="2" fill="${armor}" stroke="${glow}" stroke-width="0.5" />
+          <rect x="${x + 38}" y="${y + 20}" width="6" height="12" rx="2" fill="${armor}" stroke="${glow}" stroke-width="0.5" />
+          <!-- Space helmet -->
+          <ellipse cx="${x + 25}" cy="${y + 10}" rx="12" ry="10" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Visor -->
+          <ellipse cx="${x + 25}" cy="${y + 12}" rx="8" ry="5" fill="${glow}" opacity="0.7" />
+          <!-- Plasma rifle -->
+          <rect x="${x + 42}" y="${y + 22}" width="10" height="5" rx="2" fill="${armor}" stroke="${glow}" stroke-width="0.5" />
+          <circle cx="${x + 50}" cy="${y + 24.5}" r="2" fill="${glow}"><animate attributeName="r" values="2;3;2" dur="0.5s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 2}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
     // DEFAULT MILITARY SKIN
     const uniformColor = skinColors.uniform
     const uniformDark = skinColors.uniformDark
@@ -9787,6 +10026,116 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <path d="M${x + 42} ${y + 8} L${x + 40} ${y + 2} L${x + 44} ${y + 6} Z" fill="${scaleDark}" />
           <path d="M${x + 46} ${y + 8} L${x + 48} ${y + 2} L${x + 44} ${y + 6} Z" fill="${scaleDark}" />
           <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MINIMAL SKIN - Geometric tank
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple tracks -->
+          <rect x="${x + 4}" y="${y + 36}" width="42" height="10" fill="#333" stroke="#000" stroke-width="2" />
+          <!-- Simple hull -->
+          <rect x="${x + 8}" y="${y + 22}" width="34" height="14" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple turret -->
+          <circle cx="${x + 25}" cy="${y + 22}" r="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple cannon -->
+          <rect x="${x + 33}" y="${y + 20}" width="16" height="4" fill="#333" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute bouncy tank
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Bouncy wheels -->
+          <circle cx="${x + 12}" cy="${y + 40}" r="7" fill="#444" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 25}" cy="${y + 40}" r="7" fill="#444" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 38}" cy="${y + 40}" r="7" fill="#444" stroke="#000" stroke-width="2" />
+          <!-- Cute body -->
+          <ellipse cx="${x + 25}" cy="${y + 30}" rx="20" ry="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Big face turret -->
+          <circle cx="${x + 25}" cy="${y + 22}" r="14" fill="${sc}" stroke="#000" stroke-width="2" />
+          <!-- Giant cute eyes -->
+          <ellipse cx="${x + 18}" cy="${y + 20}" rx="5" ry="6" fill="#fff" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 32}" cy="${y + 20}" rx="5" ry="6" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 19}" cy="${y + 21}" r="3" fill="#000" />
+          <circle cx="${x + 33}" cy="${y + 21}" r="3" fill="#000" />
+          <circle cx="${x + 20}" cy="${y + 20}" r="1" fill="#fff" />
+          <circle cx="${x + 34}" cy="${y + 20}" r="1" fill="#fff" />
+          <!-- Funny cannon -->
+          <rect x="${x + 38}" y="${y + 18}" width="12" height="6" rx="3" fill="#666" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - M1 Abrams style
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Realistic tracks -->
+          <rect x="${x + 2}" y="${y + 34}" width="46" height="12" rx="3" fill="#1a1a1a" />
+          <rect x="${x + 4}" y="${y + 36}" width="42" height="8" rx="2" fill="#0a0a0a" />
+          <!-- Road wheels -->
+          <circle cx="${x + 10}" cy="${y + 40}" r="4" fill="#333" />
+          <circle cx="${x + 20}" cy="${y + 40}" r="4" fill="#333" />
+          <circle cx="${x + 30}" cy="${y + 40}" r="4" fill="#333" />
+          <circle cx="${x + 40}" cy="${y + 40}" r="4" fill="#333" />
+          <!-- Hull with camo -->
+          <path d="M${x + 4} ${y + 34} L${x + 8} ${y + 22} L${x + 42} ${y + 22} L${x + 46} ${y + 34} Z" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <path d="M${x + 12} ${y + 28} L${x + 20} ${y + 24} L${x + 30} ${y + 28} Z" fill="${camo2}" />
+          <!-- Turret -->
+          <rect x="${x + 12}" y="${y + 14}" width="26" height="10" rx="2" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 16}" y="${y + 16}" width="8" height="4" fill="${camo2}" />
+          <!-- Long cannon -->
+          <rect x="${x + 36}" y="${y + 16}" width="18" height="4" fill="#333" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 52}" y="${y + 17}" width="4" height="2" fill="#222" />
+          <!-- ERA blocks -->
+          <rect x="${x + 8}" y="${y + 24}" width="4" height="6" fill="#444" />
+          <rect x="${x + 38}" y="${y + 24}" width="4" height="6" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Hover tank
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover glow -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="${glow}" opacity="0.5"><animate attributeName="opacity" values="0.5;0.3;0.5" dur="0.8s" repeatCount="indefinite" /></ellipse>
+          <!-- Hover pads -->
+          <ellipse cx="${x + 12}" cy="${y + 42}" rx="8" ry="3" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <ellipse cx="${x + 38}" cy="${y + 42}" rx="8" ry="3" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <!-- Sleek hull -->
+          <path d="M${x + 4} ${y + 38} L${x + 10} ${y + 22} L${x + 40} ${y + 22} L${x + 46} ${y + 38} Z" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Energy core -->
+          <circle cx="${x + 25}" cy="${y + 30}" r="4" fill="${glow}"><animate attributeName="r" values="4;5;4" dur="1s" repeatCount="indefinite" /></circle>
+          <!-- Turret dome -->
+          <ellipse cx="${x + 25}" cy="${y + 18}" rx="12" ry="8" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <ellipse cx="${x + 25}" cy="${y + 16}" rx="8" ry="4" fill="${glow}" opacity="0.5" />
+          <!-- Plasma cannon -->
+          <rect x="${x + 35}" y="${y + 14}" width="14" height="6" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <circle cx="${x + 48}" cy="${y + 17}" r="3" fill="${glow}"><animate attributeName="opacity" values="1;0.4;1" dur="0.5s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
           ${colorblindSymbol}
         </g>
       `
