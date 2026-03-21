@@ -4719,7 +4719,9 @@ async function syncMultiplayerState() {
   if (!multiplayerGameId || !multiplayerTeam) return
 
   const state = serializeGameState()
-  await updateGameState(multiplayerGameId, state, currentTurn)
+  // Pass who made the move (the team that just finished their turn)
+  const lastMoveBy = multiplayerTeam
+  await updateGameState(multiplayerGameId, state, currentTurn, lastMoveBy)
 
   // If game is over, end the game in Firebase
   if (gameState === 'gameOver' && winner) {
@@ -6381,12 +6383,21 @@ async function startMultiplayerGame() {
     await startMusic()
   }
 
+  // Track the last move count we've seen to avoid re-applying the same state
+  let lastSeenMoveCount = 0
+
   // Listen for game state updates from opponent
   listenToGame(multiplayerGameId, (game) => {
     if (!game) return
 
-    // Check if the game state has been updated by opponent
-    if (game.gameState && game.currentTurn === multiplayerTeam) {
+    // Check if the opponent made a move (lastMoveBy is not us, and we haven't seen this move yet)
+    const opponentMoved = game.lastMoveBy && game.lastMoveBy !== multiplayerTeam
+    const isNewMove = (game.moveCount || 0) > lastSeenMoveCount
+
+    if (game.gameState && opponentMoved && isNewMove) {
+      // Update the move counter
+      lastSeenMoveCount = game.moveCount || 0
+
       // Opponent made a move, apply the new state
       const state = game.gameState as SerializedGameState
       deserializeGameState(state)
@@ -15453,12 +15464,16 @@ function render() {
                 if ((game.status === 'playing' || (game.yellowJoined && game.greenJoined)) && !multiplayerGameStarted) {
                   // Both players ready - start game!
                   startMultiplayerGame()
-                } else {
-                  render() // Update UI to show waiting/joining state
+                } else if (!multiplayerGameStarted) {
+                  // Only render waiting state if game hasn't started yet
+                  render()
                 }
               }
             })
-            render() // Show waiting state immediately
+            // Only show waiting state if game hasn't started
+            if (!multiplayerGameStarted) {
+              render()
+            }
           }
         })
       }

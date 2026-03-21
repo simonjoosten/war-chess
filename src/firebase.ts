@@ -638,6 +638,8 @@ export interface MultiplayerGame {
   greenUsername: string
   gameState: unknown
   currentTurn: 'yellow' | 'green'
+  lastMoveBy?: 'yellow' | 'green' // Track who made the last move
+  moveCount?: number // Track total moves for sync verification
   createdAt: Timestamp
   lastMove: Timestamp
   status: 'waiting' | 'playing' | 'finished'
@@ -939,13 +941,19 @@ export function stopListeningToGame(): void {
 }
 
 // Update game state
-export async function updateGameState(gameId: string, gameState: unknown, currentTurn: 'yellow' | 'green'): Promise<boolean> {
+export async function updateGameState(gameId: string, gameState: unknown, currentTurn: 'yellow' | 'green', lastMoveBy: 'yellow' | 'green'): Promise<boolean> {
   if (!db) return false
 
   try {
+    // Get current move count and increment
+    const gameDoc = await getDoc(doc(db, 'games', gameId))
+    const currentMoveCount = gameDoc.exists() ? (gameDoc.data().moveCount || 0) : 0
+
     await updateDoc(doc(db, 'games', gameId), {
       gameState,
       currentTurn,
+      lastMoveBy,
+      moveCount: currentMoveCount + 1,
       lastMove: serverTimestamp()
     })
     return true
