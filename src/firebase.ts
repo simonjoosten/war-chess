@@ -97,6 +97,18 @@ export interface UserData {
   botLearning: Record<string, unknown>
   // Purchased shop items
   purchasedItems: string[]
+  // Equipped items (active cosmetics)
+  equippedItems: {
+    theme: string | null
+    pieceSkin: string | null
+    effect: string | null
+  }
+  // War Pass progress
+  warPass: {
+    claimedRewards: string[]  // Challenge IDs that have been claimed
+    completedCount: number    // How many times completed all challenges
+    lastResetTime: number     // Timestamp of last reset
+  }
 }
 
 // Shop items for sale
@@ -107,22 +119,104 @@ export interface ShopItem {
   price: number
   type: 'theme' | 'piece_skin' | 'effect'
   icon: string
+  // Theme colors (for themes)
+  colors?: {
+    light: string
+    dark: string
+    accent: string
+    water: string
+  }
+  // Piece color modifier (for skins)
+  pieceColor?: {
+    yellow: string
+    green: string
+  }
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
   // Board Themes
-  { id: 'theme_desert', name: 'Desert Camo', description: 'Sandy desert battlefield theme', price: 100, type: 'theme', icon: '🏜️' },
-  { id: 'theme_arctic', name: 'Arctic Snow', description: 'Cold snowy battlefield theme', price: 100, type: 'theme', icon: '❄️' },
-  { id: 'theme_jungle', name: 'Jungle Warfare', description: 'Dense jungle battlefield theme', price: 150, type: 'theme', icon: '🌴' },
-  { id: 'theme_night', name: 'Night Ops', description: 'Dark nighttime tactical theme', price: 200, type: 'theme', icon: '🌙' },
-  { id: 'theme_ocean', name: 'Ocean Assault', description: 'Deep sea naval theme', price: 150, type: 'theme', icon: '🌊' },
+  { id: 'theme_desert', name: 'Desert Camo', description: 'Sandy desert battlefield theme', price: 100, type: 'theme', icon: '🏜️',
+    colors: { light: '#d4a574', dark: '#8b6914', accent: '#c4a35a', water: '#4a90a4' } },
+  { id: 'theme_arctic', name: 'Arctic Snow', description: 'Cold snowy battlefield theme', price: 100, type: 'theme', icon: '❄️',
+    colors: { light: '#e8f4f8', dark: '#a8c8d8', accent: '#c0dce8', water: '#5588aa' } },
+  { id: 'theme_jungle', name: 'Jungle Warfare', description: 'Dense jungle battlefield theme', price: 150, type: 'theme', icon: '🌴',
+    colors: { light: '#7cb342', dark: '#33691e', accent: '#558b2f', water: '#00695c' } },
+  { id: 'theme_night', name: 'Night Ops', description: 'Dark nighttime tactical theme', price: 200, type: 'theme', icon: '🌙',
+    colors: { light: '#37474f', dark: '#1a237e', accent: '#263238', water: '#0d47a1' } },
+  { id: 'theme_ocean', name: 'Ocean Assault', description: 'Deep sea naval theme', price: 150, type: 'theme', icon: '🌊',
+    colors: { light: '#4fc3f7', dark: '#0277bd', accent: '#29b6f6', water: '#01579b' } },
+  { id: 'theme_lava', name: 'Volcanic', description: 'Fiery volcanic battlefield', price: 200, type: 'theme', icon: '🌋',
+    colors: { light: '#ff7043', dark: '#bf360c', accent: '#e64a19', water: '#ff5722' } },
+  { id: 'theme_space', name: 'Space Battle', description: 'Galactic warfare theme', price: 250, type: 'theme', icon: '🚀',
+    colors: { light: '#7c4dff', dark: '#311b92', accent: '#651fff', water: '#6200ea' } },
   // Piece Skins
-  { id: 'skin_gold', name: 'Golden Army', description: 'Shiny gold pieces for your team', price: 300, type: 'piece_skin', icon: '✨' },
-  { id: 'skin_cyber', name: 'Cyber Warriors', description: 'Futuristic neon piece designs', price: 250, type: 'piece_skin', icon: '🤖' },
-  { id: 'skin_stealth', name: 'Stealth Force', description: 'Dark tactical piece designs', price: 200, type: 'piece_skin', icon: '🥷' },
+  { id: 'skin_gold', name: 'Golden Army', description: 'Shiny gold pieces for your team', price: 300, type: 'piece_skin', icon: '✨',
+    pieceColor: { yellow: '#ffd700', green: '#c0c0c0' } },
+  { id: 'skin_cyber', name: 'Cyber Warriors', description: 'Futuristic neon piece designs', price: 250, type: 'piece_skin', icon: '🤖',
+    pieceColor: { yellow: '#00ffff', green: '#ff00ff' } },
+  { id: 'skin_stealth', name: 'Stealth Force', description: 'Dark tactical piece designs', price: 200, type: 'piece_skin', icon: '🥷',
+    pieceColor: { yellow: '#2d2d2d', green: '#1a1a2e' } },
+  { id: 'skin_rainbow', name: 'Rainbow Army', description: 'Colorful rainbow pieces', price: 350, type: 'piece_skin', icon: '🌈',
+    pieceColor: { yellow: '#ff6b6b', green: '#4ecdc4' } },
+  { id: 'skin_ice', name: 'Frozen Warriors', description: 'Icy blue piece designs', price: 200, type: 'piece_skin', icon: '🧊',
+    pieceColor: { yellow: '#74b9ff', green: '#a29bfe' } },
   // Effects
   { id: 'effect_fire', name: 'Fire Trail', description: 'Pieces leave fire effects when moving', price: 250, type: 'effect', icon: '🔥' },
   { id: 'effect_lightning', name: 'Lightning Strike', description: 'Electric effects on captures', price: 300, type: 'effect', icon: '⚡' },
+  { id: 'effect_sparkle', name: 'Sparkle', description: 'Sparkly effects on all moves', price: 150, type: 'effect', icon: '💫' },
+  { id: 'effect_smoke', name: 'Smoke Trail', description: 'Smoky trail behind pieces', price: 175, type: 'effect', icon: '💨' },
+]
+
+// War Pass Challenges
+export interface WarPassChallenge {
+  id: string
+  name: string
+  description: string
+  icon: string
+  requirement: number
+  stat: 'gamesWon' | 'gamesPlayed' | 'piecesEliminated' | 'engineersCaptured' | 'totalPointsScored'
+  reward: {
+    type: 'warBucks' | 'item'
+    amount?: number
+    itemId?: string
+  }
+}
+
+export const WAR_PASS_CHALLENGES: WarPassChallenge[] = [
+  // Easy challenges
+  { id: 'play_1', name: 'First Steps', description: 'Play 1 game', icon: '🎮', requirement: 1, stat: 'gamesPlayed',
+    reward: { type: 'warBucks', amount: 25 } },
+  { id: 'win_1', name: 'First Victory', description: 'Win 1 game', icon: '🏆', requirement: 1, stat: 'gamesWon',
+    reward: { type: 'warBucks', amount: 50 } },
+  { id: 'eliminate_5', name: 'Rookie Hunter', description: 'Eliminate 5 pieces', icon: '🎯', requirement: 5, stat: 'piecesEliminated',
+    reward: { type: 'warBucks', amount: 30 } },
+  // Medium challenges
+  { id: 'play_5', name: 'Getting Started', description: 'Play 5 games', icon: '🎲', requirement: 5, stat: 'gamesPlayed',
+    reward: { type: 'warBucks', amount: 75 } },
+  { id: 'win_3', name: 'Hat Trick', description: 'Win 3 games', icon: '🥉', requirement: 3, stat: 'gamesWon',
+    reward: { type: 'warBucks', amount: 100 } },
+  { id: 'eliminate_25', name: 'Skilled Hunter', description: 'Eliminate 25 pieces', icon: '💥', requirement: 25, stat: 'piecesEliminated',
+    reward: { type: 'item', itemId: 'effect_sparkle' } },
+  { id: 'engineer_3', name: 'Engineer Hunter', description: 'Capture 3 engineers', icon: '🔧', requirement: 3, stat: 'engineersCaptured',
+    reward: { type: 'warBucks', amount: 100 } },
+  // Hard challenges
+  { id: 'play_10', name: 'Dedicated Player', description: 'Play 10 games', icon: '⭐', requirement: 10, stat: 'gamesPlayed',
+    reward: { type: 'item', itemId: 'theme_desert' } },
+  { id: 'win_5', name: 'Champion', description: 'Win 5 games', icon: '🏅', requirement: 5, stat: 'gamesWon',
+    reward: { type: 'item', itemId: 'skin_stealth' } },
+  { id: 'eliminate_50', name: 'Elite Hunter', description: 'Eliminate 50 pieces', icon: '🔥', requirement: 50, stat: 'piecesEliminated',
+    reward: { type: 'warBucks', amount: 200 } },
+  { id: 'points_100', name: 'Point Master', description: 'Score 100 total points', icon: '💯', requirement: 100, stat: 'totalPointsScored',
+    reward: { type: 'item', itemId: 'theme_arctic' } },
+  // Expert challenges
+  { id: 'win_10', name: 'War Hero', description: 'Win 10 games', icon: '🎖️', requirement: 10, stat: 'gamesWon',
+    reward: { type: 'item', itemId: 'skin_gold' } },
+  { id: 'eliminate_100', name: 'Legendary Hunter', description: 'Eliminate 100 pieces', icon: '👑', requirement: 100, stat: 'piecesEliminated',
+    reward: { type: 'item', itemId: 'effect_fire' } },
+  { id: 'engineer_10', name: 'Engineer Master', description: 'Capture 10 engineers', icon: '⚙️', requirement: 10, stat: 'engineersCaptured',
+    reward: { type: 'item', itemId: 'theme_night' } },
+  { id: 'points_500', name: 'Score Legend', description: 'Score 500 total points', icon: '🌟', requirement: 500, stat: 'totalPointsScored',
+    reward: { type: 'item', itemId: 'skin_rainbow' } },
 ]
 
 // Default user data
@@ -160,7 +254,17 @@ export function getDefaultUserData(username: string, email: string): UserData {
       largeUIMode: false
     },
     botLearning: {},
-    purchasedItems: []
+    purchasedItems: [],
+    equippedItems: {
+      theme: null,
+      pieceSkin: null,
+      effect: null
+    },
+    warPass: {
+      claimedRewards: [],
+      completedCount: 0,
+      lastResetTime: Date.now()
+    }
   }
 }
 
@@ -381,7 +485,11 @@ export const BADGES = {
   STRATEGIST: { id: 'strategist', name: 'Strategist', description: 'Score 500 total points', icon: '🧠' },
   SPEEDRUNNER: { id: 'speedrunner', name: 'Speedrunner', description: 'Win a game in under 5 minutes', icon: '⚡' },
   SURVIVOR: { id: 'survivor', name: 'Survivor', description: 'Win with less than 10 points difference', icon: '💪' },
-  DOMINATOR: { id: 'dominator', name: 'Dominator', description: 'Win with over 50 points difference', icon: '🔥' }
+  DOMINATOR: { id: 'dominator', name: 'Dominator', description: 'Win with over 50 points difference', icon: '🔥' },
+  // War Pass badges
+  WAR_PASS_1: { id: 'war_pass_1', name: 'War Pass Rookie', description: 'Complete the War Pass 1 time', icon: '🎖️' },
+  WAR_PASS_5: { id: 'war_pass_5', name: 'War Pass Veteran', description: 'Complete the War Pass 5 times', icon: '🏅' },
+  WAR_PASS_10: { id: 'war_pass_10', name: 'War Pass Legend', description: 'Complete the War Pass 10 times', icon: '🥇' }
 }
 
 // Check and award badges
@@ -408,6 +516,17 @@ export function checkBadges(userData: UserData): string[] {
   }
   if (!userData.badges.includes('strategist') && userData.stats.totalPointsScored >= 500) {
     newBadges.push('strategist')
+  }
+  // War Pass badges
+  const warPassCount = userData.warPass?.completedCount || 0
+  if (!userData.badges.includes('war_pass_1') && warPassCount >= 1) {
+    newBadges.push('war_pass_1')
+  }
+  if (!userData.badges.includes('war_pass_5') && warPassCount >= 5) {
+    newBadges.push('war_pass_5')
+  }
+  if (!userData.badges.includes('war_pass_10') && warPassCount >= 10) {
+    newBadges.push('war_pass_10')
   }
 
   return newBadges

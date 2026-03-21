@@ -15,6 +15,8 @@ import {
   BADGES,
   SHOP_ITEMS,
   ShopItem,
+  WAR_PASS_CHALLENGES,
+  WarPassChallenge,
   UserData,
   // Multiplayer
   setOnline,
@@ -42,7 +44,7 @@ import {
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass'
 let showAuthScreen: AuthScreen = 'none'
 let authError = ''
 let authLoading = false
@@ -62,6 +64,11 @@ let inviteTimerEnabled = false
 let inviteTimerMinutes = 10
 let isMyTurnInMultiplayer = false
 let waitingForOpponent = false
+
+// Equipped cosmetics (loaded from user data)
+let equippedTheme: string | null = null
+let equippedPieceSkin: string | null = null
+let equippedEffect: string | null = null
 
 // Serialized piece type for multiplayer sync (no circular references)
 interface SerializedPiece {
@@ -224,6 +231,14 @@ let isFullscreen = false
 
 // Theme color palettes
 function getThemeColors(): { light: string; dark: string } {
+  // Check for equipped shop theme first
+  if (equippedTheme) {
+    const shopTheme = SHOP_ITEMS.find(i => i.id === equippedTheme && i.colors)
+    if (shopTheme?.colors) {
+      return { light: shopTheme.colors.light, dark: shopTheme.colors.dark }
+    }
+  }
+
   switch (boardTheme) {
     case 'dark':
       return { light: '#4a5568', dark: '#2d3748' }
@@ -239,6 +254,14 @@ function getThemeColors(): { light: string; dark: string } {
 
 // Team colors (colorblind-friendly alternatives)
 function getTeamColor(team: 'yellow' | 'green'): string {
+  // Check for equipped piece skin first
+  if (equippedPieceSkin) {
+    const shopSkin = SHOP_ITEMS.find(i => i.id === equippedPieceSkin && i.pieceColor)
+    if (shopSkin?.pieceColor) {
+      return team === 'yellow' ? shopSkin.pieceColor.yellow : shopSkin.pieceColor.green
+    }
+  }
+
   if (colorBlindMode) {
     // Blue vs Orange - more distinguishable
     return team === 'yellow' ? '#f97316' : '#3b82f6'
@@ -3060,11 +3083,22 @@ const translations: Record<Language, Record<string, string>> = {
     shopBalance: 'Balance',
     shopBuy: 'Buy',
     shopOwned: 'Owned',
+    shopEquip: 'Equip',
+    shopUnequip: 'Unequip',
+    shopEquipped: 'Equipped',
     shopPurchased: 'Purchased!',
     shopNotEnough: 'Not enough War Bucks',
     shopThemes: 'Board Themes',
     shopSkins: 'Piece Skins',
     shopEffects: 'Effects',
+    // War Pass
+    warPassTitle: 'War Pass',
+    warPassChallenges: 'Challenges',
+    warPassProgress: 'Progress',
+    warPassClaim: 'Claim',
+    warPassClaimed: 'Claimed',
+    warPassReward: 'Reward',
+    warPassCompleted: 'Completed!',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -3276,11 +3310,22 @@ const translations: Record<Language, Record<string, string>> = {
     shopBalance: 'Saldo',
     shopBuy: 'Kopen',
     shopOwned: 'In bezit',
+    shopEquip: 'Uitrusten',
+    shopUnequip: 'Afdoen',
+    shopEquipped: 'Uitgerust',
     shopPurchased: 'Gekocht!',
     shopNotEnough: 'Niet genoeg War Bucks',
     shopThemes: 'Bord Thema\'s',
     shopSkins: 'Stuk Skins',
     shopEffects: 'Effecten',
+    // War Pass
+    warPassTitle: 'War Pass',
+    warPassChallenges: 'Uitdagingen',
+    warPassProgress: 'Voortgang',
+    warPassClaim: 'Claim',
+    warPassClaimed: 'Geclaimed',
+    warPassReward: 'Beloning',
+    warPassCompleted: 'Voltooid!',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -3492,11 +3537,22 @@ const translations: Record<Language, Record<string, string>> = {
     shopBalance: 'Guthaben',
     shopBuy: 'Kaufen',
     shopOwned: 'Besitz',
+    shopEquip: 'Ausrüsten',
+    shopUnequip: 'Ablegen',
+    shopEquipped: 'Ausgerüstet',
     shopPurchased: 'Gekauft!',
     shopNotEnough: 'Nicht genug War Bucks',
     shopThemes: 'Brettthemen',
     shopSkins: 'Figur-Skins',
     shopEffects: 'Effekte',
+    // War Pass
+    warPassTitle: 'War Pass',
+    warPassChallenges: 'Herausforderungen',
+    warPassProgress: 'Fortschritt',
+    warPassClaim: 'Einlösen',
+    warPassClaimed: 'Eingelöst',
+    warPassReward: 'Belohnung',
+    warPassCompleted: 'Abgeschlossen!',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -3708,11 +3764,22 @@ const translations: Record<Language, Record<string, string>> = {
     shopBalance: 'Solde',
     shopBuy: 'Acheter',
     shopOwned: 'Possédé',
+    shopEquip: 'Équiper',
+    shopUnequip: 'Déséquiper',
+    shopEquipped: 'Équipé',
     shopPurchased: 'Acheté!',
     shopNotEnough: 'Pas assez de War Bucks',
     shopThemes: 'Thèmes de plateau',
     shopSkins: 'Skins de pièces',
     shopEffects: 'Effets',
+    // War Pass
+    warPassTitle: 'War Pass',
+    warPassChallenges: 'Défis',
+    warPassProgress: 'Progrès',
+    warPassClaim: 'Réclamer',
+    warPassClaimed: 'Réclamé',
+    warPassReward: 'Récompense',
+    warPassCompleted: 'Terminé!',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -3924,11 +3991,22 @@ const translations: Record<Language, Record<string, string>> = {
     shopBalance: 'Saldo',
     shopBuy: 'Comprar',
     shopOwned: 'Comprado',
+    shopEquip: 'Equipar',
+    shopUnequip: 'Desequipar',
+    shopEquipped: 'Equipado',
     shopPurchased: '¡Comprado!',
     shopNotEnough: 'No hay suficientes War Bucks',
     shopThemes: 'Temas de tablero',
     shopSkins: 'Skins de piezas',
     shopEffects: 'Efectos',
+    // War Pass
+    warPassTitle: 'War Pass',
+    warPassChallenges: 'Desafíos',
+    warPassProgress: 'Progreso',
+    warPassClaim: 'Reclamar',
+    warPassClaimed: 'Reclamado',
+    warPassReward: 'Recompensa',
+    warPassCompleted: '¡Completado!',
   }
 }
 
@@ -10604,6 +10682,10 @@ function render() {
             colorBlindMode = userData.settings.colorBlindMode
             highContrastMode = userData.settings.highContrastMode
             largeUIMode = userData.settings.largeUIMode
+            // Load equipped cosmetics
+            equippedTheme = userData.equippedItems?.theme || null
+            equippedPieceSkin = userData.equippedItems?.pieceSkin || null
+            equippedEffect = userData.equippedItems?.effect || null
           }
         } else {
           authError = result.error || 'Login failed'
@@ -10735,10 +10817,19 @@ function render() {
           </div>
           ` : `<div class="text-gray-400">Loading...</div>`}
 
-          <div class="flex gap-3">
-            <button id="shop-btn" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-6 rounded transition-colors">
-              🛒 ${t('shopTitle')}
+          <!-- Shop and War Pass buttons -->
+          <div class="flex gap-4 mt-2">
+            <button id="shop-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">🛒</span>
+              <span class="text-sm sm:text-base">${t('shopTitle')}</span>
             </button>
+            <button id="warpass-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">🎖️</span>
+              <span class="text-sm sm:text-base">${t('warPassTitle')}</span>
+            </button>
+          </div>
+
+          <div class="flex gap-3 mt-2">
             <button id="profile-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
               ${t('backButton')}
             </button>
@@ -10750,6 +10841,10 @@ function render() {
       `
       document.getElementById('shop-btn')?.addEventListener('click', () => {
         showAuthScreen = 'shop'
+        render()
+      })
+      document.getElementById('warpass-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'warpass'
         render()
       })
       document.getElementById('profile-back-btn')?.addEventListener('click', () => {
@@ -10769,21 +10864,33 @@ function render() {
     if (showAuthScreen === 'shop') {
       const userData = getCurrentUserData()
       const purchasedItems = userData?.purchasedItems || []
+      const equipped = userData?.equippedItems || { theme: null, pieceSkin: null, effect: null }
 
-      const renderShopItems = (items: ShopItem[], category: string) => {
+      const renderShopItems = (items: ShopItem[], itemType: 'theme' | 'piece_skin' | 'effect') => {
         return items.map(item => {
           const owned = purchasedItems.includes(item.id)
+          const isEquipped = (itemType === 'theme' && equipped.theme === item.id) ||
+                            (itemType === 'piece_skin' && equipped.pieceSkin === item.id) ||
+                            (itemType === 'effect' && equipped.effect === item.id)
+
           return `
-            <div class="bg-gray-700 p-4 rounded-lg flex flex-col gap-2">
+            <div class="bg-gray-700 p-4 rounded-lg flex flex-col gap-2 ${isEquipped ? 'ring-2 ring-green-400' : ''}">
               <div class="flex items-center gap-2">
                 <span class="text-2xl">${item.icon}</span>
                 <span class="text-white font-bold">${item.name}</span>
+                ${isEquipped ? '<span class="text-green-400 text-xs ml-auto">✓ ' + t('shopEquipped') + '</span>' : ''}
               </div>
               <p class="text-gray-400 text-sm">${item.description}</p>
               <div class="flex items-center justify-between mt-2">
                 <span class="text-yellow-400 font-bold">💰 ${item.price}</span>
                 ${owned
-                  ? `<span class="text-green-400 font-bold">${t('shopOwned')}</span>`
+                  ? (isEquipped
+                    ? `<button class="unequip-item-btn bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-4 rounded text-sm transition-colors" data-item="${item.id}" data-type="${itemType}">
+                        ${t('shopUnequip')}
+                      </button>`
+                    : `<button class="equip-item-btn bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-4 rounded text-sm transition-colors" data-item="${item.id}" data-type="${itemType}">
+                        ${t('shopEquip')}
+                      </button>`)
                   : `<button class="buy-item-btn bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1 px-4 rounded text-sm transition-colors" data-item="${item.id}" data-price="${item.price}">
                       ${t('shopBuy')}
                     </button>`
@@ -10860,10 +10967,236 @@ function render() {
             purchasedItems: newPurchasedItems
           })
 
-          // Reload user data
           await loadUserData()
-
           alert(t('shopPurchased'))
+          render()
+        })
+      })
+
+      // Handle equip buttons
+      document.querySelectorAll('.equip-item-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const target = e.target as HTMLElement
+          const itemId = target.dataset.item
+          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect'
+
+          if (!userData || !itemId) return
+
+          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null }) }
+          if (itemType === 'theme') {
+            newEquipped.theme = itemId
+            equippedTheme = itemId
+          } else if (itemType === 'piece_skin') {
+            newEquipped.pieceSkin = itemId
+            equippedPieceSkin = itemId
+          } else if (itemType === 'effect') {
+            newEquipped.effect = itemId
+            equippedEffect = itemId
+          }
+
+          await saveUserData({ equippedItems: newEquipped })
+          await loadUserData()
+          render()
+        })
+      })
+
+      // Handle unequip buttons
+      document.querySelectorAll('.unequip-item-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const target = e.target as HTMLElement
+          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect'
+
+          if (!userData) return
+
+          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null }) }
+          if (itemType === 'theme') {
+            newEquipped.theme = null
+            equippedTheme = null
+          } else if (itemType === 'piece_skin') {
+            newEquipped.pieceSkin = null
+            equippedPieceSkin = null
+          } else if (itemType === 'effect') {
+            newEquipped.effect = null
+            equippedEffect = null
+          }
+
+          await saveUserData({ equippedItems: newEquipped })
+          await loadUserData()
+          render()
+        })
+      })
+      return
+    }
+
+    // War Pass screen
+    if (showAuthScreen === 'warpass') {
+      const userData = getCurrentUserData()
+      let claimedRewards = userData?.warPass?.claimedRewards || []
+      const lastResetTime = userData?.warPass?.lastResetTime || 0
+      const completedCount = userData?.warPass?.completedCount || 0
+      const stats = userData?.stats || { gamesPlayed: 0, gamesWon: 0, piecesEliminated: 0, engineersCaptured: 0, totalPointsScored: 0 }
+
+      // Check if 24 hours have passed and all challenges are claimed - auto reset
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+      const timeSinceReset = Date.now() - lastResetTime
+      const allChallengesClaimed = WAR_PASS_CHALLENGES.every(c => claimedRewards.includes(c.id))
+
+      // Calculate time until next reset
+      const timeUntilReset = Math.max(0, TWENTY_FOUR_HOURS - timeSinceReset)
+      const hoursLeft = Math.floor(timeUntilReset / (60 * 60 * 1000))
+      const minutesLeft = Math.floor((timeUntilReset % (60 * 60 * 1000)) / (60 * 1000))
+
+      // If all challenges claimed and 24 hours passed, reset the war pass
+      if (allChallengesClaimed && timeSinceReset >= TWENTY_FOUR_HOURS && userData) {
+        // Reset will happen on next render after save
+        (async () => {
+          await saveUserData({
+            warPass: {
+              claimedRewards: [],
+              completedCount: completedCount + 1,
+              lastResetTime: Date.now()
+            }
+          })
+          await loadUserData()
+          // Check for new badges
+          const newUserData = getCurrentUserData()
+          if (newUserData) {
+            const newBadges = checkBadges(newUserData)
+            if (newBadges.length > 0) {
+              await saveUserData({ badges: [...newUserData.badges, ...newBadges] })
+            }
+          }
+          render()
+        })()
+        return
+      }
+
+      const renderChallenge = (challenge: WarPassChallenge) => {
+        const currentProgress = stats[challenge.stat] || 0
+        const progressPercent = Math.min(100, (currentProgress / challenge.requirement) * 100)
+        const isCompleted = currentProgress >= challenge.requirement
+        const isClaimed = claimedRewards.includes(challenge.id)
+
+        const rewardText = challenge.reward.type === 'warBucks'
+          ? `💰 ${challenge.reward.amount}`
+          : `🎁 ${SHOP_ITEMS.find(i => i.id === challenge.reward.itemId)?.name || 'Item'}`
+
+        return `
+          <div class="bg-gray-700 p-4 rounded-lg flex flex-col gap-2 ${isClaimed ? 'opacity-60' : ''}">
+            <div class="flex items-center gap-2">
+              <span class="text-2xl">${challenge.icon}</span>
+              <div class="flex-1">
+                <span class="text-white font-bold">${challenge.name}</span>
+                <p class="text-gray-400 text-sm">${challenge.description}</p>
+              </div>
+            </div>
+            <div class="w-full bg-gray-600 rounded-full h-3 mt-2">
+              <div class="bg-gradient-to-r from-purple-500 to-purple-400 h-3 rounded-full transition-all" style="width: ${progressPercent}%"></div>
+            </div>
+            <div class="flex items-center justify-between mt-1">
+              <span class="text-gray-300 text-sm">${currentProgress} / ${challenge.requirement}</span>
+              <span class="text-yellow-400 text-sm">${t('warPassReward')}: ${rewardText}</span>
+            </div>
+            <div class="flex justify-end mt-2">
+              ${isClaimed
+                ? `<span class="text-gray-400 font-bold">${t('warPassClaimed')}</span>`
+                : (isCompleted
+                  ? `<button class="claim-reward-btn bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-4 rounded text-sm transition-colors" data-challenge="${challenge.id}">
+                      ${t('warPassClaim')}
+                    </button>`
+                  : `<span class="text-gray-500 text-sm">${t('warPassProgress')}: ${Math.round(progressPercent)}%</span>`)
+              }
+            </div>
+          </div>
+        `
+      }
+
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">🎖️ ${t('warPassTitle')}</h1>
+          <div class="text-yellow-400 font-bold text-xl">💰 ${userData?.warBucks || 0} War Bucks</div>
+
+          <!-- War Pass stats -->
+          <div class="flex gap-4 text-center">
+            <div class="bg-purple-900/50 px-4 py-2 rounded-lg">
+              <div class="text-purple-300 text-sm">Completed</div>
+              <div class="text-white font-bold text-xl">${completedCount}x</div>
+            </div>
+            ${allChallengesClaimed ? `
+              <div class="bg-green-900/50 px-4 py-2 rounded-lg">
+                <div class="text-green-300 text-sm">Reset in</div>
+                <div class="text-white font-bold text-xl">${hoursLeft}h ${minutesLeft}m</div>
+              </div>
+            ` : ''}
+          </div>
+
+          ${allChallengesClaimed ? `
+            <div class="bg-green-600/20 border border-green-500 rounded-lg p-4 text-center">
+              <span class="text-green-400 font-bold text-lg">🎉 All challenges completed!</span>
+              <p class="text-green-300 text-sm mt-1">New challenges in ${hoursLeft}h ${minutesLeft}m</p>
+            </div>
+          ` : ''}
+
+          <div class="w-full max-w-[600px] flex flex-col gap-4">
+            <h2 class="text-lg font-bold text-white">🎯 ${t('warPassChallenges')}</h2>
+            ${WAR_PASS_CHALLENGES.map(renderChallenge).join('')}
+          </div>
+
+          <button id="warpass-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+            ${t('backButton')}
+          </button>
+        </div>
+      `
+
+      document.getElementById('warpass-back-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'profile'
+        render()
+      })
+
+      // Handle claim buttons
+      document.querySelectorAll('.claim-reward-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const target = e.target as HTMLElement
+          const challengeId = target.dataset.challenge
+
+          if (!userData || !challengeId) return
+
+          const challenge = WAR_PASS_CHALLENGES.find(c => c.id === challengeId)
+          if (!challenge) return
+
+          // Add to claimed rewards
+          const newClaimedRewards = [...(userData.warPass?.claimedRewards || []), challengeId]
+
+          // Check if this completes all challenges
+          const willBeComplete = WAR_PASS_CHALLENGES.every(c =>
+            c.id === challengeId || (userData.warPass?.claimedRewards || []).includes(c.id)
+          )
+
+          // Give reward
+          if (challenge.reward.type === 'warBucks') {
+            const newWarBucks = (userData.warBucks || 0) + (challenge.reward.amount || 0)
+            await saveUserData({
+              warBucks: newWarBucks,
+              warPass: {
+                claimedRewards: newClaimedRewards,
+                completedCount: userData.warPass?.completedCount || 0,
+                lastResetTime: userData.warPass?.lastResetTime || Date.now()
+              }
+            })
+          } else if (challenge.reward.type === 'item' && challenge.reward.itemId) {
+            const newPurchasedItems = [...(userData.purchasedItems || []), challenge.reward.itemId]
+            await saveUserData({
+              purchasedItems: newPurchasedItems,
+              warPass: {
+                claimedRewards: newClaimedRewards,
+                completedCount: userData.warPass?.completedCount || 0,
+                lastResetTime: userData.warPass?.lastResetTime || Date.now()
+              }
+            })
+          }
+
+          await loadUserData()
+          alert(t('warPassCompleted'))
           render()
         })
       })
