@@ -57,11 +57,18 @@ export function initFirebase(): boolean {
 }
 
 // User data structure
+// Admin emails - these users have admin access
+export const ADMIN_EMAILS = [
+  'lijndersromijn@gmail.com',
+  'sptjoosten@icloud.com'
+]
+
 export interface UserData {
   username: string
   email: string
   createdAt: number
   lastLogin: number
+  isAdmin?: boolean
   // Stats
   stats: {
     gamesPlayed: number
@@ -280,6 +287,7 @@ export function getDefaultUserData(username: string, email: string): UserData {
     email,
     createdAt: Date.now(),
     lastLogin: Date.now(),
+    isAdmin: ADMIN_EMAILS.includes(email.toLowerCase()),
     stats: {
       gamesPlayed: 0,
       gamesWon: 0,
@@ -1016,6 +1024,91 @@ export async function joinGame(gameId: string): Promise<boolean> {
     return true
   } catch (error) {
     console.error('Error joining game:', error)
+    return false
+  }
+}
+
+// Admin functions
+export function isCurrentUserAdmin(): boolean {
+  if (!currentUserData) return false
+  // Check both the stored isAdmin field and the email list (in case someone was added to ADMIN_EMAILS)
+  return currentUserData.isAdmin === true || ADMIN_EMAILS.includes(currentUserData.email.toLowerCase())
+}
+
+export async function getAllUsers(): Promise<Array<UserData & { odataId: string }>> {
+  if (!db || !isCurrentUserAdmin()) return []
+
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'))
+    return usersSnapshot.docs.map(doc => ({
+      odataId: doc.id,
+      ...doc.data() as UserData
+    }))
+  } catch (error) {
+    console.error('Error getting all users:', error)
+    return []
+  }
+}
+
+export async function adminUpdateUser(userId: string, updates: Partial<UserData>): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await updateDoc(doc(db, 'users', userId), updates)
+    return true
+  } catch (error) {
+    console.error('Error updating user:', error)
+    return false
+  }
+}
+
+export async function adminGiveWarBucks(userId: string, amount: number): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId))
+    if (!userDoc.exists()) return false
+
+    const userData = userDoc.data() as UserData
+    const newAmount = (userData.warBucks || 0) + amount
+
+    await updateDoc(doc(db, 'users', userId), { warBucks: newAmount })
+    return true
+  } catch (error) {
+    console.error('Error giving war bucks:', error)
+    return false
+  }
+}
+
+export async function adminGiveItem(userId: string, itemId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId))
+    if (!userDoc.exists()) return false
+
+    const userData = userDoc.data() as UserData
+    const purchasedItems = userData.purchasedItems || []
+
+    if (!purchasedItems.includes(itemId)) {
+      purchasedItems.push(itemId)
+      await updateDoc(doc(db, 'users', userId), { purchasedItems })
+    }
+    return true
+  } catch (error) {
+    console.error('Error giving item:', error)
+    return false
+  }
+}
+
+export async function adminSetAdmin(userId: string, isAdmin: boolean): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await updateDoc(doc(db, 'users', userId), { isAdmin })
+    return true
+  } catch (error) {
+    console.error('Error setting admin:', error)
     return false
   }
 }

@@ -41,11 +41,17 @@ import {
   endGame,
   OnlinePlayer,
   GameInvite,
-  MultiplayerGame
+  MultiplayerGame,
+  // Admin
+  isCurrentUserAdmin,
+  getAllUsers,
+  adminGiveWarBucks,
+  adminGiveItem,
+  adminSetAdmin
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'admin'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -10343,6 +10349,124 @@ function drawPiece(piece: Piece, x: number, y: number): string {
       `
     }
 
+    // MINIMAL SKIN - Simple ship
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="3" fill="#4488cc" opacity="0.4" />
+          <!-- Simple hull -->
+          <path d="M${x + 6} ${y + 38} L${x + 10} ${y + 44} L${x + 40} ${y + 44} L${x + 44} ${y + 38} L${x + 42} ${y + 28} L${x + 8} ${y + 28} Z" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple deck -->
+          <rect x="${x + 10}" y="${y + 24}" width="30" height="6" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Simple bridge -->
+          <rect x="${x + 20}" y="${y + 14}" width="10" height="12" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute tugboat
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="4" fill="#7ec8f0" opacity="0.6" />
+          <!-- Cute rounded hull -->
+          <ellipse cx="${x + 25}" cy="${y + 40}" rx="20" ry="8" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Cute cabin -->
+          <rect x="${x + 16}" y="${y + 24}" width="18" height="14" rx="4" fill="${sc}" stroke="#000" stroke-width="2" />
+          <!-- Big cute eyes (windows) -->
+          <ellipse cx="${x + 20}" cy="${y + 30}" rx="3" ry="4" fill="#fff" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 30}" cy="${y + 30}" rx="3" ry="4" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 21}" cy="${y + 31}" r="2" fill="#000" />
+          <circle cx="${x + 31}" cy="${y + 31}" r="2" fill="#000" />
+          <circle cx="${x + 22}" cy="${y + 30}" r="0.5" fill="#fff" />
+          <circle cx="${x + 32}" cy="${y + 30}" r="0.5" fill="#fff" />
+          <!-- Cute smokestack -->
+          <rect x="${x + 22}" y="${y + 12}" width="6" height="14" rx="2" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Smoke puff -->
+          <ellipse cx="${x + 25}" cy="${y + 8}" rx="6" ry="4" fill="#ddd" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 28}" cy="${y + 5}" rx="4" ry="3" fill="#eee" />
+          <!-- Cute smile -->
+          <path d="M${x + 18} ${y + 44} Q${x + 25} ${y + 48} ${x + 32} ${y + 44}" stroke="#000" stroke-width="1.5" fill="none" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Destroyer
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="4" fill="#4466aa" opacity="0.5" />
+          <!-- Angular hull -->
+          <path d="M${x + 2} ${y + 38} L${x + 8} ${y + 44} L${x + 42} ${y + 44} L${x + 48} ${y + 38} L${x + 44} ${y + 28} L${x + 6} ${y + 28} Z" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 10}" y="${y + 30}" width="10" height="6" fill="${camo2}" />
+          <rect x="${x + 30}" y="${y + 32}" width="8" height="4" fill="${camo2}" />
+          <!-- Armored deck -->
+          <rect x="${x + 8}" y="${y + 24}" width="34" height="6" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <!-- Bridge tower -->
+          <rect x="${x + 18}" y="${y + 12}" width="14" height="14" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 20}" y="${y + 14}" width="10" height="4" fill="#333" />
+          <rect x="${x + 22}" y="${y + 22}" width="6" height="4" fill="${camo2}" />
+          <!-- Main gun turrets -->
+          <rect x="${x + 6}" y="${y + 20}" width="8" height="6" fill="#333" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 2}" y="${y + 22}" width="6" height="2" fill="#444" />
+          <rect x="${x + 36}" y="${y + 20}" width="8" height="6" fill="#333" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 42}" y="${y + 22}" width="6" height="2" fill="#444" />
+          <!-- Radar array -->
+          <line x1="${x + 25}" y1="${y + 12}" x2="${x + 25}" y2="${y + 6}" stroke="#444" stroke-width="2" />
+          <rect x="${x + 21}" y="${y + 4}" width="8" height="4" fill="#333" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Hover cruiser
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover field -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="5" fill="${glow}" opacity="0.4">
+            <animate attributeName="ry" values="5;7;5" dur="0.8s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Sleek hull -->
+          <path d="M${x + 2} ${y + 36} Q${x + 25} ${y + 44} ${x + 48} ${y + 36} L${x + 44} ${y + 28} Q${x + 25} ${y + 32} ${x + 6} ${y + 28} Z" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Energy line -->
+          <path d="M${x + 8} ${y + 32} Q${x + 25} ${y + 36} ${x + 42} ${y + 32}" stroke="${glow}" stroke-width="2">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.5s" repeatCount="indefinite" />
+          </path>
+          <!-- Command deck -->
+          <path d="M${x + 12} ${y + 28} L${x + 16} ${y + 18} L${x + 34} ${y + 18} L${x + 38} ${y + 28} Z" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 22}" rx="8" ry="4" fill="#111" stroke="${glow}" stroke-width="0.5" />
+          <ellipse cx="${x + 25}" cy="${y + 22}" rx="6" ry="3" fill="${glow}" opacity="0.3" />
+          <!-- Side thrusters -->
+          <ellipse cx="${x + 8}" cy="${y + 32}" rx="4" ry="6" fill="${glow}" opacity="0.6">
+            <animate attributeName="rx" values="4;5;4" dur="0.4s" repeatCount="indefinite" />
+          </ellipse>
+          <ellipse cx="${x + 42}" cy="${y + 32}" rx="4" ry="6" fill="${glow}" opacity="0.6">
+            <animate attributeName="rx" values="4;5;4" dur="0.4s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Sensor array -->
+          <rect x="${x + 22}" y="${y + 12}" width="6" height="6" rx="1" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 15}" r="2" fill="${glow}">
+            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
     // DEFAULT - Battleship design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -10521,6 +10645,128 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
           ${damaged ? `<path d="M${x + 20} ${y + 24} L${x + 30} ${y + 32} M${x + 30} ${y + 24} L${x + 20} ${y + 32}" stroke="#8b0000" stroke-width="2" />` : ''}
           ${piece.hasHelicopter ? `<text x="${x + 32}" y="${y + 22}" font-size="8" fill="${teamColor}">🦋</text>` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MINIMAL SKIN - Simple carrier
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="3" fill="#4488cc" opacity="0.4" />
+          <!-- Simple hull -->
+          <rect x="${x + 4}" y="${y + 30}" width="42" height="14" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple deck -->
+          <rect x="${x + 6}" y="${y + 22}" width="38" height="10" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Simple tower -->
+          <rect x="${x + 38}" y="${y + 12}" width="8" height="12" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<line x1="${x + 15}" y1="${y + 20}" x2="${x + 30}" y2="${y + 35}" stroke="#ff0000" stroke-width="2" />` : ''}
+          ${piece.hasHelicopter ? `<ellipse cx="${x + 20}" cy="${y + 27}" rx="6" ry="4" fill="#333" stroke="#000" stroke-width="1" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute whale carrier
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="24" ry="4" fill="#7ec8f0" opacity="0.6" />
+          <!-- Cute whale body -->
+          <ellipse cx="${x + 25}" cy="${y + 36}" rx="24" ry="12" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Whale tail -->
+          <path d="M${x + 46} ${y + 36} Q${x + 54} ${y + 30} ${x + 50} ${y + 24} Q${x + 48} ${y + 28} ${x + 46} ${y + 30}" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <path d="M${x + 46} ${y + 36} Q${x + 54} ${y + 42} ${x + 50} ${y + 48} Q${x + 48} ${y + 44} ${x + 46} ${y + 42}" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Platform on whale back -->
+          <rect x="${x + 10}" y="${y + 22}" width="30" height="8" rx="2" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <!-- Cute eye -->
+          <ellipse cx="${x + 10}" cy="${y + 34}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 11}" cy="${y + 35}" r="2.5" fill="#000" />
+          <circle cx="${x + 12}" cy="${y + 34}" r="0.8" fill="#fff" />
+          <!-- Water spout -->
+          <ellipse cx="${x + 25}" cy="${y + 14}" rx="4" ry="6" fill="#88ccff" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 8}" rx="3" ry="4" fill="#aaddff" />
+          <!-- Cute smile -->
+          <path d="M${x + 6} ${y + 40} Q${x + 10} ${y + 44} ${x + 16} ${y + 40}" stroke="#000" stroke-width="1.5" fill="none" />
+          <circle cx="${x + 25}" cy="${y + 4}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<text x="${x + 25}" y="${y + 30}" text-anchor="middle" font-size="10">💔</text>` : ''}
+          ${piece.hasHelicopter ? `<ellipse cx="${x + 20}" cy="${y + 26}" rx="5" ry="3" fill="#444" stroke="#000" stroke-width="1" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Assault carrier
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="24" ry="4" fill="#4466aa" opacity="0.5" />
+          <!-- Armored hull -->
+          <path d="M${x + 2} ${y + 40} L${x + 6} ${y + 46} L${x + 44} ${y + 46} L${x + 48} ${y + 40} L${x + 48} ${y + 28} L${x + 2} ${y + 28} Z" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 6}" y="${y + 30}" width="14" height="8" fill="${camo2}" />
+          <rect x="${x + 28}" y="${y + 32}" width="10" height="6" fill="${camo2}" />
+          <!-- Armored deck -->
+          <rect x="${x + 4}" y="${y + 20}" width="42" height="10" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 8}" y="${y + 22}" width="10" height="4" fill="${camo2}" />
+          <!-- Runway -->
+          <line x1="${x + 8}" y1="${y + 25}" x2="${x + 42}" y2="${y + 25}" stroke="#fff" stroke-width="1" stroke-dasharray="4,2" />
+          <!-- Armored island -->
+          <rect x="${x + 36}" y="${y + 10}" width="10" height="12" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 38}" y="${y + 12}" width="6" height="4" fill="#333" />
+          <!-- CIWS guns -->
+          <rect x="${x + 6}" y="${y + 18}" width="6" height="4" fill="#333" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 3}" y="${y + 19}" width="4" height="2" fill="#444" />
+          <!-- Radar -->
+          <rect x="${x + 39}" y="${y + 4}" width="4" height="6" fill="#333" />
+          <rect x="${x + 37}" y="${y + 2}" width="8" height="4" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<rect x="${x + 15}" y="${y + 22}" width="15" height="6" fill="#ff0000" opacity="0.3"><animate attributeName="opacity" values="0.3;0.6;0.3" dur="0.5s" repeatCount="indefinite" /></rect>` : ''}
+          ${piece.hasHelicopter ? `<ellipse cx="${x + 20}" cy="${y + 25}" rx="6" ry="4" fill="#333" stroke="#222" stroke-width="1" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Hover platform
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover field -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="24" ry="5" fill="${glow}" opacity="0.4">
+            <animate attributeName="ry" values="5;7;5" dur="0.8s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Main platform -->
+          <rect x="${x + 2}" y="${y + 28}" width="46" height="14" rx="3" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Energy lines -->
+          <line x1="${x + 6}" y1="${y + 35}" x2="${x + 44}" y2="${y + 35}" stroke="${glow}" stroke-width="2">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.6s" repeatCount="indefinite" />
+          </line>
+          <!-- Landing deck -->
+          <rect x="${x + 4}" y="${y + 20}" width="42" height="10" fill="#111" stroke="${glow}" stroke-width="1" />
+          <!-- Landing guides -->
+          <circle cx="${x + 12}" cy="${y + 25}" r="2" fill="${glow}"><animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 25}" r="2" fill="${glow}"><animate attributeName="opacity" values="0.3;1;0.3" dur="0.8s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 38}" cy="${y + 25}" r="2" fill="${glow}"><animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" /></circle>
+          <!-- Command module -->
+          <rect x="${x + 36}" y="${y + 10}" width="10" height="12" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <ellipse cx="${x + 41}" cy="${y + 14}" rx="4" ry="2" fill="${glow}" opacity="0.5" />
+          <!-- Sensor array -->
+          <circle cx="${x + 41}" cy="${y + 4}" r="4" fill="none" stroke="${glow}" stroke-width="1.5">
+            <animate attributeName="r" values="4;6;4" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 41}" cy="${y + 4}" r="2" fill="${glow}" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<rect x="${x + 10}" y="${y + 22}" width="20" height="6" fill="#ff0000" opacity="0.4"><animate attributeName="opacity" values="0.4;0.7;0.4" dur="0.4s" repeatCount="indefinite" /></rect>` : ''}
+          ${piece.hasHelicopter ? `<ellipse cx="${x + 20}" cy="${y + 25}" rx="6" ry="3" fill="${glow}" opacity="0.6" />` : ''}
           ${colorblindSymbol}
         </g>
       `
@@ -10734,6 +10980,133 @@ function drawPiece(piece: Piece, x: number, y: number): string {
       `
     }
 
+    // MINIMAL SKIN - Clean geometric helicopter
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple body -->
+          <ellipse cx="${x + 23}" cy="${y + 32}" rx="12" ry="8" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple tail -->
+          <rect x="${x + 33}" y="${y + 30}" width="12" height="4" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <rect x="${x + 44}" y="${y + 26}" width="3" height="12" fill="#333" stroke="#000" stroke-width="1" />
+          <!-- Simple rotor -->
+          <line x1="${x + 5}" y1="${y + 20}" x2="${x + 45}" y2="${y + 20}" stroke="#333" stroke-width="3" />
+          <rect x="${x + 22}" y="${y + 20}" width="6" height="8" fill="#333" />
+          <!-- Simple skids -->
+          <rect x="${x + 14}" y="${y + 40}" width="2" height="6" fill="#333" />
+          <rect x="${x + 34}" y="${y + 40}" width="2" height="6" fill="#333" />
+          <rect x="${x + 12}" y="${y + 44}" width="26" height="2" fill="#333" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute chopper
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Cute round body -->
+          <ellipse cx="${x + 23}" cy="${y + 32}" rx="14" ry="12" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Big cute eyes (cockpit windows) -->
+          <ellipse cx="${x + 18}" cy="${y + 28}" rx="5" ry="6" fill="#fff" stroke="#000" stroke-width="1.5" />
+          <ellipse cx="${x + 28}" cy="${y + 28}" rx="5" ry="6" fill="#fff" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 19}" cy="${y + 29}" r="3" fill="#000" />
+          <circle cx="${x + 29}" cy="${y + 29}" r="3" fill="#000" />
+          <circle cx="${x + 20}" cy="${y + 28}" r="1" fill="#fff" />
+          <circle cx="${x + 30}" cy="${y + 28}" r="1" fill="#fff" />
+          <!-- Cute smile -->
+          <path d="M${x + 17} ${y + 38} Q${x + 23} ${y + 42} ${x + 29} ${y + 38}" stroke="#000" stroke-width="1.5" fill="none" />
+          <!-- Blush -->
+          <ellipse cx="${x + 12}" cy="${y + 34}" rx="3" ry="2" fill="#ffaaaa" opacity="0.6" />
+          <ellipse cx="${x + 34}" cy="${y + 34}" rx="3" ry="2" fill="#ffaaaa" opacity="0.6" />
+          <!-- Cute tail -->
+          <ellipse cx="${x + 42}" cy="${y + 30}" rx="6" ry="4" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <!-- Bouncy rotor -->
+          <ellipse cx="${x + 25}" cy="${y + 16}" rx="20" ry="4" fill="${sc}" stroke="#000" stroke-width="2" />
+          <ellipse cx="${x + 25}" cy="${y + 16}" rx="4" ry="2" fill="#333" />
+          <!-- Cute skids -->
+          <ellipse cx="${x + 15}" cy="${y + 44}" rx="5" ry="2" fill="#444" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 35}" cy="${y + 44}" rx="5" ry="2" fill="#444" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Attack helicopter
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Angular armored body -->
+          <path d="M${x + 8} ${y + 34} L${x + 12} ${y + 24} L${x + 38} ${y + 24} L${x + 42} ${y + 34} Z" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 14}" y="${y + 26}" width="10" height="6" fill="${camo2}" />
+          <rect x="${x + 28}" y="${y + 28}" width="8" height="4" fill="${camo2}" />
+          <!-- Armored cockpit -->
+          <path d="M${x + 8} ${y + 34} L${x + 4} ${y + 28} L${x + 12} ${y + 24}" fill="#333" stroke="#222" stroke-width="0.5" />
+          <!-- Tail boom -->
+          <rect x="${x + 38}" y="${y + 28}" width="10" height="4" fill="${camo1}" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 46}" y="${y + 24}" width="3" height="12" fill="#333" />
+          <!-- Stubby wings with rockets -->
+          <rect x="${x + 2}" y="${y + 30}" width="8" height="3" fill="${camo1}" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 40}" y="${y + 30}" width="8" height="3" fill="${camo1}" stroke="#222" stroke-width="0.5" />
+          <rect x="${x} ${y + 32}" width="4" height="8" fill="#555" />
+          <rect x="${x + 46}" y="${y + 32}" width="4" height="8" fill="#555" />
+          <!-- Military rotor -->
+          <line x1="${x + 3}" y1="${y + 18}" x2="${x + 47}" y2="${y + 18}" stroke="#333" stroke-width="3" />
+          <rect x="${x + 22}" y="${y + 18}" width="6" height="6" fill="#333" />
+          <!-- Targeting sensor -->
+          <circle cx="${x + 8}" cy="${y + 28}" r="3" fill="#111" stroke="#ff0000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Anti-gravity craft
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover glow -->
+          <ellipse cx="${x + 25}" cy="${y + 44}" rx="18" ry="6" fill="${glow}" opacity="0.4">
+            <animate attributeName="opacity" values="0.4;0.6;0.4" dur="0.8s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Sleek body -->
+          <path d="M${x + 5} ${y + 32} Q${x + 10} ${y + 22} ${x + 25} ${y + 20} Q${x + 40} ${y + 22} ${x + 45} ${y + 32} Q${x + 40} ${y + 40} ${x + 25} ${y + 42} Q${x + 10} ${y + 40} ${x + 5} ${y + 32}" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Cockpit -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="8" ry="6" fill="#111" stroke="${glow}" stroke-width="0.5" />
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="6" ry="4" fill="${glow}" opacity="0.3" />
+          <!-- Energy rings -->
+          <circle cx="${x + 12}" cy="${y + 32}" r="5" fill="none" stroke="${glow}" stroke-width="1.5" opacity="0.7">
+            <animate attributeName="r" values="5;7;5" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 38}" cy="${y + 32}" r="5" fill="none" stroke="${glow}" stroke-width="1.5" opacity="0.7">
+            <animate attributeName="r" values="5;7;5" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Thruster pads -->
+          <ellipse cx="${x + 12}" cy="${y + 32}" rx="3" ry="2" fill="${glow}" opacity="0.8" />
+          <ellipse cx="${x + 38}" cy="${y + 32}" rx="3" ry="2" fill="${glow}" opacity="0.8" />
+          <!-- Top sensor -->
+          <rect x="${x + 22}" y="${y + 14}" width="6" height="6" rx="1" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 17}" r="2" fill="${glow}">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
     // DEFAULT HELICOPTER
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -10881,6 +11254,114 @@ function drawPiece(piece: Piece, x: number, y: number): string {
             <animate attributeName="opacity" values="0.5;0.2;0.5" dur="1.5s" repeatCount="indefinite" />
           </circle>
           <circle cx="${x + 25}" cy="${y + 12}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MINIMAL SKIN - Simple turret
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple base -->
+          <ellipse cx="${x + 25}" cy="${y + 40}" rx="14" ry="5" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple body -->
+          <rect x="${x + 18}" y="${y + 26}" width="14" height="14" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple barrel -->
+          <rect x="${x + 22}" y="${y + 8}" width="6" height="20" fill="#333" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute cannon
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Round base -->
+          <ellipse cx="${x + 25}" cy="${y + 40}" rx="14" ry="6" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Cute turret body with face -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="12" ry="10" fill="${sc}" stroke="#000" stroke-width="2" />
+          <!-- Big eyes on turret -->
+          <ellipse cx="${x + 20}" cy="${y + 26}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 30}" cy="${y + 26}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 21}" cy="${y + 27}" r="2" fill="#000" />
+          <circle cx="${x + 31}" cy="${y + 27}" r="2" fill="#000" />
+          <circle cx="${x + 22}" cy="${y + 26}" r="0.5" fill="#fff" />
+          <circle cx="${x + 32}" cy="${y + 26}" r="0.5" fill="#fff" />
+          <!-- Cute barrel -->
+          <ellipse cx="${x + 25}" cy="${y + 12}" rx="6" ry="3" fill="${mc}" stroke="#000" stroke-width="2" />
+          <rect x="${x + 21}" y="${y + 6}" width="8" height="10" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Little puff -->
+          <ellipse cx="${x + 25}" cy="${y + 4}" rx="5" ry="3" fill="#ddd" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Heavy MG emplacement
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Sandbag fortification -->
+          <ellipse cx="${x + 25}" cy="${y + 42}" rx="18" ry="6" fill="#8b7355" stroke="#5c4033" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 38}" rx="16" ry="5" fill="#9b8365" stroke="#5c4033" stroke-width="0.5" />
+          <!-- Shield plate -->
+          <rect x="${x + 12}" y="${y + 24}" width="26" height="12" rx="1" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 14}" y="${y + 26}" width="8" height="6" fill="${camo2}" />
+          <rect x="${x + 28}" y="${y + 28}" width="6" height="4" fill="${camo2}" />
+          <!-- Heavy barrel -->
+          <rect x="${x + 20}" y="${y + 6}" width="10" height="20" fill="#333" stroke="#222" stroke-width="1" />
+          <rect x="${x + 18}" y="${y + 4}" width="14" height="4" fill="#444" />
+          <!-- Cooling jacket -->
+          <rect x="${x + 21}" y="${y + 10}" width="8" height="2" fill="#555" />
+          <rect x="${x + 21}" y="${y + 14}" width="8" height="2" fill="#555" />
+          <!-- Ammo box -->
+          <rect x="${x + 36}" y="${y + 28}" width="8" height="10" fill="#556b2f" stroke="#222" stroke-width="0.5" />
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Plasma turret
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="4" fill="${glow}" opacity="0.3" />
+          <!-- Hovering base -->
+          <ellipse cx="${x + 25}" cy="${y + 42}" rx="14" ry="5" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <ellipse cx="${x + 25}" cy="${y + 40}" rx="10" ry="3" fill="${glow}" opacity="0.3" />
+          <!-- Turret body -->
+          <rect x="${x + 16}" y="${y + 24}" width="18" height="14" rx="3" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Energy core -->
+          <circle cx="${x + 25}" cy="${y + 31}" r="5" fill="${glow}" opacity="0.6">
+            <animate attributeName="opacity" values="0.6;0.9;0.6" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Plasma barrel -->
+          <rect x="${x + 20}" y="${y + 8}" width="10" height="18" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <!-- Plasma tip -->
+          <ellipse cx="${x + 25}" cy="${y + 6}" rx="5" ry="3" fill="${glow}">
+            <animate attributeName="ry" values="3;4;3" dur="0.5s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Energy rings -->
+          <circle cx="${x + 25}" cy="${y + 16}" r="3" fill="none" stroke="${glow}" stroke-width="1">
+            <animate attributeName="r" values="3;5;3" dur="0.8s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
           ${colorblindSymbol}
         </g>
       `
@@ -11048,6 +11529,117 @@ function drawPiece(piece: Piece, x: number, y: number): string {
       `
     }
 
+    // MINIMAL SKIN - Simple car
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple wheels -->
+          <circle cx="${x + 14}" cy="${y + 40}" r="5" fill="#333" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 36}" cy="${y + 40}" r="5" fill="#333" stroke="#000" stroke-width="2" />
+          <!-- Simple body -->
+          <rect x="${x + 8}" y="${y + 28}" width="34" height="12" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple roof -->
+          <rect x="${x + 14}" y="${y + 18}" width="22" height="12" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute buggy
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Big bouncy wheels -->
+          <circle cx="${x + 12}" cy="${y + 40}" r="7" fill="#333" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 12}" cy="${y + 40}" r="3" fill="#666" />
+          <circle cx="${x + 38}" cy="${y + 40}" r="7" fill="#333" stroke="#000" stroke-width="2" />
+          <circle cx="${x + 38}" cy="${y + 40}" r="3" fill="#666" />
+          <!-- Cute rounded body -->
+          <ellipse cx="${x + 25}" cy="${y + 32}" rx="18" ry="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Cute cabin -->
+          <ellipse cx="${x + 25}" cy="${y + 24}" rx="12" ry="8" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <!-- Big cute eyes (headlights) -->
+          <ellipse cx="${x + 10}" cy="${y + 30}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 11}" cy="${y + 31}" r="2.5" fill="#000" />
+          <circle cx="${x + 12}" cy="${y + 30}" r="0.8" fill="#fff" />
+          <!-- Cute smile (grille) -->
+          <path d="M${x + 8} ${y + 38} Q${x + 14} ${y + 42} ${x + 20} ${y + 38}" stroke="#000" stroke-width="1.5" fill="none" />
+          <!-- Blush -->
+          <ellipse cx="${x + 40}" cy="${y + 32}" rx="3" ry="2" fill="#ffaaaa" opacity="0.6" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Humvee
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Heavy-duty wheels -->
+          <circle cx="${x + 12}" cy="${y + 40}" r="6" fill="#222" stroke="#111" stroke-width="2" />
+          <circle cx="${x + 38}" cy="${y + 40}" r="6" fill="#222" stroke="#111" stroke-width="2" />
+          <!-- Armored body -->
+          <rect x="${x + 4}" y="${y + 26}" width="42" height="16" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 8}" y="${y + 28}" width="12" height="8" fill="${camo2}" />
+          <rect x="${x + 28}" y="${y + 30}" width="10" height="6" fill="${camo2}" />
+          <!-- Armored cabin -->
+          <rect x="${x + 10}" y="${y + 16}" width="30" height="12" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <!-- Small windows -->
+          <rect x="${x + 12}" y="${y + 18}" width="8" height="4" fill="#333" />
+          <rect x="${x + 30}" y="${y + 18}" width="8" height="4" fill="#333" />
+          <!-- Roof turret mount -->
+          <rect x="${x + 20}" y="${y + 12}" width="10" height="6" fill="#333" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 23}" y="${y + 6}" width="4" height="8" fill="#444" />
+          <!-- Antenna -->
+          <line x1="${x + 40}" y1="${y + 16}" x2="${x + 44}" y2="${y + 6}" stroke="#333" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Hover car
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover field -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="${glow}" opacity="0.4">
+            <animate attributeName="ry" values="4;6;4" dur="0.6s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Hover pads -->
+          <ellipse cx="${x + 12}" cy="${y + 42}" rx="5" ry="2" fill="${glow}" opacity="0.7" />
+          <ellipse cx="${x + 38}" cy="${y + 42}" rx="5" ry="2" fill="${glow}" opacity="0.7" />
+          <!-- Sleek body -->
+          <path d="M${x + 4} ${y + 38} Q${x + 8} ${y + 26} ${x + 25} ${y + 24} Q${x + 42} ${y + 26} ${x + 46} ${y + 38} Z" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Cockpit -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="10" ry="6" fill="#111" stroke="${glow}" stroke-width="0.5" />
+          <ellipse cx="${x + 25}" cy="${y + 27}" rx="7" ry="4" fill="${glow}" opacity="0.3" />
+          <!-- Energy line -->
+          <line x1="${x + 8}" y1="${y + 34}" x2="${x + 42}" y2="${y + 34}" stroke="${glow}" stroke-width="2">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.5s" repeatCount="indefinite" />
+          </line>
+          <!-- Thrusters -->
+          <ellipse cx="${x + 46}" cy="${y + 34}" rx="2" ry="4" fill="${glow}" opacity="0.8">
+            <animate attributeName="rx" values="2;3;2" dur="0.3s" repeatCount="indefinite" />
+          </ellipse>
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
     // DEFAULT - SUV design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -11209,6 +11801,125 @@ function drawPiece(piece: Piece, x: number, y: number): string {
       `
     }
 
+    // MINIMAL SKIN - Simple rocket
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="10" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple base -->
+          <rect x="${x + 14}" y="${y + 40}" width="22" height="6" fill="#333" stroke="#000" stroke-width="1.5" />
+          <!-- Simple body -->
+          <rect x="${x + 18}" y="${y + 14}" width="14" height="28" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple nose -->
+          <path d="M${x + 18} ${y + 14} L${x + 25} ${y + 4} L${x + 32} ${y + 14} Z" fill="#ff4444" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 20}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="#ff0000" stroke-width="3" /><line x1="${x + 35}" y1="${y + 15}" x2="${x + 15}" y2="${y + 35}" stroke="#ff0000" stroke-width="3" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute rocket
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="12" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Cute launch pad -->
+          <ellipse cx="${x + 25}" cy="${y + 42}" rx="14" ry="5" fill="#666" stroke="#000" stroke-width="1.5" />
+          <!-- Cute round body -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="12" ry="16" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Cute face window -->
+          <ellipse cx="${x + 25}" cy="${y + 22}" rx="7" ry="8" fill="#88ccff" stroke="#000" stroke-width="1" />
+          <!-- Cute eyes in window -->
+          <circle cx="${x + 22}" cy="${y + 21}" r="2" fill="#000" />
+          <circle cx="${x + 28}" cy="${y + 21}" r="2" fill="#000" />
+          <circle cx="${x + 23}" cy="${y + 20}" r="0.5" fill="#fff" />
+          <circle cx="${x + 29}" cy="${y + 20}" r="0.5" fill="#fff" />
+          <!-- Cute smile -->
+          <path d="M${x + 22} ${y + 26} Q${x + 25} ${y + 29} ${x + 28} ${y + 26}" stroke="#000" stroke-width="1" fill="none" />
+          <!-- Cute nose -->
+          <path d="M${x + 20} ${y + 10} L${x + 25} ${y + 2} L${x + 30} ${y + 10}" fill="#ff6666" stroke="#000" stroke-width="1.5" />
+          <!-- Cute fins -->
+          <ellipse cx="${x + 14}" cy="${y + 38}" rx="4" ry="6" fill="${sc}" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 36}" cy="${y + 38}" rx="4" ry="6" fill="${sc}" stroke="#000" stroke-width="1" />
+          <!-- Exhaust puff -->
+          <ellipse cx="${x + 25}" cy="${y + 44}" rx="6" ry="3" fill="#ddd" stroke="#000" stroke-width="0.5" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<text x="${x + 25}" y="${y + 24}" text-anchor="middle" font-size="12">😵</text>` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Tactical missile
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="12" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Launch rail -->
+          <rect x="${x + 10}" y="${y + 38}" width="30" height="8" fill="#333" stroke="#222" stroke-width="1" />
+          <rect x="${x + 14}" y="${y + 40}" width="22" height="4" fill="#444" />
+          <!-- Missile body -->
+          <rect x="${x + 18}" y="${y + 12}" width="14" height="28" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <rect x="${x + 20}" y="${y + 16}" width="6" height="10" fill="${camo2}" />
+          <rect x="${x + 22}" y="${y + 30}" width="4" height="6" fill="${camo2}" />
+          <!-- Warhead -->
+          <path d="M${x + 18} ${y + 12} L${x + 25} ${y + 2} L${x + 32} ${y + 12} Z" fill="#333" stroke="#222" stroke-width="1" />
+          <!-- Guidance fins -->
+          <rect x="${x + 14}" y="${y + 32}" width="4" height="8" fill="#444" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 32}" y="${y + 32}" width="4" height="8" fill="#444" stroke="#222" stroke-width="0.5" />
+          <!-- Markings -->
+          <line x1="${x + 20}" y1="${y + 20}" x2="${x + 30}" y2="${y + 20}" stroke="#ff0" stroke-width="1" />
+          <line x1="${x + 20}" y1="${y + 24}" x2="${x + 30}" y2="${y + 24}" stroke="#ff0" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<rect x="${x + 15}" y="${y + 20}" width="20" height="15" fill="#ff0000" opacity="0.4" /><line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="#ff0000" stroke-width="3" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Plasma torpedo
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Launch field -->
+          <ellipse cx="${x + 25}" cy="${y + 44}" rx="14" ry="5" fill="${glow}" opacity="0.3">
+            <animate attributeName="ry" values="5;7;5" dur="0.8s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Launch platform -->
+          <rect x="${x + 12}" y="${y + 38}" width="26" height="8" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <!-- Torpedo body -->
+          <ellipse cx="${x + 25}" cy="${y + 24}" rx="10" ry="16" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Energy core -->
+          <ellipse cx="${x + 25}" cy="${y + 24}" rx="6" ry="10" fill="${glow}" opacity="0.6">
+            <animate attributeName="opacity" values="0.6;0.9;0.6" dur="0.8s" repeatCount="indefinite" />
+          </ellipse>
+          <ellipse cx="${x + 25}" cy="${y + 24}" rx="3" ry="5" fill="#fff" opacity="0.8" />
+          <!-- Warhead -->
+          <ellipse cx="${x + 25}" cy="${y + 6}" rx="6" ry="4" fill="${glow}">
+            <animate attributeName="ry" values="4;5;4" dur="0.5s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Stabilizers -->
+          <rect x="${x + 12}" y="${y + 32}" width="4" height="8" rx="1" fill="${glow}" />
+          <rect x="${x + 34}" y="${y + 32}" width="4" height="8" rx="1" fill="${glow}" />
+          <!-- Thruster glow -->
+          <ellipse cx="${x + 25}" cy="${y + 42}" rx="4" ry="2" fill="${glow}">
+            <animate attributeName="ry" values="2;4;2" dur="0.3s" repeatCount="indefinite" />
+          </ellipse>
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<ellipse cx="${x + 25}" cy="${y + 24}" rx="12" ry="18" fill="#ff0000" opacity="0.3" /><line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="#ff0000" stroke-width="2" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
     // DEFAULT - Rocket/missile design
     return `
       <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -11362,6 +12073,118 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <circle cx="${x + 38}" cy="${y + 18}" r="2" fill="${wc}" opacity="0.6"><animate attributeName="cy" values="${y + 18};${y + 12};${y + 18}" dur="1.2s" repeatCount="indefinite" /></circle>
           <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
           ${frozen ? `<rect x="${x + 5}" y="${y + 10}" width="40" height="30" fill="#88ccff" opacity="0.5" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MINIMAL SKIN - Simple sub
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Simple hull -->
+          <ellipse cx="${x + 25}" cy="${y + 30}" rx="20" ry="10" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple tower -->
+          <rect x="${x + 18}" y="${y + 16}" width="14" height="12" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Simple periscope -->
+          <rect x="${x + 23}" y="${y + 6}" width="4" height="12" fill="#333" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<rect x="${x + 5}" y="${y + 10}" width="40" height="30" fill="#4488ff" opacity="0.4" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute sub
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Cute bubbles -->
+          <circle cx="${x + 10}" cy="${y + 10}" r="3" fill="#88ccff" stroke="#000" stroke-width="0.5" />
+          <circle cx="${x + 16}" cy="${y + 6}" r="2" fill="#aaddff" />
+          <!-- Cute round body -->
+          <ellipse cx="${x + 25}" cy="${y + 30}" rx="20" ry="12" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Cute face -->
+          <ellipse cx="${x + 14}" cy="${y + 28}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 15}" cy="${y + 29}" r="2.5" fill="#000" />
+          <circle cx="${x + 16}" cy="${y + 28}" r="0.8" fill="#fff" />
+          <!-- Cute smile -->
+          <path d="M${x + 8} ${y + 34} Q${x + 14} ${y + 38} ${x + 20} ${y + 34}" stroke="#000" stroke-width="1.5" fill="none" />
+          <!-- Cute tower -->
+          <ellipse cx="${x + 30}" cy="${y + 20}" rx="8" ry="6" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <!-- Cute periscope -->
+          <rect x="${x + 28}" y="${y + 8}" width="4" height="10" rx="1" fill="${mc}" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 30}" cy="${y + 6}" rx="4" ry="3" fill="${sc}" stroke="#000" stroke-width="1" />
+          <!-- Propeller -->
+          <ellipse cx="${x + 46}" cy="${y + 30}" rx="3" ry="6" fill="#666" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<text x="${x + 25}" y="${y + 32}" text-anchor="middle" font-size="10">🥶</text>` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Attack sub
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hull -->
+          <ellipse cx="${x + 25}" cy="${y + 30}" rx="22" ry="10" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <ellipse cx="${x + 18}" cy="${y + 28}" rx="8" ry="5" fill="${camo2}" />
+          <ellipse cx="${x + 35}" cy="${y + 32}" rx="6" ry="4" fill="${camo2}" />
+          <!-- Conning tower -->
+          <rect x="${x + 16}" y="${y + 14}" width="16" height="14" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <rect x="${x + 18}" y="${y + 16}" width="6" height="4" fill="${camo2}" />
+          <!-- Periscope array -->
+          <rect x="${x + 22}" y="${y + 4}" width="3" height="12" fill="#333" />
+          <rect x="${x + 27}" y="${y + 6}" width="2" height="10" fill="#444" />
+          <rect x="${x + 20}" y="${y + 2}" width="6" height="4" fill="#444" />
+          <!-- Torpedo tubes -->
+          <circle cx="${x + 4}" cy="${y + 28}" r="2" fill="#333" />
+          <circle cx="${x + 4}" cy="${y + 32}" r="2" fill="#333" />
+          <!-- Propeller -->
+          <ellipse cx="${x + 46}" cy="${y + 30}" rx="3" ry="6" fill="#333" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<rect x="${x + 3}" y="${y + 8}" width="44" height="32" fill="#4466aa" opacity="0.4" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Stealth sub
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Energy trail -->
+          <ellipse cx="${x + 46}" cy="${y + 30}" rx="4" ry="8" fill="${glow}" opacity="0.5">
+            <animate attributeName="rx" values="4;6;4" dur="0.4s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Sleek hull -->
+          <path d="M${x + 4} ${y + 30} Q${x + 25} ${y + 18} ${x + 46} ${y + 30} Q${x + 25} ${y + 42} ${x + 4} ${y + 30}" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Energy line -->
+          <line x1="${x + 8}" y1="${y + 30}" x2="${x + 42}" y2="${y + 30}" stroke="${glow}" stroke-width="2">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.6s" repeatCount="indefinite" />
+          </line>
+          <!-- Cockpit dome -->
+          <ellipse cx="${x + 20}" cy="${y + 26}" rx="8" ry="5" fill="#111" stroke="${glow}" stroke-width="0.5" />
+          <ellipse cx="${x + 20}" cy="${y + 25}" rx="5" ry="3" fill="${glow}" opacity="0.4" />
+          <!-- Sensor array -->
+          <rect x="${x + 30}" y="${y + 16}" width="8" height="10" rx="2" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <circle cx="${x + 34}" cy="${y + 21}" r="2" fill="${glow}">
+            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Stealth fins -->
+          <path d="M${x + 8} ${y + 24} L${x + 4} ${y + 18} L${x + 12} ${y + 22}" fill="${glow}" opacity="0.6" />
+          <path d="M${x + 8} ${y + 36} L${x + 4} ${y + 42} L${x + 12} ${y + 38}" fill="${glow}" opacity="0.6" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<ellipse cx="${x + 25}" cy="${y + 30}" rx="22" ry="14" fill="${glow}" opacity="0.3" />` : ''}
           ${colorblindSymbol}
         </g>
       `
@@ -11543,6 +12366,136 @@ function drawPiece(piece: Piece, x: number, y: number): string {
           <circle cx="${x + 25}" cy="${y + 4}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
           ${onCooldown ? `<circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#ff6600" opacity="0.8" /><text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="#000">${piece.cooldownTurns}</text>` : ''}
           ${frozen ? `<rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MINIMAL SKIN - Simple jet
+    if (skinStyle === 'minimal') {
+      const mc = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="3" fill="rgba(0,0,0,0.2)" />
+          <!-- Simple body -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="8" ry="18" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Simple nose -->
+          <path d="M${x + 20} ${y + 10} L${x + 25} ${y + 2} L${x + 30} ${y + 10} Z" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <!-- Simple wings -->
+          <path d="M${x + 17} ${y + 26} L${x + 4} ${y + 34} L${x + 6} ${y + 38} L${x + 17} ${y + 32} Z" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <path d="M${x + 33} ${y + 26} L${x + 46} ${y + 34} L${x + 44} ${y + 38} L${x + 33} ${y + 32} Z" fill="${mc}" stroke="#000" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#ff0000" opacity="0.8" /><text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="#fff">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#4488ff" opacity="0.4" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // CARTOON SKIN - Cute plane
+    if (skinStyle === 'cartoon') {
+      const mc = skinColors.primary
+      const sc = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Cute round body -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="10" ry="16" fill="${mc}" stroke="#000" stroke-width="2" />
+          <!-- Big cute eyes (cockpit) -->
+          <ellipse cx="${x + 22}" cy="${y + 16}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <ellipse cx="${x + 28}" cy="${y + 16}" rx="4" ry="5" fill="#fff" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 23}" cy="${y + 17}" r="2.5" fill="#000" />
+          <circle cx="${x + 29}" cy="${y + 17}" r="2.5" fill="#000" />
+          <circle cx="${x + 24}" cy="${y + 16}" r="0.8" fill="#fff" />
+          <circle cx="${x + 30}" cy="${y + 16}" r="0.8" fill="#fff" />
+          <!-- Cute nose -->
+          <ellipse cx="${x + 25}" cy="${y + 6}" rx="4" ry="3" fill="${sc}" stroke="#000" stroke-width="1" />
+          <!-- Cute smile -->
+          <path d="M${x + 20} ${y + 26} Q${x + 25} ${y + 30} ${x + 30} ${y + 26}" stroke="#000" stroke-width="1.5" fill="none" />
+          <!-- Blush -->
+          <ellipse cx="${x + 16}" cy="${y + 22}" rx="3" ry="2" fill="#ffaaaa" opacity="0.6" />
+          <ellipse cx="${x + 34}" cy="${y + 22}" rx="3" ry="2" fill="#ffaaaa" opacity="0.6" />
+          <!-- Cute wings -->
+          <ellipse cx="${x + 8}" cy="${y + 30}" rx="8" ry="4" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <ellipse cx="${x + 42}" cy="${y + 30}" rx="8" ry="4" fill="${sc}" stroke="#000" stroke-width="1.5" />
+          <!-- Cute tail -->
+          <ellipse cx="${x + 25}" cy="${y + 44}" rx="6" ry="4" fill="${sc}" stroke="#000" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<text x="${x + 42}" y="${y + 14}" font-size="10">💤</text>` : ''}
+          ${frozen ? `<text x="${x + 25}" y="${y + 28}" text-anchor="middle" font-size="10">🥶</text>` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MILITARY SKIN - Stealth fighter
+    if (skinStyle === 'military') {
+      const camo1 = skinColors.primary
+      const camo2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Angular stealth body -->
+          <path d="M${x + 18} ${y + 38} L${x + 16} ${y + 28} L${x + 22} ${y + 10} L${x + 28} ${y + 10} L${x + 34} ${y + 28} L${x + 32} ${y + 38} Z" fill="${camo1}" stroke="#222" stroke-width="1.5" />
+          <path d="M${x + 20} ${y + 14} L${x + 24} ${y + 24} L${x + 28} ${y + 20} Z" fill="${camo2}" />
+          <path d="M${x + 24} ${y + 30} L${x + 30} ${y + 36} L${x + 22} ${y + 36} Z" fill="${camo2}" />
+          <!-- Nose -->
+          <path d="M${x + 22} ${y + 10} L${x + 25} ${y + 2} L${x + 28} ${y + 10} Z" fill="#333" stroke="#222" stroke-width="1" />
+          <!-- Cockpit -->
+          <path d="M${x + 22} ${y + 12} L${x + 25} ${y + 8} L${x + 28} ${y + 12} L${x + 26} ${y + 18} L${x + 24} ${y + 18} Z" fill="#333" stroke="#222" stroke-width="0.5" />
+          <!-- Delta wings -->
+          <path d="M${x + 16} ${y + 28} L${x + 2} ${y + 38} L${x + 8} ${y + 42} L${x + 20} ${y + 36} Z" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <path d="M${x + 34} ${y + 28} L${x + 48} ${y + 38} L${x + 42} ${y + 42} L${x + 30} ${y + 36} Z" fill="${camo1}" stroke="#222" stroke-width="1" />
+          <path d="M${x + 6} ${y + 36}" width="6" height="4" fill="${camo2}" />
+          <!-- Missiles -->
+          <rect x="${x + 6}" y="${y + 38}" width="3" height="8" fill="#555" stroke="#222" stroke-width="0.5" />
+          <rect x="${x + 41}" y="${y + 38}" width="3" height="8" fill="#555" stroke="#222" stroke-width="0.5" />
+          <!-- Twin tails -->
+          <path d="M${x + 18} ${y + 36} L${x + 16} ${y + 46} L${x + 20} ${y + 44} Z" fill="${camo1}" stroke="#222" stroke-width="0.5" />
+          <path d="M${x + 32} ${y + 36} L${x + 34} ${y + 46} L${x + 30} ${y + 44} Z" fill="${camo1}" stroke="#222" stroke-width="0.5" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<rect x="${x + 36}" y="${y + 6}" width="12" height="12" fill="#ff0000" opacity="0.7" /><text x="${x + 42}" y="${y + 15}" text-anchor="middle" font-size="8" fill="#fff">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#4466aa" opacity="0.4" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // SCIFI SKIN - Plasma fighter
+    if (skinStyle === 'scifi') {
+      const armor = skinColors.primary
+      const glow = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Thruster trail -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="8" ry="6" fill="${glow}" opacity="0.5">
+            <animate attributeName="ry" values="6;10;6" dur="0.3s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Sleek body -->
+          <path d="M${x + 17} ${y + 40} Q${x + 15} ${y + 26} ${x + 25} ${y + 4} Q${x + 35} ${y + 26} ${x + 33} ${y + 40} Z" fill="${armor}" stroke="${glow}" stroke-width="1.5" />
+          <!-- Cockpit -->
+          <ellipse cx="${x + 25}" cy="${y + 18}" rx="5" ry="8" fill="#111" stroke="${glow}" stroke-width="0.5" />
+          <ellipse cx="${x + 25}" cy="${y + 16}" rx="3" ry="5" fill="${glow}" opacity="0.4" />
+          <!-- Energy wings -->
+          <path d="M${x + 17} ${y + 28} L${x + 2} ${y + 36} L${x + 6} ${y + 42} L${x + 19} ${y + 36} Z" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <path d="M${x + 33} ${y + 28} L${x + 48} ${y + 36} L${x + 44} ${y + 42} L${x + 31} ${y + 36} Z" fill="${armor}" stroke="${glow}" stroke-width="1" />
+          <!-- Wing energy -->
+          <line x1="${x + 8}" y1="${y + 36}" x2="${x + 16}" y2="${y + 32}" stroke="${glow}" stroke-width="2">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.5s" repeatCount="indefinite" />
+          </line>
+          <line x1="${x + 42}" y1="${y + 36}" x2="${x + 34}" y2="${y + 32}" stroke="${glow}" stroke-width="2">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="0.5s" repeatCount="indefinite" />
+          </line>
+          <!-- Plasma cannons -->
+          <circle cx="${x + 6}" cy="${y + 40}" r="3" fill="${glow}">
+            <animate attributeName="r" values="3;4;3" dur="0.4s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 44}" cy="${y + 40}" r="3" fill="${glow}">
+            <animate attributeName="r" values="3;4;3" dur="0.4s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<circle cx="${x + 40}" cy="${y + 10}" r="6" fill="${glow}" opacity="0.8" /><text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="#000">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<ellipse cx="${x + 25}" cy="${y + 26}" rx="18" ry="22" fill="${glow}" opacity="0.3" />` : ''}
           ${colorblindSymbol}
         </g>
       `
@@ -11807,6 +12760,521 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   return ''
+}
+
+// Get theme-specific decorative elements for around the board
+function getThemeDecorations(): { left: string; right: string; background: string } {
+  const themeId = equippedTheme
+
+  if (themeId === 'theme_sunset') {
+    // Beautiful sunset with gradient sky and sun
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #ff6b35 0%, #f7931e 30%, #ffcc02 60%, #87ceeb 100%);"></div>
+          <div class="absolute" style="bottom: 20%; left: 50%; transform: translateX(-50%); width: 80px; height: 80px; background: radial-gradient(circle, #fff700 0%, #ff6b00 50%, transparent 70%); border-radius: 50%; box-shadow: 0 0 60px 30px rgba(255,150,0,0.5);"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-16" style="background: linear-gradient(180deg, transparent, rgba(0,0,0,0.3));"></div>
+        </div>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-end h-full pb-8 pr-4" style="width: 60px;">
+          <svg width="50" height="120" viewBox="0 0 50 120">
+            <!-- Palm tree silhouette -->
+            <rect x="22" y="50" width="6" height="70" fill="#1a1a1a"/>
+            <ellipse cx="25" cy="45" rx="20" ry="15" fill="#1a1a1a"/>
+            <path d="M25 30 Q10 40 5 55 Q20 45 25 35" fill="#1a1a1a"/>
+            <path d="M25 30 Q40 40 45 55 Q30 45 25 35" fill="#1a1a1a"/>
+            <path d="M25 32 Q15 50 8 70 Q22 50 25 38" fill="#1a1a1a"/>
+            <path d="M25 32 Q35 50 42 70 Q28 50 25 38" fill="#1a1a1a"/>
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-center h-full pl-4" style="width: 60px;">
+          <svg width="50" height="100" viewBox="0 0 50 100">
+            <!-- Birds flying -->
+            <path d="M10 20 Q15 15 20 20 Q25 15 30 20" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+            <path d="M25 35 Q30 30 35 35 Q40 30 45 35" stroke="#1a1a1a" stroke-width="2" fill="none"/>
+            <path d="M5 50 Q10 45 15 50 Q20 45 25 50" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_forest') {
+    // Enchanted forest with swaying trees
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #1a472a 0%, #2d5a3a 50%, #1e3d2a 100%);"></div>
+          <div class="absolute inset-0" style="background: radial-gradient(ellipse at 30% 20%, rgba(144,238,144,0.2) 0%, transparent 50%);"></div>
+        </div>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-between h-full py-4 pr-2" style="width: 70px;">
+          <svg width="60" height="200" viewBox="0 0 60 200">
+            <!-- Swaying tree 1 -->
+            <g style="transform-origin: 30px 180px; animation: sway 4s ease-in-out infinite;">
+              <rect x="27" y="120" width="6" height="80" fill="#4a3728"/>
+              <path d="M30 40 L10 120 L50 120 Z" fill="#228b22"/>
+              <path d="M30 20 L15 80 L45 80 Z" fill="#2e8b2e"/>
+              <path d="M30 5 L20 50 L40 50 Z" fill="#32cd32"/>
+            </g>
+            <!-- Mushroom -->
+            <ellipse cx="15" cy="185" rx="8" ry="5" fill="#ff6b6b"/>
+            <rect x="13" y="185" width="4" height="10" fill="#f5f5dc"/>
+            <circle cx="12" cy="183" r="2" fill="#fff"/>
+            <circle cx="18" cy="182" r="1.5" fill="#fff"/>
+          </svg>
+          <style>@keyframes sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }</style>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-between h-full py-4 pl-2" style="width: 70px;">
+          <svg width="60" height="200" viewBox="0 0 60 200">
+            <!-- Swaying tree 2 -->
+            <g style="transform-origin: 30px 180px; animation: sway 3.5s ease-in-out infinite 0.5s;">
+              <rect x="27" y="130" width="6" height="70" fill="#3d2817"/>
+              <path d="M30 50 L12 130 L48 130 Z" fill="#006400"/>
+              <path d="M30 30 L18 90 L42 90 Z" fill="#228b22"/>
+              <path d="M30 15 L22 60 L38 60 Z" fill="#32cd32"/>
+            </g>
+            <!-- Fairy lights -->
+            <circle cx="20" cy="60" r="3" fill="#ffff00" opacity="0.8"><animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/></circle>
+            <circle cx="40" cy="90" r="2" fill="#00ff00" opacity="0.6"><animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite"/></circle>
+            <circle cx="25" cy="110" r="2.5" fill="#ff69b4" opacity="0.7"><animate attributeName="opacity" values="0.7;0.3;0.7" dur="1.8s" repeatCount="indefinite"/></circle>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_desert') {
+    // Desert with cacti and sand dunes
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #87ceeb 0%, #f4a460 40%, #d4a574 100%);"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-32" style="background: linear-gradient(180deg, transparent, #c2a878);"></div>
+        </div>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-end h-full pb-4 pr-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Cactus -->
+            <rect x="20" y="50" width="10" height="80" rx="5" fill="#228b22"/>
+            <rect x="5" y="70" width="20" height="8" rx="4" fill="#228b22"/>
+            <rect x="5" y="60" width="8" height="18" rx="4" fill="#228b22"/>
+            <rect x="30" y="80" width="15" height="8" rx="4" fill="#228b22"/>
+            <rect x="37" y="70" width="8" height="18" rx="4" fill="#228b22"/>
+            <!-- Sand dune -->
+            <ellipse cx="25" cy="145" rx="30" ry="10" fill="#d4a574"/>
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-end h-full pb-4 pl-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Small cactus -->
+            <rect x="18" y="90" width="8" height="40" rx="4" fill="#2e8b2e"/>
+            <rect x="10" y="100" width="12" height="6" rx="3" fill="#2e8b2e"/>
+            <rect x="10" y="95" width="6" height="12" rx="3" fill="#2e8b2e"/>
+            <!-- Tumbleweed -->
+            <circle cx="35" cy="130" r="10" fill="none" stroke="#8b7355" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <circle cx="35" cy="130" r="6" fill="none" stroke="#8b7355" stroke-width="1"/>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_arctic') {
+    // Arctic with snowflakes and ice
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #87ceeb 0%, #e0f4ff 50%, #ffffff 100%);"></div>
+          <div class="absolute inset-0 snowfall"></div>
+        </div>
+        <style>
+          .snowfall { background-image:
+            radial-gradient(circle, #fff 1px, transparent 1px),
+            radial-gradient(circle, #fff 1px, transparent 1px),
+            radial-gradient(circle, rgba(255,255,255,0.5) 2px, transparent 2px);
+            background-size: 50px 50px, 30px 30px, 70px 70px;
+            background-position: 0 0, 25px 25px, 15px 35px;
+            animation: snow 8s linear infinite;
+          }
+          @keyframes snow { from { background-position: 0 0, 25px 25px, 15px 35px; } to { background-position: 0 100px, 25px 125px, 15px 135px; } }
+        </style>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-center h-full pr-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Snowman -->
+            <circle cx="25" cy="120" r="20" fill="#fff" stroke="#ddd" stroke-width="1"/>
+            <circle cx="25" cy="85" r="15" fill="#fff" stroke="#ddd" stroke-width="1"/>
+            <circle cx="25" cy="58" r="12" fill="#fff" stroke="#ddd" stroke-width="1"/>
+            <!-- Face -->
+            <circle cx="21" cy="55" r="2" fill="#000"/>
+            <circle cx="29" cy="55" r="2" fill="#000"/>
+            <path d="M25 58 L28 63 L22 63 Z" fill="#ff6600"/>
+            <!-- Hat -->
+            <rect x="15" y="42" width="20" height="4" fill="#000"/>
+            <rect x="18" y="30" width="14" height="14" fill="#000"/>
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-center h-full pl-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Ice crystals -->
+            <g transform="translate(25, 50)">
+              <line x1="0" y1="-20" x2="0" y2="20" stroke="#a0d8ef" stroke-width="2"/>
+              <line x1="-17" y1="-10" x2="17" y2="10" stroke="#a0d8ef" stroke-width="2"/>
+              <line x1="-17" y1="10" x2="17" y2="-10" stroke="#a0d8ef" stroke-width="2"/>
+              <circle cx="0" cy="-20" r="3" fill="#e0f4ff"/>
+              <circle cx="0" cy="20" r="3" fill="#e0f4ff"/>
+              <circle cx="-17" cy="-10" r="3" fill="#e0f4ff"/>
+              <circle cx="17" cy="10" r="3" fill="#e0f4ff"/>
+            </g>
+            <!-- Penguin -->
+            <ellipse cx="25" cy="120" rx="12" ry="18" fill="#000"/>
+            <ellipse cx="25" cy="120" rx="8" ry="14" fill="#fff"/>
+            <circle cx="25" cy="105" r="10" fill="#000"/>
+            <circle cx="22" cy="103" r="2" fill="#fff"/>
+            <circle cx="28" cy="103" r="2" fill="#fff"/>
+            <circle cx="22" cy="103" r="1" fill="#000"/>
+            <circle cx="28" cy="103" r="1" fill="#000"/>
+            <path d="M25 106 L27 110 L23 110 Z" fill="#ff6600"/>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_jungle') {
+    // Jungle with vines and exotic plants
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #1a3d1a 0%, #2d5a2d 50%, #1e4d1e 100%);"></div>
+          <div class="absolute inset-0" style="background: radial-gradient(ellipse at 70% 30%, rgba(100,200,100,0.15) 0%, transparent 40%);"></div>
+        </div>`,
+      left: `
+        <div class="hidden lg:flex flex-col h-full pr-2" style="width: 60px;">
+          <svg width="50" height="250" viewBox="0 0 50 250">
+            <!-- Hanging vines -->
+            <path d="M10 0 Q5 50 15 100 Q25 150 10 200" stroke="#228b22" stroke-width="3" fill="none"/>
+            <path d="M30 0 Q40 40 25 80 Q15 120 30 160" stroke="#2e8b2e" stroke-width="2" fill="none"/>
+            <!-- Leaves on vines -->
+            <ellipse cx="12" cy="60" rx="8" ry="4" fill="#32cd32" transform="rotate(-20 12 60)"/>
+            <ellipse cx="18" cy="110" rx="7" ry="3" fill="#228b22" transform="rotate(15 18 110)"/>
+            <ellipse cx="8" cy="160" rx="8" ry="4" fill="#2e8b2e" transform="rotate(-10 8 160)"/>
+            <!-- Exotic flower -->
+            <circle cx="35" cy="200" r="8" fill="#ff1493"/>
+            <circle cx="35" cy="200" r="4" fill="#ffff00"/>
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col h-full pl-2" style="width: 60px;">
+          <svg width="50" height="250" viewBox="0 0 50 250">
+            <!-- More vines -->
+            <path d="M40 0 Q45 60 30 120 Q20 180 40 240" stroke="#228b22" stroke-width="3" fill="none"/>
+            <!-- Parrot -->
+            <ellipse cx="25" cy="80" rx="10" ry="15" fill="#ff0000"/>
+            <circle cx="25" cy="65" r="8" fill="#ff0000"/>
+            <path d="M18 65 L12 68 L18 70 Z" fill="#ffcc00"/>
+            <circle cx="22" cy="63" r="2" fill="#000"/>
+            <!-- Banana -->
+            <path d="M30 150 Q45 160 40 180 Q35 190 25 185" stroke="#ffcc00" stroke-width="6" fill="none"/>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_night') {
+    // Night ops with stars and moon
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 50%, #2a2a4a 100%);"></div>
+          <div class="absolute inset-0 stars"></div>
+        </div>
+        <style>
+          .stars { background-image:
+            radial-gradient(circle, #fff 1px, transparent 1px),
+            radial-gradient(circle, #fff 0.5px, transparent 0.5px),
+            radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px);
+            background-size: 80px 80px, 40px 40px, 60px 60px;
+            background-position: 0 0, 20px 30px, 40px 10px;
+            animation: twinkle 3s ease-in-out infinite;
+          }
+          @keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        </style>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-start h-full py-4 pr-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Moon -->
+            <circle cx="30" cy="40" r="20" fill="#f5f5dc" />
+            <circle cx="38" cy="35" r="18" fill="#0a0a1a" />
+            <!-- Moon craters -->
+            <circle cx="22" cy="38" r="3" fill="#d4d4a0" opacity="0.5" />
+            <circle cx="28" cy="48" r="2" fill="#d4d4a0" opacity="0.4" />
+            <!-- Owl silhouette -->
+            <ellipse cx="25" cy="110" rx="10" ry="12" fill="#1a1a1a" />
+            <ellipse cx="25" cy="100" rx="8" ry="8" fill="#1a1a1a" />
+            <circle cx="22" cy="98" r="3" fill="#ff0" opacity="0.8" />
+            <circle cx="28" cy="98" r="3" fill="#ff0" opacity="0.8" />
+            <circle cx="22" cy="98" r="1.5" fill="#000" />
+            <circle cx="28" cy="98" r="1.5" fill="#000" />
+            <!-- Ears -->
+            <path d="M18 92 L20 86 L22 92" fill="#1a1a1a" />
+            <path d="M28 92 L30 86 L32 92" fill="#1a1a1a" />
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-center h-full pl-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Stars constellation -->
+            <circle cx="15" cy="30" r="2" fill="#fff"><animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" /></circle>
+            <circle cx="35" cy="45" r="1.5" fill="#fff"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" /></circle>
+            <circle cx="20" cy="60" r="2" fill="#fff"><animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite" /></circle>
+            <circle cx="40" cy="80" r="1" fill="#fff" />
+            <circle cx="10" cy="100" r="1.5" fill="#fff"><animate attributeName="opacity" values="1;0.5;1" dur="1.8s" repeatCount="indefinite" /></circle>
+            <!-- Night vision goggles silhouette -->
+            <rect x="15" y="120" width="20" height="15" rx="3" fill="#1a3a1a" />
+            <circle cx="20" cy="127" r="4" fill="#00ff00" opacity="0.6"><animate attributeName="opacity" values="0.6;0.3;0.6" dur="1s" repeatCount="indefinite" /></circle>
+            <circle cx="30" cy="127" r="4" fill="#00ff00" opacity="0.6"><animate attributeName="opacity" values="0.3;0.6;0.3" dur="1s" repeatCount="indefinite" /></circle>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_ocean') {
+    // Ocean with waves and sea creatures
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #87ceeb 0%, #4a90b8 30%, #1e5080 70%, #0a2040 100%);"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-32 waves"></div>
+        </div>
+        <style>
+          .waves { background: linear-gradient(180deg, transparent 0%, rgba(30,80,128,0.5) 50%, rgba(10,32,64,0.8) 100%); }
+        </style>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-end h-full pb-8 pr-2" style="width: 70px;">
+          <svg width="60" height="180" viewBox="0 0 60 180">
+            <!-- Lighthouse -->
+            <rect x="22" y="60" width="16" height="100" fill="#fff" stroke="#cc0000" stroke-width="0" />
+            <rect x="22" y="80" width="16" height="10" fill="#cc0000" />
+            <rect x="22" y="110" width="16" height="10" fill="#cc0000" />
+            <rect x="22" y="140" width="16" height="10" fill="#cc0000" />
+            <!-- Lighthouse top -->
+            <rect x="20" y="50" width="20" height="12" fill="#333" />
+            <rect x="24" y="54" width="12" height="6" fill="#ff0">
+              <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" />
+            </rect>
+            <path d="M20 50 L30 40 L40 50 Z" fill="#333" />
+            <!-- Waves at base -->
+            <path d="M5 165 Q15 160 25 165 Q35 170 45 165 Q55 160 60 165" stroke="#4a90b8" stroke-width="3" fill="none"><animate attributeName="d" values="M5 165 Q15 160 25 165 Q35 170 45 165 Q55 160 60 165;M5 165 Q15 170 25 165 Q35 160 45 165 Q55 170 60 165;M5 165 Q15 160 25 165 Q35 170 45 165 Q55 160 60 165" dur="2s" repeatCount="indefinite" /></path>
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-between h-full py-4 pl-2" style="width: 70px;">
+          <svg width="60" height="200" viewBox="0 0 60 200">
+            <!-- Seagulls -->
+            <path d="M10 30 Q15 25 20 30 Q25 25 30 30" stroke="#fff" stroke-width="2" fill="none" />
+            <path d="M25 45 Q30 40 35 45 Q40 40 45 45" stroke="#fff" stroke-width="1.5" fill="none" />
+            <!-- Fish -->
+            <ellipse cx="30" cy="120" rx="12" ry="6" fill="#ff6b35">
+              <animate attributeName="cx" values="30;40;30" dur="3s" repeatCount="indefinite" />
+            </ellipse>
+            <path d="M42 120 L50 114 L50 126 Z" fill="#ff6b35">
+              <animate attributeName="d" values="M42 120 L50 114 L50 126 Z;M52 120 L60 114 L60 126 Z;M42 120 L50 114 L50 126 Z" dur="3s" repeatCount="indefinite" />
+            </path>
+            <!-- Bubbles -->
+            <circle cx="20" cy="150" r="3" fill="#fff" opacity="0.5"><animate attributeName="cy" values="150;130;150" dur="2s" repeatCount="indefinite" /><animate attributeName="opacity" values="0.5;0;0.5" dur="2s" repeatCount="indefinite" /></circle>
+            <circle cx="35" cy="160" r="2" fill="#fff" opacity="0.4"><animate attributeName="cy" values="160;140;160" dur="1.5s" repeatCount="indefinite" /></circle>
+            <!-- Anchor -->
+            <path d="M30 175 L30 195 M20 195 L40 195 M25 190 Q30 195 35 190" stroke="#444" stroke-width="3" fill="none" />
+            <circle cx="30" cy="172" r="4" fill="none" stroke="#444" stroke-width="2" />
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_lava') {
+    // Volcanic with lava and rocks
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #2a1a0a 0%, #4a2a1a 40%, #8b3a1a 70%, #ff4500 100%);"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-20" style="background: linear-gradient(180deg, transparent, rgba(255,69,0,0.5));"></div>
+        </div>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-end h-full pb-4 pr-2" style="width: 70px;">
+          <svg width="60" height="180" viewBox="0 0 60 180">
+            <!-- Volcano -->
+            <path d="M10 180 L25 80 L35 80 L50 180 Z" fill="#3a2a1a" stroke="#2a1a0a" stroke-width="1" />
+            <!-- Lava crater -->
+            <ellipse cx="30" cy="80" rx="10" ry="5" fill="#ff4500" />
+            <ellipse cx="30" cy="80" rx="6" ry="3" fill="#ff6600">
+              <animate attributeName="ry" values="3;4;3" dur="0.5s" repeatCount="indefinite" />
+            </ellipse>
+            <!-- Lava eruption -->
+            <ellipse cx="30" cy="70" rx="4" ry="6" fill="#ff6600" opacity="0.8">
+              <animate attributeName="cy" values="70;60;70" dur="1s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.8;0.4;0.8" dur="1s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="25" cy="65" rx="2" ry="4" fill="#ff8800" opacity="0.6">
+              <animate attributeName="cy" values="65;55;65" dur="0.8s" repeatCount="indefinite" />
+            </ellipse>
+            <!-- Smoke -->
+            <ellipse cx="30" cy="50" rx="8" ry="6" fill="#555" opacity="0.5">
+              <animate attributeName="cy" values="50;40;50" dur="2s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="35" cy="40" rx="6" ry="4" fill="#666" opacity="0.4">
+              <animate attributeName="cy" values="40;30;40" dur="2.5s" repeatCount="indefinite" />
+            </ellipse>
+            <!-- Lava rocks -->
+            <ellipse cx="15" cy="170" rx="8" ry="5" fill="#2a1a0a" />
+            <ellipse cx="45" cy="175" rx="6" ry="4" fill="#3a2a1a" />
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-end h-full pb-4 pl-2" style="width: 60px;">
+          <svg width="50" height="150" viewBox="0 0 50 150">
+            <!-- Lava pool -->
+            <ellipse cx="25" cy="130" rx="20" ry="10" fill="#ff4500">
+              <animate attributeName="rx" values="20;22;20" dur="1s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="25" cy="130" rx="12" ry="6" fill="#ff6600" />
+            <!-- Lava bubbles -->
+            <circle cx="20" cy="128" r="3" fill="#ff8800">
+              <animate attributeName="r" values="3;4;3" dur="0.5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="30" cy="132" r="2" fill="#ff8800">
+              <animate attributeName="r" values="2;3;2" dur="0.4s" repeatCount="indefinite" />
+            </circle>
+            <!-- Fire spirit -->
+            <path d="M25 80 Q20 90 25 100 Q30 90 25 80" fill="#ff6600">
+              <animate attributeName="d" values="M25 80 Q20 90 25 100 Q30 90 25 80;M25 75 Q18 88 25 105 Q32 88 25 75;M25 80 Q20 90 25 100 Q30 90 25 80" dur="0.6s" repeatCount="indefinite" />
+            </path>
+            <circle cx="22" cy="88" r="2" fill="#ff0" />
+            <circle cx="28" cy="88" r="2" fill="#ff0" />
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_space') {
+    // Space with planets and stars
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #000010 0%, #0a0a2a 50%, #1a1a4a 100%);"></div>
+          <div class="absolute inset-0 space-stars"></div>
+        </div>
+        <style>
+          .space-stars { background-image:
+            radial-gradient(circle, #fff 1px, transparent 1px),
+            radial-gradient(circle, #88f 0.5px, transparent 0.5px),
+            radial-gradient(circle, #ff8 1px, transparent 1px);
+            background-size: 100px 100px, 60px 60px, 80px 80px;
+            background-position: 0 0, 30px 40px, 50px 20px;
+          }
+        </style>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-center h-full pr-2" style="width: 70px;">
+          <svg width="60" height="180" viewBox="0 0 60 180">
+            <!-- Planet with rings (Saturn-like) -->
+            <ellipse cx="30" cy="60" rx="35" ry="8" fill="none" stroke="#d4a574" stroke-width="3" transform="rotate(-20 30 60)" />
+            <circle cx="30" cy="60" r="18" fill="#e8c39e" />
+            <ellipse cx="30" cy="60" rx="18" ry="4" fill="#d4a574" opacity="0.5" />
+            <ellipse cx="30" cy="55" rx="15" ry="3" fill="#c9a464" opacity="0.3" />
+            <!-- Rocket -->
+            <rect x="22" y="110" width="16" height="40" rx="4" fill="#ccc" stroke="#999" stroke-width="1" />
+            <path d="M22 110 L30 95 L38 110 Z" fill="#ff4444" stroke="#cc0000" stroke-width="1" />
+            <rect x="24" y="115" width="12" height="8" fill="#88ccff" />
+            <rect x="18" y="140" width="6" height="12" fill="#ff4444" />
+            <rect x="36" y="140" width="6" height="12" fill="#ff4444" />
+            <!-- Rocket flame -->
+            <ellipse cx="30" cy="155" rx="4" ry="8" fill="#ff6600">
+              <animate attributeName="ry" values="8;12;8" dur="0.2s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="30" cy="155" rx="2" ry="5" fill="#ff0" />
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-between h-full py-8 pl-2" style="width: 60px;">
+          <svg width="50" height="160" viewBox="0 0 50 160">
+            <!-- Earth-like planet -->
+            <circle cx="25" cy="40" r="15" fill="#4488cc" />
+            <ellipse cx="20" cy="35" rx="6" ry="4" fill="#22aa44" />
+            <ellipse cx="30" cy="42" rx="5" ry="3" fill="#22aa44" />
+            <ellipse cx="22" cy="48" rx="4" ry="2" fill="#fff" opacity="0.6" />
+            <!-- UFO -->
+            <ellipse cx="25" cy="100" rx="18" ry="6" fill="#888" stroke="#666" stroke-width="1" />
+            <ellipse cx="25" cy="95" rx="10" ry="8" fill="#aaa" stroke="#888" stroke-width="1" />
+            <ellipse cx="25" cy="92" rx="6" ry="4" fill="#88ffff" opacity="0.8" />
+            <!-- UFO lights -->
+            <circle cx="12" cy="100" r="2" fill="#00ff00"><animate attributeName="opacity" values="1;0.3;1" dur="0.5s" repeatCount="indefinite" /></circle>
+            <circle cx="25" cy="102" r="2" fill="#ff0000"><animate attributeName="opacity" values="0.3;1;0.3" dur="0.5s" repeatCount="indefinite" /></circle>
+            <circle cx="38" cy="100" r="2" fill="#0000ff"><animate attributeName="opacity" values="1;0.3;1" dur="0.5s" repeatCount="indefinite" /></circle>
+            <!-- Shooting star -->
+            <line x1="40" y1="130" x2="10" y2="150" stroke="#fff" stroke-width="2" opacity="0.8">
+              <animate attributeName="opacity" values="0.8;0;0.8" dur="3s" repeatCount="indefinite" />
+            </line>
+          </svg>
+        </div>`
+    }
+  }
+
+  if (themeId === 'theme_candy') {
+    // Candy land with sweets
+    return {
+      background: `
+        <div class="absolute inset-0 pointer-events-none overflow-hidden rounded-xl" style="z-index: -1;">
+          <div class="absolute inset-0" style="background: linear-gradient(180deg, #ffccee 0%, #ffaadd 30%, #ff88cc 60%, #ff66bb 100%);"></div>
+          <div class="absolute bottom-0 left-0 right-0 h-16" style="background: linear-gradient(180deg, transparent, rgba(255,255,255,0.3));"></div>
+        </div>`,
+      left: `
+        <div class="hidden lg:flex flex-col justify-between h-full py-4 pr-2" style="width: 70px;">
+          <svg width="60" height="200" viewBox="0 0 60 200">
+            <!-- Candy cane -->
+            <path d="M30 40 L30 140 Q30 160 15 160" stroke="#ff0000" stroke-width="10" fill="none" />
+            <path d="M30 40 L30 140 Q30 160 15 160" stroke="#fff" stroke-width="10" fill="none" stroke-dasharray="10,10" />
+            <!-- Lollipop -->
+            <circle cx="30" cy="25" r="18" fill="#ff66aa" stroke="#ff3388" stroke-width="2" />
+            <path d="M30 10 Q40 15 38 25 Q40 35 30 40 Q20 35 22 25 Q20 15 30 10" fill="#ff88cc" opacity="0.6" />
+            <!-- Cotton candy -->
+            <ellipse cx="45" cy="180" rx="12" ry="15" fill="#88ccff" opacity="0.8" />
+            <ellipse cx="40" cy="175" rx="8" ry="10" fill="#aaddff" opacity="0.7" />
+            <rect x="43" y="190" width="4" height="15" fill="#ddd" />
+          </svg>
+        </div>`,
+      right: `
+        <div class="hidden lg:flex flex-col justify-between h-full py-4 pl-2" style="width: 70px;">
+          <svg width="60" height="200" viewBox="0 0 60 200">
+            <!-- Gummy bear -->
+            <ellipse cx="30" cy="50" rx="15" ry="18" fill="#ff4444" />
+            <circle cx="30" cy="35" r="10" fill="#ff4444" />
+            <ellipse cx="22" cy="32" rx="3" ry="4" fill="#ff4444" />
+            <ellipse cx="38" cy="32" rx="3" ry="4" fill="#ff4444" />
+            <circle cx="26" cy="34" r="2" fill="#000" />
+            <circle cx="34" cy="34" r="2" fill="#000" />
+            <ellipse cx="30" cy="40" rx="3" ry="2" fill="#ff6666" />
+            <ellipse cx="22" cy="55" rx="5" ry="8" fill="#ff4444" />
+            <ellipse cx="38" cy="55" rx="5" ry="8" fill="#ff4444" />
+            <!-- Donut -->
+            <circle cx="30" cy="120" r="18" fill="#d4a574" stroke="#8b6914" stroke-width="2" />
+            <circle cx="30" cy="120" r="7" fill="#ffccee" />
+            <ellipse cx="25" cy="115" rx="4" ry="2" fill="#ff66aa" />
+            <ellipse cx="35" cy="118" rx="3" ry="2" fill="#66ff66" />
+            <ellipse cx="28" cy="125" rx="3" ry="2" fill="#6666ff" />
+            <ellipse cx="36" cy="112" rx="2" ry="1.5" fill="#ffff66" />
+            <!-- Cupcake -->
+            <path d="M15 180 L20 160 L40 160 L45 180 Z" fill="#d4a574" stroke="#8b6914" stroke-width="1" />
+            <ellipse cx="30" cy="155" rx="14" ry="10" fill="#ff88cc" />
+            <ellipse cx="30" cy="150" rx="10" ry="6" fill="#ffaadd" />
+            <circle cx="30" cy="145" r="4" fill="#ff0000" />
+          </svg>
+        </div>`
+    }
+  }
+
+  // Default - no decorations
+  return { left: '', right: '', background: '' }
 }
 
 function createBoard(): string {
@@ -13404,6 +14872,12 @@ function render() {
               <span class="text-3xl sm:text-4xl">🎖️</span>
               <span class="text-sm sm:text-base">${t('warPassTitle')}</span>
             </button>
+            ${isCurrentUserAdmin() ? `
+            <button id="admin-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">🔧</span>
+              <span class="text-sm sm:text-base">Admin</span>
+            </button>
+            ` : ''}
           </div>
 
           <div class="flex gap-3 mt-2">
@@ -13422,6 +14896,10 @@ function render() {
       })
       document.getElementById('warpass-btn')?.addEventListener('click', () => {
         showAuthScreen = 'warpass'
+        render()
+      })
+      document.getElementById('admin-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'admin'
         render()
       })
       document.getElementById('profile-back-btn')?.addEventListener('click', () => {
@@ -13811,6 +15289,130 @@ function render() {
           render()
         })
       })
+      return
+    }
+
+    // Admin panel screen
+    if (showAuthScreen === 'admin') {
+      if (!isCurrentUserAdmin()) {
+        showAuthScreen = 'profile'
+        render()
+        return
+      }
+
+      const renderAdminPanel = async () => {
+        const users = await getAllUsers()
+
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white">🔧 Admin Panel</h1>
+
+            <div class="w-full max-w-[800px] flex flex-col gap-4">
+              <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-lg font-bold text-white mb-4">👥 All Users (${users.length})</h2>
+                <div class="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+                  ${users.map(user => `
+                    <div class="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                          <span class="text-white font-bold">${user.username}</span>
+                          ${user.isAdmin ? '<span class="text-red-400 text-xs bg-red-900/50 px-2 py-1 rounded">ADMIN</span>' : ''}
+                        </div>
+                        <div class="text-gray-400 text-sm">${user.email}</div>
+                        <div class="text-yellow-400 text-sm">💰 ${user.warBucks} War Bucks</div>
+                        <div class="text-gray-400 text-xs">Games: ${user.stats?.gamesPlayed || 0} | Won: ${user.stats?.gamesWon || 0}</div>
+                      </div>
+                      <div class="flex flex-wrap gap-2">
+                        <button class="admin-give-bucks bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
+                          +100 💰
+                        </button>
+                        <button class="admin-give-bucks-1000 bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
+                          +1000 💰
+                        </button>
+                        ${!user.isAdmin ? `
+                        <button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
+                          Make Admin
+                        </button>
+                        ` : `
+                        <button class="admin-remove-admin bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
+                          Remove Admin
+                        </button>
+                        `}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+
+            <button id="admin-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+              Back
+            </button>
+          </div>
+        `
+
+        document.getElementById('admin-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'profile'
+          render()
+        })
+
+        // Give 100 war bucks
+        document.querySelectorAll('.admin-give-bucks').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const userId = target.dataset.userid
+            if (userId) {
+              await adminGiveWarBucks(userId, 100)
+              renderAdminPanel()
+            }
+          })
+        })
+
+        // Give 1000 war bucks
+        document.querySelectorAll('.admin-give-bucks-1000').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const userId = target.dataset.userid
+            if (userId) {
+              await adminGiveWarBucks(userId, 1000)
+              renderAdminPanel()
+            }
+          })
+        })
+
+        // Make admin
+        document.querySelectorAll('.admin-make-admin').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const userId = target.dataset.userid
+            if (userId) {
+              await adminSetAdmin(userId, true)
+              renderAdminPanel()
+            }
+          })
+        })
+
+        // Remove admin
+        document.querySelectorAll('.admin-remove-admin').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const userId = target.dataset.userid
+            if (userId) {
+              await adminSetAdmin(userId, false)
+              renderAdminPanel()
+            }
+          })
+        })
+      }
+
+      // Show loading state
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-center p-4">
+          <div class="text-white text-xl">Loading admin panel...</div>
+        </div>
+      `
+
+      renderAdminPanel()
       return
     }
 
@@ -14442,9 +16044,19 @@ function render() {
         </button>
       </div>
       <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 w-full max-w-4xl">
-        <div class="flex-shrink-0 w-full lg:w-auto flex justify-center" id="board-container">
-          ${createBoard()}
-        </div>
+        ${(() => {
+          const decorations = getThemeDecorations()
+          return `
+            <div class="flex-shrink-0 w-full lg:w-auto flex justify-center items-center relative" id="board-container">
+              ${decorations.background}
+              ${decorations.left}
+              <div class="relative z-10">
+                ${createBoard()}
+              </div>
+              ${decorations.right}
+            </div>
+          `
+        })()}
         <div class="flex flex-row lg:flex-col gap-4 w-full lg:w-64 lg:h-[80vh]">
           ${createScorePanel()}
           ${createMoveLog()}
