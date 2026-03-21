@@ -74,7 +74,7 @@ import {
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'admin'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -102,6 +102,326 @@ let showOpponentLeftModal = false // Show modal when opponent leaves
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
 let lastJumpscareTime = 0
+let gameModeIntervals: ReturnType<typeof setInterval>[] = []
+let matrixDrops: { x: number; y: number; speed: number; chars: string[] }[] = []
+
+// Apply game mode visual effects
+function applyGameModeEffects() {
+  // Clear any existing intervals
+  gameModeIntervals.forEach(id => clearInterval(id))
+  gameModeIntervals = []
+
+  // Remove existing game mode styles
+  const existingStyle = document.getElementById('game-mode-styles')
+  if (existingStyle) existingStyle.remove()
+
+  // Remove existing overlays
+  document.querySelectorAll('.game-mode-overlay').forEach(el => el.remove())
+
+  if (activeGameModes.length === 0) return
+
+  // Add CSS for game modes
+  const style = document.createElement('style')
+  style.id = 'game-mode-styles'
+  style.textContent = `
+    /* Disco Mode */
+    @keyframes disco-bg {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+    .disco-mode #app {
+      animation: disco-bg 2s linear infinite;
+    }
+    .disco-mode .disco-ball {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 40px;
+      animation: disco-spin 1s linear infinite;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    @keyframes disco-spin {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(180deg) scale(1.2); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    /* Rainbow Mode */
+    @keyframes rainbow-border {
+      0% { border-color: red; }
+      14% { border-color: orange; }
+      28% { border-color: yellow; }
+      42% { border-color: green; }
+      57% { border-color: blue; }
+      71% { border-color: indigo; }
+      85% { border-color: violet; }
+      100% { border-color: red; }
+    }
+    .rainbow-mode svg {
+      border: 4px solid red;
+      animation: rainbow-border 3s linear infinite;
+      border-radius: 8px;
+    }
+
+    /* Earthquake Mode */
+    @keyframes earthquake {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      10% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+      20% { transform: translate(2px, 1px) rotate(0.5deg); }
+      30% { transform: translate(-1px, 2px) rotate(-0.3deg); }
+      40% { transform: translate(1px, -2px) rotate(0.3deg); }
+      50% { transform: translate(-2px, 1px) rotate(-0.5deg); }
+      60% { transform: translate(2px, -1px) rotate(0.5deg); }
+      70% { transform: translate(-1px, -2px) rotate(-0.3deg); }
+      80% { transform: translate(1px, 2px) rotate(0.3deg); }
+      90% { transform: translate(-2px, -1px) rotate(-0.5deg); }
+    }
+    .earthquake-mode #board-container {
+      animation: earthquake 0.5s ease-in-out infinite;
+    }
+
+    /* Matrix Mode */
+    .matrix-mode #app {
+      background: black !important;
+    }
+    .matrix-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+      opacity: 0.3;
+    }
+    .matrix-drop {
+      position: absolute;
+      color: #00ff00;
+      font-family: monospace;
+      font-size: 14px;
+      text-shadow: 0 0 5px #00ff00;
+      white-space: pre;
+      line-height: 1.2;
+    }
+
+    /* Giant Mode */
+    .giant-mode svg {
+      transform: scale(1.3);
+      transform-origin: center top;
+    }
+
+    /* Tiny Mode */
+    .tiny-mode svg {
+      transform: scale(0.6);
+    }
+
+    /* Chaos Mode */
+    @keyframes chaos-glitch {
+      0%, 100% { filter: none; transform: none; }
+      10% { filter: invert(1); }
+      20% { transform: skewX(5deg); }
+      30% { filter: hue-rotate(90deg); }
+      40% { transform: skewY(-3deg); }
+      50% { filter: saturate(3); }
+      60% { transform: scale(1.02); }
+      70% { filter: contrast(1.5); }
+      80% { transform: translateX(2px); }
+      90% { filter: blur(1px); }
+    }
+    .chaos-mode #board-container {
+      animation: chaos-glitch 3s ease-in-out infinite;
+    }
+
+    /* Mirror Mode */
+    .mirror-mode svg {
+      transform: scaleX(-1);
+    }
+
+    /* Speed Mode */
+    .speed-mode * {
+      transition-duration: 0.1s !important;
+      animation-duration: 0.5s !important;
+    }
+    .speed-mode::after {
+      content: '⚡ SPEED MODE ⚡';
+      position: fixed;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: yellow;
+      font-weight: bold;
+      font-size: 12px;
+      z-index: 1000;
+      text-shadow: 0 0 5px orange;
+      pointer-events: none;
+    }
+
+    /* Jumpscare overlay */
+    .jumpscare-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      animation: jumpscare-flash 0.3s ease-out;
+    }
+    .jumpscare-overlay span {
+      font-size: 200px;
+      animation: jumpscare-shake 0.3s ease-out;
+    }
+    @keyframes jumpscare-flash {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes jumpscare-shake {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.5) rotate(-10deg); }
+      50% { transform: scale(2) rotate(10deg); }
+      75% { transform: scale(1.5) rotate(-5deg); }
+    }
+  `
+  document.head.appendChild(style)
+
+  const body = document.body
+
+  // Apply mode classes
+  if (activeGameModes.includes('disco')) {
+    body.classList.add('disco-mode')
+    // Add disco ball
+    const discoBall = document.createElement('div')
+    discoBall.className = 'disco-ball game-mode-overlay'
+    discoBall.textContent = '🪩'
+    document.body.appendChild(discoBall)
+  }
+
+  if (activeGameModes.includes('rainbow')) {
+    body.classList.add('rainbow-mode')
+  }
+
+  if (activeGameModes.includes('earthquake')) {
+    body.classList.add('earthquake-mode')
+  }
+
+  if (activeGameModes.includes('giant')) {
+    body.classList.add('giant-mode')
+  }
+
+  if (activeGameModes.includes('tiny')) {
+    body.classList.add('tiny-mode')
+  }
+
+  if (activeGameModes.includes('chaos')) {
+    body.classList.add('chaos-mode')
+  }
+
+  if (activeGameModes.includes('mirror')) {
+    body.classList.add('mirror-mode')
+  }
+
+  if (activeGameModes.includes('speed')) {
+    body.classList.add('speed-mode')
+  }
+
+  if (activeGameModes.includes('matrix')) {
+    body.classList.add('matrix-mode')
+    // Create matrix rain overlay
+    const matrixOverlay = document.createElement('div')
+    matrixOverlay.className = 'matrix-overlay game-mode-overlay'
+    matrixOverlay.id = 'matrix-rain'
+    document.body.appendChild(matrixOverlay)
+
+    // Initialize matrix drops
+    matrixDrops = []
+    for (let i = 0; i < 30; i++) {
+      matrixDrops.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * -500,
+        speed: 2 + Math.random() * 5,
+        chars: Array(15).fill(0).map(() => String.fromCharCode(0x30A0 + Math.random() * 96))
+      })
+    }
+
+    // Animate matrix rain
+    const matrixInterval = setInterval(() => {
+      const overlay = document.getElementById('matrix-rain')
+      if (!overlay || !activeGameModes.includes('matrix')) {
+        clearInterval(matrixInterval)
+        return
+      }
+
+      overlay.innerHTML = matrixDrops.map(drop => {
+        drop.y += drop.speed
+        if (drop.y > window.innerHeight) {
+          drop.y = -200
+          drop.x = Math.random() * window.innerWidth
+        }
+        // Rotate chars occasionally
+        if (Math.random() < 0.1) {
+          drop.chars[Math.floor(Math.random() * drop.chars.length)] = String.fromCharCode(0x30A0 + Math.random() * 96)
+        }
+        return `<div class="matrix-drop" style="left:${drop.x}px;top:${drop.y}px">${drop.chars.join('\n')}</div>`
+      }).join('')
+    }, 50)
+    gameModeIntervals.push(matrixInterval)
+  }
+
+  if (activeGameModes.includes('jumpscare')) {
+    // Random jumpscares
+    const jumpscareInterval = setInterval(() => {
+      if (!activeGameModes.includes('jumpscare') || gameState !== 'playing') {
+        clearInterval(jumpscareInterval)
+        return
+      }
+
+      const now = Date.now()
+      // Random chance every 30-60 seconds
+      if (now - lastJumpscareTime > 30000 && Math.random() < 0.02) {
+        lastJumpscareTime = now
+        triggerJumpscare()
+      }
+    }, 1000)
+    gameModeIntervals.push(jumpscareInterval)
+  }
+}
+
+// Trigger a jumpscare
+function triggerJumpscare() {
+  const scaryEmojis = ['👻', '💀', '👹', '🎃', '😱', '🤡', '👽', '☠️']
+  const emoji = scaryEmojis[Math.floor(Math.random() * scaryEmojis.length)]
+
+  const overlay = document.createElement('div')
+  overlay.className = 'jumpscare-overlay'
+  overlay.innerHTML = `<span>${emoji}</span>`
+  document.body.appendChild(overlay)
+
+  // Play a sound if available
+  playSound('capture')
+
+  // Remove after animation
+  setTimeout(() => overlay.remove(), 300)
+}
+
+// Clear game mode effects
+function clearGameModeEffects() {
+  gameModeIntervals.forEach(id => clearInterval(id))
+  gameModeIntervals = []
+
+  const body = document.body
+  body.classList.remove('disco-mode', 'rainbow-mode', 'earthquake-mode', 'giant-mode', 'tiny-mode', 'chaos-mode', 'mirror-mode', 'speed-mode', 'matrix-mode')
+
+  document.querySelectorAll('.game-mode-overlay').forEach(el => el.remove())
+
+  const style = document.getElementById('game-mode-styles')
+  if (style) style.remove()
+}
 
 // Equipped cosmetics (loaded from user data)
 let equippedTheme: string | null = null
@@ -6348,6 +6668,10 @@ async function startGame() {
   gameState = 'playing'
   await initAudio()
 
+  // Load active game modes
+  activeGameModes = await getActiveGameModes()
+  applyGameModeEffects()
+
   // Initialize timer if enabled
   if (timerEnabled) {
     yellowTimeRemaining = timerMinutes * 60
@@ -6406,6 +6730,10 @@ async function startMultiplayerGame() {
   }
 
   await initAudio()
+
+  // Load active game modes
+  activeGameModes = await getActiveGameModes()
+  applyGameModeEffects()
 
   // Start music if enabled
   if (musicEnabled) {
@@ -6637,6 +6965,10 @@ async function resetGame() {
 
   // Stop music
   stopMusic()
+
+  // Clear game mode effects
+  clearGameModeEffects()
+  activeGameModes = []
 
   render()
 }
@@ -14941,8 +15273,8 @@ function render() {
           </div>
           ` : `<div class="text-gray-400">Loading...</div>`}
 
-          <!-- Shop and War Pass buttons -->
-          <div class="flex gap-4 mt-2">
+          <!-- Shop, War Pass and Events buttons -->
+          <div class="flex flex-wrap gap-4 mt-2 justify-center">
             <button id="shop-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-yellow-500 to-yellow-700 hover:from-yellow-400 hover:to-yellow-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
               <span class="text-3xl sm:text-4xl">🛒</span>
               <span class="text-sm sm:text-base">${t('shopTitle')}</span>
@@ -14950,6 +15282,10 @@ function render() {
             <button id="warpass-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
               <span class="text-3xl sm:text-4xl">🎖️</span>
               <span class="text-sm sm:text-base">${t('warPassTitle')}</span>
+            </button>
+            <button id="events-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">📢</span>
+              <span class="text-sm sm:text-base">Events</span>
             </button>
             ${isCurrentUserAdmin() ? `
             <button id="admin-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
@@ -14975,6 +15311,10 @@ function render() {
       })
       document.getElementById('warpass-btn')?.addEventListener('click', () => {
         showAuthScreen = 'warpass'
+        render()
+      })
+      document.getElementById('events-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'events'
         render()
       })
       document.getElementById('admin-btn')?.addEventListener('click', () => {
@@ -15368,6 +15708,125 @@ function render() {
           render()
         })
       })
+      return
+    }
+
+    // Events screen
+    if (showAuthScreen === 'events') {
+      const userData = getCurrentUserData()
+
+      const renderEventsScreen = async () => {
+        const events = await getActiveEvents()
+        const gameModes = events.filter(e => e.type === 'gamemode')
+        const rewards = events.filter(e => e.type === 'reward')
+        const announcements = events.filter(e => e.type !== 'gamemode' && e.type !== 'reward')
+
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white">📢 Events</h1>
+
+            ${gameModes.length > 0 ? `
+            <div class="bg-gray-800 p-4 rounded-lg w-full max-w-[600px]">
+              <h2 class="text-lg font-bold text-white mb-3">🎮 Active Game Modes</h2>
+              <div class="flex flex-wrap gap-2">
+                ${gameModes.map(event => `
+                  <div class="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span class="text-xl">${event.icon}</span>
+                    <span class="font-bold">${event.title}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <p class="text-gray-400 text-sm mt-3">These modes are active for everyone in all games!</p>
+            </div>
+            ` : ''}
+
+            ${rewards.length > 0 ? `
+            <div class="bg-gray-800 p-4 rounded-lg w-full max-w-[600px]">
+              <h2 class="text-lg font-bold text-white mb-3">🎁 Rewards</h2>
+              <div class="flex flex-col gap-3">
+                ${rewards.map(event => {
+                  const claimed = event.claimedBy?.includes(getCurrentUser()?.uid || '') || false
+                  return `
+                  <div class="bg-gray-700 p-4 rounded-lg">
+                    <div class="flex items-center gap-3">
+                      <span class="text-3xl">${event.icon}</span>
+                      <div class="flex-1">
+                        <div class="text-white font-bold">${event.title}</div>
+                        <div class="text-gray-400 text-sm">${event.message}</div>
+                        <div class="text-yellow-400 text-sm mt-1">
+                          ${event.rewardType === 'warBucks' ? `💰 ${event.rewardAmount} War Bucks` : `🎁 Free Item`}
+                        </div>
+                      </div>
+                      ${claimed
+                        ? `<span class="text-gray-400 font-bold text-sm">Claimed ✓</span>`
+                        : `<button class="claim-event-btn bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded transition-colors" data-eventid="${event.id}">
+                            Claim!
+                          </button>`
+                      }
+                    </div>
+                  </div>
+                `}).join('')}
+              </div>
+            </div>
+            ` : ''}
+
+            ${announcements.length > 0 ? `
+            <div class="bg-gray-800 p-4 rounded-lg w-full max-w-[600px]">
+              <h2 class="text-lg font-bold text-white mb-3">📣 Announcements</h2>
+              <div class="flex flex-col gap-3">
+                ${announcements.map(event => `
+                  <div class="bg-gray-700 p-4 rounded-lg">
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl">${event.icon}</span>
+                      <div class="flex-1">
+                        <div class="text-white font-bold">${event.title}</div>
+                        <div class="text-gray-300 text-sm">${event.message}</div>
+                        <div class="text-gray-500 text-xs mt-1">${new Date(event.createdAt).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
+
+            ${events.length === 0 ? `
+            <div class="bg-gray-800 p-8 rounded-lg text-center">
+              <span class="text-4xl">📭</span>
+              <p class="text-gray-400 mt-4">No active events right now.</p>
+              <p class="text-gray-500 text-sm">Check back later for special events and rewards!</p>
+            </div>
+            ` : ''}
+
+            <button id="events-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+              Back
+            </button>
+          </div>
+        `
+
+        // Claim reward buttons
+        document.querySelectorAll('.claim-event-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const eventId = (e.target as HTMLElement).dataset.eventid
+            if (eventId) {
+              const success = await claimEventReward(eventId)
+              if (success) {
+                alert('Reward claimed!')
+                renderEventsScreen()
+              } else {
+                alert('Could not claim reward.')
+              }
+            }
+          })
+        })
+
+        document.getElementById('events-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'profile'
+          render()
+        })
+      }
+
+      renderEventsScreen()
       return
     }
 
