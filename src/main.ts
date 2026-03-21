@@ -66,6 +66,7 @@ let inviteTimerEnabled = false
 let inviteTimerMinutes = 10
 let isMyTurnInMultiplayer = false
 let waitingForOpponent = false
+let multiplayerGameStarted = false
 
 // Equipped cosmetics (loaded from user data)
 let equippedTheme: string | null = null
@@ -6074,6 +6075,8 @@ async function startGame() {
 // Start a multiplayer game
 async function startMultiplayerGame() {
   if (!multiplayerGame || !multiplayerTeam || !multiplayerGameId) return
+  if (multiplayerGameStarted) return // Prevent multiple starts
+  multiplayerGameStarted = true
 
   // Stop listening to multiplayer screen stuff
   stopListeningToOnlinePlayers()
@@ -6291,6 +6294,14 @@ function resetGame() {
   // Reset penalties
   yellowPenalty = 0
   greenPenalty = 0
+
+  // Reset multiplayer state
+  multiplayerGameId = null
+  multiplayerTeam = null
+  multiplayerGame = null
+  multiplayerGameStarted = false
+  isMyTurnInMultiplayer = false
+  waitingForOpponent = false
 
   // Stop music
   stopMusic()
@@ -11646,10 +11657,12 @@ function render() {
               if (game) {
                 multiplayerGame = game
                 multiplayerTeam = getMyTeamInGame(game)
-                render() // Update UI to show waiting/joining state
-                if (game.status === 'playing') {
+                // Check if both players joined - auto start game
+                if ((game.status === 'playing' || (game.yellowJoined && game.greenJoined)) && !multiplayerGameStarted) {
                   // Both players ready - start game!
                   startMultiplayerGame()
+                } else {
+                  render() // Update UI to show waiting/joining state
                 }
               }
             })
@@ -11858,10 +11871,12 @@ function render() {
               listenToGame(result.gameId, (game) => {
                 if (game) {
                   multiplayerGame = game
-                  render() // Update UI to show game state changes
-                  if (game.status === 'playing') {
+                  // Check if both players joined - auto start game
+                  if ((game.status === 'playing' || (game.yellowJoined && game.greenJoined)) && !multiplayerGameStarted) {
                     // Both players ready - start game!
                     startMultiplayerGame()
+                  } else {
+                    render() // Update UI to show game state changes
                   }
                 }
               })
