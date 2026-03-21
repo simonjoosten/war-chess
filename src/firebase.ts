@@ -206,6 +206,8 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'sound_cartoon', name: 'Cartoon Sounds', description: 'Fun bouncy cartoon sounds', price: 125, type: 'sound_pack', icon: '🎪', packId: 'cartoon' },
   { id: 'sound_war', name: 'War Sounds', description: 'Realistic military sound effects', price: 200, type: 'sound_pack', icon: '💣', packId: 'war' },
   { id: 'sound_nature', name: 'Nature Sounds', description: 'Calm natural ambient sounds', price: 150, type: 'sound_pack', icon: '🌿', packId: 'nature' },
+  { id: 'sound_horror', name: 'Horror Sounds', description: 'Creepy scary sound effects', price: 200, type: 'sound_pack', icon: '👻', packId: 'horror' },
+  { id: 'sound_medieval', name: 'Medieval Sounds', description: 'Swords, shields and battle horns', price: 175, type: 'sound_pack', icon: '🏰', packId: 'medieval' },
 
   // Music Packs
   { id: 'music_electronic', name: 'Electronic Beats', description: 'Pumping electronic music', price: 200, type: 'music_pack', icon: '🎧', packId: 'electronic' },
@@ -213,6 +215,27 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'music_chiptune', name: 'Chiptune', description: 'Retro 8-bit music', price: 175, type: 'music_pack', icon: '🎮', packId: 'chiptune' },
   { id: 'music_jazz', name: 'Smooth Jazz', description: 'Relaxing jazz music', price: 200, type: 'music_pack', icon: '🎷', packId: 'jazz' },
   { id: 'music_rock', name: 'Rock & Roll', description: 'Energetic rock music', price: 225, type: 'music_pack', icon: '🎸', packId: 'rock' },
+  { id: 'music_lofi', name: 'Lo-Fi Beats', description: 'Chill lo-fi hip hop vibes', price: 175, type: 'music_pack', icon: '🎵', packId: 'lofi' },
+  { id: 'music_epic', name: 'Epic Battle', description: 'Intense cinematic battle music', price: 275, type: 'music_pack', icon: '⚔️', packId: 'epic' },
+  { id: 'music_ambient', name: 'Ambient', description: 'Peaceful ambient soundscapes', price: 150, type: 'music_pack', icon: '🌌', packId: 'ambient' },
+
+  // Premium Bundles
+  { id: 'theme_neon', name: 'Neon City', description: 'Cyberpunk neon lights theme', price: 300, type: 'theme', icon: '🌃',
+    colors: { light: '#ff00ff', dark: '#00ffff', accent: '#ffff00', water: '#ff1493' } },
+  { id: 'theme_steampunk', name: 'Steampunk', description: 'Victorian steampunk aesthetic', price: 275, type: 'theme', icon: '⚙️',
+    colors: { light: '#cd853f', dark: '#8b4513', accent: '#d4af37', water: '#708090' } },
+  { id: 'theme_underwater', name: 'Underwater', description: 'Deep ocean floor theme', price: 225, type: 'theme', icon: '🐠',
+    colors: { light: '#00ced1', dark: '#008b8b', accent: '#20b2aa', water: '#006994' } },
+  { id: 'theme_autumn', name: 'Autumn Forest', description: 'Beautiful fall colors', price: 175, type: 'theme', icon: '🍂',
+    colors: { light: '#daa520', dark: '#8b4513', accent: '#cd853f', water: '#4682b4' } },
+  { id: 'theme_winter', name: 'Winter Wonderland', description: 'Snowy winter theme', price: 200, type: 'theme', icon: '⛄',
+    colors: { light: '#f0f8ff', dark: '#b0c4de', accent: '#87ceeb', water: '#4169e1' } },
+
+  // Extra Effects
+  { id: 'effect_confetti', name: 'Confetti', description: 'Colorful confetti on wins', price: 175, type: 'effect', icon: '🎊', effectType: 'sparkle' },
+  { id: 'effect_rainbow', name: 'Rainbow Trail', description: 'Rainbow colors follow your pieces', price: 250, type: 'effect', icon: '🌈', effectType: 'sparkle' },
+  { id: 'effect_snow', name: 'Snowfall', description: 'Gentle snowflakes falling', price: 200, type: 'effect', icon: '❄️', effectType: 'sparkle' },
+  { id: 'effect_sakura', name: 'Cherry Blossoms', description: 'Beautiful sakura petals', price: 225, type: 'effect', icon: '🌸', effectType: 'sparkle' },
 ]
 
 // War Pass Challenges
@@ -231,14 +254,17 @@ export interface WarPassChallenge {
 }
 
 export const WAR_PASS_CHALLENGES: WarPassChallenge[] = [
-  // Easy challenges
+  // Easy challenges (Tier 1)
   { id: 'play_1', name: 'First Steps', description: 'Play 1 game', icon: '🎮', requirement: 1, stat: 'gamesPlayed',
     reward: { type: 'warBucks', amount: 25 } },
   { id: 'win_1', name: 'First Victory', description: 'Win 1 game', icon: '🏆', requirement: 1, stat: 'gamesWon',
     reward: { type: 'warBucks', amount: 50 } },
   { id: 'eliminate_5', name: 'Rookie Hunter', description: 'Eliminate 5 pieces', icon: '🎯', requirement: 5, stat: 'piecesEliminated',
     reward: { type: 'warBucks', amount: 30 } },
-  // Medium challenges
+  { id: 'points_25', name: 'Point Starter', description: 'Score 25 total points', icon: '📊', requirement: 25, stat: 'totalPointsScored',
+    reward: { type: 'warBucks', amount: 35 } },
+
+  // Medium challenges (Tier 2)
   { id: 'play_5', name: 'Getting Started', description: 'Play 5 games', icon: '🎲', requirement: 5, stat: 'gamesPlayed',
     reward: { type: 'warBucks', amount: 75 } },
   { id: 'win_3', name: 'Hat Trick', description: 'Win 3 games', icon: '🥉', requirement: 3, stat: 'gamesWon',
@@ -247,24 +273,48 @@ export const WAR_PASS_CHALLENGES: WarPassChallenge[] = [
     reward: { type: 'item', itemId: 'effect_sparkle' } },
   { id: 'engineer_3', name: 'Engineer Hunter', description: 'Capture 3 engineers', icon: '🔧', requirement: 3, stat: 'engineersCaptured',
     reward: { type: 'warBucks', amount: 100 } },
-  // Hard challenges
+  { id: 'points_50', name: 'Point Collector', description: 'Score 50 total points', icon: '💎', requirement: 50, stat: 'totalPointsScored',
+    reward: { type: 'warBucks', amount: 80 } },
+  { id: 'eliminate_15', name: 'Hunter', description: 'Eliminate 15 pieces', icon: '🏹', requirement: 15, stat: 'piecesEliminated',
+    reward: { type: 'warBucks', amount: 60 } },
+
+  // Hard challenges (Tier 3)
   { id: 'play_10', name: 'Dedicated Player', description: 'Play 10 games', icon: '⭐', requirement: 10, stat: 'gamesPlayed',
     reward: { type: 'item', itemId: 'theme_desert' } },
   { id: 'win_5', name: 'Champion', description: 'Win 5 games', icon: '🏅', requirement: 5, stat: 'gamesWon',
-    reward: { type: 'item', itemId: 'skin_stealth' } },
+    reward: { type: 'item', itemId: 'skin_pixel' } },
   { id: 'eliminate_50', name: 'Elite Hunter', description: 'Eliminate 50 pieces', icon: '🔥', requirement: 50, stat: 'piecesEliminated',
     reward: { type: 'warBucks', amount: 200 } },
   { id: 'points_100', name: 'Point Master', description: 'Score 100 total points', icon: '💯', requirement: 100, stat: 'totalPointsScored',
     reward: { type: 'item', itemId: 'theme_arctic' } },
-  // Expert challenges
+  { id: 'engineer_5', name: 'Engineer Expert', description: 'Capture 5 engineers', icon: '🛠️', requirement: 5, stat: 'engineersCaptured',
+    reward: { type: 'item', itemId: 'effect_smoke' } },
+  { id: 'play_15', name: 'Regular Player', description: 'Play 15 games', icon: '🎯', requirement: 15, stat: 'gamesPlayed',
+    reward: { type: 'warBucks', amount: 150 } },
+
+  // Expert challenges (Tier 4)
   { id: 'win_10', name: 'War Hero', description: 'Win 10 games', icon: '🎖️', requirement: 10, stat: 'gamesWon',
-    reward: { type: 'item', itemId: 'skin_gold' } },
+    reward: { type: 'item', itemId: 'skin_robot' } },
   { id: 'eliminate_100', name: 'Legendary Hunter', description: 'Eliminate 100 pieces', icon: '👑', requirement: 100, stat: 'piecesEliminated',
     reward: { type: 'item', itemId: 'effect_fire' } },
   { id: 'engineer_10', name: 'Engineer Master', description: 'Capture 10 engineers', icon: '⚙️', requirement: 10, stat: 'engineersCaptured',
     reward: { type: 'item', itemId: 'theme_night' } },
   { id: 'points_500', name: 'Score Legend', description: 'Score 500 total points', icon: '🌟', requirement: 500, stat: 'totalPointsScored',
-    reward: { type: 'item', itemId: 'skin_rainbow' } },
+    reward: { type: 'item', itemId: 'skin_scifi' } },
+  { id: 'play_25', name: 'Veteran', description: 'Play 25 games', icon: '🎗️', requirement: 25, stat: 'gamesPlayed',
+    reward: { type: 'item', itemId: 'theme_jungle' } },
+  { id: 'win_15', name: 'Commander', description: 'Win 15 games', icon: '⚔️', requirement: 15, stat: 'gamesWon',
+    reward: { type: 'item', itemId: 'effect_lightning' } },
+
+  // Master challenges (Tier 5)
+  { id: 'eliminate_200', name: 'Destroyer', description: 'Eliminate 200 pieces', icon: '💀', requirement: 200, stat: 'piecesEliminated',
+    reward: { type: 'item', itemId: 'skin_fantasy' } },
+  { id: 'points_1000', name: 'Point God', description: 'Score 1000 total points', icon: '🔱', requirement: 1000, stat: 'totalPointsScored',
+    reward: { type: 'item', itemId: 'theme_space' } },
+  { id: 'win_25', name: 'General', description: 'Win 25 games', icon: '🏛️', requirement: 25, stat: 'gamesWon',
+    reward: { type: 'item', itemId: 'effect_explosion' } },
+  { id: 'engineer_25', name: 'Engineer Legend', description: 'Capture 25 engineers', icon: '🔩', requirement: 25, stat: 'engineersCaptured',
+    reward: { type: 'item', itemId: 'theme_lava' } },
 ]
 
 // Get scaled War Pass challenges based on completion count
