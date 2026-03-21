@@ -46,6 +46,7 @@ import {
 // Auth state
 type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass'
 let showAuthScreen: AuthScreen = 'none'
+let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
 let authLoading = false
 let firebaseInitialized = false
@@ -3335,6 +3336,7 @@ const translations: Record<Language, Record<string, string>> = {
     shopEquip: 'Equip',
     shopUnequip: 'Unequip',
     shopEquipped: 'Equipped',
+    noEquipped: 'No cosmetics equipped',
     shopPurchased: 'Purchased!',
     shopNotEnough: 'Not enough War Bucks',
     shopThemes: 'Board Themes',
@@ -3564,6 +3566,7 @@ const translations: Record<Language, Record<string, string>> = {
     shopEquip: 'Uitrusten',
     shopUnequip: 'Afdoen',
     shopEquipped: 'Uitgerust',
+    noEquipped: 'Geen cosmetica uitgerust',
     shopPurchased: 'Gekocht!',
     shopNotEnough: 'Niet genoeg War Bucks',
     shopThemes: 'Bord Thema\'s',
@@ -3793,6 +3796,7 @@ const translations: Record<Language, Record<string, string>> = {
     shopEquip: 'Ausrüsten',
     shopUnequip: 'Ablegen',
     shopEquipped: 'Ausgerüstet',
+    noEquipped: 'Keine Kosmetik ausgerüstet',
     shopPurchased: 'Gekauft!',
     shopNotEnough: 'Nicht genug War Bucks',
     shopThemes: 'Brettthemen',
@@ -4022,6 +4026,7 @@ const translations: Record<Language, Record<string, string>> = {
     shopEquip: 'Équiper',
     shopUnequip: 'Déséquiper',
     shopEquipped: 'Équipé',
+    noEquipped: 'Aucun cosmétique équipé',
     shopPurchased: 'Acheté!',
     shopNotEnough: 'Pas assez de War Bucks',
     shopThemes: 'Thèmes de plateau',
@@ -4251,6 +4256,7 @@ const translations: Record<Language, Record<string, string>> = {
     shopEquip: 'Equipar',
     shopUnequip: 'Desequipar',
     shopEquipped: 'Equipado',
+    noEquipped: 'Sin cosméticos equipados',
     shopPurchased: '¡Comprado!',
     shopNotEnough: 'No hay suficientes War Bucks',
     shopThemes: 'Temas de tablero',
@@ -10800,6 +10806,11 @@ function render() {
       // Back button
       document.getElementById('back-btn')?.addEventListener('click', () => {
         showSettings = false
+        // Return to multiplayer lobby if that's where we came from
+        if (previousAuthScreen === 'multiplayer') {
+          showAuthScreen = 'multiplayer'
+          previousAuthScreen = 'none'
+        }
         render()
       })
       return
@@ -11245,7 +11256,8 @@ function render() {
       `
 
       document.getElementById('shop-back-btn')?.addEventListener('click', () => {
-        showAuthScreen = 'profile'
+        showAuthScreen = previousAuthScreen === 'multiplayer' ? 'multiplayer' : 'profile'
+        previousAuthScreen = 'none'
         render()
       })
 
@@ -11537,7 +11549,7 @@ function render() {
           render()
         })
         // Listen for responses to invites we sent
-        listenToSentInvites((invite) => {
+        listenToSentInvites(async (invite) => {
           if (invite.status === 'declined') {
             inviteDeclinedMessage = `${invite.toUserId} ${t('inviteDeclined')}`
             setTimeout(() => {
@@ -11548,17 +11560,19 @@ function render() {
           } else if (invite.status === 'accepted' && invite.gameId) {
             // Our invite was accepted! Join the game
             multiplayerGameId = invite.gameId
-            joinGame(invite.gameId)
+            await joinGame(invite.gameId)
             listenToGame(invite.gameId, (game) => {
               if (game) {
                 multiplayerGame = game
                 multiplayerTeam = getMyTeamInGame(game)
+                render() // Update UI to show waiting/joining state
                 if (game.status === 'playing') {
                   // Both players ready - start game!
                   startMultiplayerGame()
                 }
               }
             })
+            render() // Show waiting state immediately
           }
         })
       }
@@ -11571,6 +11585,26 @@ function render() {
           <div class="text-blue-400 font-bold">👤 ${userData.username}</div>
           <div class="${multiplayerListening ? 'text-green-400' : 'text-gray-400'} text-sm">
             ${multiplayerListening ? '🟢 ' + t('youAreOnline') : '⚫ ' + t('youAreOfflineMulti')}
+          </div>
+
+          <!-- Cosmetics Quick Access -->
+          <div class="flex gap-2">
+            <button id="mp-shop-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded flex items-center gap-2">
+              🛒 ${t('shopTitle')}
+            </button>
+            <button id="mp-settings-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded flex items-center gap-2">
+              ⚙️ ${t('settingsButton')}
+            </button>
+          </div>
+
+          <!-- Currently Equipped -->
+          <div class="bg-gray-800 p-3 rounded-lg text-sm flex flex-wrap gap-2 justify-center">
+            ${equippedTheme ? `<span class="bg-gray-700 px-2 py-1 rounded text-purple-300">🎨 ${SHOP_ITEMS.find(i => i.id === equippedTheme)?.name || 'Theme'}</span>` : ''}
+            ${equippedPieceSkin ? `<span class="bg-gray-700 px-2 py-1 rounded text-blue-300">⚔️ ${SHOP_ITEMS.find(i => i.id === equippedPieceSkin)?.name || 'Skin'}</span>` : ''}
+            ${equippedEffect ? `<span class="bg-gray-700 px-2 py-1 rounded text-yellow-300">✨ ${SHOP_ITEMS.find(i => i.id === equippedEffect)?.name || 'Effect'}</span>` : ''}
+            ${equippedSoundPack ? `<span class="bg-gray-700 px-2 py-1 rounded text-green-300">🔊 ${SHOP_ITEMS.find(i => i.id === equippedSoundPack)?.name || 'Sounds'}</span>` : ''}
+            ${equippedMusicPack ? `<span class="bg-gray-700 px-2 py-1 rounded text-red-300">🎵 ${SHOP_ITEMS.find(i => i.id === equippedMusicPack)?.name || 'Music'}</span>` : ''}
+            ${!equippedTheme && !equippedPieceSkin && !equippedEffect && !equippedSoundPack && !equippedMusicPack ? `<span class="text-gray-500">${t('noEquipped') || 'No cosmetics equipped'}</span>` : ''}
           </div>
           ` : ''}
 
@@ -11743,6 +11777,7 @@ function render() {
               listenToGame(result.gameId, (game) => {
                 if (game) {
                   multiplayerGame = game
+                  render() // Update UI to show game state changes
                   if (game.status === 'playing') {
                     // Both players ready - start game!
                     startMultiplayerGame()
@@ -11763,6 +11798,20 @@ function render() {
             await declineInvite(inviteId)
           }
         })
+      })
+
+      // Shop button in multiplayer lobby
+      document.getElementById('mp-shop-btn')?.addEventListener('click', () => {
+        previousAuthScreen = 'multiplayer'
+        showAuthScreen = 'shop'
+        render()
+      })
+
+      // Settings button in multiplayer lobby
+      document.getElementById('mp-settings-btn')?.addEventListener('click', () => {
+        previousAuthScreen = 'multiplayer'
+        showSettings = true
+        render()
       })
 
       return
