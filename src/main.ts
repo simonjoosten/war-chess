@@ -52,7 +52,15 @@ import {
   adminGiveAllItems,
   adminResetUser,
   adminGiveItemToAll,
-  adminGiveWarBucksToAll
+  adminGiveWarBucksToAll,
+  // Events
+  GameEvent,
+  adminCreateEvent,
+  getActiveEvents,
+  adminGetAllEvents,
+  adminDeleteEvent,
+  adminToggleEvent,
+  claimEventReward
 } from './firebase'
 
 // Auth state
@@ -15357,12 +15365,14 @@ function render() {
         return
       }
 
-      // Search state for admin panel
+      // Admin panel state
+      let adminTab: 'users' | 'events' | 'system' = 'users'
       let adminSearchQuery = ''
+      let showCreateEvent = false
 
       const renderAdminPanel = async () => {
         const allUsers = await getAllUsers()
-        // Filter users based on search query
+        const allEvents = await adminGetAllEvents()
         const users = adminSearchQuery
           ? allUsers.filter(u =>
               u.username.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
@@ -15370,230 +15380,270 @@ function render() {
             )
           : allUsers
 
+        const tabClass = (tab: string) => adminTab === tab
+          ? 'bg-blue-600 text-white'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+
         app.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
             <h1 class="text-2xl sm:text-4xl font-bold text-white">🔧 Admin Panel</h1>
 
-            <!-- Search bar -->
-            <div class="w-full max-w-[800px]">
-              <input type="text" id="admin-search" placeholder="Search users by name or email..."
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                value="${adminSearchQuery}">
+            <!-- Tabs -->
+            <div class="flex gap-2">
+              <button id="tab-users" class="${tabClass('users')} font-bold py-2 px-4 rounded transition-colors">
+                👥 Users
+              </button>
+              <button id="tab-events" class="${tabClass('events')} font-bold py-2 px-4 rounded transition-colors">
+                📢 Events
+              </button>
+              <button id="tab-system" class="${tabClass('system')} font-bold py-2 px-4 rounded transition-colors">
+                🖥️ System
+              </button>
             </div>
 
             <div class="w-full max-w-[800px] flex flex-col gap-4">
-              <div class="bg-gray-800 p-4 rounded-lg">
-                <h2 class="text-lg font-bold text-white mb-4">👥 All Users (${users.length}${adminSearchQuery ? ` of ${allUsers.length}` : ''})</h2>
-                ${users.length === 0 ? `
-                  <div class="text-gray-400 text-center py-4">
-                    ${adminSearchQuery ? 'No users found matching your search.' : 'No users found. This could be a permissions issue.'}
-                  </div>
-                ` : ''}
-                <div class="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
-                  ${users.map(user => `
-                    <div class="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                          <span class="text-white font-bold">${user.username}</span>
-                          ${user.isAdmin ? '<span class="text-red-400 text-xs bg-red-900/50 px-2 py-1 rounded">ADMIN</span>' : ''}
+              ${adminTab === 'users' ? `
+                <!-- Users Tab -->
+                <div class="w-full">
+                  <input type="text" id="admin-search" placeholder="Search users..."
+                    class="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none mb-4"
+                    value="${adminSearchQuery}">
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">👥 Users (${users.length}${adminSearchQuery ? ` of ${allUsers.length}` : ''})</h2>
+                  ${users.length === 0 ? `
+                    <div class="text-gray-400 text-center py-4">
+                      ${adminSearchQuery ? 'No users found.' : 'No users found. Check Firebase rules.'}
+                    </div>
+                  ` : `
+                    <div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+                      ${users.map(user => `
+                        <div class="bg-gray-700 p-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                              <span class="text-white font-bold">${user.username}</span>
+                              ${user.isAdmin ? '<span class="text-red-400 text-xs bg-red-900/50 px-2 py-0.5 rounded">ADMIN</span>' : ''}
+                            </div>
+                            <div class="text-gray-400 text-xs">${user.email}</div>
+                            <div class="text-yellow-400 text-xs">💰 ${user.warBucks || 0}</div>
+                          </div>
+                          <div class="flex flex-wrap gap-1">
+                            <button class="admin-give-bucks bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+100💰</button>
+                            <button class="admin-give-all-items bg-purple-600 hover:bg-purple-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Items</button>
+                            <button class="admin-reset-user bg-orange-600 hover:bg-orange-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Reset</button>
+                            ${!user.isAdmin
+                              ? `<button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+Admin</button>`
+                              : `<button class="admin-remove-admin bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">-Admin</button>`
+                            }
+                          </div>
                         </div>
-                        <div class="text-gray-400 text-sm">${user.email}</div>
-                        <div class="text-yellow-400 text-sm">💰 ${user.warBucks} War Bucks</div>
-                        <div class="text-gray-400 text-xs">Games: ${user.stats?.gamesPlayed || 0} | Won: ${user.stats?.gamesWon || 0}</div>
-                      </div>
-                      <div class="flex flex-wrap gap-2">
-                        <button class="admin-give-bucks bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
-                          +100 💰
-                        </button>
-                        <button class="admin-give-bucks-1000 bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
-                          +1000 💰
-                        </button>
-                        <button class="admin-give-all-items bg-purple-600 hover:bg-purple-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
-                          All Items
-                        </button>
-                        <button class="admin-reset-user bg-orange-600 hover:bg-orange-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
-                          Reset
-                        </button>
-                        ${!user.isAdmin ? `
-                        <button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
-                          Make Admin
-                        </button>
-                        ` : `
-                        <button class="admin-remove-admin bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
-                          Remove Admin
-                        </button>
-                        `}
+                      `).join('')}
+                    </div>
+                  `}
+                </div>
+                <!-- Global User Actions -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-3">🌐 Global Actions</h2>
+                  <div class="flex flex-wrap gap-2">
+                    <button id="admin-give-all-bucks" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-3 rounded text-sm">Everyone +100💰</button>
+                    <button id="admin-give-all-bucks-1000" class="bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded text-sm">Everyone +1000💰</button>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${adminTab === 'events' ? `
+                <!-- Events Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">📢 Events (${allEvents.length})</h2>
+                    <button id="toggle-create-event" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded text-sm">
+                      ${showCreateEvent ? '✕ Cancel' : '+ New Event'}
+                    </button>
+                  </div>
+
+                  ${showCreateEvent ? `
+                    <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                      <h3 class="text-white font-bold mb-3">Create New Event</h3>
+                      <div class="flex flex-col gap-3">
+                        <select id="event-type" class="bg-gray-600 text-white px-3 py-2 rounded">
+                          <option value="announcement">📢 Announcement</option>
+                          <option value="event">🎉 Event</option>
+                          <option value="reward">🎁 Reward</option>
+                          <option value="maintenance">🔧 Maintenance</option>
+                          <option value="update">🆕 Update</option>
+                        </select>
+                        <input type="text" id="event-title" placeholder="Event title..." class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <textarea id="event-message" placeholder="Event message..." class="bg-gray-600 text-white px-3 py-2 rounded h-20"></textarea>
+                        <div class="flex gap-2 items-center">
+                          <label class="text-white text-sm">Reward:</label>
+                          <select id="event-reward-type" class="bg-gray-600 text-white px-2 py-1 rounded text-sm">
+                            <option value="">No reward</option>
+                            <option value="warBucks">War Bucks</option>
+                            <option value="item">Item</option>
+                          </select>
+                          <input type="number" id="event-reward-amount" placeholder="Amount" class="bg-gray-600 text-white px-2 py-1 rounded w-20 text-sm">
+                        </div>
+                        <button id="create-event-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded">Create Event</button>
                       </div>
                     </div>
-                  `).join('')}
-                </div>
-              </div>
+                  ` : ''}
 
-              <!-- Global Admin Tools -->
-              <div class="bg-gray-800 p-4 rounded-lg">
-                <h2 class="text-lg font-bold text-white mb-4">🌐 Global Actions</h2>
-                <div class="flex flex-wrap gap-3">
-                  <button id="admin-give-all-bucks" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
-                    Give Everyone +100 💰
-                  </button>
-                  <button id="admin-give-all-bucks-1000" class="bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
-                    Give Everyone +1000 💰
-                  </button>
-                  <select id="admin-global-item-select" class="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600">
-                    <option value="">Select item to give all...</option>
-                    ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name}</option>`).join('')}
-                  </select>
-                  <button id="admin-give-all-item" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
-                    Give Item to All
-                  </button>
-                </div>
-              </div>
-
-              <!-- Server/System Tools -->
-              <div class="bg-gray-800 p-4 rounded-lg">
-                <h2 class="text-lg font-bold text-white mb-4">🖥️ System</h2>
-                <div class="flex flex-wrap gap-3">
-                  <div class="text-gray-400 text-sm">
-                    Total Users: <span class="text-white font-bold">${allUsers.length}</span> |
-                    Total Admins: <span class="text-red-400 font-bold">${allUsers.filter(u => u.isAdmin).length}</span>
+                  <div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+                    ${allEvents.length === 0 ? `
+                      <div class="text-gray-400 text-center py-4">No events yet.</div>
+                    ` : allEvents.map(event => `
+                      <div class="bg-gray-700 p-3 rounded-lg ${!event.active ? 'opacity-50' : ''}">
+                        <div class="flex justify-between items-start">
+                          <div>
+                            <div class="flex items-center gap-2">
+                              <span class="text-xl">${event.icon || '📢'}</span>
+                              <span class="text-white font-bold">${event.title}</span>
+                              <span class="text-xs ${event.active ? 'text-green-400' : 'text-gray-400'}">${event.active ? 'Active' : 'Inactive'}</span>
+                            </div>
+                            <div class="text-gray-300 text-sm mt-1">${event.message}</div>
+                            <div class="text-gray-400 text-xs mt-1">By ${event.createdBy} • ${new Date(event.createdAt).toLocaleDateString()}</div>
+                            ${event.rewardType ? `<div class="text-yellow-400 text-xs">Reward: ${event.rewardType === 'warBucks' ? `${event.rewardAmount}💰` : 'Item'} • Claimed: ${event.claimedBy?.length || 0}</div>` : ''}
+                          </div>
+                          <div class="flex gap-1">
+                            <button class="toggle-event-btn ${event.active ? 'bg-gray-600' : 'bg-green-600'} hover:opacity-80 text-white text-xs py-1 px-2 rounded" data-eventid="${event.id}" data-active="${event.active}">
+                              ${event.active ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="delete-event-btn bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-eventid="${event.id}">Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
                   </div>
                 </div>
-              </div>
+              ` : ''}
+
+              ${adminTab === 'system' ? `
+                <!-- System Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">🖥️ System Stats</h2>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-700 p-4 rounded-lg text-center">
+                      <div class="text-3xl font-bold text-white">${allUsers.length}</div>
+                      <div class="text-gray-400 text-sm">Total Users</div>
+                    </div>
+                    <div class="bg-gray-700 p-4 rounded-lg text-center">
+                      <div class="text-3xl font-bold text-red-400">${allUsers.filter(u => u.isAdmin).length}</div>
+                      <div class="text-gray-400 text-sm">Admins</div>
+                    </div>
+                    <div class="bg-gray-700 p-4 rounded-lg text-center">
+                      <div class="text-3xl font-bold text-green-400">${allEvents.filter(e => e.active).length}</div>
+                      <div class="text-gray-400 text-sm">Active Events</div>
+                    </div>
+                    <div class="bg-gray-700 p-4 rounded-lg text-center">
+                      <div class="text-3xl font-bold text-yellow-400">${allUsers.reduce((sum, u) => sum + (u.warBucks || 0), 0)}</div>
+                      <div class="text-gray-400 text-sm">Total War Bucks</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">🔧 Quick Actions</h2>
+                  <div class="flex flex-wrap gap-2">
+                    <button id="admin-give-all-bucks-sys" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded text-sm">Give All +100💰</button>
+                  </div>
+                </div>
+              ` : ''}
             </div>
 
-            <button id="admin-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
-              Back
-            </button>
+            <button id="admin-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">Back</button>
           </div>
         `
 
-        document.getElementById('admin-back-btn')?.addEventListener('click', () => {
-          showAuthScreen = 'profile'
-          render()
-        })
+        // Tab navigation
+        document.getElementById('tab-users')?.addEventListener('click', () => { adminTab = 'users'; renderAdminPanel() })
+        document.getElementById('tab-events')?.addEventListener('click', () => { adminTab = 'events'; renderAdminPanel() })
+        document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
-        // Give 100 war bucks
+        document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
+
+        // User actions
         document.querySelectorAll('.admin-give-bucks').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLElement
-            const userId = target.dataset.userid
-            if (userId) {
-              await adminGiveWarBucks(userId, 100)
-              renderAdminPanel()
-            }
+            const userId = (e.target as HTMLElement).dataset.userid
+            if (userId) { await adminGiveWarBucks(userId, 100); renderAdminPanel() }
           })
         })
-
-        // Give 1000 war bucks
-        document.querySelectorAll('.admin-give-bucks-1000').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLElement
-            const userId = target.dataset.userid
-            if (userId) {
-              await adminGiveWarBucks(userId, 1000)
-              renderAdminPanel()
-            }
-          })
-        })
-
-        // Make admin
-        document.querySelectorAll('.admin-make-admin').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLElement
-            const userId = target.dataset.userid
-            if (userId) {
-              await adminSetAdmin(userId, true)
-              renderAdminPanel()
-            }
-          })
-        })
-
-        // Remove admin
-        document.querySelectorAll('.admin-remove-admin').forEach(btn => {
-          btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLElement
-            const userId = target.dataset.userid
-            if (userId) {
-              await adminSetAdmin(userId, false)
-              renderAdminPanel()
-            }
-          })
-        })
-
-        // Give all items to user
         document.querySelectorAll('.admin-give-all-items').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLElement
-            const userId = target.dataset.userid
-            if (userId && confirm('Give ALL shop items to this user?')) {
-              await adminGiveAllItems(userId)
-              renderAdminPanel()
-            }
+            const userId = (e.target as HTMLElement).dataset.userid
+            if (userId && confirm('Give ALL items?')) { await adminGiveAllItems(userId); renderAdminPanel() }
           })
         })
-
-        // Reset user
         document.querySelectorAll('.admin-reset-user').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const target = e.target as HTMLElement
-            const userId = target.dataset.userid
-            if (userId && confirm('Reset this user? This will clear their stats, items, and war bucks!')) {
-              await adminResetUser(userId)
-              renderAdminPanel()
-            }
+            const userId = (e.target as HTMLElement).dataset.userid
+            if (userId && confirm('Reset user?')) { await adminResetUser(userId); renderAdminPanel() }
+          })
+        })
+        document.querySelectorAll('.admin-make-admin').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const userId = (e.target as HTMLElement).dataset.userid
+            if (userId) { await adminSetAdmin(userId, true); renderAdminPanel() }
+          })
+        })
+        document.querySelectorAll('.admin-remove-admin').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const userId = (e.target as HTMLElement).dataset.userid
+            if (userId) { await adminSetAdmin(userId, false); renderAdminPanel() }
           })
         })
 
-        // Global: Give everyone war bucks
+        // Global actions
         document.getElementById('admin-give-all-bucks')?.addEventListener('click', async () => {
-          if (confirm('Give +100 War Bucks to ALL users?')) {
-            const count = await adminGiveWarBucksToAll(100)
-            alert(`Gave 100 War Bucks to ${count} users!`)
-            renderAdminPanel()
-          }
+          if (confirm('Give +100 to ALL?')) { const c = await adminGiveWarBucksToAll(100); alert(`Gave to ${c} users!`); renderAdminPanel() }
         })
-
         document.getElementById('admin-give-all-bucks-1000')?.addEventListener('click', async () => {
-          if (confirm('Give +1000 War Bucks to ALL users?')) {
-            const count = await adminGiveWarBucksToAll(1000)
-            alert(`Gave 1000 War Bucks to ${count} users!`)
-            renderAdminPanel()
-          }
+          if (confirm('Give +1000 to ALL?')) { const c = await adminGiveWarBucksToAll(1000); alert(`Gave to ${c} users!`); renderAdminPanel() }
+        })
+        document.getElementById('admin-give-all-bucks-sys')?.addEventListener('click', async () => {
+          if (confirm('Give +100 to ALL?')) { const c = await adminGiveWarBucksToAll(100); alert(`Gave to ${c} users!`); renderAdminPanel() }
         })
 
-        // Global: Give item to all
-        document.getElementById('admin-give-all-item')?.addEventListener('click', async () => {
-          const select = document.getElementById('admin-global-item-select') as HTMLSelectElement
-          const itemId = select?.value
-          if (itemId && confirm(`Give this item to ALL users?`)) {
-            const count = await adminGiveItemToAll(itemId)
-            alert(`Gave item to ${count} users!`)
-            renderAdminPanel()
-          } else if (!itemId) {
-            alert('Please select an item first!')
-          }
+        // Search
+        document.getElementById('admin-search')?.addEventListener('input', (e) => {
+          adminSearchQuery = (e.target as HTMLInputElement).value
+          renderAdminPanel()
         })
 
-        // Search functionality
-        const searchInput = document.getElementById('admin-search') as HTMLInputElement
-        if (searchInput) {
-          searchInput.addEventListener('input', (e) => {
-            adminSearchQuery = (e.target as HTMLInputElement).value
-            renderAdminPanel()
+        // Events
+        document.getElementById('toggle-create-event')?.addEventListener('click', () => { showCreateEvent = !showCreateEvent; renderAdminPanel() })
+        document.getElementById('create-event-btn')?.addEventListener('click', async () => {
+          const type = (document.getElementById('event-type') as HTMLSelectElement).value as GameEvent['type']
+          const title = (document.getElementById('event-title') as HTMLInputElement).value
+          const message = (document.getElementById('event-message') as HTMLTextAreaElement).value
+          const rewardType = (document.getElementById('event-reward-type') as HTMLSelectElement).value as 'warBucks' | 'item' | ''
+          const rewardAmount = parseInt((document.getElementById('event-reward-amount') as HTMLInputElement).value) || 0
+
+          if (!title || !message) { alert('Title and message required!'); return }
+
+          const icons: Record<string, string> = { announcement: '📢', event: '🎉', reward: '🎁', maintenance: '🔧', update: '🆕' }
+          await adminCreateEvent({
+            type, title, message, icon: icons[type] || '📢', active: true,
+            ...(rewardType && rewardAmount ? { rewardType, rewardAmount } : {})
           })
-          // Focus on search input and set cursor at end
-          searchInput.focus()
-          searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length)
-        }
+          showCreateEvent = false
+          renderAdminPanel()
+        })
+        document.querySelectorAll('.toggle-event-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const eventId = (e.target as HTMLElement).dataset.eventid
+            const isActive = (e.target as HTMLElement).dataset.active === 'true'
+            if (eventId) { await adminToggleEvent(eventId, !isActive); renderAdminPanel() }
+          })
+        })
+        document.querySelectorAll('.delete-event-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const eventId = (e.target as HTMLElement).dataset.eventid
+            if (eventId && confirm('Delete event?')) { await adminDeleteEvent(eventId); renderAdminPanel() }
+          })
+        })
       }
 
-      // Show loading state
-      app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-4">
-          <div class="text-white text-xl">Loading admin panel...</div>
-        </div>
-      `
-
+      app.innerHTML = `<div class="min-h-screen flex items-center justify-center"><div class="text-white text-xl">Loading...</div></div>`
       renderAdminPanel()
       return
     }

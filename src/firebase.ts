@@ -1243,3 +1243,143 @@ export async function adminGiveWarBucksToAll(amount: number): Promise<number> {
     return 0
   }
 }
+
+// ==================== EVENTS SYSTEM ====================
+
+export interface GameEvent {
+  id: string
+  type: 'announcement' | 'maintenance' | 'event' | 'reward' | 'update'
+  title: string
+  message: string
+  icon: string
+  createdAt: number
+  expiresAt?: number // Optional expiration timestamp
+  createdBy: string
+  active: boolean
+  // For reward events
+  rewardType?: 'warBucks' | 'item'
+  rewardAmount?: number
+  rewardItemId?: string
+  claimedBy?: string[] // User IDs who claimed the reward
+}
+
+// Create a new event
+export async function adminCreateEvent(event: Omit<GameEvent, 'id' | 'createdAt' | 'createdBy' | 'claimedBy'>): Promise<string | null> {
+  if (!db || !isCurrentUserAdmin() || !currentUserData) return null
+
+  try {
+    const eventRef = doc(collection(db, 'events'))
+    const newEvent: Omit<GameEvent, 'id'> = {
+      ...event,
+      createdAt: Date.now(),
+      createdBy: currentUserData.username,
+      claimedBy: []
+    }
+    await setDoc(eventRef, newEvent)
+    return eventRef.id
+  } catch (error) {
+    console.error('Error creating event:', error)
+    return null
+  }
+}
+
+// Get all active events
+export async function getActiveEvents(): Promise<GameEvent[]> {
+  if (!db) return []
+
+  try {
+    const eventsSnapshot = await getDocs(collection(db, 'events'))
+    const now = Date.now()
+    return eventsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as GameEvent))
+      .filter(event => event.active && (!event.expiresAt || event.expiresAt > now))
+      .sort((a, b) => b.createdAt - a.createdAt)
+  } catch (error) {
+    console.error('Error getting events:', error)
+    return []
+  }
+}
+
+// Get all events (for admin)
+export async function adminGetAllEvents(): Promise<GameEvent[]> {
+  if (!db || !isCurrentUserAdmin()) return []
+
+  try {
+    const eventsSnapshot = await getDocs(collection(db, 'events'))
+    return eventsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as GameEvent))
+      .sort((a, b) => b.createdAt - a.createdAt)
+  } catch (error) {
+    console.error('Error getting all events:', error)
+    return []
+  }
+}
+
+// Delete an event
+export async function adminDeleteEvent(eventId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await deleteDoc(doc(db, 'events', eventId))
+    return true
+  } catch (error) {
+    console.error('Error deleting event:', error)
+    return false
+  }
+}
+
+// Toggle event active status
+export async function adminToggleEvent(eventId: string, active: boolean): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await updateDoc(doc(db, 'events', eventId), { active })
+    return true
+  } catch (error) {
+    console.error('Error toggling event:', error)
+    return false
+  }
+}
+
+// Claim event reward
+export async function claimEventReward(eventId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    const eventDoc = await getDoc(doc(db, 'events', eventId))
+    if (!eventDoc.exists()) return false
+
+    const event = { id: eventDoc.id, ...eventDoc.data() } as GameEvent
+
+    // Check if already claimed
+    if (event.claimedBy?.includes(currentUser.uid)) return false
+
+    // Check if event is active and not expired
+    if (!event.active || (event.expiresAt && event.expiresAt < Date.now())) return false
+
+    // Give reward
+    if (event.rewardType === 'warBucks' && event.rewardAmount) {
+      const newWarBucks = (currentUserData.warBucks || 0) + event.rewardAmount
+      await updateDoc(doc(db, 'users', currentUser.uid), { warBucks: newWarBucks })
+    } else if (event.rewardType === 'item' && event.rewardItemId) {
+      const purchasedItems = currentUserData.purchasedItems || []
+      if (!purchasedItems.includes(event.rewardItemId)) {
+        purchasedItems.push(event.rewardItemId)
+        await updateDoc(doc(db, 'users', currentUser.uid), { purchasedItems })
+      }
+    }
+
+    // Mark as claimed
+    const claimedBy = event.claimedBy || []
+    claimedBy.push(currentUser.uid)
+    await updateDoc(doc(db, 'events', eventId), { claimedBy })
+
+    // Reload user data
+    await loadUserData()
+
+    return true
+  } catch (error) {
+    console.error('Error claiming reward:', error)
+    return false
+  }
+}
