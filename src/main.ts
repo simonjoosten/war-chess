@@ -69,7 +69,8 @@ import {
   adminDeleteAllEvents,
   adminDeleteAllGames,
   adminGiveAllItemsToAll,
-  adminDeleteUser
+  adminDeleteUser,
+  adminCreateSampleEvents
 } from './firebase'
 
 // Auth state
@@ -15470,9 +15471,14 @@ function render() {
                 <div class="bg-gray-800 p-4 rounded-lg">
                   <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-white">📢 Events (${allEvents.length})</h2>
-                    <button id="toggle-create-event" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded text-sm">
-                      ${showCreateEvent ? '✕ Cancel' : '+ New Event'}
-                    </button>
+                    <div class="flex gap-2">
+                      <button id="create-sample-events" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        🎮 Sample Events
+                      </button>
+                      <button id="toggle-create-event" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        ${showCreateEvent ? '✕ Cancel' : '+ New Event'}
+                      </button>
+                    </div>
                   </div>
 
                   ${showCreateEvent ? `
@@ -15693,6 +15699,13 @@ function render() {
 
         // Events
         document.getElementById('toggle-create-event')?.addEventListener('click', () => { showCreateEvent = !showCreateEvent; renderAdminPanel() })
+        document.getElementById('create-sample-events')?.addEventListener('click', async () => {
+          if (confirm('Create sample events (game modes, rewards, announcements)?')) {
+            const count = await adminCreateSampleEvents()
+            alert(`Created ${count} sample events!`)
+            renderAdminPanel()
+          }
+        })
 
         // Show/hide game mode selector based on event type
         document.getElementById('event-type')?.addEventListener('change', (e) => {

@@ -1530,6 +1530,45 @@ export async function adminGiveAllItemsToAll(): Promise<number> {
   }
 }
 
+// Create sample/default events
+export async function adminCreateSampleEvents(): Promise<number> {
+  if (!db || !isCurrentUserAdmin() || !currentUserData) return 0
+
+  const sampleEvents: Array<Omit<GameEvent, 'id' | 'createdAt' | 'createdBy' | 'claimedBy'>> = [
+    // Game mode events
+    { type: 'gamemode', title: 'Disco Mode Active!', message: 'Party time! Flashing colors everywhere!', icon: '🪩', active: true, gameMode: 'disco' },
+    { type: 'gamemode', title: 'Jumpscare Mode!', message: 'Beware of random scary surprises...', icon: '👻', active: false, gameMode: 'jumpscare' },
+    { type: 'gamemode', title: 'Chaos Mode!', message: 'Everything is unpredictable!', icon: '🌀', active: false, gameMode: 'chaos' },
+    { type: 'gamemode', title: 'Rainbow Mode!', message: 'Beautiful rainbow colors!', icon: '🌈', active: false, gameMode: 'rainbow' },
+    { type: 'gamemode', title: 'Matrix Mode!', message: 'Enter the Matrix...', icon: '💊', active: false, gameMode: 'matrix' },
+    { type: 'gamemode', title: 'Earthquake Mode!', message: 'The board is shaking!', icon: '🌋', active: false, gameMode: 'earthquake' },
+    // Reward events
+    { type: 'reward', title: 'Welcome Bonus!', message: 'Claim your free War Bucks!', icon: '🎁', active: true, rewardType: 'warBucks', rewardAmount: 100 },
+    { type: 'reward', title: 'Weekend Special!', message: 'Extra War Bucks for everyone!', icon: '💰', active: false, rewardType: 'warBucks', rewardAmount: 250 },
+    // Announcement events
+    { type: 'announcement', title: 'Welcome to War Chess!', message: 'Thanks for playing! Have fun!', icon: '👋', active: true },
+    { type: 'update', title: 'New Features!', message: 'Check out the shop for new items!', icon: '🆕', active: true },
+  ]
+
+  let count = 0
+  for (const event of sampleEvents) {
+    try {
+      const eventRef = doc(collection(db, 'events'))
+      await setDoc(eventRef, {
+        ...event,
+        createdAt: Date.now(),
+        createdBy: currentUserData.username,
+        claimedBy: []
+      })
+      count++
+    } catch (e) {
+      console.error('Error creating sample event:', e)
+    }
+  }
+
+  return count
+}
+
 // Delete a user account completely
 export async function adminDeleteUser(userId: string): Promise<boolean> {
   if (!db || !isCurrentUserAdmin()) return false
