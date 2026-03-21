@@ -11885,7 +11885,9 @@ function render() {
         <div class="flex items-center gap-3 bg-gray-800 px-4 py-2 rounded-lg">
           <span class="text-blue-400">👤 ${userData.username}</span>
           <span class="text-yellow-400">💰 ${userData.warBucks}</span>
-          <button id="profile-btn" class="text-gray-400 hover:text-white">📊</button>
+          <button id="profile-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded flex items-center gap-1 text-sm">
+            📊 ${t('profileStats') || 'Stats'}
+          </button>
         </div>
         ` : isOffline() ? `
         <div class="bg-yellow-900 text-yellow-200 px-4 py-2 rounded text-sm">
