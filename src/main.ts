@@ -6971,15 +6971,15 @@ function getShootTargetsForTank(piece: Piece): { col: string; row: number }[] {
 
       const col = columns[colIndex]
 
-      // Check if shot is blocked by a barricade in the path
-      if (isShotBlockedByBarricade(piece.col, piece.row, col, row)) continue
+      // Check if shot is blocked by a barricade in the PATH (not at target)
+      if (isShotBlockedByBarricadePath(piece.col, piece.row, col, row)) continue
 
       const pieceAtTarget = getPieceAt(col, row)
 
-      // Can only shoot if there's an enemy piece there
+      // Can shoot enemy pieces or enemy barricades
       if (pieceAtTarget && pieceAtTarget.team !== piece.team) {
-        // Check if target is in trench or tunnel (cannot be shot)
-        if (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel) {
+        // Check if target is in trench or tunnel (cannot be shot) - but barricades can always be shot
+        if (pieceAtTarget.type === 'barricade' || (!pieceAtTarget.inTrench && !pieceAtTarget.inTunnel)) {
           targets.push({ col, row })
         }
       }
@@ -9139,10 +9139,210 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const inTrench = piece.inTrench
     const inTunnel = piece.inTunnel
     const skinColors = getSkinColors(piece.team)
+    const skinStyle = getCurrentSkinStyle()
+    const trenchIndicator = inTrench ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#5c4033" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">⚔</text>` : ''
+    const tunnelIndicator = inTunnel ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#333" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">🚇</text>` : ''
+
+    // ROBOT SKIN - Mechanical robot soldier
+    if (skinStyle === 'robot') {
+      const metalColor = skinColors.primary
+      const darkMetal = skinColors.uniform
+      const glowColor = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.4)" />
+          <!-- Robot feet -->
+          <rect x="${x + 16}" y="${y + 42}" width="8" height="5" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <rect x="${x + 26}" y="${y + 42}" width="8" height="5" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <!-- Robot legs -->
+          <rect x="${x + 17}" y="${y + 32}" width="6" height="11" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 27}" y="${y + 32}" width="6" height="11" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <!-- Hydraulic joints -->
+          <circle cx="${x + 20}" cy="${y + 37}" r="2" fill="${metalColor}" />
+          <circle cx="${x + 30}" cy="${y + 37}" r="2" fill="${metalColor}" />
+          <!-- Robot torso -->
+          <rect x="${x + 14}" y="${y + 18}" width="22" height="14" rx="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Chest panel -->
+          <rect x="${x + 18}" y="${y + 20}" width="14" height="8" rx="1" fill="#111" stroke="${metalColor}" stroke-width="0.5" />
+          <!-- Chest lights -->
+          <circle cx="${x + 22}" cy="${y + 24}" r="2" fill="${glowColor}">
+            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 28}" cy="${y + 24}" r="2" fill="${glowColor}">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Robot arms -->
+          <rect x="${x + 8}" y="${y + 19}" width="6" height="12" rx="2" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 36}" y="${y + 19}" width="6" height="12" rx="2" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <!-- Robot hands/claws -->
+          <rect x="${x + 9}" y="${y + 31}" width="4" height="4" fill="${metalColor}" />
+          <rect x="${x + 37}" y="${y + 31}" width="4" height="4" fill="${metalColor}" />
+          <!-- Robot head -->
+          <rect x="${x + 16}" y="${y + 6}" width="18" height="14" rx="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Visor -->
+          <rect x="${x + 18}" y="${y + 9}" width="14" height="5" rx="1" fill="${glowColor}" opacity="0.8">
+            <animate attributeName="opacity" values="0.8;0.4;0.8" dur="2s" repeatCount="indefinite" />
+          </rect>
+          <!-- Antenna -->
+          <rect x="${x + 24}" y="${y + 2}" width="2" height="5" fill="${metalColor}" />
+          <circle cx="${x + 25}" cy="${y + 2}" r="2" fill="${glowColor}">
+            <animate attributeName="opacity" values="1;0;1" dur="0.5s" repeatCount="indefinite" />
+          </circle>
+          <!-- Laser gun -->
+          <rect x="${x + 38}" y="${y + 24}" width="10" height="4" rx="1" fill="${metalColor}" />
+          <rect x="${x + 46}" y="${y + 25}" width="4" height="2" fill="${glowColor}" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Knight soldier
+    if (skinStyle === 'medieval') {
+      const armorColor = skinColors.primary
+      const armorDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.4)" />
+          <!-- Armored boots -->
+          <rect x="${x + 16}" y="${y + 42}" width="8" height="5" rx="1" fill="${armorDark}" stroke="#1a1a1a" stroke-width="0.5" />
+          <rect x="${x + 26}" y="${y + 42}" width="8" height="5" rx="1" fill="${armorDark}" stroke="#1a1a1a" stroke-width="0.5" />
+          <!-- Leg armor -->
+          <rect x="${x + 17}" y="${y + 32}" width="6" height="11" fill="${armorColor}" stroke="${armorDark}" stroke-width="0.5" />
+          <rect x="${x + 27}" y="${y + 32}" width="6" height="11" fill="${armorColor}" stroke="${armorDark}" stroke-width="0.5" />
+          <!-- Chainmail skirt -->
+          <rect x="${x + 14}" y="${y + 28}" width="22" height="6" fill="${armorDark}" />
+          <line x1="${x + 16}" y1="${y + 30}" x2="${x + 34}" y2="${y + 30}" stroke="${armorColor}" stroke-width="0.5" stroke-dasharray="2,1" />
+          <line x1="${x + 16}" y1="${y + 32}" x2="${x + 34}" y2="${y + 32}" stroke="${armorColor}" stroke-width="0.5" stroke-dasharray="2,1" />
+          <!-- Chest plate -->
+          <path d="M${x + 14} ${y + 28} L${x + 14} ${y + 18} Q${x + 25} ${y + 14} ${x + 36} ${y + 18} L${x + 36} ${y + 28} Z" fill="${armorColor}" stroke="${armorDark}" stroke-width="1" />
+          <!-- Cross emblem -->
+          <rect x="${x + 23}" y="${y + 18}" width="4" height="10" fill="${teamColor}" />
+          <rect x="${x + 19}" y="${y + 21}" width="12" height="4" fill="${teamColor}" />
+          <!-- Pauldrons (shoulder armor) -->
+          <ellipse cx="${x + 12}" cy="${y + 20}" rx="5" ry="4" fill="${armorColor}" stroke="${armorDark}" stroke-width="1" />
+          <ellipse cx="${x + 38}" cy="${y + 20}" rx="5" ry="4" fill="${armorColor}" stroke="${armorDark}" stroke-width="1" />
+          <!-- Arms -->
+          <rect x="${x + 8}" y="${y + 22}" width="5" height="10" fill="${armorDark}" />
+          <rect x="${x + 37}" y="${y + 22}" width="5" height="10" fill="${armorDark}" />
+          <!-- Gauntlets -->
+          <rect x="${x + 7}" y="${y + 31}" width="6" height="4" rx="1" fill="${armorColor}" />
+          <rect x="${x + 37}" y="${y + 31}" width="6" height="4" rx="1" fill="${armorColor}" />
+          <!-- Knight helmet -->
+          <ellipse cx="${x + 25}" cy="${y + 10}" rx="11" ry="9" fill="${armorColor}" stroke="${armorDark}" stroke-width="1" />
+          <!-- Helmet visor -->
+          <rect x="${x + 18}" y="${y + 10}" width="14" height="6" fill="${armorDark}" />
+          <line x1="${x + 18}" y1="${y + 11}" x2="${x + 32}" y2="${y + 11}" stroke="${armorColor}" stroke-width="1" />
+          <line x1="${x + 18}" y1="${y + 13}" x2="${x + 32}" y2="${y + 13}" stroke="${armorColor}" stroke-width="1" />
+          <line x1="${x + 18}" y1="${y + 15}" x2="${x + 32}" y2="${y + 15}" stroke="${armorColor}" stroke-width="1" />
+          <!-- Helmet plume -->
+          <path d="M${x + 25} ${y + 1} Q${x + 30} ${y + 3} ${x + 28} ${y + 6} Q${x + 25} ${y + 4} ${x + 22} ${y + 6} Q${x + 20} ${y + 3} ${x + 25} ${y + 1}" fill="${teamColor}" />
+          <!-- Sword -->
+          <rect x="${x + 40}" y="${y + 12}" width="2" height="22" fill="${armorColor}" />
+          <rect x="${x + 37}" y="${y + 32}" width="8" height="3" rx="1" fill="${armorDark}" />
+          <rect x="${x + 40}" y="${y + 10}" width="2" height="4" fill="${teamColor}" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit blocky soldier
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      const c3 = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.4)" />
+          <!-- Pixel feet -->
+          <rect x="${x + 16}" y="${y + 42}" width="6" height="6" fill="#222" />
+          <rect x="${x + 28}" y="${y + 42}" width="6" height="6" fill="#222" />
+          <!-- Pixel legs -->
+          <rect x="${x + 16}" y="${y + 32}" width="6" height="10" fill="${c3}" />
+          <rect x="${x + 28}" y="${y + 32}" width="6" height="10" fill="${c3}" />
+          <!-- Pixel body -->
+          <rect x="${x + 12}" y="${y + 18}" width="26" height="14" fill="${c2}" />
+          <rect x="${x + 14}" y="${y + 20}" width="22" height="10" fill="${c1}" />
+          <!-- Pixel arms -->
+          <rect x="${x + 6}" y="${y + 18}" width="6" height="14" fill="${c2}" />
+          <rect x="${x + 38}" y="${y + 18}" width="6" height="14" fill="${c2}" />
+          <!-- Pixel hands -->
+          <rect x="${x + 6}" y="${y + 32}" width="6" height="4" fill="#dba574" />
+          <rect x="${x + 38}" y="${y + 32}" width="6" height="4" fill="#dba574" />
+          <!-- Pixel head -->
+          <rect x="${x + 14}" y="${y + 4}" width="22" height="14" fill="${c1}" />
+          <!-- Pixel face -->
+          <rect x="${x + 16}" y="${y + 10}" width="18" height="6" fill="#dba574" />
+          <!-- Pixel eyes -->
+          <rect x="${x + 18}" y="${y + 12}" width="4" height="2" fill="#000" />
+          <rect x="${x + 28}" y="${y + 12}" width="4" height="2" fill="#000" />
+          <!-- Pixel helmet stripe -->
+          <rect x="${x + 14}" y="${y + 6}" width="22" height="4" fill="${c2}" />
+          <!-- Pixel gun -->
+          <rect x="${x + 42}" y="${y + 22}" width="8" height="4" fill="#444" />
+          <rect x="${x + 46}" y="${y + 18}" width="4" height="4" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 2}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Magical warrior
+    if (skinStyle === 'fantasy') {
+      const magicColor = skinColors.primary
+      const robeColor = skinColors.uniform
+      const robeDark = skinColors.uniformDark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="12" ry="3" fill="rgba(0,0,0,0.4)" />
+          <!-- Boots -->
+          <rect x="${x + 17}" y="${y + 42}" width="6" height="5" rx="1" fill="#3d2817" />
+          <rect x="${x + 27}" y="${y + 42}" width="6" height="5" rx="1" fill="#3d2817" />
+          <!-- Robe bottom -->
+          <path d="M${x + 12} ${y + 46} L${x + 16} ${y + 28} L${x + 34} ${y + 28} L${x + 38} ${y + 46} Z" fill="${robeColor}" stroke="${robeDark}" stroke-width="1" />
+          <!-- Robe body -->
+          <path d="M${x + 14} ${y + 28} L${x + 14} ${y + 16} Q${x + 25} ${y + 12} ${x + 36} ${y + 16} L${x + 36} ${y + 28} Z" fill="${robeColor}" stroke="${robeDark}" stroke-width="1" />
+          <!-- Magic runes on robe -->
+          <text x="${x + 25}" y="${y + 24}" text-anchor="middle" font-size="8" fill="${magicColor}" opacity="0.8">✧</text>
+          <!-- Sleeves -->
+          <path d="M${x + 14} ${y + 18} L${x + 6} ${y + 28} L${x + 10} ${y + 32} L${x + 16} ${y + 24} Z" fill="${robeColor}" stroke="${robeDark}" stroke-width="0.5" />
+          <path d="M${x + 36} ${y + 18} L${x + 44} ${y + 28} L${x + 40} ${y + 32} L${x + 34} ${y + 24} Z" fill="${robeColor}" stroke="${robeDark}" stroke-width="0.5" />
+          <!-- Hands -->
+          <circle cx="${x + 8}" cy="${y + 30}" r="3" fill="#d4a574" />
+          <circle cx="${x + 42}" cy="${y + 30}" r="3" fill="#d4a574" />
+          <!-- Hood -->
+          <path d="M${x + 14} ${y + 16} Q${x + 14} ${y + 4} ${x + 25} ${y + 2} Q${x + 36} ${y + 4} ${x + 36} ${y + 16} Q${x + 25} ${y + 12} ${x + 14} ${y + 16}" fill="${robeColor}" stroke="${robeDark}" stroke-width="1" />
+          <!-- Face in shadow -->
+          <ellipse cx="${x + 25}" cy="${y + 14}" rx="6" ry="5" fill="#2a2a2a" />
+          <!-- Glowing eyes -->
+          <circle cx="${x + 22}" cy="${y + 13}" r="1.5" fill="${magicColor}">
+            <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 28}" cy="${y + 13}" r="1.5" fill="${magicColor}">
+            <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <!-- Magic staff -->
+          <rect x="${x + 44}" y="${y + 10}" width="2" height="28" fill="#5c3d1e" />
+          <circle cx="${x + 45}" cy="${y + 8}" r="4" fill="${magicColor}" opacity="0.8">
+            <animate attributeName="r" values="4;5;4" dur="1.5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 45}" cy="${y + 8}" r="2" fill="#fff" />
+          <!-- Magic aura -->
+          <circle cx="${x + 25}" cy="${y + 25}" r="18" fill="none" stroke="${magicColor}" stroke-width="1" opacity="0.3">
+            <animate attributeName="r" values="18;22;18" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.3;0.1;0.3" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT MILITARY SKIN
     const uniformColor = skinColors.uniform
     const uniformDark = skinColors.uniformDark
     const helmetColor = skinColors.helmet
-    // Military soldier appearance
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
@@ -9153,16 +9353,16 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <!-- Legs with cargo pants -->
         <rect x="${x + 17}" y="${y + 32}" width="6" height="11" fill="${uniformColor}" />
         <rect x="${x + 27}" y="${y + 32}" width="6" height="11" fill="${uniformColor}" />
-        <rect x="${x + 18}" y="${y + 36}" width="4" height="3" fill="${uniformDark}" /> <!-- Pocket -->
-        <rect x="${x + 28}" y="${y + 36}" width="4" height="3" fill="${uniformDark}" /> <!-- Pocket -->
+        <rect x="${x + 18}" y="${y + 36}" width="4" height="3" fill="${uniformDark}" />
+        <rect x="${x + 28}" y="${y + 36}" width="4" height="3" fill="${uniformDark}" />
         <!-- Belt -->
         <rect x="${x + 14}" y="${y + 30}" width="22" height="3" fill="#2d2d2d" />
-        <rect x="${x + 23}" y="${y + 30}" width="4" height="3" fill="#b8860b" /> <!-- Buckle -->
+        <rect x="${x + 23}" y="${y + 30}" width="4" height="3" fill="#b8860b" />
         <!-- Body/Torso with tactical vest -->
         <rect x="${x + 14}" y="${y + 18}" width="22" height="13" rx="2" fill="${uniformColor}" stroke="${uniformDark}" stroke-width="1" />
         <!-- Vest details -->
-        <rect x="${x + 15}" y="${y + 19}" width="8" height="5" fill="${uniformDark}" rx="1" /> <!-- Left pocket -->
-        <rect x="${x + 27}" y="${y + 19}" width="8" height="5" fill="${uniformDark}" rx="1" /> <!-- Right pocket -->
+        <rect x="${x + 15}" y="${y + 19}" width="8" height="5" fill="${uniformDark}" rx="1" />
+        <rect x="${x + 27}" y="${y + 19}" width="8" height="5" fill="${uniformDark}" rx="1" />
         <line x1="${x + 25}" y1="${y + 18}" x2="${x + 25}" y2="${y + 30}" stroke="${uniformDark}" stroke-width="1" />
         <!-- Shoulders/epaulettes -->
         <rect x="${x + 12}" y="${y + 18}" width="4" height="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="0.5" />
@@ -9176,7 +9376,7 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <!-- Combat helmet -->
         <ellipse cx="${x + 25}" cy="${y + 12}" rx="11" ry="8" fill="${helmetColor}" />
         <ellipse cx="${x + 25}" cy="${y + 10}" rx="9" ry="6" fill="${helmetColor}" />
-        <path d="M${x + 14} ${y + 14} Q${x + 25} ${y + 8} ${x + 36} ${y + 14}" stroke="${uniformDark}" stroke-width="1.5" fill="none" /> <!-- Helmet rim -->
+        <path d="M${x + 14} ${y + 14} Q${x + 25} ${y + 8} ${x + 36} ${y + 14}" stroke="${uniformDark}" stroke-width="1.5" fill="none" />
         <!-- Helmet band -->
         <rect x="${x + 15}" y="${y + 11}" width="20" height="2" fill="${uniformDark}" />
         <!-- Face -->
@@ -9186,39 +9386,194 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <circle cx="${x + 27}" cy="${y + 16}" r="1" fill="#1f1f1f" />
         <!-- Assault Rifle -->
         <g transform="rotate(-25 ${x + 10} ${y + 28})">
-          <!-- Stock -->
           <rect x="${x - 2}" y="${y + 28}" width="10" height="4" rx="1" fill="#3d2817" />
           <rect x="${x - 4}" y="${y + 29}" width="4" height="5" rx="1" fill="#3d2817" />
-          <!-- Receiver/Body -->
           <rect x="${x + 6}" y="${y + 26}" width="14" height="6" rx="1" fill="#2d2d2d" />
-          <!-- Barrel -->
           <rect x="${x + 18}" y="${y + 27}" width="12" height="3" fill="#1a1a1a" />
-          <!-- Front sight -->
           <rect x="${x + 28}" y="${y + 25}" width="2" height="3" fill="#1a1a1a" />
-          <!-- Magazine -->
           <rect x="${x + 10}" y="${y + 31}" width="4" height="8" rx="1" fill="#2d2d2d" />
-          <!-- Grip -->
           <rect x="${x + 4}" y="${y + 31}" width="3" height="6" rx="1" fill="#3d2817" />
-          <!-- Scope/sight rail -->
           <rect x="${x + 8}" y="${y + 24}" width="10" height="2" fill="#1f1f1f" />
-          <!-- Trigger guard -->
           <path d="M${x + 6} ${y + 32} Q${x + 8} ${y + 36} ${x + 10} ${y + 32}" stroke="#2d2d2d" stroke-width="1.5" fill="none" />
         </g>
         <!-- Team indicator dot -->
         <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
-        ${inTrench ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#5c4033" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">⚔</text>` : ''}
-        ${inTunnel ? `<rect x="${x + 20}" y="${y + 44}" width="10" height="4" fill="#333" rx="1" /><text x="${x + 25}" y="${y + 47}" text-anchor="middle" font-size="6" fill="#fff">🚇</text>` : ''}
-        ${colorblindSymbol}
+        ${trenchIndicator}${tunnelIndicator}${colorblindSymbol}
       </g>
     `
   }
 
   if (piece.type === 'tank') {
     const skinColors = getSkinColors(piece.team)
+    const skinStyle = getCurrentSkinStyle()
     const bodyColor = skinColors.helmet
     const bodyDark = skinColors.uniform
+
+    // ROBOT SKIN - Mech walker
+    if (skinStyle === 'robot') {
+      const metalColor = skinColors.primary
+      const darkMetal = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Mech legs -->
+          <rect x="${x + 8}" y="${y + 38}" width="8" height="8" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <rect x="${x + 34}" y="${y + 38}" width="8" height="8" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <!-- Leg joints -->
+          <circle cx="${x + 12}" cy="${y + 34}" r="4" fill="${metalColor}" />
+          <circle cx="${x + 38}" cy="${y + 34}" r="4" fill="${metalColor}" />
+          <!-- Upper legs -->
+          <rect x="${x + 10}" y="${y + 26}" width="4" height="10" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 36}" y="${y + 26}" width="4" height="10" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <!-- Main body -->
+          <rect x="${x + 12}" y="${y + 16}" width="26" height="14" rx="2" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Cockpit -->
+          <rect x="${x + 16}" y="${y + 18}" width="18" height="8" rx="1" fill="#111" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 18}" y="${y + 19}" width="14" height="4" fill="${metalColor}" opacity="0.6">
+            <animate attributeName="opacity" values="0.6;0.3;0.6" dur="1.5s" repeatCount="indefinite" />
+          </rect>
+          <!-- Shoulder cannons -->
+          <rect x="${x + 6}" y="${y + 14}" width="8" height="6" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <rect x="${x + 36}" y="${y + 14}" width="8" height="6" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <!-- Cannon barrels -->
+          <rect x="${x + 2}" y="${y + 15}" width="6" height="2" fill="${metalColor}" />
+          <rect x="${x + 42}" y="${y + 15}" width="6" height="2" fill="${metalColor}" />
+          <!-- Energy core -->
+          <circle cx="${x + 25}" cy="${y + 22}" r="3" fill="${metalColor}">
+            <animate attributeName="opacity" values="1;0.4;1" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+          <!-- Head/sensor -->
+          <rect x="${x + 20}" y="${y + 8}" width="10" height="8" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <rect x="${x + 22}" y="${y + 10}" width="6" height="3" fill="${metalColor}" opacity="0.8" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Siege tower/catapult
+    if (skinStyle === 'medieval') {
+      const woodColor = skinColors.secondary
+      const woodDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Wooden wheels -->
+          <circle cx="${x + 12}" cy="${y + 42}" r="6" fill="${woodDark}" stroke="#3d2817" stroke-width="2" />
+          <circle cx="${x + 38}" cy="${y + 42}" r="6" fill="${woodDark}" stroke="#3d2817" stroke-width="2" />
+          <circle cx="${x + 12}" cy="${y + 42}" r="2" fill="#3d2817" />
+          <circle cx="${x + 38}" cy="${y + 42}" r="2" fill="#3d2817" />
+          <!-- Wheel spokes -->
+          <line x1="${x + 12}" y1="${y + 36}" x2="${x + 12}" y2="${y + 48}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 6}" y1="${y + 42}" x2="${x + 18}" y2="${y + 42}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 38}" y1="${y + 36}" x2="${x + 38}" y2="${y + 48}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 32}" y1="${y + 42}" x2="${x + 44}" y2="${y + 42}" stroke="#3d2817" stroke-width="1" />
+          <!-- Wooden frame -->
+          <rect x="${x + 8}" y="${y + 24}" width="34" height="14" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+          <!-- Wood grain -->
+          <line x1="${x + 10}" y1="${y + 28}" x2="${x + 40}" y2="${y + 28}" stroke="${woodDark}" stroke-width="0.5" />
+          <line x1="${x + 10}" y1="${y + 32}" x2="${x + 40}" y2="${y + 32}" stroke="${woodDark}" stroke-width="0.5" />
+          <!-- Catapult arm base -->
+          <rect x="${x + 20}" y="${y + 18}" width="10" height="8" fill="${woodDark}" stroke="#3d2817" stroke-width="1" />
+          <!-- Catapult arm -->
+          <rect x="${x + 23}" y="${y + 6}" width="4" height="16" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+          <!-- Throwing bucket -->
+          <path d="M${x + 18} ${y + 4} L${x + 25} ${y + 6} L${x + 32} ${y + 4} L${x + 30} ${y + 8} L${x + 20} ${y + 8} Z" fill="${woodDark}" stroke="#3d2817" stroke-width="1" />
+          <!-- Stone in bucket -->
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="#666" />
+          <!-- Metal bands -->
+          <rect x="${x + 8}" y="${y + 26}" width="34" height="2" fill="${skinColors.primary}" />
+          <rect x="${x + 8}" y="${y + 34}" width="34" height="2" fill="${skinColors.primary}" />
+          <!-- Team banner -->
+          <rect x="${x + 40}" y="${y + 14}" width="1" height="14" fill="#3d2817" />
+          <path d="M${x + 41} ${y + 14} L${x + 48} ${y + 17} L${x + 41} ${y + 20} Z" fill="${teamColor}" />
+          <circle cx="${x + 25}" cy="${y + 2}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit tank
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      const c3 = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Pixel tracks -->
+          <rect x="${x + 4}" y="${y + 36}" width="42" height="10" fill="#222" />
+          <rect x="${x + 6}" y="${y + 38}" width="4" height="6" fill="#444" />
+          <rect x="${x + 14}" y="${y + 38}" width="4" height="6" fill="#444" />
+          <rect x="${x + 22}" y="${y + 38}" width="6" height="6" fill="#444" />
+          <rect x="${x + 32}" y="${y + 38}" width="4" height="6" fill="#444" />
+          <rect x="${x + 40}" y="${y + 38}" width="4" height="6" fill="#444" />
+          <!-- Pixel hull -->
+          <rect x="${x + 6}" y="${y + 24}" width="38" height="12" fill="${c2}" />
+          <rect x="${x + 8}" y="${y + 26}" width="34" height="8" fill="${c1}" />
+          <!-- Pixel turret -->
+          <rect x="${x + 14}" y="${y + 14}" width="22" height="10" fill="${c2}" />
+          <rect x="${x + 16}" y="${y + 16}" width="18" height="6" fill="${c1}" />
+          <!-- Pixel cannon -->
+          <rect x="${x + 34}" y="${y + 16}" width="14" height="4" fill="${c3}" />
+          <rect x="${x + 46}" y="${y + 18}" width="4" height="2" fill="#ff0" />
+          <!-- Pixel details -->
+          <rect x="${x + 18}" y="${y + 18}" width="4" height="2" fill="#000" />
+          <rect x="${x + 26}" y="${y + 18}" width="4" height="2" fill="#000" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Dragon/creature
+    if (skinStyle === 'fantasy') {
+      const scaleColor = skinColors.primary
+      const scaleDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="4" fill="rgba(0,0,0,0.4)" />
+          <!-- Dragon legs -->
+          <path d="M${x + 10} ${y + 46} L${x + 14} ${y + 36} L${x + 18} ${y + 38} L${x + 14} ${y + 46} Z" fill="${scaleDark}" />
+          <path d="M${x + 36} ${y + 46} L${x + 32} ${y + 36} L${x + 36} ${y + 38} L${x + 40} ${y + 46} Z" fill="${scaleDark}" />
+          <!-- Dragon claws -->
+          <circle cx="${x + 10}" cy="${y + 46}" r="2" fill="#333" />
+          <circle cx="${x + 14}" cy="${y + 46}" r="2" fill="#333" />
+          <circle cx="${x + 36}" cy="${y + 46}" r="2" fill="#333" />
+          <circle cx="${x + 40}" cy="${y + 46}" r="2" fill="#333" />
+          <!-- Dragon body -->
+          <ellipse cx="${x + 25}" cy="${y + 32}" rx="18" ry="10" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="1" />
+          <!-- Scale pattern -->
+          <ellipse cx="${x + 18}" cy="${y + 30}" rx="4" ry="3" fill="${scaleDark}" opacity="0.5" />
+          <ellipse cx="${x + 25}" cy="${y + 32}" rx="4" ry="3" fill="${scaleDark}" opacity="0.5" />
+          <ellipse cx="${x + 32}" cy="${y + 30}" rx="4" ry="3" fill="${scaleDark}" opacity="0.5" />
+          <!-- Wings -->
+          <path d="M${x + 8} ${y + 28} Q${x} ${y + 18} ${x + 4} ${y + 10} L${x + 14} ${y + 24} Z" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="0.5" opacity="0.8" />
+          <path d="M${x + 42} ${y + 28} Q${x + 50} ${y + 18} ${x + 46} ${y + 10} L${x + 36} ${y + 24} Z" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="0.5" opacity="0.8" />
+          <!-- Dragon neck -->
+          <path d="M${x + 30} ${y + 26} Q${x + 38} ${y + 20} ${x + 42} ${y + 14}" stroke="${scaleColor}" stroke-width="6" fill="none" />
+          <path d="M${x + 30} ${y + 26} Q${x + 38} ${y + 20} ${x + 42} ${y + 14}" stroke="${scaleDark}" stroke-width="3" fill="none" />
+          <!-- Dragon head -->
+          <ellipse cx="${x + 44}" cy="${y + 12}" rx="6" ry="5" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="1" />
+          <!-- Dragon eye -->
+          <circle cx="${x + 46}" cy="${y + 11}" r="2" fill="#ff4400" />
+          <circle cx="${x + 46}" cy="${y + 11}" r="1" fill="#000" />
+          <!-- Fire breath -->
+          <ellipse cx="${x + 52}" cy="${y + 12}" rx="4" ry="2" fill="#ff6600" opacity="0.8">
+            <animate attributeName="rx" values="4;6;4" dur="0.3s" repeatCount="indefinite" />
+          </ellipse>
+          <ellipse cx="${x + 54}" cy="${y + 12}" rx="2" ry="1" fill="#ffff00" />
+          <!-- Horns -->
+          <path d="M${x + 42} ${y + 8} L${x + 40} ${y + 2} L${x + 44} ${y + 6} Z" fill="${scaleDark}" />
+          <path d="M${x + 46} ${y + 8} L${x + 48} ${y + 2} L${x + 44} ${y + 6} Z" fill="${scaleDark}" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT MILITARY TANK
     const trackColor = '#2d2d2d'
-    // Tank design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
@@ -9363,9 +9718,165 @@ function drawPiece(piece: Piece, x: number, y: number): string {
 
   if (piece.type === 'helicopter') {
     const skinColors = getSkinColors(piece.team)
+    const skinStyle = getCurrentSkinStyle()
     const bodyColor = skinColors.helmet
     const bodyDark = skinColors.uniform
-    // Helicopter design
+
+    // ROBOT SKIN - Flying drone
+    if (skinStyle === 'robot') {
+      const metalColor = skinColors.primary
+      const darkMetal = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Drone body -->
+          <rect x="${x + 15}" y="${y + 26}" width="20" height="14" rx="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Camera/sensor -->
+          <circle cx="${x + 20}" cy="${y + 33}" r="4" fill="#111" stroke="${metalColor}" stroke-width="1" />
+          <circle cx="${x + 20}" cy="${y + 33}" r="2" fill="${metalColor}">
+            <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Drone arms -->
+          <rect x="${x + 6}" y="${y + 30}" width="10" height="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 34}" y="${y + 30}" width="10" height="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 12}" y="${y + 18}" width="3" height="12" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <rect x="${x + 35}" y="${y + 18}" width="3" height="12" fill="${darkMetal}" stroke="${metalColor}" stroke-width="0.5" />
+          <!-- Rotors -->
+          <circle cx="${x + 8}" cy="${y + 20}" r="6" fill="${metalColor}" opacity="0.4" />
+          <circle cx="${x + 8}" cy="${y + 20}" r="2" fill="${darkMetal}" />
+          <circle cx="${x + 42}" cy="${y + 20}" r="6" fill="${metalColor}" opacity="0.4" />
+          <circle cx="${x + 42}" cy="${y + 20}" r="2" fill="${darkMetal}" />
+          <circle cx="${x + 8}" cy="${y + 38}" r="6" fill="${metalColor}" opacity="0.4" />
+          <circle cx="${x + 8}" cy="${y + 38}" r="2" fill="${darkMetal}" />
+          <circle cx="${x + 42}" cy="${y + 38}" r="6" fill="${metalColor}" opacity="0.4" />
+          <circle cx="${x + 42}" cy="${y + 38}" r="2" fill="${darkMetal}" />
+          <!-- LED lights -->
+          <circle cx="${x + 15}" cy="${y + 26}" r="1.5" fill="#00ff00">
+            <animate attributeName="opacity" values="1;0;1" dur="0.5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 35}" cy="${y + 26}" r="1.5" fill="#ff0000">
+            <animate attributeName="opacity" values="0;1;0" dur="0.5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Griffin/flying creature
+    if (skinStyle === 'medieval') {
+      const featherColor = skinColors.primary
+      const featherDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Griffin body -->
+          <ellipse cx="${x + 25}" cy="${y + 34}" rx="12" ry="10" fill="${featherColor}" stroke="${featherDark}" stroke-width="1" />
+          <!-- Feather pattern -->
+          <ellipse cx="${x + 20}" cy="${y + 32}" rx="4" ry="6" fill="${featherDark}" opacity="0.3" />
+          <ellipse cx="${x + 30}" cy="${y + 32}" rx="4" ry="6" fill="${featherDark}" opacity="0.3" />
+          <!-- Wings spread -->
+          <path d="M${x + 14} ${y + 30} Q${x} ${y + 20} ${x + 2} ${y + 10} L${x + 8} ${y + 16} L${x + 12} ${y + 12} L${x + 16} ${y + 18} L${x + 14} ${y + 26} Z" fill="${featherColor}" stroke="${featherDark}" stroke-width="0.5" />
+          <path d="M${x + 36} ${y + 30} Q${x + 50} ${y + 20} ${x + 48} ${y + 10} L${x + 42} ${y + 16} L${x + 38} ${y + 12} L${x + 34} ${y + 18} L${x + 36} ${y + 26} Z" fill="${featherColor}" stroke="${featherDark}" stroke-width="0.5" />
+          <!-- Eagle head -->
+          <ellipse cx="${x + 25}" cy="${y + 22}" rx="6" ry="5" fill="${featherColor}" stroke="${featherDark}" stroke-width="1" />
+          <!-- Beak -->
+          <path d="M${x + 25} ${y + 22} L${x + 30} ${y + 24} L${x + 25} ${y + 26} Z" fill="#f59e0b" stroke="#d97706" stroke-width="0.5" />
+          <!-- Eyes -->
+          <circle cx="${x + 23}" cy="${y + 20}" r="1.5" fill="#000" />
+          <circle cx="${x + 23}" cy="${y + 20}" r="0.5" fill="#fff" />
+          <!-- Crown/crest -->
+          <path d="M${x + 20} ${y + 17} L${x + 22} ${y + 14} L${x + 25} ${y + 16} L${x + 28} ${y + 14} L${x + 30} ${y + 17}" fill="${teamColor}" stroke="${featherDark}" stroke-width="0.5" />
+          <!-- Lion legs -->
+          <rect x="${x + 18}" y="${y + 40}" width="4" height="6" fill="${featherDark}" />
+          <rect x="${x + 28}" y="${y + 40}" width="4" height="6" fill="${featherDark}" />
+          <!-- Claws -->
+          <path d="M${x + 17} ${y + 46} L${x + 19} ${y + 44} L${x + 21} ${y + 46}" stroke="#333" stroke-width="1" fill="none" />
+          <path d="M${x + 27} ${y + 46} L${x + 29} ${y + 44} L${x + 31} ${y + 46}" stroke="#333" stroke-width="1" fill="none" />
+          <!-- Tail -->
+          <path d="M${x + 35} ${y + 38} Q${x + 45} ${y + 36} ${x + 48} ${y + 42}" stroke="${featherColor}" stroke-width="4" fill="none" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit helicopter
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      const c3 = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Pixel body -->
+          <rect x="${x + 14}" y="${y + 26}" width="22" height="14" fill="${c2}" />
+          <rect x="${x + 16}" y="${y + 28}" width="18" height="10" fill="${c1}" />
+          <!-- Pixel cockpit -->
+          <rect x="${x + 14}" y="${y + 28}" width="8" height="8" fill="#7cf" />
+          <rect x="${x + 16}" y="${y + 30}" width="4" height="4" fill="#aef" />
+          <!-- Pixel tail -->
+          <rect x="${x + 36}" y="${y + 30}" width="10" height="4" fill="${c2}" />
+          <rect x="${x + 44}" y="${y + 26}" width="4" height="12" fill="${c3}" />
+          <!-- Pixel rotors -->
+          <rect x="${x + 6}" y="${y + 18}" width="38" height="4" fill="${c3}" />
+          <rect x="${x + 22}" y="${y + 14}" width="6" height="4" fill="${c2}" />
+          <!-- Pixel skids -->
+          <rect x="${x + 12}" y="${y + 40}" width="4" height="6" fill="#222" />
+          <rect x="${x + 34}" y="${y + 40}" width="4" height="6" fill="#222" />
+          <rect x="${x + 10}" y="${y + 44}" width="8" height="2" fill="#222" />
+          <rect x="${x + 32}" y="${y + 44}" width="8" height="2" fill="#222" />
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Flying carpet/magic
+    if (skinStyle === 'fantasy') {
+      const carpetColor = skinColors.primary
+      const carpetDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="15" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Magic carpet -->
+          <path d="M${x + 5} ${y + 34} Q${x + 25} ${y + 26} ${x + 45} ${y + 34} Q${x + 42} ${y + 42} ${x + 25} ${y + 38} Q${x + 8} ${y + 42} ${x + 5} ${y + 34}" fill="${carpetColor}" stroke="${carpetDark}" stroke-width="1">
+            <animate attributeName="d" values="M${x + 5} ${y + 34} Q${x + 25} ${y + 26} ${x + 45} ${y + 34} Q${x + 42} ${y + 42} ${x + 25} ${y + 38} Q${x + 8} ${y + 42} ${x + 5} ${y + 34};M${x + 5} ${y + 36} Q${x + 25} ${y + 28} ${x + 45} ${y + 36} Q${x + 42} ${y + 40} ${x + 25} ${y + 36} Q${x + 8} ${y + 40} ${x + 5} ${y + 36};M${x + 5} ${y + 34} Q${x + 25} ${y + 26} ${x + 45} ${y + 34} Q${x + 42} ${y + 42} ${x + 25} ${y + 38} Q${x + 8} ${y + 42} ${x + 5} ${y + 34}" dur="2s" repeatCount="indefinite" />
+          </path>
+          <!-- Carpet pattern -->
+          <rect x="${x + 12}" y="${y + 32}" width="26" height="6" fill="none" stroke="${carpetDark}" stroke-width="0.5" />
+          <line x1="${x + 18}" y1="${y + 32}" x2="${x + 18}" y2="${y + 38}" stroke="${carpetDark}" stroke-width="0.5" />
+          <line x1="${x + 25}" y1="${y + 32}" x2="${x + 25}" y2="${y + 38}" stroke="${carpetDark}" stroke-width="0.5" />
+          <line x1="${x + 32}" y1="${y + 32}" x2="${x + 32}" y2="${y + 38}" stroke="${carpetDark}" stroke-width="0.5" />
+          <!-- Tassels -->
+          <line x1="${x + 6}" y1="${y + 36}" x2="${x + 4}" y2="${y + 42}" stroke="${teamColor}" stroke-width="2" />
+          <line x1="${x + 44}" y1="${y + 36}" x2="${x + 46}" y2="${y + 42}" stroke="${teamColor}" stroke-width="2" />
+          <!-- Magic glow -->
+          <ellipse cx="${x + 25}" cy="${y + 35}" rx="18" ry="8" fill="${carpetColor}" opacity="0.3">
+            <animate attributeName="opacity" values="0.3;0.1;0.3" dur="1.5s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Wizard sitting -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="6" ry="4" fill="${skinColors.uniform}" />
+          <circle cx="${x + 25}" cy="${y + 20}" r="4" fill="#d4a574" />
+          <!-- Wizard hat -->
+          <path d="M${x + 20} ${y + 18} L${x + 25} ${y + 8} L${x + 30} ${y + 18} Z" fill="${carpetColor}" stroke="${carpetDark}" stroke-width="0.5" />
+          <!-- Magic sparkles -->
+          <circle cx="${x + 12}" cy="${y + 28}" r="1" fill="#fff">
+            <animate attributeName="opacity" values="1;0;1" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 38}" cy="${y + 30}" r="1" fill="#fff">
+            <animate attributeName="opacity" values="0;1;0" dur="0.8s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 24}" r="1" fill="#fff">
+            <animate attributeName="opacity" values="0.5;1;0.5" dur="0.6s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT HELICOPTER
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
