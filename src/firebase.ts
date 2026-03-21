@@ -102,6 +102,8 @@ export interface UserData {
     theme: string | null
     pieceSkin: string | null
     effect: string | null
+    soundPack: string | null
+    musicPack: string | null
   }
   // War Pass progress
   warPass: {
@@ -117,7 +119,7 @@ export interface ShopItem {
   name: string
   description: string
   price: number
-  type: 'theme' | 'piece_skin' | 'effect'
+  type: 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
   icon: string
   // Theme colors (for themes)
   colors?: {
@@ -126,11 +128,18 @@ export interface ShopItem {
     accent: string
     water: string
   }
+  // Piece skin style (for skins) - changes actual piece appearance
+  skinStyle?: 'robot' | 'medieval' | 'scifi' | 'pixel' | 'minimal' | 'cartoon' | 'military' | 'fantasy'
   // Piece color modifier (for skins)
   pieceColor?: {
     yellow: string
     green: string
+    accent?: string
   }
+  // Effect type
+  effectType?: 'fire' | 'lightning' | 'sparkle' | 'smoke' | 'hearts' | 'stars' | 'explosion' | 'ghost'
+  // Sound/music pack ID
+  packId?: string
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
@@ -149,22 +158,54 @@ export const SHOP_ITEMS: ShopItem[] = [
     colors: { light: '#ff7043', dark: '#bf360c', accent: '#e64a19', water: '#ff5722' } },
   { id: 'theme_space', name: 'Space Battle', description: 'Galactic warfare theme', price: 250, type: 'theme', icon: '🚀',
     colors: { light: '#7c4dff', dark: '#311b92', accent: '#651fff', water: '#6200ea' } },
-  // Piece Skins
-  { id: 'skin_gold', name: 'Golden Army', description: 'Shiny gold pieces for your team', price: 300, type: 'piece_skin', icon: '✨',
-    pieceColor: { yellow: '#ffd700', green: '#c0c0c0' } },
-  { id: 'skin_cyber', name: 'Cyber Warriors', description: 'Futuristic neon piece designs', price: 250, type: 'piece_skin', icon: '🤖',
-    pieceColor: { yellow: '#00ffff', green: '#ff00ff' } },
-  { id: 'skin_stealth', name: 'Stealth Force', description: 'Dark tactical piece designs', price: 200, type: 'piece_skin', icon: '🥷',
-    pieceColor: { yellow: '#2d2d2d', green: '#1a1a2e' } },
-  { id: 'skin_rainbow', name: 'Rainbow Army', description: 'Colorful rainbow pieces', price: 350, type: 'piece_skin', icon: '🌈',
-    pieceColor: { yellow: '#ff6b6b', green: '#4ecdc4' } },
-  { id: 'skin_ice', name: 'Frozen Warriors', description: 'Icy blue piece designs', price: 200, type: 'piece_skin', icon: '🧊',
-    pieceColor: { yellow: '#74b9ff', green: '#a29bfe' } },
+  { id: 'theme_candy', name: 'Candy Land', description: 'Sweet colorful theme', price: 150, type: 'theme', icon: '🍬',
+    colors: { light: '#ffb6c1', dark: '#ff69b4', accent: '#ff1493', water: '#87ceeb' } },
+  { id: 'theme_forest', name: 'Enchanted Forest', description: 'Magical forest theme', price: 175, type: 'theme', icon: '🌲',
+    colors: { light: '#90ee90', dark: '#228b22', accent: '#006400', water: '#20b2aa' } },
+  { id: 'theme_sunset', name: 'Sunset', description: 'Beautiful sunset colors', price: 125, type: 'theme', icon: '🌅',
+    colors: { light: '#ffa07a', dark: '#ff6347', accent: '#ff4500', water: '#4169e1' } },
+
+  // Piece Skins - with actual different designs
+  { id: 'skin_robot', name: 'Robot Army', description: 'Mechanical robot pieces with gears and lights', price: 350, type: 'piece_skin', icon: '🤖',
+    skinStyle: 'robot', pieceColor: { yellow: '#00ffff', green: '#ff00ff', accent: '#ffffff' } },
+  { id: 'skin_medieval', name: 'Medieval Knights', description: 'Classic medieval armor and weapons', price: 300, type: 'piece_skin', icon: '⚔️',
+    skinStyle: 'medieval', pieceColor: { yellow: '#c0c0c0', green: '#8b4513', accent: '#ffd700' } },
+  { id: 'skin_scifi', name: 'Sci-Fi Troopers', description: 'Futuristic space soldiers with laser weapons', price: 400, type: 'piece_skin', icon: '🚀',
+    skinStyle: 'scifi', pieceColor: { yellow: '#00ff00', green: '#0080ff', accent: '#ff0080' } },
+  { id: 'skin_pixel', name: 'Pixel Warriors', description: 'Retro 8-bit pixelated pieces', price: 250, type: 'piece_skin', icon: '👾',
+    skinStyle: 'pixel', pieceColor: { yellow: '#ffff00', green: '#00ff00', accent: '#ff0000' } },
+  { id: 'skin_minimal', name: 'Minimalist', description: 'Clean simple geometric shapes', price: 200, type: 'piece_skin', icon: '⬜',
+    skinStyle: 'minimal', pieceColor: { yellow: '#ffd700', green: '#32cd32', accent: '#000000' } },
+  { id: 'skin_cartoon', name: 'Cartoon Army', description: 'Fun cartoon style with big eyes', price: 275, type: 'piece_skin', icon: '😊',
+    skinStyle: 'cartoon', pieceColor: { yellow: '#ffcc00', green: '#66cc66', accent: '#ffffff' } },
+  { id: 'skin_military', name: 'Modern Military', description: 'Realistic military equipment', price: 325, type: 'piece_skin', icon: '🎖️',
+    skinStyle: 'military', pieceColor: { yellow: '#556b2f', green: '#2f4f4f', accent: '#d2691e' } },
+  { id: 'skin_fantasy', name: 'Fantasy Heroes', description: 'Magical wizards, dragons and heroes', price: 450, type: 'piece_skin', icon: '🧙',
+    skinStyle: 'fantasy', pieceColor: { yellow: '#9400d3', green: '#00ced1', accent: '#ffd700' } },
+
   // Effects
-  { id: 'effect_fire', name: 'Fire Trail', description: 'Pieces leave fire effects when moving', price: 250, type: 'effect', icon: '🔥' },
-  { id: 'effect_lightning', name: 'Lightning Strike', description: 'Electric effects on captures', price: 300, type: 'effect', icon: '⚡' },
-  { id: 'effect_sparkle', name: 'Sparkle', description: 'Sparkly effects on all moves', price: 150, type: 'effect', icon: '💫' },
-  { id: 'effect_smoke', name: 'Smoke Trail', description: 'Smoky trail behind pieces', price: 175, type: 'effect', icon: '💨' },
+  { id: 'effect_fire', name: 'Fire Trail', description: 'Pieces leave fire particles when moving', price: 250, type: 'effect', icon: '🔥', effectType: 'fire' },
+  { id: 'effect_lightning', name: 'Lightning Strike', description: 'Electric bolts on captures', price: 300, type: 'effect', icon: '⚡', effectType: 'lightning' },
+  { id: 'effect_sparkle', name: 'Sparkle', description: 'Sparkly star effects on moves', price: 150, type: 'effect', icon: '✨', effectType: 'sparkle' },
+  { id: 'effect_smoke', name: 'Smoke Trail', description: 'Smoky trail behind pieces', price: 175, type: 'effect', icon: '💨', effectType: 'smoke' },
+  { id: 'effect_hearts', name: 'Love Trail', description: 'Hearts appear when moving', price: 200, type: 'effect', icon: '❤️', effectType: 'hearts' },
+  { id: 'effect_stars', name: 'Stardust', description: 'Star particles on all actions', price: 225, type: 'effect', icon: '⭐', effectType: 'stars' },
+  { id: 'effect_explosion', name: 'Big Boom', description: 'Extra explosion effects on captures', price: 275, type: 'effect', icon: '💥', effectType: 'explosion' },
+  { id: 'effect_ghost', name: 'Ghost Trail', description: 'Ghostly afterimages when moving', price: 300, type: 'effect', icon: '👻', effectType: 'ghost' },
+
+  // Sound Packs
+  { id: 'sound_retro', name: 'Retro Sounds', description: '8-bit arcade style sound effects', price: 150, type: 'sound_pack', icon: '🕹️', packId: 'retro' },
+  { id: 'sound_scifi', name: 'Sci-Fi Sounds', description: 'Futuristic laser and tech sounds', price: 175, type: 'sound_pack', icon: '🛸', packId: 'scifi' },
+  { id: 'sound_cartoon', name: 'Cartoon Sounds', description: 'Fun bouncy cartoon sounds', price: 125, type: 'sound_pack', icon: '🎪', packId: 'cartoon' },
+  { id: 'sound_war', name: 'War Sounds', description: 'Realistic military sound effects', price: 200, type: 'sound_pack', icon: '💣', packId: 'war' },
+  { id: 'sound_nature', name: 'Nature Sounds', description: 'Calm natural ambient sounds', price: 150, type: 'sound_pack', icon: '🌿', packId: 'nature' },
+
+  // Music Packs
+  { id: 'music_electronic', name: 'Electronic Beats', description: 'Pumping electronic music', price: 200, type: 'music_pack', icon: '🎧', packId: 'electronic' },
+  { id: 'music_orchestral', name: 'Orchestral', description: 'Epic orchestral soundtrack', price: 250, type: 'music_pack', icon: '🎻', packId: 'orchestral' },
+  { id: 'music_chiptune', name: 'Chiptune', description: 'Retro 8-bit music', price: 175, type: 'music_pack', icon: '🎮', packId: 'chiptune' },
+  { id: 'music_jazz', name: 'Smooth Jazz', description: 'Relaxing jazz music', price: 200, type: 'music_pack', icon: '🎷', packId: 'jazz' },
+  { id: 'music_rock', name: 'Rock & Roll', description: 'Energetic rock music', price: 225, type: 'music_pack', icon: '🎸', packId: 'rock' },
 ]
 
 // War Pass Challenges
@@ -258,7 +299,9 @@ export function getDefaultUserData(username: string, email: string): UserData {
     equippedItems: {
       theme: null,
       pieceSkin: null,
-      effect: null
+      effect: null,
+      soundPack: null,
+      musicPack: null
     },
     warPass: {
       claimedRewards: [],

@@ -69,6 +69,255 @@ let waitingForOpponent = false
 let equippedTheme: string | null = null
 let equippedPieceSkin: string | null = null
 let equippedEffect: string | null = null
+let equippedSoundPack: string | null = null
+let equippedMusicPack: string | null = null
+
+// Visual effect particles
+interface EffectParticle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  life: number
+  maxLife: number
+  size: number
+  color: string
+  type: 'fire' | 'smoke' | 'sparkle' | 'heart' | 'star' | 'lightning' | 'ghost'
+}
+let effectParticles: EffectParticle[] = []
+
+// Get current equipped skin style
+function getCurrentSkinStyle(): string | null {
+  if (!equippedPieceSkin) return null
+  const skin = SHOP_ITEMS.find(i => i.id === equippedPieceSkin)
+  return skin?.skinStyle || null
+}
+
+// Get current equipped effect type
+function getCurrentEffectType(): string | null {
+  if (!equippedEffect) return null
+  const effect = SHOP_ITEMS.find(i => i.id === equippedEffect)
+  return effect?.effectType || null
+}
+
+// Apply skin style visual effects to a piece SVG
+function applySkinStyle(pieceSvg: string, x: number, y: number, team: 'yellow' | 'green'): string {
+  const skinStyle = getCurrentSkinStyle()
+  if (!skinStyle) return pieceSvg
+
+  let overlayEffects = ''
+  const centerX = x + 25
+  const centerY = y + 25
+
+  switch (skinStyle) {
+    case 'robot':
+      // Metallic glow and circuit pattern
+      overlayEffects = `
+        <defs>
+          <linearGradient id="robotGlow${x}${y}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${team === 'yellow' ? '#00ffff' : '#ff00ff'};stop-opacity:0.3" />
+            <stop offset="100%" style="stop-color:${team === 'yellow' ? '#00ffff' : '#ff00ff'};stop-opacity:0" />
+          </linearGradient>
+        </defs>
+        <ellipse cx="${centerX}" cy="${centerY}" rx="22" ry="22" fill="url(#robotGlow${x}${y})" class="pointer-events-none" />
+        <circle cx="${centerX - 8}" cy="${centerY - 15}" r="2" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" opacity="0.8" class="pointer-events-none">
+          <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="${centerX + 8}" cy="${centerY - 15}" r="2" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" opacity="0.8" class="pointer-events-none">
+          <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1s" repeatCount="indefinite" />
+        </circle>
+      `
+      break
+    case 'medieval':
+      // Golden crown/halo effect
+      overlayEffects = `
+        <ellipse cx="${centerX}" cy="${y + 5}" rx="10" ry="3" fill="none" stroke="#ffd700" stroke-width="2" opacity="0.6" class="pointer-events-none" />
+        <path d="M${centerX - 10} ${y + 3} L${centerX - 7} ${y} L${centerX - 4} ${y + 3} L${centerX} ${y - 2} L${centerX + 4} ${y + 3} L${centerX + 7} ${y} L${centerX + 10} ${y + 3}" stroke="#ffd700" fill="none" stroke-width="1.5" opacity="0.7" class="pointer-events-none" />
+      `
+      break
+    case 'scifi':
+      // Holographic scanlines and glow
+      overlayEffects = `
+        <defs>
+          <linearGradient id="scifiGlow${x}${y}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.2" />
+            <stop offset="50%" style="stop-color:#00ff88;stop-opacity:0" />
+            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0.2" />
+          </linearGradient>
+        </defs>
+        <rect x="${x}" y="${y}" width="50" height="50" fill="url(#scifiGlow${x}${y})" class="pointer-events-none" />
+        <line x1="${x}" y1="${y + 10}" x2="${x + 50}" y2="${y + 10}" stroke="#00ff00" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${x}" y1="${y + 25}" x2="${x + 50}" y2="${y + 25}" stroke="#00ff00" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${x}" y1="${y + 40}" x2="${x + 50}" y2="${y + 40}" stroke="#00ff00" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+      `
+      break
+    case 'pixel':
+      // Pixelated border effect
+      overlayEffects = `
+        <rect x="${x + 2}" y="${y + 2}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
+        <rect x="${x + 44}" y="${y + 2}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
+        <rect x="${x + 2}" y="${y + 44}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
+        <rect x="${x + 44}" y="${y + 44}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
+      `
+      break
+    case 'minimal':
+      // Clean circle outline
+      overlayEffects = `
+        <circle cx="${centerX}" cy="${centerY}" r="23" fill="none" stroke="${team === 'yellow' ? '#ffd700' : '#32cd32'}" stroke-width="1.5" opacity="0.4" class="pointer-events-none" />
+      `
+      break
+    case 'cartoon':
+      // Bouncy outline and sparkles
+      overlayEffects = `
+        <ellipse cx="${centerX}" cy="${y + 48}" rx="15" ry="3" fill="rgba(0,0,0,0.2)" class="pointer-events-none" />
+        <text x="${centerX + 15}" y="${y + 8}" font-size="8" fill="#ffff00" opacity="0.8" class="pointer-events-none">✦</text>
+        <text x="${centerX - 18}" y="${y + 12}" font-size="6" fill="#ffffff" opacity="0.6" class="pointer-events-none">✧</text>
+      `
+      break
+    case 'military':
+      // Tactical reticle
+      overlayEffects = `
+        <circle cx="${centerX}" cy="${centerY}" r="18" fill="none" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${centerX - 22}" y1="${centerY}" x2="${centerX - 12}" y2="${centerY}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${centerX + 12}" y1="${centerY}" x2="${centerX + 22}" y2="${centerY}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${centerX}" y1="${centerY - 22}" x2="${centerX}" y2="${centerY - 12}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${centerX}" y1="${centerY + 12}" x2="${centerX}" y2="${centerY + 22}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+      `
+      break
+    case 'fantasy':
+      // Magical aura and sparkles
+      overlayEffects = `
+        <defs>
+          <radialGradient id="magicAura${x}${y}" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" style="stop-color:${team === 'yellow' ? '#9400d3' : '#00ced1'};stop-opacity:0.3" />
+            <stop offset="100%" style="stop-color:${team === 'yellow' ? '#9400d3' : '#00ced1'};stop-opacity:0" />
+          </radialGradient>
+        </defs>
+        <circle cx="${centerX}" cy="${centerY}" r="25" fill="url(#magicAura${x}${y})" class="pointer-events-none">
+          <animate attributeName="r" values="25;28;25" dur="2s" repeatCount="indefinite" />
+        </circle>
+        <text x="${centerX - 12}" y="${y + 6}" font-size="8" fill="#ffd700" opacity="0.8" class="pointer-events-none">✨</text>
+        <text x="${centerX + 8}" y="${y + 10}" font-size="6" fill="#ffd700" opacity="0.6" class="pointer-events-none">⭐</text>
+      `
+      break
+  }
+
+  return pieceSvg + overlayEffects
+}
+
+// Spawn effect particles at a position
+function spawnEffectParticles(x: number, y: number, count: number = 10) {
+  const effectType = getCurrentEffectType()
+  if (!effectType) return
+
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2
+    const speed = Math.random() * 3 + 1
+    let color = '#ff6600'
+    let particleType: EffectParticle['type'] = 'fire'
+    let size = Math.random() * 4 + 2
+
+    switch (effectType) {
+      case 'fire':
+        color = ['#ff4500', '#ff6600', '#ff8800', '#ffaa00'][Math.floor(Math.random() * 4)]
+        particleType = 'fire'
+        break
+      case 'lightning':
+        color = ['#00ffff', '#ffffff', '#88ffff', '#aaffff'][Math.floor(Math.random() * 4)]
+        particleType = 'lightning'
+        size = Math.random() * 6 + 3
+        break
+      case 'sparkle':
+        color = ['#ffff00', '#ffffff', '#ffdd00', '#ffffaa'][Math.floor(Math.random() * 4)]
+        particleType = 'sparkle'
+        size = Math.random() * 3 + 1
+        break
+      case 'smoke':
+        color = ['#555555', '#666666', '#777777', '#888888'][Math.floor(Math.random() * 4)]
+        particleType = 'smoke'
+        size = Math.random() * 5 + 3
+        break
+      case 'hearts':
+        color = ['#ff0066', '#ff3388', '#ff6699', '#ff99aa'][Math.floor(Math.random() * 4)]
+        particleType = 'heart'
+        size = Math.random() * 4 + 3
+        break
+      case 'stars':
+        color = ['#ffff00', '#ffaa00', '#ffffff', '#ffdd66'][Math.floor(Math.random() * 4)]
+        particleType = 'star'
+        size = Math.random() * 4 + 2
+        break
+      case 'explosion':
+        color = ['#ff0000', '#ff4400', '#ff8800', '#ffcc00'][Math.floor(Math.random() * 4)]
+        particleType = 'fire'
+        size = Math.random() * 6 + 4
+        break
+      case 'ghost':
+        color = ['rgba(200,200,255,0.8)', 'rgba(180,180,255,0.6)', 'rgba(220,220,255,0.7)'][Math.floor(Math.random() * 3)]
+        particleType = 'ghost'
+        size = Math.random() * 8 + 5
+        break
+    }
+
+    effectParticles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - (effectType === 'fire' || effectType === 'smoke' ? 2 : 0),
+      life: 1,
+      maxLife: 1,
+      size,
+      color,
+      type: particleType
+    })
+  }
+}
+
+// Update effect particles (call in animation loop)
+function updateEffectParticles(deltaTime: number) {
+  effectParticles = effectParticles.filter(p => {
+    p.x += p.vx * deltaTime * 60
+    p.y += p.vy * deltaTime * 60
+    p.life -= deltaTime * 2
+    if (p.type === 'fire' || p.type === 'smoke') {
+      p.vy -= deltaTime * 3 // Float upward
+    }
+    if (p.type === 'ghost') {
+      p.vx *= 0.98
+      p.vy *= 0.98
+    }
+    return p.life > 0
+  })
+}
+
+// Render effect particles to SVG
+function renderEffectParticles(): string {
+  if (effectParticles.length === 0) return ''
+
+  return effectParticles.map(p => {
+    const opacity = p.life
+    const scale = p.life * 0.5 + 0.5
+    const size = p.size * scale
+
+    switch (p.type) {
+      case 'fire':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${size}" fill="${p.color}" opacity="${opacity}" />`
+      case 'smoke':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${size}" fill="${p.color}" opacity="${opacity * 0.6}" />`
+      case 'sparkle':
+        return `<polygon points="${p.x},${p.y - size} ${p.x + size * 0.3},${p.y - size * 0.3} ${p.x + size},${p.y} ${p.x + size * 0.3},${p.y + size * 0.3} ${p.x},${p.y + size} ${p.x - size * 0.3},${p.y + size * 0.3} ${p.x - size},${p.y} ${p.x - size * 0.3},${p.y - size * 0.3}" fill="${p.color}" opacity="${opacity}" />`
+      case 'heart':
+        return `<text x="${p.x}" y="${p.y}" font-size="${size * 2}" fill="${p.color}" opacity="${opacity}" text-anchor="middle" dominant-baseline="middle">❤</text>`
+      case 'star':
+        return `<text x="${p.x}" y="${p.y}" font-size="${size * 2}" fill="${p.color}" opacity="${opacity}" text-anchor="middle" dominant-baseline="middle">★</text>`
+      case 'lightning':
+        return `<line x1="${p.x}" y1="${p.y}" x2="${p.x + (Math.random() - 0.5) * size * 3}" y2="${p.y + (Math.random() - 0.5) * size * 3}" stroke="${p.color}" stroke-width="${size * 0.5}" opacity="${opacity}" />`
+      case 'ghost':
+        return `<ellipse cx="${p.x}" cy="${p.y}" rx="${size}" ry="${size * 1.2}" fill="${p.color}" opacity="${opacity * 0.5}" />`
+      default:
+        return `<circle cx="${p.x}" cy="${p.y}" r="${size}" fill="${p.color}" opacity="${opacity}" />`
+    }
+  }).join('')
+}
 
 // Serialized piece type for multiplayer sync (no circular references)
 interface SerializedPiece {
@@ -3091,6 +3340,8 @@ const translations: Record<Language, Record<string, string>> = {
     shopThemes: 'Board Themes',
     shopSkins: 'Piece Skins',
     shopEffects: 'Effects',
+    shopSounds: 'Sound Packs',
+    shopMusic: 'Music Packs',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Challenges',
@@ -3318,6 +3569,8 @@ const translations: Record<Language, Record<string, string>> = {
     shopThemes: 'Bord Thema\'s',
     shopSkins: 'Stuk Skins',
     shopEffects: 'Effecten',
+    shopSounds: 'Geluidspakketten',
+    shopMusic: 'Muziekpakketten',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Uitdagingen',
@@ -3545,6 +3798,8 @@ const translations: Record<Language, Record<string, string>> = {
     shopThemes: 'Brettthemen',
     shopSkins: 'Figur-Skins',
     shopEffects: 'Effekte',
+    shopSounds: 'Soundpakete',
+    shopMusic: 'Musikpakete',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Herausforderungen',
@@ -3772,6 +4027,8 @@ const translations: Record<Language, Record<string, string>> = {
     shopThemes: 'Thèmes de plateau',
     shopSkins: 'Skins de pièces',
     shopEffects: 'Effets',
+    shopSounds: 'Packs de sons',
+    shopMusic: 'Packs de musique',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Défis',
@@ -3999,6 +4256,8 @@ const translations: Record<Language, Record<string, string>> = {
     shopThemes: 'Temas de tablero',
     shopSkins: 'Skins de piezas',
     shopEffects: 'Efectos',
+    shopSounds: 'Paquetes de sonido',
+    shopMusic: 'Paquetes de música',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Desafíos',
@@ -7375,6 +7634,11 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   // Play sound based on piece type
   if (capturedPiece) {
     playSound('capture')
+    // Spawn capture effects at target location
+    const captureColIndex = columns.indexOf(col)
+    const capturePixelX = 30 + captureColIndex * 50 + 25 // LABEL_SIZE + col * SQUARE_SIZE + center
+    const capturePixelY = (11 - row) * 50 + 25 // (BOARD_SIZE - row) * SQUARE_SIZE + center
+    spawnEffectParticles(capturePixelX, capturePixelY, 20)
   } else {
     // Play appropriate move sound based on piece type
     switch (piece.type) {
@@ -7428,13 +7692,31 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   const moveDuration = getAnimationDuration()
   const startTime = Date.now()
 
+  let lastParticleTime = 0
+
   function animateMove() {
     const elapsed = Date.now() - startTime
     const progress = Math.min(elapsed / moveDuration, 1)
 
     if (moveAnimation) {
       moveAnimation.progress = progress
+
+      // Spawn effect particles during movement
+      if (elapsed - lastParticleTime > 50) {
+        lastParticleTime = elapsed
+        const fromColIndex = columns.indexOf(fromCol)
+        const toColIndex = columns.indexOf(col)
+        const currentColIdx = fromColIndex + (toColIndex - fromColIndex) * progress
+        const currentRowNum = fromRow + (row - fromRow) * progress
+        // Calculate pixel position using board constants
+        const pixelX = 30 + currentColIdx * 50 + 25 // LABEL_SIZE + col * SQUARE_SIZE + center
+        const pixelY = (11 - currentRowNum) * 50 + 25 // (BOARD_SIZE - row) * SQUARE_SIZE + center
+        spawnEffectParticles(pixelX, pixelY, 3)
+      }
     }
+
+    // Update particles
+    updateEffectParticles(1/60)
     render()
 
     if (progress < 1) {
@@ -9509,7 +9791,7 @@ function createBoard(): string {
 
           // Draw train at animated position with shake effect
           const shakeX = progress > 0.8 ? Math.sin(progress * 50) * 3 : 0
-          svg += drawPiece(otherPiece, animX + shakeX, animY)
+          svg += applySkinStyle(drawPiece(otherPiece, animX + shakeX, animY), animX + shakeX, animY, otherPiece.team)
         }
         // Check if this piece is moving
         else if (moveAnimation && moveAnimation.piece === otherPiece) {
@@ -9525,9 +9807,9 @@ function createBoard(): string {
           }
           // Draw piece slightly back/smaller when behind barricade
           if (barricade) {
-            svg += drawPiece(otherPiece, x, y - 8) // Draw piece shifted up (behind barricade)
+            svg += applySkinStyle(drawPiece(otherPiece, x, y - 8), x, y - 8, otherPiece.team) // Draw piece shifted up (behind barricade)
           } else {
-            svg += drawPiece(otherPiece, x, y)
+            svg += applySkinStyle(drawPiece(otherPiece, x, y), x, y, otherPiece.team)
           }
         }
       }
@@ -9537,7 +9819,7 @@ function createBoard(): string {
         if (selectedPiece === barricade) {
           svg += `<rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
         }
-        svg += drawPiece(barricade, x, y + 10) // Draw barricade at bottom of square
+        svg += applySkinStyle(drawPiece(barricade, x, y + 10), x, y + 10, barricade.team) // Draw barricade at bottom of square
       }
 
       // Draw piece that is currently in move animation (at its animated position)
@@ -9556,7 +9838,7 @@ function createBoard(): string {
         // Add slight bounce at the end
         const bounce = progress > 0.8 ? Math.sin((progress - 0.8) * 25) * 2 * (1 - progress) : 0
 
-        svg += drawPiece(moveAnimation.piece, animX, animY + bounce)
+        svg += applySkinStyle(drawPiece(moveAnimation.piece, animX, animY + bounce), animX, animY + bounce, moveAnimation.piece.team)
       }
 
       // Draw valid move indicator (X mark)
@@ -9969,6 +10251,9 @@ function createBoard(): string {
       <ellipse cx="0" cy="0" rx="3" ry="1.5" fill="#e6c84a" class="pointer-events-none" />
     </g>`
   })
+
+  // Render equipped cosmetic effect particles
+  svg += renderEffectParticles()
 
   svg += '</svg>'
   return svg
@@ -10686,6 +10971,8 @@ function render() {
             equippedTheme = userData.equippedItems?.theme || null
             equippedPieceSkin = userData.equippedItems?.pieceSkin || null
             equippedEffect = userData.equippedItems?.effect || null
+            equippedSoundPack = userData.equippedItems?.soundPack || null
+            equippedMusicPack = userData.equippedItems?.musicPack || null
           }
         } else {
           authError = result.error || 'Login failed'
@@ -10864,14 +11151,16 @@ function render() {
     if (showAuthScreen === 'shop') {
       const userData = getCurrentUserData()
       const purchasedItems = userData?.purchasedItems || []
-      const equipped = userData?.equippedItems || { theme: null, pieceSkin: null, effect: null }
+      const equipped = userData?.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }
 
-      const renderShopItems = (items: ShopItem[], itemType: 'theme' | 'piece_skin' | 'effect') => {
+      const renderShopItems = (items: ShopItem[], itemType: 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack') => {
         return items.map(item => {
           const owned = purchasedItems.includes(item.id)
           const isEquipped = (itemType === 'theme' && equipped.theme === item.id) ||
                             (itemType === 'piece_skin' && equipped.pieceSkin === item.id) ||
-                            (itemType === 'effect' && equipped.effect === item.id)
+                            (itemType === 'effect' && equipped.effect === item.id) ||
+                            (itemType === 'sound_pack' && equipped.soundPack === item.id) ||
+                            (itemType === 'music_pack' && equipped.musicPack === item.id)
 
           return `
             <div class="bg-gray-700 p-4 rounded-lg flex flex-col gap-2 ${isEquipped ? 'ring-2 ring-green-400' : ''}">
@@ -10904,6 +11193,8 @@ function render() {
       const themes = SHOP_ITEMS.filter(i => i.type === 'theme')
       const skins = SHOP_ITEMS.filter(i => i.type === 'piece_skin')
       const effects = SHOP_ITEMS.filter(i => i.type === 'effect')
+      const sounds = SHOP_ITEMS.filter(i => i.type === 'sound_pack')
+      const music = SHOP_ITEMS.filter(i => i.type === 'music_pack')
 
       app.innerHTML = `
         <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
@@ -10929,6 +11220,20 @@ function render() {
               <h2 class="text-lg font-bold text-white mb-3">✨ ${t('shopEffects')}</h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 ${renderShopItems(effects, 'effect')}
+              </div>
+            </div>
+
+            <div>
+              <h2 class="text-lg font-bold text-white mb-3">🔊 ${t('shopSounds')}</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${renderShopItems(sounds, 'sound_pack')}
+              </div>
+            </div>
+
+            <div>
+              <h2 class="text-lg font-bold text-white mb-3">🎵 ${t('shopMusic')}</h2>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${renderShopItems(music, 'music_pack')}
               </div>
             </div>
           </div>
@@ -10978,11 +11283,11 @@ function render() {
         btn.addEventListener('click', async (e) => {
           const target = e.target as HTMLElement
           const itemId = target.dataset.item
-          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect'
+          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
 
           if (!userData || !itemId) return
 
-          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null }) }
+          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
           if (itemType === 'theme') {
             newEquipped.theme = itemId
             equippedTheme = itemId
@@ -10992,6 +11297,12 @@ function render() {
           } else if (itemType === 'effect') {
             newEquipped.effect = itemId
             equippedEffect = itemId
+          } else if (itemType === 'sound_pack') {
+            newEquipped.soundPack = itemId
+            equippedSoundPack = itemId
+          } else if (itemType === 'music_pack') {
+            newEquipped.musicPack = itemId
+            equippedMusicPack = itemId
           }
 
           await saveUserData({ equippedItems: newEquipped })
@@ -11004,11 +11315,11 @@ function render() {
       document.querySelectorAll('.unequip-item-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const target = e.target as HTMLElement
-          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect'
+          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
 
           if (!userData) return
 
-          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null }) }
+          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
           if (itemType === 'theme') {
             newEquipped.theme = null
             equippedTheme = null
@@ -11018,6 +11329,12 @@ function render() {
           } else if (itemType === 'effect') {
             newEquipped.effect = null
             equippedEffect = null
+          } else if (itemType === 'sound_pack') {
+            newEquipped.soundPack = null
+            equippedSoundPack = null
+          } else if (itemType === 'music_pack') {
+            newEquipped.musicPack = null
+            equippedMusicPack = null
           }
 
           await saveUserData({ equippedItems: newEquipped })
@@ -11850,6 +12167,22 @@ function render() {
 
 // Load bot learning data on startup
 loadBotLearning()
+
+// Continuous particle animation loop
+let lastParticleUpdateTime = Date.now()
+function particleAnimationLoop() {
+  const now = Date.now()
+  const deltaTime = (now - lastParticleUpdateTime) / 1000
+  lastParticleUpdateTime = now
+
+  if (effectParticles.length > 0) {
+    updateEffectParticles(deltaTime)
+    render()
+  }
+
+  requestAnimationFrame(particleAnimationLoop)
+}
+particleAnimationLoop()
 
 // Initialize Firebase
 firebaseInitialized = initFirebase()
