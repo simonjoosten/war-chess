@@ -96,6 +96,193 @@ function getCurrentSkinStyle(): string | null {
   return skin?.skinStyle || null
 }
 
+// Get skin-adjusted colors for pieces - makes skins actually change piece appearance
+function getSkinColors(team: 'yellow' | 'green'): {
+  primary: string,
+  secondary: string,
+  accent: string,
+  dark: string,
+  helmet: string,
+  uniform: string,
+  uniformDark: string
+} {
+  const skinStyle = getCurrentSkinStyle()
+
+  // Default military colors
+  const defaultColors = {
+    yellow: {
+      primary: '#fde047',
+      secondary: '#facc15',
+      accent: '#eab308',
+      dark: '#a16207',
+      helmet: '#6b5a2f',
+      uniform: '#5c4a1f',
+      uniformDark: '#3d3214'
+    },
+    green: {
+      primary: '#4ade80',
+      secondary: '#22c55e',
+      accent: '#16a34a',
+      dark: '#15803d',
+      helmet: '#3d5a3d',
+      uniform: '#2d4a2d',
+      uniformDark: '#1e331e'
+    }
+  }
+
+  if (!skinStyle) return defaultColors[team]
+
+  // Skin-specific color palettes
+  switch (skinStyle) {
+    case 'robot':
+      return team === 'yellow' ? {
+        primary: '#00ffff',      // Cyan
+        secondary: '#0891b2',    // Darker cyan
+        accent: '#06b6d4',       // Teal
+        dark: '#0e7490',         // Dark teal
+        helmet: '#1e3a5f',       // Navy blue
+        uniform: '#0f172a',      // Dark navy
+        uniformDark: '#020617'   // Near black
+      } : {
+        primary: '#ff00ff',      // Magenta
+        secondary: '#a855f7',    // Purple
+        accent: '#c026d3',       // Pink
+        dark: '#7e22ce',         // Dark purple
+        helmet: '#4a1d5f',       // Dark magenta
+        uniform: '#1e1b4b',      // Dark indigo
+        uniformDark: '#0c0a1d'   // Near black
+      }
+    case 'medieval':
+      return team === 'yellow' ? {
+        primary: '#ffd700',      // Gold
+        secondary: '#daa520',    // Goldenrod
+        accent: '#b8860b',       // Dark goldenrod
+        dark: '#8b6914',         // Dark gold
+        helmet: '#8b4513',       // Saddle brown
+        uniform: '#654321',      // Dark brown
+        uniformDark: '#3d2817'   // Very dark brown
+      } : {
+        primary: '#c0c0c0',      // Silver
+        secondary: '#a8a8a8',    // Gray
+        accent: '#808080',       // Dark gray
+        dark: '#606060',         // Darker gray
+        helmet: '#4a4a4a',       // Charcoal
+        uniform: '#2d2d2d',      // Dark charcoal
+        uniformDark: '#1a1a1a'   // Near black
+      }
+    case 'scifi':
+      return team === 'yellow' ? {
+        primary: '#00ff66',      // Neon green
+        secondary: '#22c55e',    // Green
+        accent: '#10b981',       // Emerald
+        dark: '#059669',         // Dark emerald
+        helmet: '#064e3b',       // Dark teal
+        uniform: '#022c22',      // Very dark teal
+        uniformDark: '#011a13'   // Near black
+      } : {
+        primary: '#00ffff',      // Neon cyan
+        secondary: '#06b6d4',    // Cyan
+        accent: '#0891b2',       // Teal
+        dark: '#0e7490',         // Dark teal
+        helmet: '#164e63',       // Dark cyan
+        uniform: '#083344',      // Very dark cyan
+        uniformDark: '#042f2e'   // Near black
+      }
+    case 'pixel':
+      return team === 'yellow' ? {
+        primary: '#ffff00',      // Pure yellow
+        secondary: '#ff8800',    // Orange
+        accent: '#ff4400',       // Red-orange
+        dark: '#cc3300',         // Dark orange
+        helmet: '#884400',       // Brown
+        uniform: '#664422',      // Dark brown
+        uniformDark: '#442211'   // Very dark brown
+      } : {
+        primary: '#00ff00',      // Pure green
+        secondary: '#00cc88',    // Teal green
+        accent: '#00aa66',       // Dark teal
+        dark: '#008844',         // Forest green
+        helmet: '#006633',       // Dark green
+        uniform: '#004422',      // Very dark green
+        uniformDark: '#002211'   // Near black
+      }
+    case 'minimal':
+      return team === 'yellow' ? {
+        primary: '#f5f5f5',      // White
+        secondary: '#e5e5e5',    // Light gray
+        accent: '#fde047',       // Yellow accent
+        dark: '#a3a3a3',         // Gray
+        helmet: '#737373',       // Dark gray
+        uniform: '#525252',      // Darker gray
+        uniformDark: '#404040'   // Very dark gray
+      } : {
+        primary: '#f5f5f5',      // White
+        secondary: '#e5e5e5',    // Light gray
+        accent: '#4ade80',       // Green accent
+        dark: '#a3a3a3',         // Gray
+        helmet: '#737373',       // Dark gray
+        uniform: '#525252',      // Darker gray
+        uniformDark: '#404040'   // Very dark gray
+      }
+    case 'cartoon':
+      return team === 'yellow' ? {
+        primary: '#ffeb3b',      // Bright yellow
+        secondary: '#ffc107',    // Amber
+        accent: '#ff9800',       // Orange
+        dark: '#f57c00',         // Dark orange
+        helmet: '#e65100',       // Deep orange
+        uniform: '#bf360c',      // Brown orange
+        uniformDark: '#8d2600'   // Dark brown
+      } : {
+        primary: '#8bc34a',      // Light green
+        secondary: '#4caf50',    // Green
+        accent: '#43a047',       // Medium green
+        dark: '#2e7d32',         // Dark green
+        helmet: '#1b5e20',       // Very dark green
+        uniform: '#194d19',      // Forest
+        uniformDark: '#0d3d0d'   // Near black
+      }
+    case 'military':
+      return team === 'yellow' ? {
+        primary: '#8b8b00',      // Olive
+        secondary: '#6b6b00',    // Dark olive
+        accent: '#4b4b00',       // Darker olive
+        dark: '#3b3b00',         // Very dark olive
+        helmet: '#2d2d00',       // Near black olive
+        uniform: '#1f1f00',      // Black olive
+        uniformDark: '#0f0f00'   // Near black
+      } : {
+        primary: '#556b2f',      // Dark olive green
+        secondary: '#4a5d2a',    // Olive drab
+        accent: '#3d4f22',       // Dark drab
+        dark: '#2f3d1a',         // Very dark drab
+        helmet: '#222d12',       // Near black
+        uniform: '#1a2210',      // Very dark
+        uniformDark: '#0f1508'   // Near black
+      }
+    case 'fantasy':
+      return team === 'yellow' ? {
+        primary: '#9400d3',      // Purple
+        secondary: '#8b008b',    // Dark magenta
+        accent: '#800080',       // Purple
+        dark: '#4b0082',         // Indigo
+        helmet: '#2e0854',       // Dark purple
+        uniform: '#1a0330',      // Very dark purple
+        uniformDark: '#0d011a'   // Near black
+      } : {
+        primary: '#00ced1',      // Dark turquoise
+        secondary: '#20b2aa',    // Light sea green
+        accent: '#008b8b',       // Dark cyan
+        dark: '#006666',         // Dark teal
+        helmet: '#004d4d',       // Very dark teal
+        uniform: '#003333',      // Near black teal
+        uniformDark: '#001a1a'   // Near black
+      }
+    default:
+      return defaultColors[team]
+  }
+}
+
 // Get current equipped effect type
 function getCurrentEffectType(): string | null {
   if (!equippedEffect) return null
@@ -563,7 +750,14 @@ function getThemeColors(): { light: string; dark: string } {
 
 // Team colors (colorblind-friendly alternatives)
 function getTeamColor(team: 'yellow' | 'green'): string {
-  // Check for equipped piece skin first
+  // Check for equipped piece skin first - use skin colors
+  const skinStyle = getCurrentSkinStyle()
+  if (skinStyle) {
+    const skinColors = getSkinColors(team)
+    return skinColors.primary
+  }
+
+  // Check for equipped piece skin with pieceColor (legacy support)
   if (equippedPieceSkin) {
     const shopSkin = SHOP_ITEMS.find(i => i.id === equippedPieceSkin && i.pieceColor)
     if (shopSkin?.pieceColor) {
@@ -5069,6 +5263,8 @@ function makeBotMove() {
         }
         break
       case 'builder':
+        // Builder movement
+        validMoves = getValidMovesForBuilder(piece)
         // Builder building
         if (canBuilderBuildBarricade(piece)) {
           // Build barricade to protect pieces
@@ -5855,8 +6051,8 @@ function isBlockedByBarricade(col: string, row: number): boolean {
   return piece?.type === 'barricade'
 }
 
-// Check if a shot path is blocked by a barricade
-function isShotBlockedByBarricade(fromCol: string, fromRow: number, toCol: string, toRow: number): boolean {
+// Check if a shot path is blocked by a barricade (checks path only, not target)
+function isShotBlockedByBarricadePath(fromCol: string, fromRow: number, toCol: string, toRow: number): boolean {
   const fromColIndex = columns.indexOf(fromCol)
   const toColIndex = columns.indexOf(toCol)
 
@@ -5872,6 +6068,14 @@ function isShotBlockedByBarricade(fromCol: string, fromRow: number, toCol: strin
     currentCol += dc
     currentRow += dr
   }
+
+  return false
+}
+
+// Check if a shot path is blocked by a barricade (includes target)
+function isShotBlockedByBarricade(fromCol: string, fromRow: number, toCol: string, toRow: number): boolean {
+  // Check path first
+  if (isShotBlockedByBarricadePath(fromCol, fromRow, toCol, toRow)) return true
 
   // Also check the target square for barricade (blocks shots to pieces behind it)
   if (getBarricadeAt(toCol, toRow)) return true
@@ -6503,6 +6707,16 @@ function getShootTargetsForSoldier(piece: Piece): { col: string; row: number }[]
     const targetRow = piece.row + (distance * directionSign)
 
     if (targetRow < 1 || targetRow > 11) continue
+
+    // Check for barricade at target - can shoot enemy barricades!
+    const barricadeAtTarget = getBarricadeAt(piece.col, targetRow)
+    if (barricadeAtTarget && barricadeAtTarget.team !== piece.team) {
+      // Can shoot enemy barricades - check path is clear
+      if (!isShotBlockedByBarricadePath(piece.col, piece.row, piece.col, targetRow)) {
+        targets.push({ col: piece.col, row: targetRow })
+      }
+      continue // Barricade blocks shots to pieces behind it
+    }
 
     // Check if shot is blocked by a barricade in the path
     if (isShotBlockedByBarricade(piece.col, piece.row, piece.col, targetRow)) continue
@@ -8924,9 +9138,10 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   if (piece.type === 'soldier') {
     const inTrench = piece.inTrench
     const inTunnel = piece.inTunnel
-    const uniformColor = piece.team === 'yellow' ? '#5c4a1f' : '#2d4a2d' // Khaki for yellow, olive for green
-    const uniformDark = piece.team === 'yellow' ? '#3d3214' : '#1e331e'
-    const helmetColor = piece.team === 'yellow' ? '#6b5a2f' : '#3d5a3d'
+    const skinColors = getSkinColors(piece.team)
+    const uniformColor = skinColors.uniform
+    const uniformDark = skinColors.uniformDark
+    const helmetColor = skinColors.helmet
     // Military soldier appearance
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -8999,8 +9214,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'tank') {
-    const bodyColor = piece.team === 'yellow' ? '#6b5a2f' : '#3d5a3d'
-    const bodyDark = piece.team === 'yellow' ? '#4a3d1f' : '#2d4a2d'
+    const skinColors = getSkinColors(piece.team)
+    const bodyColor = skinColors.helmet
+    const bodyDark = skinColors.uniform
     const trackColor = '#2d2d2d'
     // Tank design
     return `
@@ -9048,9 +9264,10 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'ship') {
-    const hullColor = piece.team === 'yellow' ? '#6b5a2f' : '#3d5a3d'
-    const hullDark = piece.team === 'yellow' ? '#4a3d1f' : '#2d4a2d'
-    const deckColor = piece.team === 'yellow' ? '#8b7355' : '#5a7a5a'
+    const skinColors = getSkinColors(piece.team)
+    const hullColor = skinColors.helmet
+    const hullDark = skinColors.uniform
+    const deckColor = skinColors.accent
     // Battleship design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -9091,9 +9308,10 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'carrier') {
-    const hullColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
-    const hullDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
-    const deckColor = piece.team === 'yellow' ? '#7a7a7a' : '#5a6a5a'
+    const skinColors = getSkinColors(piece.team)
+    const hullColor = skinColors.helmet
+    const hullDark = skinColors.uniform
+    const deckColor = skinColors.accent
     const damaged = piece.hp === 1
     // Aircraft carrier design
     return `
@@ -9131,11 +9349,11 @@ function drawPiece(piece: Piece, x: number, y: number): string {
         <!-- Helicopter on deck (if present) -->
         ${piece.hasHelicopter ? `
           <!-- Mini helicopter on carrier deck -->
-          <ellipse cx="${x + 20}" cy="${y + 26}" rx="8" ry="5" fill="#3d3d3d" stroke="#2d2d2d" stroke-width="1" />
+          <ellipse cx="${x + 20}" cy="${y + 26}" rx="8" ry="5" fill="${skinColors.uniformDark}" stroke="${skinColors.uniformDark}" stroke-width="1" />
           <ellipse cx="${x + 17}" cy="${y + 25}" rx="4" ry="3" fill="#87ceeb" opacity="0.6" />
-          <rect x="${x + 26}" y="${y + 25}" width="8" height="2" fill="#3d3d3d" />
-          <line x1="${x + 10}" y1="${y + 23}" x2="${x + 30}" y2="${y + 23}" stroke="#5a5a5a" stroke-width="1.5" />
-          <line x1="${x + 15}" y1="${y + 21}" x2="${x + 25}" y2="${y + 25}" stroke="#5a5a5a" stroke-width="1.5" />
+          <rect x="${x + 26}" y="${y + 25}" width="8" height="2" fill="${skinColors.uniformDark}" />
+          <line x1="${x + 10}" y1="${y + 23}" x2="${x + 30}" y2="${y + 23}" stroke="${skinColors.uniform}" stroke-width="1.5" />
+          <line x1="${x + 15}" y1="${y + 21}" x2="${x + 25}" y2="${y + 25}" stroke="${skinColors.uniform}" stroke-width="1.5" />
           <circle cx="${x + 20}" cy="${y + 18}" r="2" fill="${teamColor}" />
         ` : ''}
         ${colorblindSymbol}
@@ -9144,8 +9362,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'helicopter') {
-    const bodyColor = piece.team === 'yellow' ? '#4a4a4a' : '#3a4a3a'
-    const bodyDark = piece.team === 'yellow' ? '#2a2a2a' : '#1a2a1a'
+    const skinColors = getSkinColors(piece.team)
+    const bodyColor = skinColors.helmet
+    const bodyDark = skinColors.uniform
     // Helicopter design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -9183,8 +9402,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'machinegun') {
-    const baseColor = piece.team === 'yellow' ? '#5c4a1f' : '#2d4a2d'
-    const baseDark = piece.team === 'yellow' ? '#3d3214' : '#1e331e'
+    const skinColors = getSkinColors(piece.team)
+    const baseColor = skinColors.uniform
+    const baseDark = skinColors.uniformDark
     const metalColor = '#4a4a4a'
     const metalDark = '#2d2d2d'
     // Machine gun design (stationary)
@@ -9222,8 +9442,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'suv') {
-    const bodyColor = piece.team === 'yellow' ? '#8b7355' : '#5a6b5a'
-    const bodyDark = piece.team === 'yellow' ? '#6b5a3d' : '#3a4b3a'
+    const skinColors = getSkinColors(piece.team)
+    const bodyColor = skinColors.helmet
+    const bodyDark = skinColors.uniform
     const windowColor = '#87ceeb'
     // SUV design
     return `
@@ -9272,8 +9493,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'rocket') {
-    const bodyColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
-    const bodyDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
+    const skinColors = getSkinColors(piece.team)
+    const bodyColor = skinColors.helmet
+    const bodyDark = skinColors.uniform
     const noseColor = '#ef4444'
     const used = piece.used
     // Rocket/missile design
@@ -9310,8 +9532,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'sub') {
-    const hullColor = piece.team === 'yellow' ? '#4a4a4a' : '#3a4a3a'
-    const hullDark = piece.team === 'yellow' ? '#2d2d2d' : '#1d2d1d'
+    const skinColors = getSkinColors(piece.team)
+    const hullColor = skinColors.helmet
+    const hullDark = skinColors.uniform
     const frozen = piece.frozenTurns && piece.frozenTurns > 0
     // Submarine design
     return `
@@ -9357,8 +9580,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'fighter') {
-    const bodyColor = piece.team === 'yellow' ? '#5a5a5a' : '#4a5a4a'
-    const bodyDark = piece.team === 'yellow' ? '#3a3a3a' : '#2a3a2a'
+    const skinColors = getSkinColors(piece.team)
+    const bodyColor = skinColors.helmet
+    const bodyDark = skinColors.uniform
     const cockpitColor = '#87ceeb'
     const frozen = piece.frozenTurns && piece.frozenTurns > 0
     const onCooldown = piece.cooldownTurns && piece.cooldownTurns > 0
@@ -9405,9 +9629,10 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'hacker') {
-    const bodyColor = piece.team === 'yellow' ? '#1a1a2e' : '#1a2e1a'
-    const bodyDark = piece.team === 'yellow' ? '#0f0f1a' : '#0f1a0f'
-    const screenColor = '#00ff00'
+    const skinColors = getSkinColors(piece.team)
+    const bodyColor = skinColors.uniformDark
+    const bodyDark = skinColors.uniformDark
+    const screenColor = skinColors.primary
     const frozen = piece.frozenTurns && piece.frozenTurns > 0
     // Hacker design - person at computer
     return `
@@ -9461,8 +9686,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'builder') {
-    const vestColor = piece.team === 'yellow' ? '#f59e0b' : '#22c55e'
-    const vestDark = piece.team === 'yellow' ? '#d97706' : '#16a34a'
+    const skinColors = getSkinColors(piece.team)
+    const vestColor = skinColors.primary
+    const vestDark = skinColors.secondary
     const skinColor = '#e8c39e'
     const skinDark = '#d4a574'
     const frozen = piece.frozenTurns && piece.frozenTurns > 0
@@ -9534,8 +9760,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'barricade') {
-    const woodColor = piece.team === 'yellow' ? '#92400e' : '#065f46'
-    const woodDark = piece.team === 'yellow' ? '#78350f' : '#064e3b'
+    const skinColors = getSkinColors(piece.team)
+    const woodColor = skinColors.helmet
+    const woodDark = skinColors.uniform
     // Barricade design - wooden barrier
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
@@ -9560,8 +9787,9 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   }
 
   if (piece.type === 'artillery') {
-    const metalColor = piece.team === 'yellow' ? '#4a4a4a' : '#3a4a3a'
-    const metalDark = piece.team === 'yellow' ? '#2d2d2d' : '#1d2d1d'
+    const skinColors = getSkinColors(piece.team)
+    const metalColor = skinColors.helmet
+    const metalDark = skinColors.uniform
     // Artillery cannon design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
