@@ -6200,12 +6200,12 @@ function getInitialPieces(): Piece[] {
     // Green ships (behind tanks)
     { type: 'ship', team: 'green', col: 'B', row: 11, points: 12 },
     { type: 'ship', team: 'green', col: 'J', row: 11, points: 12 },
-    // Yellow aircraft carriers
-    { type: 'carrier', team: 'yellow', col: 'C', row: 1, points: 20, hp: 2, hasHelicopter: false },
-    { type: 'carrier', team: 'yellow', col: 'I', row: 1, points: 20, hp: 2, hasHelicopter: false },
+    // Yellow aircraft carriers (1 HP base, +1 HP when helicopter is on board)
+    { type: 'carrier', team: 'yellow', col: 'C', row: 1, points: 20, hp: 1, hasHelicopter: false },
+    { type: 'carrier', team: 'yellow', col: 'I', row: 1, points: 20, hp: 1, hasHelicopter: false },
     // Green aircraft carriers
-    { type: 'carrier', team: 'green', col: 'C', row: 11, points: 20, hp: 2, hasHelicopter: false },
-    { type: 'carrier', team: 'green', col: 'I', row: 11, points: 20, hp: 2, hasHelicopter: false },
+    { type: 'carrier', team: 'green', col: 'C', row: 11, points: 20, hp: 1, hasHelicopter: false },
+    { type: 'carrier', team: 'green', col: 'I', row: 11, points: 20, hp: 1, hasHelicopter: false },
     // Yellow helicopters (in front of trains)
     { type: 'helicopter', team: 'yellow', col: 'A', row: 2, points: 8 },
     { type: 'helicopter', team: 'yellow', col: 'K', row: 2, points: 8 },
@@ -7308,6 +7308,10 @@ function completeHelicopterLaunch(col: string, row: number) {
 
   // Remove helicopter from carrier
   carrier.hasHelicopter = false
+  // Helicopter leaving removes +1 HP bonus (but not below 1)
+  if (carrier.hp !== undefined && carrier.hp > 1) {
+    carrier.hp -= 1
+  }
 
   // Log the launch
   moveLog.push({
@@ -7638,6 +7642,10 @@ function movePiece(col: string, row: number) {
     if (selectedPiece.type === 'helicopter' && pieceAtTarget.type === 'carrier' && pieceAtTarget.team === selectedPiece.team) {
       // Land on carrier
       pieceAtTarget.hasHelicopter = true
+      // Helicopter gives carrier +1 HP
+      if (pieceAtTarget.hp !== undefined) {
+        pieceAtTarget.hp += 1
+      }
       const heliIndex = pieces.indexOf(selectedPiece)
       pieces.splice(heliIndex, 1)
 
