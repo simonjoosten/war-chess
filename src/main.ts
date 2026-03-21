@@ -107,103 +107,160 @@ function applySkinStyle(pieceSvg: string, x: number, y: number, team: 'yellow' |
   if (!skinStyle) return pieceSvg
 
   let overlayEffects = ''
+  let backgroundEffects = ''
   const centerX = x + 25
   const centerY = y + 25
+  const teamColor1 = team === 'yellow' ? '#ffff00' : '#00ff00'
+  const teamColor2 = team === 'yellow' ? '#ff8800' : '#00cc88'
 
   switch (skinStyle) {
     case 'robot':
-      // Metallic glow and circuit pattern
+      // Metallic robot frame with glowing elements
+      backgroundEffects = `
+        <rect x="${x + 5}" y="${y + 5}" width="40" height="40" rx="5" fill="none" stroke="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" stroke-width="3" opacity="0.8" class="pointer-events-none" />
+        <rect x="${x + 8}" y="${y + 8}" width="34" height="34" rx="3" fill="${team === 'yellow' ? 'rgba(0,255,255,0.15)' : 'rgba(255,0,255,0.15)'}" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <defs>
-          <linearGradient id="robotGlow${x}${y}" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:${team === 'yellow' ? '#00ffff' : '#ff00ff'};stop-opacity:0.3" />
-            <stop offset="100%" style="stop-color:${team === 'yellow' ? '#00ffff' : '#ff00ff'};stop-opacity:0" />
-          </linearGradient>
-        </defs>
-        <ellipse cx="${centerX}" cy="${centerY}" rx="22" ry="22" fill="url(#robotGlow${x}${y})" class="pointer-events-none" />
-        <circle cx="${centerX - 8}" cy="${centerY - 15}" r="2" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" opacity="0.8" class="pointer-events-none">
-          <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1s" repeatCount="indefinite" />
+        <circle cx="${x + 12}" cy="${y + 12}" r="4" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" class="pointer-events-none">
+          <animate attributeName="opacity" values="1;0.3;1" dur="0.8s" repeatCount="indefinite" />
         </circle>
-        <circle cx="${centerX + 8}" cy="${centerY - 15}" r="2" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" opacity="0.8" class="pointer-events-none">
-          <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1s" repeatCount="indefinite" />
+        <circle cx="${x + 38}" cy="${y + 12}" r="4" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" class="pointer-events-none">
+          <animate attributeName="opacity" values="0.3;1;0.3" dur="0.8s" repeatCount="indefinite" />
         </circle>
+        <line x1="${x + 12}" y1="${y + 16}" x2="${x + 12}" y2="${y + 38}" stroke="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" stroke-width="2" opacity="0.5" class="pointer-events-none" />
+        <line x1="${x + 38}" y1="${y + 16}" x2="${x + 38}" y2="${y + 38}" stroke="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" stroke-width="2" opacity="0.5" class="pointer-events-none" />
+        <rect x="${x + 18}" y="${y + 40}" width="14" height="4" fill="${team === 'yellow' ? '#00ffff' : '#ff00ff'}" opacity="0.7" class="pointer-events-none" />
       `
       break
     case 'medieval':
-      // Golden crown/halo effect
+      // Shield and crown effect
+      backgroundEffects = `
+        <path d="M${centerX} ${y + 2} L${x + 42} ${y + 12} L${x + 42} ${y + 35} L${centerX} ${y + 48} L${x + 8} ${y + 35} L${x + 8} ${y + 12} Z" fill="none" stroke="#ffd700" stroke-width="3" opacity="0.8" class="pointer-events-none" />
+        <path d="M${centerX} ${y + 5} L${x + 39} ${y + 14} L${x + 39} ${y + 33} L${centerX} ${y + 44} L${x + 11} ${y + 33} L${x + 11} ${y + 14} Z" fill="rgba(255,215,0,0.15)" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <ellipse cx="${centerX}" cy="${y + 5}" rx="10" ry="3" fill="none" stroke="#ffd700" stroke-width="2" opacity="0.6" class="pointer-events-none" />
-        <path d="M${centerX - 10} ${y + 3} L${centerX - 7} ${y} L${centerX - 4} ${y + 3} L${centerX} ${y - 2} L${centerX + 4} ${y + 3} L${centerX + 7} ${y} L${centerX + 10} ${y + 3}" stroke="#ffd700" fill="none" stroke-width="1.5" opacity="0.7" class="pointer-events-none" />
+        <path d="M${centerX - 12} ${y} L${centerX - 8} ${y - 6} L${centerX - 4} ${y} L${centerX} ${y - 8} L${centerX + 4} ${y} L${centerX + 8} ${y - 6} L${centerX + 12} ${y}" stroke="#ffd700" fill="#ffd700" stroke-width="2" class="pointer-events-none" />
+        <circle cx="${centerX}" cy="${y - 2}" r="2" fill="#ff0000" class="pointer-events-none" />
       `
       break
     case 'scifi':
-      // Holographic scanlines and glow
+      // Holographic effect with scan lines
+      backgroundEffects = `
+        <rect x="${x + 3}" y="${y + 3}" width="44" height="44" rx="3" fill="rgba(0,255,100,0.1)" stroke="#00ff66" stroke-width="2" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <defs>
-          <linearGradient id="scifiGlow${x}${y}" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.2" />
-            <stop offset="50%" style="stop-color:#00ff88;stop-opacity:0" />
-            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0.2" />
-          </linearGradient>
-        </defs>
-        <rect x="${x}" y="${y}" width="50" height="50" fill="url(#scifiGlow${x}${y})" class="pointer-events-none" />
-        <line x1="${x}" y1="${y + 10}" x2="${x + 50}" y2="${y + 10}" stroke="#00ff00" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
-        <line x1="${x}" y1="${y + 25}" x2="${x + 50}" y2="${y + 25}" stroke="#00ff00" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
-        <line x1="${x}" y1="${y + 40}" x2="${x + 50}" y2="${y + 40}" stroke="#00ff00" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <line x1="${x}" y1="${y + 8}" x2="${x + 50}" y2="${y + 8}" stroke="#00ff66" stroke-width="1" opacity="0.6" class="pointer-events-none">
+          <animate attributeName="y1" values="${y + 8};${y + 42};${y + 8}" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="y2" values="${y + 8};${y + 42};${y + 8}" dur="2s" repeatCount="indefinite" />
+        </line>
+        <circle cx="${x + 8}" cy="${y + 8}" r="3" fill="#00ff66" opacity="0.8" class="pointer-events-none" />
+        <circle cx="${x + 42}" cy="${y + 8}" r="3" fill="#00ff66" opacity="0.8" class="pointer-events-none" />
+        <circle cx="${x + 8}" cy="${y + 42}" r="3" fill="#00ff66" opacity="0.8" class="pointer-events-none" />
+        <circle cx="${x + 42}" cy="${y + 42}" r="3" fill="#00ff66" opacity="0.8" class="pointer-events-none" />
+        <text x="${x + 5}" y="${y + 48}" font-size="6" fill="#00ff66" font-family="monospace" class="pointer-events-none">SCI-FI</text>
       `
       break
     case 'pixel':
-      // Pixelated border effect
+      // Big pixelated frame - very visible!
+      const pixelSize = 6
+      backgroundEffects = `
+        <!-- Pixel border top -->
+        <rect x="${x}" y="${y}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <rect x="${x + pixelSize}" y="${y}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x + pixelSize * 2}" y="${y}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize * 3}" y="${y}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize * 2}" y="${y}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize}" y="${y}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <!-- Pixel border left -->
+        <rect x="${x}" y="${y + pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x}" y="${y + pixelSize * 2}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <!-- Pixel border right -->
+        <rect x="${x + 50 - pixelSize}" y="${y + pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize}" y="${y + pixelSize * 2}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <!-- Pixel border bottom -->
+        <rect x="${x}" y="${y + 50 - pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <rect x="${x + pixelSize}" y="${y + 50 - pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x + pixelSize * 2}" y="${y + 50 - pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize * 3}" y="${y + 50 - pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize * 2}" y="${y + 50 - pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize}" y="${y + 50 - pixelSize}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <!-- Pixel border bottom-left corner -->
+        <rect x="${x}" y="${y + 50 - pixelSize * 2}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x}" y="${y + 50 - pixelSize * 3}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+        <!-- Pixel border bottom-right corner -->
+        <rect x="${x + 50 - pixelSize}" y="${y + 50 - pixelSize * 2}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor2}" class="pointer-events-none" />
+        <rect x="${x + 50 - pixelSize}" y="${y + 50 - pixelSize * 3}" width="${pixelSize}" height="${pixelSize}" fill="${teamColor1}" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <rect x="${x + 2}" y="${y + 2}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
-        <rect x="${x + 44}" y="${y + 2}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
-        <rect x="${x + 2}" y="${y + 44}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
-        <rect x="${x + 44}" y="${y + 44}" width="4" height="4" fill="${team === 'yellow' ? '#ffff00' : '#00ff00'}" opacity="0.5" class="pointer-events-none" />
+        <text x="${centerX}" y="${y + 48}" font-size="8" fill="${teamColor1}" text-anchor="middle" font-family="monospace" font-weight="bold" class="pointer-events-none">8-BIT</text>
       `
       break
     case 'minimal':
-      // Clean circle outline
+      // Clean geometric shapes
+      backgroundEffects = `
+        <circle cx="${centerX}" cy="${centerY}" r="24" fill="none" stroke="${teamColor1}" stroke-width="3" class="pointer-events-none" />
+        <circle cx="${centerX}" cy="${centerY}" r="20" fill="none" stroke="${teamColor2}" stroke-width="1" stroke-dasharray="4,4" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <circle cx="${centerX}" cy="${centerY}" r="23" fill="none" stroke="${team === 'yellow' ? '#ffd700' : '#32cd32'}" stroke-width="1.5" opacity="0.4" class="pointer-events-none" />
+        <line x1="${centerX - 18}" y1="${centerY}" x2="${centerX + 18}" y2="${centerY}" stroke="${teamColor1}" stroke-width="1" opacity="0.5" class="pointer-events-none" />
+        <line x1="${centerX}" y1="${centerY - 18}" x2="${centerX}" y2="${centerY + 18}" stroke="${teamColor1}" stroke-width="1" opacity="0.5" class="pointer-events-none" />
       `
       break
     case 'cartoon':
-      // Bouncy outline and sparkles
+      // Cartoon style with thick outlines and fun effects
+      backgroundEffects = `
+        <ellipse cx="${centerX + 2}" cy="${centerY + 3}" rx="24" ry="22" fill="rgba(0,0,0,0.3)" class="pointer-events-none" />
+        <ellipse cx="${centerX}" cy="${centerY}" rx="24" ry="22" fill="none" stroke="#000000" stroke-width="4" class="pointer-events-none" />
+        <ellipse cx="${centerX}" cy="${centerY}" rx="22" ry="20" fill="rgba(255,255,255,0.2)" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <ellipse cx="${centerX}" cy="${y + 48}" rx="15" ry="3" fill="rgba(0,0,0,0.2)" class="pointer-events-none" />
-        <text x="${centerX + 15}" y="${y + 8}" font-size="8" fill="#ffff00" opacity="0.8" class="pointer-events-none">✦</text>
-        <text x="${centerX - 18}" y="${y + 12}" font-size="6" fill="#ffffff" opacity="0.6" class="pointer-events-none">✧</text>
+        <text x="${x + 40}" y="${y + 12}" font-size="12" class="pointer-events-none">✨</text>
+        <text x="${x + 5}" y="${y + 15}" font-size="10" class="pointer-events-none">⭐</text>
+        <ellipse cx="${centerX - 8}" cy="${y + 15}" rx="4" ry="6" fill="#ffffff" opacity="0.6" class="pointer-events-none" />
       `
       break
     case 'military':
-      // Tactical reticle
+      // Tactical military look with camo pattern
+      backgroundEffects = `
+        <rect x="${x + 3}" y="${y + 3}" width="44" height="44" fill="none" stroke="#556b2f" stroke-width="3" class="pointer-events-none" />
+        <rect x="${x + 6}" y="${y + 6}" width="38" height="38" fill="none" stroke="#8b4513" stroke-width="1" stroke-dasharray="8,4" class="pointer-events-none" />
+      `
       overlayEffects = `
-        <circle cx="${centerX}" cy="${centerY}" r="18" fill="none" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
-        <line x1="${centerX - 22}" y1="${centerY}" x2="${centerX - 12}" y2="${centerY}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
-        <line x1="${centerX + 12}" y1="${centerY}" x2="${centerX + 22}" y2="${centerY}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
-        <line x1="${centerX}" y1="${centerY - 22}" x2="${centerX}" y2="${centerY - 12}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
-        <line x1="${centerX}" y1="${centerY + 12}" x2="${centerX}" y2="${centerY + 22}" stroke="#ff0000" stroke-width="0.5" opacity="0.3" class="pointer-events-none" />
+        <circle cx="${centerX}" cy="${centerY}" r="16" fill="none" stroke="#ff0000" stroke-width="2" opacity="0.6" class="pointer-events-none" />
+        <line x1="${centerX - 20}" y1="${centerY}" x2="${centerX - 8}" y2="${centerY}" stroke="#ff0000" stroke-width="2" opacity="0.6" class="pointer-events-none" />
+        <line x1="${centerX + 8}" y1="${centerY}" x2="${centerX + 20}" y2="${centerY}" stroke="#ff0000" stroke-width="2" opacity="0.6" class="pointer-events-none" />
+        <line x1="${centerX}" y1="${centerY - 20}" x2="${centerX}" y2="${centerY - 8}" stroke="#ff0000" stroke-width="2" opacity="0.6" class="pointer-events-none" />
+        <line x1="${centerX}" y1="${centerY + 8}" x2="${centerX}" y2="${centerY + 20}" stroke="#ff0000" stroke-width="2" opacity="0.6" class="pointer-events-none" />
+        <text x="${x + 3}" y="${y + 48}" font-size="6" fill="#556b2f" font-family="monospace" class="pointer-events-none">TACTICAL</text>
       `
       break
     case 'fantasy':
-      // Magical aura and sparkles
-      overlayEffects = `
+      // Magical aura with sparkles and glow
+      backgroundEffects = `
         <defs>
           <radialGradient id="magicAura${x}${y}" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" style="stop-color:${team === 'yellow' ? '#9400d3' : '#00ced1'};stop-opacity:0.3" />
+            <stop offset="0%" style="stop-color:${team === 'yellow' ? '#9400d3' : '#00ced1'};stop-opacity:0.4" />
             <stop offset="100%" style="stop-color:${team === 'yellow' ? '#9400d3' : '#00ced1'};stop-opacity:0" />
           </radialGradient>
         </defs>
-        <circle cx="${centerX}" cy="${centerY}" r="25" fill="url(#magicAura${x}${y})" class="pointer-events-none">
-          <animate attributeName="r" values="25;28;25" dur="2s" repeatCount="indefinite" />
+        <circle cx="${centerX}" cy="${centerY}" r="28" fill="url(#magicAura${x}${y})" class="pointer-events-none">
+          <animate attributeName="r" values="28;32;28" dur="1.5s" repeatCount="indefinite" />
         </circle>
-        <text x="${centerX - 12}" y="${y + 6}" font-size="8" fill="#ffd700" opacity="0.8" class="pointer-events-none">✨</text>
-        <text x="${centerX + 8}" y="${y + 10}" font-size="6" fill="#ffd700" opacity="0.6" class="pointer-events-none">⭐</text>
+        <circle cx="${centerX}" cy="${centerY}" r="24" fill="none" stroke="${team === 'yellow' ? '#9400d3' : '#00ced1'}" stroke-width="2" opacity="0.6" class="pointer-events-none">
+          <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite" />
+        </circle>
+      `
+      overlayEffects = `
+        <text x="${x + 5}" y="${y + 12}" font-size="10" class="pointer-events-none">✨</text>
+        <text x="${x + 38}" y="${y + 10}" font-size="12" class="pointer-events-none">⭐</text>
+        <text x="${x + 8}" y="${y + 45}" font-size="8" class="pointer-events-none">🔮</text>
+        <text x="${x + 35}" y="${y + 48}" font-size="10" class="pointer-events-none">✨</text>
+        <text x="${centerX}" y="${y - 2}" font-size="8" text-anchor="middle" fill="${team === 'yellow' ? '#ffd700' : '#00ffff'}" class="pointer-events-none">♦</text>
       `
       break
   }
 
-  return pieceSvg + overlayEffects
+  return backgroundEffects + pieceSvg + overlayEffects
 }
 
 // Spawn effect particles at a position
