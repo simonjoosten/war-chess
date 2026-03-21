@@ -9148,13 +9148,175 @@ function drawPiece(piece: Piece, x: number, y: number): string {
   const colorblindSymbol = getColorblindSymbol(piece.team, x, y)
 
   if (piece.type === 'train') {
+    const skinColors = getSkinColors(piece.team)
+    const skinStyle = getCurrentSkinStyle()
     const highlight = colorBlindMode
       ? (piece.team === 'yellow' ? '#fb923c' : '#60a5fa')
       : (piece.team === 'yellow' ? '#fde047' : '#4ade80')
     const shadow = colorBlindMode
       ? (piece.team === 'yellow' ? '#9a3412' : '#1e40af')
       : (piece.team === 'yellow' ? '#92400e' : '#166534')
-    // Train locomotive shape
+
+    // ROBOT SKIN - Hovering monorail
+    if (skinStyle === 'robot') {
+      const metalColor = skinColors.primary
+      const darkMetal = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover glow -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="3" fill="${metalColor}" opacity="0.5">
+            <animate attributeName="opacity" values="0.5;0.3;0.5" dur="0.8s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Hover pods -->
+          <ellipse cx="${x + 12}" cy="${y + 42}" rx="6" ry="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <ellipse cx="${x + 38}" cy="${y + 42}" rx="6" ry="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <!-- Main body -->
+          <rect x="${x + 6}" y="${y + 22}" width="38" height="18" rx="8" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Cockpit window -->
+          <path d="M${x + 6} ${y + 28} Q${x + 2} ${y + 24} ${x + 6} ${y + 20} L${x + 16} ${y + 20} L${x + 16} ${y + 36} L${x + 6} ${y + 36} Z" fill="#111" stroke="${metalColor}" stroke-width="0.5" />
+          <path d="M${x + 8} ${y + 22} L${x + 14} ${y + 22} L${x + 14} ${y + 28} L${x + 8} ${y + 26} Z" fill="${metalColor}" opacity="0.6" />
+          <!-- Side panels -->
+          <rect x="${x + 20}" y="${y + 24}" width="6" height="4" rx="1" fill="${metalColor}" opacity="0.4" />
+          <rect x="${x + 30}" y="${y + 24}" width="6" height="4" rx="1" fill="${metalColor}" opacity="0.4" />
+          <!-- Energy line -->
+          <line x1="${x + 18}" y1="${y + 32}" x2="${x + 42}" y2="${y + 32}" stroke="${metalColor}" stroke-width="2">
+            <animate attributeName="opacity" values="1;0.3;1" dur="0.5s" repeatCount="indefinite" />
+          </line>
+          <!-- Top sensor -->
+          <rect x="${x + 22}" y="${y + 16}" width="6" height="6" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 19}" r="2" fill="${metalColor}">
+            <animate attributeName="opacity" values="1;0.5;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Antenna -->
+          <line x1="${x + 25}" y1="${y + 16}" x2="${x + 25}" y2="${y + 10}" stroke="${metalColor}" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 9}" r="2" fill="${metalColor}" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Horse-drawn war wagon
+    if (skinStyle === 'medieval') {
+      const woodColor = skinColors.secondary
+      const woodDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Shadow -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="20" ry="3" fill="rgba(0,0,0,0.3)" />
+          <!-- Wheels -->
+          <circle cx="${x + 14}" cy="${y + 40}" r="6" fill="${woodDark}" stroke="#3d2817" stroke-width="2" />
+          <circle cx="${x + 36}" cy="${y + 40}" r="6" fill="${woodDark}" stroke="#3d2817" stroke-width="2" />
+          <line x1="${x + 8}" y1="${y + 40}" x2="${x + 20}" y2="${y + 40}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 14}" y1="${y + 34}" x2="${x + 14}" y2="${y + 46}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 30}" y1="${y + 40}" x2="${x + 42}" y2="${y + 40}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 36}" y1="${y + 34}" x2="${x + 36}" y2="${y + 46}" stroke="#3d2817" stroke-width="1" />
+          <!-- Wagon body -->
+          <rect x="${x + 8}" y="${y + 22}" width="34" height="16" fill="${woodColor}" stroke="${woodDark}" stroke-width="1.5" />
+          <!-- Wood grain -->
+          <line x1="${x + 10}" y1="${y + 26}" x2="${x + 40}" y2="${y + 26}" stroke="${woodDark}" stroke-width="0.5" />
+          <line x1="${x + 10}" y1="${y + 32}" x2="${x + 40}" y2="${y + 32}" stroke="${woodDark}" stroke-width="0.5" />
+          <!-- Armored front -->
+          <rect x="${x + 6}" y="${y + 24}" width="6" height="10" fill="${skinColors.primary}" stroke="${woodDark}" stroke-width="1" />
+          <!-- Banner pole -->
+          <line x1="${x + 38}" y1="${y + 22}" x2="${x + 38}" y2="${y + 10}" stroke="${woodDark}" stroke-width="2" />
+          <path d="M${x + 38} ${y + 10} L${x + 48} ${y + 14} L${x + 38} ${y + 18} Z" fill="${teamColor}" />
+          <!-- Horse silhouette (simplified) -->
+          <ellipse cx="${x - 2}" cy="${y + 32}" rx="6" ry="8" fill="#8b7355" stroke="#5c4033" stroke-width="1" />
+          <ellipse cx="${x - 6}" cy="${y + 26}" rx="4" ry="5" fill="#8b7355" stroke="#5c4033" stroke-width="1" />
+          <!-- Horse legs -->
+          <line x1="${x - 4}" y1="${y + 38}" x2="${x - 6}" y2="${y + 46}" stroke="#5c4033" stroke-width="2" />
+          <line x1="${x}" y1="${y + 38}" x2="${x + 2}" y2="${y + 46}" stroke="#5c4033" stroke-width="2" />
+          <!-- Reins -->
+          <line x1="${x - 2}" y1="${y + 26}" x2="${x + 8}" y2="${y + 28}" stroke="#3d2817" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit train
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      const c3 = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Shadow -->
+          <rect x="${x + 6}" y="${y + 44}" width="38" height="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Wheels -->
+          <rect x="${x + 8}" y="${y + 38}" width="8" height="8" fill="#222" />
+          <rect x="${x + 10}" y="${y + 40}" width="4" height="4" fill="#444" />
+          <rect x="${x + 24}" y="${y + 38}" width="8" height="8" fill="#222" />
+          <rect x="${x + 26}" y="${y + 40}" width="4" height="4" fill="#444" />
+          <rect x="${x + 36}" y="${y + 38}" width="8" height="8" fill="#222" />
+          <rect x="${x + 38}" y="${y + 40}" width="4" height="4" fill="#444" />
+          <!-- Boiler -->
+          <rect x="${x + 6}" y="${y + 22}" width="24" height="16" fill="${c1}" />
+          <rect x="${x + 8}" y="${y + 24}" width="20" height="4" fill="${c2}" />
+          <!-- Cabin -->
+          <rect x="${x + 30}" y="${y + 16}" width="14" height="22" fill="${c1}" />
+          <rect x="${x + 32}" y="${y + 18}" width="10" height="6" fill="#222" />
+          <rect x="${x + 34}" y="${y + 20}" width="6" height="2" fill="#88ccff" />
+          <!-- Chimney -->
+          <rect x="${x + 10}" y="${y + 14}" width="6" height="8" fill="${c3}" />
+          <!-- Smoke -->
+          <rect x="${x + 8}" y="${y + 8}" width="4" height="4" fill="#ccc" />
+          <rect x="${x + 14}" y="${y + 4}" width="4" height="4" fill="#ddd" />
+          <!-- Cow catcher -->
+          <rect x="${x + 2}" y="${y + 34}" width="6" height="4" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Magic carpet carriage
+    if (skinStyle === 'fantasy') {
+      const magicColor = skinColors.primary
+      const carpetColor = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Magic glow -->
+          <ellipse cx="${x + 25}" cy="${y + 44}" rx="22" ry="4" fill="${magicColor}" opacity="0.4">
+            <animate attributeName="opacity" values="0.4;0.6;0.4" dur="1.5s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Flying carpet base -->
+          <path d="M${x + 2} ${y + 40} Q${x + 25} ${y + 46} ${x + 48} ${y + 40} L${x + 46} ${y + 36} Q${x + 25} ${y + 42} ${x + 4} ${y + 36} Z" fill="${carpetColor}" stroke="${skinColors.uniformDark}" stroke-width="1" />
+          <!-- Carpet pattern -->
+          <path d="M${x + 10} ${y + 38} Q${x + 25} ${y + 42} ${x + 40} ${y + 38}" stroke="${magicColor}" stroke-width="1" fill="none" />
+          <!-- Ornate carriage -->
+          <path d="M${x + 8} ${y + 36} L${x + 10} ${y + 20} Q${x + 25} ${y + 16} ${x + 40} ${y + 20} L${x + 42} ${y + 36} Z" fill="${carpetColor}" stroke="${skinColors.uniformDark}" stroke-width="1" />
+          <!-- Carriage windows -->
+          <ellipse cx="${x + 18}" cy="${y + 26}" rx="4" ry="5" fill="${magicColor}" opacity="0.6" />
+          <ellipse cx="${x + 32}" cy="${y + 26}" rx="4" ry="5" fill="${magicColor}" opacity="0.6" />
+          <!-- Dome roof -->
+          <path d="M${x + 12} ${y + 20} Q${x + 25} ${y + 8} ${x + 38} ${y + 20} Z" fill="${carpetColor}" stroke="${skinColors.uniformDark}" stroke-width="1" />
+          <!-- Magic crystals -->
+          <circle cx="${x + 8}" cy="${y + 32}" r="3" fill="${magicColor}">
+            <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 42}" cy="${y + 32}" r="3" fill="${magicColor}">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="1s" repeatCount="indefinite" />
+          </circle>
+          <!-- Top ornament -->
+          <circle cx="${x + 25}" cy="${y + 12}" r="4" fill="${magicColor}" stroke="${teamColor}" stroke-width="1">
+            <animate attributeName="r" values="4;5;4" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <!-- Magic sparkles -->
+          <circle cx="${x + 15}" cy="${y + 42}" r="1" fill="#fff">
+            <animate attributeName="opacity" values="1;0;1" dur="0.5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 35}" cy="${y + 42}" r="1" fill="#fff">
+            <animate attributeName="opacity" values="0;1;0" dur="0.5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Train locomotive shape
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
@@ -9681,7 +9843,158 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const hullColor = skinColors.helmet
     const hullDark = skinColors.uniform
     const deckColor = skinColors.accent
-    // Battleship design
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Hovercraft
+    if (skinStyle === 'robot') {
+      const metalColor = skinColors.primary
+      const darkMetal = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover effect -->
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="20" ry="3" fill="${metalColor}" opacity="0.4">
+            <animate attributeName="ry" values="3;4;3" dur="0.5s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Hover cushion -->
+          <ellipse cx="${x + 25}" cy="${y + 42}" rx="22" ry="6" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <!-- Main body -->
+          <rect x="${x + 6}" y="${y + 24}" width="38" height="16" rx="4" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Cockpit dome -->
+          <ellipse cx="${x + 25}" cy="${y + 22}" rx="12" ry="8" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 20}" rx="8" ry="5" fill="${metalColor}" opacity="0.6">
+            <animate attributeName="opacity" values="0.6;0.3;0.6" dur="1.5s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Engine pods -->
+          <rect x="${x + 4}" y="${y + 28}" width="6" height="10" rx="2" fill="${metalColor}" />
+          <rect x="${x + 40}" y="${y + 28}" width="6" height="10" rx="2" fill="${metalColor}" />
+          <!-- Thrust effects -->
+          <ellipse cx="${x + 7}" cy="${y + 40}" rx="2" ry="4" fill="#00ffff" opacity="0.6">
+            <animate attributeName="ry" values="4;6;4" dur="0.3s" repeatCount="indefinite" />
+          </ellipse>
+          <ellipse cx="${x + 43}" cy="${y + 40}" rx="2" ry="4" fill="#00ffff" opacity="0.6">
+            <animate attributeName="ry" values="4;6;4" dur="0.3s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Laser cannons -->
+          <rect x="${x + 14}" y="${y + 18}" width="3" height="8" fill="${metalColor}" />
+          <rect x="${x + 33}" y="${y + 18}" width="3" height="8" fill="${metalColor}" />
+          <circle cx="${x + 15.5}" cy="${y + 16}" r="2" fill="#ff0000" />
+          <circle cx="${x + 34.5}" cy="${y + 16}" r="2" fill="#ff0000" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Viking longship
+    if (skinStyle === 'medieval') {
+      const woodColor = skinColors.secondary
+      const woodDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water ripples -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="4" fill="#6bb3e8" opacity="0.5" />
+          <!-- Hull -->
+          <path d="M${x + 2} ${y + 40} Q${x + 5} ${y + 46} ${x + 25} ${y + 46} Q${x + 45} ${y + 46} ${x + 48} ${y + 40} L${x + 44} ${y + 30} L${x + 6} ${y + 30} Z" fill="${woodColor}" stroke="${woodDark}" stroke-width="1.5" />
+          <!-- Shield row -->
+          <circle cx="${x + 12}" cy="${y + 34}" r="4" fill="${skinColors.primary}" stroke="${woodDark}" stroke-width="1" />
+          <circle cx="${x + 22}" cy="${y + 34}" r="4" fill="${teamColor}" stroke="${woodDark}" stroke-width="1" />
+          <circle cx="${x + 32}" cy="${y + 34}" r="4" fill="${skinColors.primary}" stroke="${woodDark}" stroke-width="1" />
+          <circle cx="${x + 42}" cy="${y + 34}" r="4" fill="${teamColor}" stroke="${woodDark}" stroke-width="1" />
+          <!-- Oars -->
+          <line x1="${x + 8}" y1="${y + 38}" x2="${x}" y2="${y + 46}" stroke="${woodDark}" stroke-width="1.5" />
+          <line x1="${x + 18}" y1="${y + 38}" x2="${x + 10}" y2="${y + 46}" stroke="${woodDark}" stroke-width="1.5" />
+          <line x1="${x + 32}" y1="${y + 38}" x2="${x + 40}" y2="${y + 46}" stroke="${woodDark}" stroke-width="1.5" />
+          <line x1="${x + 42}" y1="${y + 38}" x2="${x + 50}" y2="${y + 46}" stroke="${woodDark}" stroke-width="1.5" />
+          <!-- Mast -->
+          <rect x="${x + 23}" y="${y + 8}" width="4" height="24" fill="${woodDark}" />
+          <!-- Sail -->
+          <path d="M${x + 10} ${y + 10} L${x + 25} ${y + 8} L${x + 40} ${y + 10} L${x + 38} ${y + 26} L${x + 12} ${y + 26} Z" fill="${teamColor}" stroke="${woodDark}" stroke-width="1" />
+          <!-- Sail stripes -->
+          <line x1="${x + 12}" y1="${y + 16}" x2="${x + 38}" y2="${y + 16}" stroke="${skinColors.primary}" stroke-width="2" />
+          <line x1="${x + 12}" y1="${y + 22}" x2="${x + 38}" y2="${y + 22}" stroke="${skinColors.primary}" stroke-width="2" />
+          <!-- Dragon head prow -->
+          <path d="M${x + 2} ${y + 30} Q${x - 4} ${y + 22} ${x - 2} ${y + 14} L${x + 2} ${y + 18} Q${x} ${y + 24} ${x + 4} ${y + 28} Z" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+          <circle cx="${x - 1}" cy="${y + 16}" r="1.5" fill="#ff0000" />
+          <!-- Dragon tail -->
+          <path d="M${x + 48} ${y + 30} Q${x + 52} ${y + 24} ${x + 50} ${y + 18} L${x + 46} ${y + 26} Z" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit battleship
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      const c3 = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water -->
+          <rect x="${x + 4}" y="${y + 44}" width="42" height="4" fill="#4488cc" />
+          <!-- Hull -->
+          <rect x="${x + 6}" y="${y + 32}" width="38" height="12" fill="${c2}" />
+          <rect x="${x + 4}" y="${y + 36}" width="4" height="8" fill="${c2}" />
+          <rect x="${x + 42}" y="${y + 36}" width="4" height="8" fill="${c2}" />
+          <!-- Deck -->
+          <rect x="${x + 8}" y="${y + 28}" width="34" height="4" fill="${c1}" />
+          <!-- Bridge -->
+          <rect x="${x + 18}" y="${y + 16}" width="14" height="12" fill="${c2}" />
+          <rect x="${x + 20}" y="${y + 18}" width="10" height="4" fill="#88ccff" />
+          <!-- Guns -->
+          <rect x="${x + 8}" y="${y + 24}" width="8" height="4" fill="${c3}" />
+          <rect x="${x + 4}" y="${y + 24}" width="6" height="2" fill="#444" />
+          <rect x="${x + 34}" y="${y + 24}" width="8" height="4" fill="${c3}" />
+          <rect x="${x + 40}" y="${y + 24}" width="6" height="2" fill="#444" />
+          <!-- Antenna -->
+          <rect x="${x + 24}" y="${y + 10}" width="2" height="6" fill="#444" />
+          <rect x="${x + 22}" y="${y + 8}" width="6" height="2" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Sea serpent/Kraken ship
+    if (skinStyle === 'fantasy') {
+      const scaleColor = skinColors.primary
+      const scaleDark = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water splash -->
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="22" ry="4" fill="#6bb3e8" opacity="0.6" />
+          <!-- Serpent body coils in water -->
+          <ellipse cx="${x + 15}" cy="${y + 40}" rx="8" ry="5" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="1" />
+          <ellipse cx="${x + 35}" cy="${y + 40}" rx="8" ry="5" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 36}" rx="10" ry="6" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="1" />
+          <!-- Serpent neck rising -->
+          <path d="M${x + 25} ${y + 30} Q${x + 30} ${y + 20} ${x + 25} ${y + 10}" stroke="${scaleColor}" stroke-width="10" fill="none" />
+          <path d="M${x + 25} ${y + 30} Q${x + 30} ${y + 20} ${x + 25} ${y + 10}" stroke="${scaleDark}" stroke-width="5" fill="none" />
+          <!-- Serpent head -->
+          <ellipse cx="${x + 25}" cy="${y + 12}" rx="8" ry="6" fill="${scaleColor}" stroke="${scaleDark}" stroke-width="1" />
+          <!-- Eyes -->
+          <circle cx="${x + 22}" cy="${y + 10}" r="2" fill="#ffff00" />
+          <circle cx="${x + 28}" cy="${y + 10}" r="2" fill="#ffff00" />
+          <circle cx="${x + 22}" cy="${y + 10}" r="1" fill="#000" />
+          <circle cx="${x + 28}" cy="${y + 10}" r="1" fill="#000" />
+          <!-- Fangs -->
+          <path d="M${x + 21} ${y + 16} L${x + 23} ${y + 20} L${x + 25} ${y + 16}" fill="#ffffff" />
+          <path d="M${x + 25} ${y + 16} L${x + 27} ${y + 20} L${x + 29} ${y + 16}" fill="#ffffff" />
+          <!-- Fins/spines -->
+          <path d="M${x + 20} ${y + 8} L${x + 18} ${y + 2} L${x + 22} ${y + 6} Z" fill="${scaleDark}" />
+          <path d="M${x + 25} ${y + 6} L${x + 25} ${y} L${x + 28} ${y + 5} Z" fill="${scaleDark}" />
+          <path d="M${x + 30} ${y + 8} L${x + 32} ${y + 2} L${x + 28} ${y + 6} Z" fill="${scaleDark}" />
+          <!-- Magic aura -->
+          <circle cx="${x + 25}" cy="${y + 25}" r="15" fill="none" stroke="${scaleColor}" stroke-width="1" opacity="0.4">
+            <animate attributeName="r" values="15;18;15" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Battleship design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Water ripples -->
@@ -9726,7 +10039,145 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const hullDark = skinColors.uniform
     const deckColor = skinColors.accent
     const damaged = piece.hp === 1
-    // Aircraft carrier design
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Drone carrier platform
+    if (skinStyle === 'robot') {
+      const metalColor = skinColors.primary
+      const darkMetal = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Hover field -->
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="24" ry="4" fill="${metalColor}" opacity="0.3">
+            <animate attributeName="opacity" values="0.3;0.5;0.3" dur="1s" repeatCount="indefinite" />
+          </ellipse>
+          <!-- Main platform -->
+          <rect x="${x + 2}" y="${y + 30}" width="46" height="14" rx="3" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1.5" />
+          <!-- Landing deck -->
+          <rect x="${x + 4}" y="${y + 22}" width="42" height="10" fill="#111" stroke="${metalColor}" stroke-width="1" />
+          <!-- Landing lights -->
+          <circle cx="${x + 10}" cy="${y + 27}" r="2" fill="${metalColor}"><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 27}" r="2" fill="${metalColor}"><animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 40}" cy="${y + 27}" r="2" fill="${metalColor}"><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite" /></circle>
+          <!-- Control tower -->
+          <rect x="${x + 38}" y="${y + 10}" width="8" height="14" rx="1" fill="${darkMetal}" stroke="${metalColor}" stroke-width="1" />
+          <rect x="${x + 39}" y="${y + 12}" width="6" height="4" fill="${metalColor}" opacity="0.6" />
+          <!-- Sensor array -->
+          <rect x="${x + 40}" y="${y + 4}" width="4" height="6" fill="${metalColor}" />
+          <circle cx="${x + 42}" cy="${y + 3}" r="3" fill="${metalColor}" opacity="0.8">
+            <animate attributeName="r" values="3;4;3" dur="0.5s" repeatCount="indefinite" />
+          </circle>
+          <!-- Side thrusters -->
+          <rect x="${x}" y="${y + 34}" width="4" height="6" rx="1" fill="${metalColor}" />
+          <rect x="${x + 46}" y="${y + 34}" width="4" height="6" rx="1" fill="${metalColor}" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<rect x="${x + 10}" y="${y + 24}" width="20" height="6" fill="#ff0000" opacity="0.3"><animate attributeName="opacity" values="0.3;0.6;0.3" dur="0.5s" repeatCount="indefinite" /></rect>` : ''}
+          ${piece.hasHelicopter ? `<ellipse cx="${x + 20}" cy="${y + 27}" rx="6" ry="4" fill="${metalColor}" opacity="0.8" /><line x1="${x + 14}" y1="${y + 27}" x2="${x + 26}" y2="${y + 27}" stroke="${darkMetal}" stroke-width="1" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Floating castle barge
+    if (skinStyle === 'medieval') {
+      const woodColor = skinColors.secondary
+      const woodDark = skinColors.dark
+      const stoneColor = skinColors.primary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water -->
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="24" ry="4" fill="#6bb3e8" opacity="0.5" />
+          <!-- Wooden hull -->
+          <path d="M${x + 2} ${y + 42} Q${x + 5} ${y + 48} ${x + 25} ${y + 48} Q${x + 45} ${y + 48} ${x + 48} ${y + 42} L${x + 48} ${y + 32} L${x + 2} ${y + 32} Z" fill="${woodColor}" stroke="${woodDark}" stroke-width="1.5" />
+          <!-- Castle base on ship -->
+          <rect x="${x + 6}" y="${y + 18}" width="38" height="16" fill="${stoneColor}" stroke="${woodDark}" stroke-width="1" />
+          <!-- Battlements -->
+          <rect x="${x + 6}" y="${y + 14}" width="6" height="6" fill="${stoneColor}" stroke="${woodDark}" stroke-width="0.5" />
+          <rect x="${x + 16}" y="${y + 14}" width="6" height="6" fill="${stoneColor}" stroke="${woodDark}" stroke-width="0.5" />
+          <rect x="${x + 28}" y="${y + 14}" width="6" height="6" fill="${stoneColor}" stroke="${woodDark}" stroke-width="0.5" />
+          <rect x="${x + 38}" y="${y + 14}" width="6" height="6" fill="${stoneColor}" stroke="${woodDark}" stroke-width="0.5" />
+          <!-- Tower -->
+          <rect x="${x + 20}" y="${y + 6}" width="10" height="14" fill="${stoneColor}" stroke="${woodDark}" stroke-width="1" />
+          <rect x="${x + 18}" y="${y + 4}" width="14" height="4" fill="${stoneColor}" stroke="${woodDark}" stroke-width="0.5" />
+          <!-- Banner -->
+          <line x1="${x + 25}" y1="${y + 4}" x2="${x + 25}" y2="${y - 2}" stroke="${woodDark}" stroke-width="1" />
+          <path d="M${x + 25} ${y - 2} L${x + 34} ${y + 1} L${x + 25} ${y + 4} Z" fill="${teamColor}" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<path d="M${x + 15} ${y + 20} L${x + 25} ${y + 30} M${x + 25} ${y + 20} L${x + 15} ${y + 30}" stroke="#8b0000" stroke-width="2" />` : ''}
+          ${piece.hasHelicopter ? `<text x="${x + 35}" y="${y + 26}" font-size="10" fill="${teamColor}">🦅</text>` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit carrier
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      const c3 = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water -->
+          <rect x="${x + 2}" y="${y + 44}" width="46" height="4" fill="#4488cc" />
+          <!-- Hull -->
+          <rect x="${x + 2}" y="${y + 32}" width="46" height="12" fill="${c2}" />
+          <!-- Deck -->
+          <rect x="${x + 4}" y="${y + 22}" width="42" height="10" fill="${c3}" />
+          <!-- Runway markings -->
+          <rect x="${x + 8}" y="${y + 26}" width="30" height="2" fill="#ffffff" />
+          <!-- Control tower -->
+          <rect x="${x + 38}" y="${y + 12}" width="8" height="10" fill="${c2}" />
+          <rect x="${x + 40}" y="${y + 14}" width="4" height="4" fill="#88ccff" />
+          <!-- Antenna -->
+          <rect x="${x + 41}" y="${y + 6}" width="2" height="6" fill="#444" />
+          <rect x="${x + 39}" y="${y + 4}" width="6" height="2" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<rect x="${x + 14}" y="${y + 24}" width="8" height="4" fill="#ff0000" />` : ''}
+          ${piece.hasHelicopter ? `<rect x="${x + 18}" y="${y + 24}" width="10" height="4" fill="${c1}" /><rect x="${x + 16}" y="${y + 26}" width="14" height="2" fill="#444" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Giant turtle carrier
+    if (skinStyle === 'fantasy') {
+      const shellColor = skinColors.primary
+      const shellDark = skinColors.dark
+      const skinColor = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water ripples -->
+          <ellipse cx="${x + 25}" cy="${y + 47}" rx="24" ry="4" fill="#6bb3e8" opacity="0.5" />
+          <!-- Turtle flippers -->
+          <ellipse cx="${x + 8}" cy="${y + 40}" rx="6" ry="4" fill="${skinColor}" stroke="${shellDark}" stroke-width="1" />
+          <ellipse cx="${x + 42}" cy="${y + 40}" rx="6" ry="4" fill="${skinColor}" stroke="${shellDark}" stroke-width="1" />
+          <!-- Turtle body -->
+          <ellipse cx="${x + 25}" cy="${y + 36}" rx="22" ry="10" fill="${skinColor}" stroke="${shellDark}" stroke-width="1" />
+          <!-- Giant shell (platform) -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="22" ry="12" fill="${shellColor}" stroke="${shellDark}" stroke-width="1.5" />
+          <!-- Shell pattern -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="10" ry="6" fill="${shellDark}" opacity="0.5" />
+          <ellipse cx="${x + 14}" cy="${y + 30}" rx="5" ry="4" fill="${shellDark}" opacity="0.4" />
+          <ellipse cx="${x + 36}" cy="${y + 30}" rx="5" ry="4" fill="${shellDark}" opacity="0.4" />
+          <!-- Platform structures on shell -->
+          <rect x="${x + 18}" y="${y + 16}" width="14" height="8" rx="2" fill="${shellColor}" stroke="${shellDark}" stroke-width="1" />
+          <!-- Turtle head -->
+          <ellipse cx="${x + 6}" cy="${y + 28}" rx="6" ry="5" fill="${skinColor}" stroke="${shellDark}" stroke-width="1" />
+          <circle cx="${x + 4}" cy="${y + 26}" r="1.5" fill="#000" />
+          <!-- Magic crystals on shell -->
+          <path d="M${x + 25} ${y + 12} L${x + 28} ${y + 20} L${x + 22} ${y + 20} Z" fill="${shellColor}" stroke="${teamColor}" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" opacity="0.8">
+            <animate attributeName="opacity" values="0.8;0.4;0.8" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${damaged ? `<path d="M${x + 20} ${y + 24} L${x + 30} ${y + 32} M${x + 30} ${y + 24} L${x + 20} ${y + 32}" stroke="#8b0000" stroke-width="2" />` : ''}
+          ${piece.hasHelicopter ? `<text x="${x + 32}" y="${y + 22}" font-size="8" fill="${teamColor}">🦋</text>` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Aircraft carrier design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Water ripples -->
@@ -9976,7 +10427,117 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const baseDark = skinColors.uniformDark
     const metalColor = '#4a4a4a'
     const metalDark = '#2d2d2d'
-    // Machine gun design (stationary)
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Laser turret
+    if (skinStyle === 'robot') {
+      const mc = skinColors.primary
+      const dm = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Base platform -->
+          <ellipse cx="${x + 25}" cy="${y + 40}" rx="14" ry="6" fill="${dm}" stroke="${mc}" stroke-width="1.5" />
+          <!-- Rotating base -->
+          <ellipse cx="${x + 25}" cy="${y + 36}" rx="10" ry="4" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <!-- Turret body -->
+          <rect x="${x + 16}" y="${y + 20}" width="18" height="14" rx="3" fill="${dm}" stroke="${mc}" stroke-width="1.5" />
+          <!-- Sensor array -->
+          <rect x="${x + 18}" y="${y + 22}" width="14" height="6" fill="#111" stroke="${mc}" stroke-width="0.5" />
+          <rect x="${x + 20}" y="${y + 24}" width="10" height="2" fill="${mc}" opacity="0.7"><animate attributeName="opacity" values="0.7;0.3;0.7" dur="1s" repeatCount="indefinite" /></rect>
+          <!-- Dual laser barrels -->
+          <rect x="${x + 18}" y="${y + 6}" width="4" height="16" rx="1" fill="${mc}" />
+          <rect x="${x + 28}" y="${y + 6}" width="4" height="16" rx="1" fill="${mc}" />
+          <!-- Laser tips -->
+          <circle cx="${x + 20}" cy="${y + 6}" r="2" fill="#ff0000"><animate attributeName="opacity" values="1;0.3;1" dur="0.5s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 30}" cy="${y + 6}" r="2" fill="#ff0000"><animate attributeName="opacity" values="0.3;1;0.3" dur="0.5s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 12}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Ballista
+    if (skinStyle === 'medieval') {
+      const wc = skinColors.secondary
+      const wd = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Wooden base -->
+          <rect x="${x + 10}" y="${y + 38}" width="30" height="6" fill="${wc}" stroke="${wd}" stroke-width="1" />
+          <!-- Crossbeam -->
+          <rect x="${x + 6}" y="${y + 28}" width="38" height="8" fill="${wc}" stroke="${wd}" stroke-width="1.5" />
+          <!-- Bow arms -->
+          <path d="M${x + 6} ${y + 32} Q${x - 4} ${y + 24} ${x + 4} ${y + 16}" stroke="${wd}" stroke-width="4" fill="none" />
+          <path d="M${x + 44} ${y + 32} Q${x + 54} ${y + 24} ${x + 46} ${y + 16}" stroke="${wd}" stroke-width="4" fill="none" />
+          <!-- Bowstring -->
+          <line x1="${x + 4}" y1="${y + 16}" x2="${x + 25}" y2="${y + 26}" stroke="#8b7355" stroke-width="1.5" />
+          <line x1="${x + 46}" y1="${y + 16}" x2="${x + 25}" y2="${y + 26}" stroke="#8b7355" stroke-width="1.5" />
+          <!-- Arrow channel -->
+          <rect x="${x + 22}" y="${y + 10}" width="6" height="20" fill="${wc}" stroke="${wd}" stroke-width="1" />
+          <!-- Giant arrow/bolt -->
+          <rect x="${x + 23}" y="${y + 4}" width="4" height="18" fill="${wd}" />
+          <path d="M${x + 21} ${y + 4} L${x + 25} ${y - 2} L${x + 29} ${y + 4} Z" fill="#666" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit turret
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <rect x="${x + 8}" y="${y + 44}" width="34" height="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Base -->
+          <rect x="${x + 10}" y="${y + 36}" width="30" height="10" fill="${c2}" />
+          <rect x="${x + 12}" y="${y + 38}" width="26" height="6" fill="${c1}" />
+          <!-- Gun body -->
+          <rect x="${x + 16}" y="${y + 24}" width="18" height="12" fill="${c2}" />
+          <rect x="${x + 18}" y="${y + 26}" width="14" height="8" fill="${c1}" />
+          <!-- Barrel -->
+          <rect x="${x + 22}" y="${y + 8}" width="6" height="18" fill="#444" />
+          <rect x="${x + 20}" y="${y + 4}" width="10" height="4" fill="#666" />
+          <!-- Muzzle flash -->
+          <rect x="${x + 22}" y="${y + 2}" width="6" height="4" fill="#ff0" />
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Magic crystal cannon
+    if (skinStyle === 'fantasy') {
+      const mc = skinColors.primary
+      const md = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Stone pedestal -->
+          <rect x="${x + 12}" y="${y + 36}" width="26" height="10" rx="2" fill="#666" stroke="#444" stroke-width="1" />
+          <!-- Rune markings -->
+          <text x="${x + 25}" y="${y + 44}" text-anchor="middle" font-size="8" fill="${mc}">✧</text>
+          <!-- Crystal holder -->
+          <rect x="${x + 18}" y="${y + 24}" width="14" height="14" rx="2" fill="#444" stroke="${md}" stroke-width="1" />
+          <!-- Large magic crystal -->
+          <path d="M${x + 25} ${y + 6} L${x + 32} ${y + 20} L${x + 28} ${y + 34} L${x + 22} ${y + 34} L${x + 18} ${y + 20} Z" fill="${mc}" stroke="${md}" stroke-width="1" opacity="0.9" />
+          <!-- Crystal inner glow -->
+          <path d="M${x + 25} ${y + 10} L${x + 29} ${y + 20} L${x + 27} ${y + 30} L${x + 23} ${y + 30} L${x + 21} ${y + 20} Z" fill="#fff" opacity="0.3" />
+          <!-- Magic aura -->
+          <circle cx="${x + 25}" cy="${y + 20}" r="12" fill="none" stroke="${mc}" stroke-width="1" opacity="0.5">
+            <animate attributeName="r" values="12;15;12" dur="1.5s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.5;0.2;0.5" dur="1.5s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="${x + 25}" cy="${y + 12}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Machine gun design (stationary)
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
@@ -10015,7 +10576,130 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const bodyColor = skinColors.helmet
     const bodyDark = skinColors.uniform
     const windowColor = '#87ceeb'
-    // SUV design
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Hover bike
+    if (skinStyle === 'robot') {
+      const mc = skinColors.primary
+      const dm = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="3" fill="${mc}" opacity="0.4"><animate attributeName="opacity" values="0.4;0.6;0.4" dur="0.6s" repeatCount="indefinite" /></ellipse>
+          <!-- Hover pads -->
+          <ellipse cx="${x + 12}" cy="${y + 42}" rx="6" ry="3" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <ellipse cx="${x + 38}" cy="${y + 42}" rx="6" ry="3" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <!-- Body -->
+          <path d="M${x + 6} ${y + 38} L${x + 10} ${y + 24} L${x + 40} ${y + 24} L${x + 44} ${y + 38} Z" fill="${dm}" stroke="${mc}" stroke-width="1.5" />
+          <!-- Cockpit -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="12" ry="8" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 24}" rx="8" ry="5" fill="${mc}" opacity="0.5" />
+          <!-- Engine pods -->
+          <rect x="${x + 4}" y="${y + 30}" width="6" height="8" rx="2" fill="${mc}" />
+          <rect x="${x + 40}" y="${y + 30}" width="6" height="8" rx="2" fill="${mc}" />
+          <!-- Speed lines -->
+          <line x1="${x + 46}" y1="${y + 32}" x2="${x + 52}" y2="${y + 32}" stroke="${mc}" stroke-width="1" opacity="0.6"><animate attributeName="opacity" values="0.6;0;0.6" dur="0.3s" repeatCount="indefinite" /></line>
+          <line x1="${x + 46}" y1="${y + 36}" x2="${x + 54}" y2="${y + 36}" stroke="${mc}" stroke-width="1" opacity="0.4"><animate attributeName="opacity" values="0.4;0;0.4" dur="0.4s" repeatCount="indefinite" /></line>
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - War chariot
+    if (skinStyle === 'medieval') {
+      const wc = skinColors.secondary
+      const wd = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Wheels -->
+          <circle cx="${x + 12}" cy="${y + 40}" r="7" fill="${wd}" stroke="#3d2817" stroke-width="2" />
+          <circle cx="${x + 38}" cy="${y + 40}" r="7" fill="${wd}" stroke="#3d2817" stroke-width="2" />
+          <!-- Spokes -->
+          <line x1="${x + 5}" y1="${y + 40}" x2="${x + 19}" y2="${y + 40}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 12}" y1="${y + 33}" x2="${x + 12}" y2="${y + 47}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 31}" y1="${y + 40}" x2="${x + 45}" y2="${y + 40}" stroke="#3d2817" stroke-width="1" />
+          <line x1="${x + 38}" y1="${y + 33}" x2="${x + 38}" y2="${y + 47}" stroke="#3d2817" stroke-width="1" />
+          <!-- Chariot body -->
+          <rect x="${x + 16}" y="${y + 26}" width="18" height="12" fill="${wc}" stroke="${wd}" stroke-width="1.5" />
+          <!-- Front shield -->
+          <path d="M${x + 14} ${y + 38} L${x + 10} ${y + 24} L${x + 16} ${y + 24} L${x + 16} ${y + 38} Z" fill="${skinColors.primary}" stroke="${wd}" stroke-width="1" />
+          <!-- Side armor -->
+          <rect x="${x + 34}" y="${y + 26}" width="4" height="12" fill="${skinColors.primary}" stroke="${wd}" stroke-width="1" />
+          <!-- Axle -->
+          <line x1="${x + 12}" y1="${y + 40}" x2="${x + 38}" y2="${y + 40}" stroke="#3d2817" stroke-width="3" />
+          <!-- Reins to horse -->
+          <line x1="${x + 10}" y1="${y + 26}" x2="${x - 4}" y2="${y + 30}" stroke="#8b7355" stroke-width="1" />
+          <!-- Horse (simplified) -->
+          <ellipse cx="${x - 4}" cy="${y + 34}" rx="6" ry="8" fill="#8b7355" stroke="#5c4033" stroke-width="1" />
+          <ellipse cx="${x - 8}" cy="${y + 26}" rx="4" ry="5" fill="#8b7355" stroke="#5c4033" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 14}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit car
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <rect x="${x + 6}" y="${y + 44}" width="38" height="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Wheels -->
+          <rect x="${x + 8}" y="${y + 38}" width="8" height="8" fill="#222" />
+          <rect x="${x + 34}" y="${y + 38}" width="8" height="8" fill="#222" />
+          <!-- Body -->
+          <rect x="${x + 6}" y="${y + 26}" width="38" height="12" fill="${c2}" />
+          <rect x="${x + 8}" y="${y + 28}" width="34" height="8" fill="${c1}" />
+          <!-- Roof -->
+          <rect x="${x + 12}" y="${y + 18}" width="26" height="8" fill="${c2}" />
+          <!-- Windows -->
+          <rect x="${x + 14}" y="${y + 20}" width="8" height="6" fill="#88ccff" />
+          <rect x="${x + 28}" y="${y + 20}" width="8" height="6" fill="#88ccff" />
+          <!-- Headlights -->
+          <rect x="${x + 6}" y="${y + 28}" width="4" height="4" fill="#ff0" />
+          <rect x="${x + 40}" y="${y + 30}" width="4" height="4" fill="#f00" />
+          <circle cx="${x + 25}" cy="${y + 12}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Magic mount
+    if (skinStyle === 'fantasy') {
+      const mc = skinColors.primary
+      const fc = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Magic steed body -->
+          <ellipse cx="${x + 28}" cy="${y + 34}" rx="14" ry="10" fill="${fc}" stroke="${skinColors.uniformDark}" stroke-width="1" />
+          <!-- Legs -->
+          <rect x="${x + 16}" y="${y + 40}" width="4" height="8" fill="${fc}" stroke="${skinColors.uniformDark}" stroke-width="0.5" />
+          <rect x="${x + 24}" y="${y + 40}" width="4" height="8" fill="${fc}" stroke="${skinColors.uniformDark}" stroke-width="0.5" />
+          <rect x="${x + 32}" y="${y + 40}" width="4" height="8" fill="${fc}" stroke="${skinColors.uniformDark}" stroke-width="0.5" />
+          <rect x="${x + 38}" y="${y + 40}" width="4" height="8" fill="${fc}" stroke="${skinColors.uniformDark}" stroke-width="0.5" />
+          <!-- Neck -->
+          <path d="M${x + 14} ${y + 30} Q${x + 8} ${y + 20} ${x + 10} ${y + 12}" stroke="${fc}" stroke-width="8" fill="none" />
+          <!-- Head -->
+          <ellipse cx="${x + 10}" cy="${y + 12}" rx="6" ry="5" fill="${fc}" stroke="${skinColors.uniformDark}" stroke-width="1" />
+          <!-- Horn (unicorn) -->
+          <path d="M${x + 8} ${y + 8} L${x + 10} ${y} L${x + 12} ${y + 8}" fill="${mc}" stroke="${skinColors.dark}" stroke-width="0.5" />
+          <!-- Eye -->
+          <circle cx="${x + 8}" cy="${y + 11}" r="1.5" fill="${mc}" />
+          <!-- Magic mane -->
+          <path d="M${x + 14} ${y + 26} Q${x + 6} ${y + 22} ${x + 12} ${y + 18}" stroke="${mc}" stroke-width="2" fill="none" />
+          <path d="M${x + 16} ${y + 28} Q${x + 8} ${y + 24} ${x + 14} ${y + 20}" stroke="${mc}" stroke-width="2" fill="none" />
+          <!-- Magic sparkles -->
+          <circle cx="${x + 10}" cy="${y + 4}" r="2" fill="${mc}"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - SUV design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
@@ -10067,7 +10751,116 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const bodyDark = skinColors.uniform
     const noseColor = '#ef4444'
     const used = piece.used
-    // Rocket/missile design
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Plasma bomb
+    if (skinStyle === 'robot') {
+      const mc = skinColors.primary
+      const dm = skinColors.uniform
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="10" ry="3" fill="rgba(0,0,0,0.3)" />
+          <!-- Launch pad -->
+          <rect x="${x + 10}" y="${y + 38}" width="30" height="8" rx="2" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <rect x="${x + 14}" y="${y + 40}" width="22" height="4" fill="#111" stroke="${mc}" stroke-width="0.5" />
+          <!-- Plasma core -->
+          <circle cx="${x + 25}" cy="${y + 24}" r="12" fill="${dm}" stroke="${mc}" stroke-width="2" />
+          <circle cx="${x + 25}" cy="${y + 24}" r="8" fill="${mc}" opacity="0.8"><animate attributeName="r" values="8;10;8" dur="1s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 24}" r="4" fill="#fff" opacity="0.8" />
+          <!-- Energy field -->
+          <circle cx="${x + 25}" cy="${y + 24}" r="14" fill="none" stroke="${mc}" stroke-width="1" opacity="0.5"><animate attributeName="r" values="14;18;14" dur="1.5s" repeatCount="indefinite" /></circle>
+          <!-- Support arms -->
+          <line x1="${x + 25}" y1="${y + 36}" x2="${x + 25}" y2="${y + 38}" stroke="${mc}" stroke-width="3" />
+          <line x1="${x + 17}" y1="${y + 32}" x2="${x + 14}" y2="${y + 38}" stroke="${mc}" stroke-width="2" />
+          <line x1="${x + 33}" y1="${y + 32}" x2="${x + 36}" y2="${y + 38}" stroke="${mc}" stroke-width="2" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<line x1="${x + 15}" y1="${y + 15}" x2="${x + 35}" y2="${y + 35}" stroke="${mc}" stroke-width="3" /><line x1="${x + 35}" y1="${y + 15}" x2="${x + 15}" y2="${y + 35}" stroke="${mc}" stroke-width="3" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Trebuchet boulder
+    if (skinStyle === 'medieval') {
+      const wc = skinColors.secondary
+      const wd = skinColors.dark
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="16" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Trebuchet frame -->
+          <rect x="${x + 10}" y="${y + 38}" width="30" height="8" fill="${wc}" stroke="${wd}" stroke-width="1" />
+          <!-- A-frame supports -->
+          <path d="M${x + 14} ${y + 38} L${x + 20} ${y + 20} L${x + 26} ${y + 38}" stroke="${wd}" stroke-width="3" fill="none" />
+          <path d="M${x + 24} ${y + 38} L${x + 30} ${y + 20} L${x + 36} ${y + 38}" stroke="${wd}" stroke-width="3" fill="none" />
+          <!-- Arm pivot -->
+          <circle cx="${x + 25}" cy="${y + 20}" r="3" fill="${wd}" />
+          <!-- Throwing arm -->
+          <line x1="${x + 10}" y1="${y + 28}" x2="${x + 40}" y2="${y + 12}" stroke="${wc}" stroke-width="4" />
+          <!-- Boulder -->
+          <circle cx="${x + 38}" cy="${y + 10}" r="8" fill="#666" stroke="#444" stroke-width="1" />
+          <circle cx="${x + 36}" cy="${y + 8}" r="2" fill="#888" />
+          <!-- Counterweight -->
+          <rect x="${x + 6}" y="${y + 26}" width="8" height="8" fill="${wd}" stroke="#3d2817" stroke-width="1" />
+          <circle cx="${x + 25}" cy="${y + 5}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<path d="M${x + 15} ${y + 15} L${x + 35} ${y + 35} M${x + 35} ${y + 15} L${x + 15} ${y + 35}" stroke="#8b0000" stroke-width="3" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit bomb
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <rect x="${x + 12}" y="${y + 44}" width="26" height="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Base -->
+          <rect x="${x + 12}" y="${y + 38}" width="26" height="8" fill="#444" />
+          <!-- Bomb body -->
+          <rect x="${x + 16}" y="${y + 14}" width="18" height="24" fill="${c2}" />
+          <rect x="${x + 18}" y="${y + 16}" width="14" height="20" fill="${c1}" />
+          <!-- Fuse -->
+          <rect x="${x + 24}" y="${y + 6}" width="2" height="8" fill="#444" />
+          <!-- Spark -->
+          <rect x="${x + 22}" y="${y + 4}" width="6" height="4" fill="#ff0"><animate attributeName="opacity" values="1;0;1" dur="0.3s" repeatCount="indefinite" /></rect>
+          <!-- Markings -->
+          <rect x="${x + 20}" y="${y + 22}" width="10" height="4" fill="${teamColor}" />
+          <rect x="${x + 20}" y="${y + 30}" width="10" height="4" fill="${teamColor}" />
+          <circle cx="${x + 25}" cy="${y + 12}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<rect x="${x + 14}" y="${y + 24}" width="22" height="4" fill="#f00" /><rect x="${x + 24}" y="${y + 14}" width="4" height="24" fill="#f00" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Meteor summon
+    if (skinStyle === 'fantasy') {
+      const mc = skinColors.primary
+      const md = skinColors.dark
+      return `
+        <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="14" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Magic circle -->
+          <circle cx="${x + 25}" cy="${y + 40}" r="12" fill="none" stroke="${mc}" stroke-width="1.5" />
+          <circle cx="${x + 25}" cy="${y + 40}" r="8" fill="none" stroke="${mc}" stroke-width="1" />
+          <!-- Rune marks -->
+          <text x="${x + 25}" y="${y + 43}" text-anchor="middle" font-size="8" fill="${mc}">✧</text>
+          <!-- Floating meteor -->
+          <ellipse cx="${x + 25}" cy="${y + 20}" rx="10" ry="8" fill="#8b4513" stroke="${md}" stroke-width="1" />
+          <ellipse cx="${x + 22}" cy="${y + 18}" rx="3" ry="2" fill="#a0522d" />
+          <!-- Fire trail -->
+          <path d="M${x + 25} ${y + 28} Q${x + 30} ${y + 34} ${x + 25} ${y + 38} Q${x + 20} ${y + 34} ${x + 25} ${y + 28}" fill="#ff6600" opacity="0.8"><animate attributeName="d" values="M${x + 25} ${y + 28} Q${x + 30} ${y + 34} ${x + 25} ${y + 38} Q${x + 20} ${y + 34} ${x + 25} ${y + 28};M${x + 25} ${y + 28} Q${x + 32} ${y + 36} ${x + 25} ${y + 42} Q${x + 18} ${y + 36} ${x + 25} ${y + 28};M${x + 25} ${y + 28} Q${x + 30} ${y + 34} ${x + 25} ${y + 38} Q${x + 20} ${y + 34} ${x + 25} ${y + 28}" dur="0.5s" repeatCount="indefinite" /></path>
+          <!-- Magical levitation glow -->
+          <circle cx="${x + 25}" cy="${y + 20}" r="12" fill="none" stroke="${mc}" stroke-width="1" opacity="0.5"><animate attributeName="r" values="12;15;12" dur="1s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${used ? `<circle cx="${x + 25}" cy="${y + 25}" r="15" fill="${md}" opacity="0.5" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Rocket/missile design
     return `
       <g class="cursor-pointer ${used ? 'opacity-50' : ''}" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
@@ -10105,7 +10898,127 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const hullColor = skinColors.helmet
     const hullDark = skinColors.uniform
     const frozen = piece.frozenTurns && piece.frozenTurns > 0
-    // Submarine design
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Torpedo drone
+    if (skinStyle === 'robot') {
+      const mc = skinColors.primary
+      const dm = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Energy trail -->
+          <ellipse cx="${x + 45}" cy="${y + 28}" rx="4" ry="8" fill="${mc}" opacity="0.4"><animate attributeName="rx" values="4;6;4" dur="0.3s" repeatCount="indefinite" /></ellipse>
+          <!-- Main body -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="20" ry="8" fill="${dm}" stroke="${mc}" stroke-width="1.5" />
+          <!-- Sensor array front -->
+          <ellipse cx="${x + 6}" cy="${y + 28}" rx="4" ry="6" fill="${mc}" stroke="${dm}" stroke-width="1" />
+          <circle cx="${x + 6}" cy="${y + 28}" r="2" fill="#ff0000"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite" /></circle>
+          <!-- Cockpit dome -->
+          <ellipse cx="${x + 20}" cy="${y + 22}" rx="8" ry="5" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <ellipse cx="${x + 20}" cy="${y + 21}" rx="5" ry="3" fill="${mc}" opacity="0.6" />
+          <!-- Thrusters -->
+          <rect x="${x + 42}" y="${y + 24}" width="6" height="8" rx="2" fill="${mc}" />
+          <!-- Stabilizers -->
+          <rect x="${x + 35}" y="${y + 18}" width="6" height="4" fill="${mc}" />
+          <rect x="${x + 35}" y="${y + 34}" width="6" height="4" fill="${mc}" />
+          <circle cx="${x + 25}" cy="${y + 12}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<rect x="${x + 5}" y="${y + 10}" width="40" height="30" fill="${mc}" opacity="0.3" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - Sea monster
+    if (skinStyle === 'medieval') {
+      const sc = skinColors.primary
+      const sd = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water splashes -->
+          <circle cx="${x + 10}" cy="${y + 14}" r="2" fill="#87ceeb" opacity="0.5" />
+          <circle cx="${x + 40}" cy="${y + 12}" r="1.5" fill="#87ceeb" opacity="0.4" />
+          <!-- Serpent body -->
+          <ellipse cx="${x + 25}" cy="${y + 30}" rx="18" ry="10" fill="${sc}" stroke="${sd}" stroke-width="1.5" />
+          <!-- Scale pattern -->
+          <ellipse cx="${x + 18}" cy="${y + 28}" rx="4" ry="3" fill="${sd}" opacity="0.4" />
+          <ellipse cx="${x + 28}" cy="${y + 30}" rx="4" ry="3" fill="${sd}" opacity="0.4" />
+          <ellipse cx="${x + 38}" cy="${y + 28}" rx="3" ry="2" fill="${sd}" opacity="0.4" />
+          <!-- Serpent head -->
+          <ellipse cx="${x + 8}" cy="${y + 26}" rx="6" ry="5" fill="${sc}" stroke="${sd}" stroke-width="1" />
+          <!-- Eyes -->
+          <circle cx="${x + 6}" cy="${y + 24}" r="2" fill="#ff0" />
+          <circle cx="${x + 6}" cy="${y + 24}" r="1" fill="#000" />
+          <!-- Fangs -->
+          <path d="M${x + 3} ${y + 28} L${x + 5} ${y + 32} Z" stroke="#fff" stroke-width="1.5" />
+          <!-- Tail fin -->
+          <path d="M${x + 42} ${y + 26} L${x + 50} ${y + 22} L${x + 48} ${y + 30} L${x + 50} ${y + 38} L${x + 42} ${y + 34} Z" fill="${sc}" stroke="${sd}" stroke-width="1" />
+          <!-- Dorsal fins -->
+          <path d="M${x + 20} ${y + 20} L${x + 24} ${y + 12} L${x + 28} ${y + 20}" fill="${sc}" stroke="${sd}" stroke-width="0.5" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<rect x="${x + 5}" y="${y + 10}" width="40" height="30" fill="#4488cc" opacity="0.4" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit submarine
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Bubbles -->
+          <rect x="${x + 8}" y="${y + 10}" width="4" height="4" fill="#88ccff" />
+          <rect x="${x + 14}" y="${y + 6}" width="4" height="4" fill="#88ccff" />
+          <!-- Hull -->
+          <rect x="${x + 6}" y="${y + 22}" width="38" height="16" fill="${c2}" />
+          <rect x="${x + 8}" y="${y + 24}" width="34" height="12" fill="${c1}" />
+          <!-- Nose -->
+          <rect x="${x + 2}" y="${y + 26}" width="6" height="8" fill="${c2}" />
+          <!-- Tower -->
+          <rect x="${x + 18}" y="${y + 14}" width="12" height="8" fill="${c2}" />
+          <rect x="${x + 20}" y="${y + 16}" width="8" height="4" fill="#88ccff" />
+          <!-- Periscope -->
+          <rect x="${x + 24}" y="${y + 8}" width="2" height="6" fill="#444" />
+          <rect x="${x + 22}" y="${y + 6}" width="6" height="4" fill="#666" />
+          <!-- Propeller -->
+          <rect x="${x + 44}" y="${y + 26}" width="4" height="8" fill="#444" />
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<rect x="${x + 4}" y="${y + 12}" width="42" height="28" fill="#4488ff" opacity="0.4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Water elemental
+    if (skinStyle === 'fantasy') {
+      const wc = skinColors.primary
+      const wd = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <!-- Water form -->
+          <ellipse cx="${x + 25}" cy="${y + 30}" rx="18" ry="12" fill="${wc}" opacity="0.7" stroke="${wd}" stroke-width="1" />
+          <!-- Inner glow -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="12" ry="8" fill="#fff" opacity="0.3" />
+          <!-- Water streams -->
+          <path d="M${x + 8} ${y + 26} Q${x + 2} ${y + 20} ${x + 6} ${y + 14}" stroke="${wc}" stroke-width="4" fill="none" opacity="0.8"><animate attributeName="d" values="M${x + 8} ${y + 26} Q${x + 2} ${y + 20} ${x + 6} ${y + 14};M${x + 8} ${y + 26} Q${x} ${y + 18} ${x + 4} ${y + 10};M${x + 8} ${y + 26} Q${x + 2} ${y + 20} ${x + 6} ${y + 14}" dur="1s" repeatCount="indefinite" /></path>
+          <path d="M${x + 42} ${y + 26} Q${x + 48} ${y + 20} ${x + 44} ${y + 14}" stroke="${wc}" stroke-width="4" fill="none" opacity="0.8" />
+          <!-- Eyes -->
+          <circle cx="${x + 20}" cy="${y + 26}" r="3" fill="#fff" />
+          <circle cx="${x + 30}" cy="${y + 26}" r="3" fill="#fff" />
+          <circle cx="${x + 20}" cy="${y + 26}" r="1.5" fill="${wd}" />
+          <circle cx="${x + 30}" cy="${y + 26}" r="1.5" fill="${wd}" />
+          <!-- Magic droplets -->
+          <circle cx="${x + 12}" cy="${y + 16}" r="2" fill="${wc}" opacity="0.6"><animate attributeName="cy" values="${y + 16};${y + 10};${y + 16}" dur="1.5s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 38}" cy="${y + 18}" r="2" fill="${wc}" opacity="0.6"><animate attributeName="cy" values="${y + 18};${y + 12};${y + 18}" dur="1.2s" repeatCount="indefinite" /></circle>
+          <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${frozen ? `<rect x="${x + 5}" y="${y + 10}" width="40" height="30" fill="#88ccff" opacity="0.5" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Submarine design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Water/bubbles -->
@@ -10155,7 +11068,138 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     const cockpitColor = '#87ceeb'
     const frozen = piece.frozenTurns && piece.frozenTurns > 0
     const onCooldown = piece.cooldownTurns && piece.cooldownTurns > 0
-    // Fighter jet design
+    const skinStyle = getCurrentSkinStyle()
+
+    // ROBOT SKIN - Attack drone
+    if (skinStyle === 'robot') {
+      const mc = skinColors.primary
+      const dm = skinColors.uniform
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Main body disc -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="16" ry="10" fill="${dm}" stroke="${mc}" stroke-width="1.5" />
+          <!-- Central dome -->
+          <ellipse cx="${x + 25}" cy="${y + 22}" rx="8" ry="6" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <ellipse cx="${x + 25}" cy="${y + 20}" rx="4" ry="3" fill="${mc}" opacity="0.6" />
+          <!-- Wing pods -->
+          <ellipse cx="${x + 8}" cy="${y + 28}" rx="6" ry="4" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <ellipse cx="${x + 42}" cy="${y + 28}" rx="6" ry="4" fill="${dm}" stroke="${mc}" stroke-width="1" />
+          <!-- Weapon barrels -->
+          <rect x="${x + 4}" y="${y + 32}" width="2" height="8" fill="${mc}" />
+          <rect x="${x + 44}" y="${y + 32}" width="2" height="8" fill="${mc}" />
+          <!-- Energy core -->
+          <circle cx="${x + 25}" cy="${y + 26}" r="4" fill="${mc}"><animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" /></circle>
+          <!-- Thrusters -->
+          <ellipse cx="${x + 25}" cy="${y + 38}" rx="6" ry="3" fill="${mc}" opacity="0.6"><animate attributeName="ry" values="3;5;3" dur="0.5s" repeatCount="indefinite" /></ellipse>
+          <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<circle cx="${x + 40}" cy="${y + 10}" r="6" fill="${mc}" opacity="0.8" /><text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="#000">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="${mc}" opacity="0.3" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // MEDIEVAL SKIN - War eagle
+    if (skinStyle === 'medieval') {
+      const fc = skinColors.primary
+      const fd = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Body -->
+          <ellipse cx="${x + 25}" cy="${y + 28}" rx="8" ry="12" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <!-- Head -->
+          <ellipse cx="${x + 25}" cy="${y + 14}" rx="6" ry="5" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <!-- Beak -->
+          <path d="M${x + 25} ${y + 16} L${x + 22} ${y + 22} L${x + 25} ${y + 20} L${x + 28} ${y + 22} Z" fill="#ffa500" stroke="${fd}" stroke-width="0.5" />
+          <!-- Eyes -->
+          <circle cx="${x + 22}" cy="${y + 13}" r="2" fill="#000" />
+          <circle cx="${x + 28}" cy="${y + 13}" r="2" fill="#000" />
+          <circle cx="${x + 22}" cy="${y + 12.5}" r="0.5" fill="#fff" />
+          <circle cx="${x + 28}" cy="${y + 12.5}" r="0.5" fill="#fff" />
+          <!-- Wings spread -->
+          <path d="M${x + 17} ${y + 24} Q${x + 2} ${y + 18} ${x} ${y + 30} L${x + 8} ${y + 36} L${x + 17} ${y + 32} Z" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <path d="M${x + 33} ${y + 24} Q${x + 48} ${y + 18} ${x + 50} ${y + 30} L${x + 42} ${y + 36} L${x + 33} ${y + 32} Z" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <!-- Tail feathers -->
+          <path d="M${x + 22} ${y + 38} L${x + 20} ${y + 46} L${x + 25} ${y + 44} L${x + 30} ${y + 46} L${x + 28} ${y + 38} Z" fill="${fc}" stroke="${fd}" stroke-width="0.5" />
+          <!-- Talons -->
+          <path d="M${x + 20} ${y + 40} L${x + 18} ${y + 46}" stroke="${fd}" stroke-width="2" />
+          <path d="M${x + 30} ${y + 40} L${x + 32} ${y + 46}" stroke="${fd}" stroke-width="2" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#ef4444" opacity="0.8" /><text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="white">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // PIXEL SKIN - 8-bit plane
+    if (skinStyle === 'pixel') {
+      const c1 = skinColors.primary
+      const c2 = skinColors.secondary
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <rect x="${x + 10}" y="${y + 44}" width="30" height="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Body -->
+          <rect x="${x + 20}" y="${y + 10}" width="10" height="32" fill="${c2}" />
+          <rect x="${x + 22}" y="${y + 12}" width="6" height="28" fill="${c1}" />
+          <!-- Nose -->
+          <rect x="${x + 22}" y="${y + 6}" width="6" height="6" fill="#888" />
+          <!-- Cockpit -->
+          <rect x="${x + 22}" y="${y + 14}" width="6" height="6" fill="#88ccff" />
+          <!-- Wings -->
+          <rect x="${x + 4}" y="${y + 26}" width="16" height="6" fill="${c2}" />
+          <rect x="${x + 30}" y="${y + 26}" width="16" height="6" fill="${c2}" />
+          <!-- Missiles -->
+          <rect x="${x + 8}" y="${y + 32}" width="4" height="8" fill="#f00" />
+          <rect x="${x + 38}" y="${y + 32}" width="4" height="8" fill="#f00" />
+          <!-- Tail -->
+          <rect x="${x + 18}" y="${y + 38}" width="4" height="6" fill="${c2}" />
+          <rect x="${x + 28}" y="${y + 38}" width="4" height="6" fill="${c2}" />
+          <circle cx="${x + 25}" cy="${y + 6}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<rect x="${x + 36}" y="${y + 6}" width="12" height="12" fill="#f00" /><text x="${x + 42}" y="${y + 15}" text-anchor="middle" font-size="8" fill="#fff">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<rect x="${x + 6}" y="${y + 6}" width="38" height="38" fill="#4488ff" opacity="0.4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // FANTASY SKIN - Phoenix
+    if (skinStyle === 'fantasy') {
+      const fc = skinColors.primary
+      const fd = skinColors.dark
+      return `
+        <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+          <ellipse cx="${x + 25}" cy="${y + 46}" rx="18" ry="4" fill="rgba(0,0,0,0.3)" />
+          <!-- Fire trail -->
+          <ellipse cx="${x + 25}" cy="${y + 44}" rx="10" ry="6" fill="#ff6600" opacity="0.6"><animate attributeName="ry" values="6;8;6" dur="0.3s" repeatCount="indefinite" /></ellipse>
+          <!-- Body -->
+          <ellipse cx="${x + 25}" cy="${y + 26}" rx="8" ry="14" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <!-- Head -->
+          <ellipse cx="${x + 25}" cy="${y + 10}" rx="6" ry="5" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <!-- Head plume -->
+          <path d="M${x + 22} ${y + 6} L${x + 20} ${y} L${x + 25} ${y + 4} L${x + 30} ${y} L${x + 28} ${y + 6}" fill="#ff6600" stroke="${fd}" stroke-width="0.5" />
+          <!-- Eyes -->
+          <circle cx="${x + 22}" cy="${y + 9}" r="2" fill="#ff0" />
+          <circle cx="${x + 28}" cy="${y + 9}" r="2" fill="#ff0" />
+          <!-- Flaming wings -->
+          <path d="M${x + 17} ${y + 20} Q${x} ${y + 14} ${x - 4} ${y + 28} Q${x + 4} ${y + 36} ${x + 17} ${y + 34} Z" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <path d="M${x + 33} ${y + 20} Q${x + 50} ${y + 14} ${x + 54} ${y + 28} Q${x + 46} ${y + 36} ${x + 33} ${y + 34} Z" fill="${fc}" stroke="${fd}" stroke-width="1" />
+          <!-- Wing flames -->
+          <path d="M${x} ${y + 26} Q${x - 6} ${y + 22} ${x - 4} ${y + 18}" stroke="#ff6600" stroke-width="2" fill="none"><animate attributeName="d" dur="0.5s" repeatCount="indefinite" values="M${x} ${y + 26} Q${x - 6} ${y + 22} ${x - 4} ${y + 18};M${x} ${y + 26} Q${x - 8} ${y + 20} ${x - 6} ${y + 14};M${x} ${y + 26} Q${x - 6} ${y + 22} ${x - 4} ${y + 18}" /></path>
+          <path d="M${x + 50} ${y + 26} Q${x + 56} ${y + 22} ${x + 54} ${y + 18}" stroke="#ff6600" stroke-width="2" fill="none" />
+          <!-- Tail flames -->
+          <path d="M${x + 22} ${y + 38} Q${x + 18} ${y + 48} ${x + 25} ${y + 46} Q${x + 32} ${y + 48} ${x + 28} ${y + 38}" fill="#ff6600" stroke="${fd}" stroke-width="0.5"><animate attributeName="d" dur="0.3s" repeatCount="indefinite" values="M${x + 22} ${y + 38} Q${x + 18} ${y + 48} ${x + 25} ${y + 46} Q${x + 32} ${y + 48} ${x + 28} ${y + 38};M${x + 22} ${y + 38} Q${x + 16} ${y + 52} ${x + 25} ${y + 50} Q${x + 34} ${y + 52} ${x + 28} ${y + 38};M${x + 22} ${y + 38} Q${x + 18} ${y + 48} ${x + 25} ${y + 46} Q${x + 32} ${y + 48} ${x + 28} ${y + 38}" /></path>
+          <circle cx="${x + 25}" cy="${y + 4}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+          ${onCooldown ? `<circle cx="${x + 40}" cy="${y + 10}" r="6" fill="#ff6600" opacity="0.8" /><text x="${x + 40}" y="${y + 13}" text-anchor="middle" font-size="8" fill="#000">${piece.cooldownTurns}</text>` : ''}
+          ${frozen ? `<rect x="${x + 5}" y="${y + 5}" width="40" height="40" fill="#60a5fa" opacity="0.3" rx="4" />` : ''}
+          ${colorblindSymbol}
+        </g>
+      `
+    }
+
+    // DEFAULT - Fighter jet design
     return `
       <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
         <!-- Shadow -->
