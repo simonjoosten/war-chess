@@ -4998,6 +4998,17 @@ function makeBotMove() {
         botThinking = false
         selectedPiece = forcedTrenchSoldier
         const capturedPiece = getPieceAt(bestMove.col, bestMove.row)
+
+        // Handle capture - remove enemy piece before moving
+        if (capturedPiece && capturedPiece.team !== forcedTrenchSoldier.team) {
+          const index = pieces.indexOf(capturedPiece)
+          if (index !== -1) {
+            pieces.splice(index, 1)
+            capturedPieces.push(capturedPiece)
+            checkBuilderCaptured(capturedPiece, forcedTrenchSoldier.team)
+          }
+        }
+
         completMove(bestMove.col, bestMove.row, capturedPiece || null)
       }, 300 * getSpeedMultiplier())
       return
@@ -5468,6 +5479,42 @@ function executeBotMove(chosenMove: BotMove | null) {
     if (chosenMove.action === 'move' && chosenMove.target) {
       selectedPiece = chosenMove.piece
       const capturedPiece = getPieceAt(chosenMove.target.col, chosenMove.target.row)
+
+      // Handle capture - remove enemy piece from board BEFORE moving
+      if (capturedPiece && capturedPiece.team !== chosenMove.piece.team) {
+        // Special handling for carrier with HP
+        if (capturedPiece.type === 'carrier' && capturedPiece.hp && capturedPiece.hp > 1) {
+          capturedPiece.hp -= 1
+          if (capturedPiece.hasHelicopter) {
+            capturedPiece.hasHelicopter = false
+          }
+          // Don't destroy, just damage - skip the move completion
+          message = `Bot rammed carrier! (${capturedPiece.hp} HP left)`
+          moveLog.push({
+            from: `${chosenMove.piece.col}${chosenMove.piece.row}`,
+            to: `${chosenMove.target.col}${chosenMove.target.row}`,
+            piece: chosenMove.piece.type,
+            team: chosenMove.piece.team,
+            captured: 'hit'
+          })
+          if (chosenMove.piece.team === 'yellow') yellowTurnCount++
+          else greenTurnCount++
+          switchTurn()
+          selectedPiece = null
+          render()
+          moveExecuted = true
+          return
+        }
+
+        // Normal capture - remove the piece
+        const index = pieces.indexOf(capturedPiece)
+        if (index !== -1) {
+          pieces.splice(index, 1)
+          capturedPieces.push(capturedPiece)
+          checkBuilderCaptured(capturedPiece, chosenMove.piece.team)
+        }
+      }
+
       completMove(chosenMove.target.col, chosenMove.target.row, capturedPiece || null)
       moveExecuted = true
     } else if (chosenMove.action === 'shoot' && chosenMove.target) {
@@ -5479,7 +5526,10 @@ function executeBotMove(chosenMove: BotMove | null) {
       } else if (chosenMove.piece.type === 'soldier') {
         shootTargets = getShootTargetsForSoldier(chosenMove.piece)
       }
-      if (shootTargets.length > 0) {
+      // Verify the specific target is still in shootTargets AND a piece exists there
+      const targetInRange = shootTargets.some(t => t.col === chosenMove.target!.col && t.row === chosenMove.target!.row)
+      const pieceAtShootTarget = getPieceAt(chosenMove.target.col, chosenMove.target.row) || getBarricadeAt(chosenMove.target.col, chosenMove.target.row)
+      if (targetInRange && pieceAtShootTarget) {
         shootPiece(chosenMove.target.col, chosenMove.target.row)
         moveExecuted = true
       }
