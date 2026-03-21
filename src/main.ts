@@ -47,7 +47,11 @@ import {
   getAllUsers,
   adminGiveWarBucks,
   adminGiveItem,
-  adminSetAdmin
+  adminSetAdmin,
+  adminGiveAllItems,
+  adminResetUser,
+  adminGiveItemToAll,
+  adminGiveWarBucksToAll
 } from './firebase'
 
 // Auth state
@@ -15311,16 +15315,38 @@ function render() {
         return
       }
 
+      // Search state for admin panel
+      let adminSearchQuery = ''
+
       const renderAdminPanel = async () => {
-        const users = await getAllUsers()
+        const allUsers = await getAllUsers()
+        // Filter users based on search query
+        const users = adminSearchQuery
+          ? allUsers.filter(u =>
+              u.username.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
+              u.email.toLowerCase().includes(adminSearchQuery.toLowerCase())
+            )
+          : allUsers
 
         app.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
             <h1 class="text-2xl sm:text-4xl font-bold text-white">🔧 Admin Panel</h1>
 
+            <!-- Search bar -->
+            <div class="w-full max-w-[800px]">
+              <input type="text" id="admin-search" placeholder="Search users by name or email..."
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                value="${adminSearchQuery}">
+            </div>
+
             <div class="w-full max-w-[800px] flex flex-col gap-4">
               <div class="bg-gray-800 p-4 rounded-lg">
-                <h2 class="text-lg font-bold text-white mb-4">👥 All Users (${users.length})</h2>
+                <h2 class="text-lg font-bold text-white mb-4">👥 All Users (${users.length}${adminSearchQuery ? ` of ${allUsers.length}` : ''})</h2>
+                ${users.length === 0 ? `
+                  <div class="text-gray-400 text-center py-4">
+                    ${adminSearchQuery ? 'No users found matching your search.' : 'No users found. This could be a permissions issue.'}
+                  </div>
+                ` : ''}
                 <div class="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
                   ${users.map(user => `
                     <div class="bg-gray-700 p-4 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3">
@@ -15340,6 +15366,12 @@ function render() {
                         <button class="admin-give-bucks-1000 bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
                           +1000 💰
                         </button>
+                        <button class="admin-give-all-items bg-purple-600 hover:bg-purple-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
+                          All Items
+                        </button>
+                        <button class="admin-reset-user bg-orange-600 hover:bg-orange-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
+                          Reset
+                        </button>
                         ${!user.isAdmin ? `
                         <button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white font-bold py-1 px-3 rounded text-sm transition-colors" data-userid="${user.odataId}">
                           Make Admin
@@ -15352,6 +15384,37 @@ function render() {
                       </div>
                     </div>
                   `).join('')}
+                </div>
+              </div>
+
+              <!-- Global Admin Tools -->
+              <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-lg font-bold text-white mb-4">🌐 Global Actions</h2>
+                <div class="flex flex-wrap gap-3">
+                  <button id="admin-give-all-bucks" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
+                    Give Everyone +100 💰
+                  </button>
+                  <button id="admin-give-all-bucks-1000" class="bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
+                    Give Everyone +1000 💰
+                  </button>
+                  <select id="admin-global-item-select" class="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600">
+                    <option value="">Select item to give all...</option>
+                    ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name}</option>`).join('')}
+                  </select>
+                  <button id="admin-give-all-item" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
+                    Give Item to All
+                  </button>
+                </div>
+              </div>
+
+              <!-- Server/System Tools -->
+              <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-lg font-bold text-white mb-4">🖥️ System</h2>
+                <div class="flex flex-wrap gap-3">
+                  <div class="text-gray-400 text-sm">
+                    Total Users: <span class="text-white font-bold">${allUsers.length}</span> |
+                    Total Admins: <span class="text-red-400 font-bold">${allUsers.filter(u => u.isAdmin).length}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -15414,6 +15477,72 @@ function render() {
             }
           })
         })
+
+        // Give all items to user
+        document.querySelectorAll('.admin-give-all-items').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const userId = target.dataset.userid
+            if (userId && confirm('Give ALL shop items to this user?')) {
+              await adminGiveAllItems(userId)
+              renderAdminPanel()
+            }
+          })
+        })
+
+        // Reset user
+        document.querySelectorAll('.admin-reset-user').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const userId = target.dataset.userid
+            if (userId && confirm('Reset this user? This will clear their stats, items, and war bucks!')) {
+              await adminResetUser(userId)
+              renderAdminPanel()
+            }
+          })
+        })
+
+        // Global: Give everyone war bucks
+        document.getElementById('admin-give-all-bucks')?.addEventListener('click', async () => {
+          if (confirm('Give +100 War Bucks to ALL users?')) {
+            const count = await adminGiveWarBucksToAll(100)
+            alert(`Gave 100 War Bucks to ${count} users!`)
+            renderAdminPanel()
+          }
+        })
+
+        document.getElementById('admin-give-all-bucks-1000')?.addEventListener('click', async () => {
+          if (confirm('Give +1000 War Bucks to ALL users?')) {
+            const count = await adminGiveWarBucksToAll(1000)
+            alert(`Gave 1000 War Bucks to ${count} users!`)
+            renderAdminPanel()
+          }
+        })
+
+        // Global: Give item to all
+        document.getElementById('admin-give-all-item')?.addEventListener('click', async () => {
+          const select = document.getElementById('admin-global-item-select') as HTMLSelectElement
+          const itemId = select?.value
+          if (itemId && confirm(`Give this item to ALL users?`)) {
+            const count = await adminGiveItemToAll(itemId)
+            alert(`Gave item to ${count} users!`)
+            renderAdminPanel()
+          } else if (!itemId) {
+            alert('Please select an item first!')
+          }
+        })
+
+        // Search functionality
+        const searchInput = document.getElementById('admin-search') as HTMLInputElement
+        if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+            adminSearchQuery = (e.target as HTMLInputElement).value
+            renderAdminPanel()
+          })
+          // Focus on search input and set cursor at end
+          searchInput.focus()
+          searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length)
+        }
       }
 
       // Show loading state

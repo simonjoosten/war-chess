@@ -1120,3 +1120,99 @@ export async function adminSetAdmin(userId: string, isAdmin: boolean): Promise<b
     return false
   }
 }
+
+// Give all shop items to a user
+export async function adminGiveAllItems(userId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    const allItemIds = SHOP_ITEMS.map(item => item.id)
+    await updateDoc(doc(db, 'users', userId), { purchasedItems: allItemIds })
+    return true
+  } catch (error) {
+    console.error('Error giving all items:', error)
+    return false
+  }
+}
+
+// Reset a user's account (keep username/email, reset stats and items)
+export async function adminResetUser(userId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId))
+    if (!userDoc.exists()) return false
+
+    const userData = userDoc.data() as UserData
+    const resetData: Partial<UserData> = {
+      stats: {
+        gamesPlayed: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        totalPointsScored: 0,
+        piecesEliminated: 0,
+        engineersCaptured: 0,
+        timePlayed: 0
+      },
+      badges: [],
+      warBucks: 0,
+      purchasedItems: [],
+      equippedItems: { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null },
+      warPass: { claimedRewards: [], completedCount: 0, lastResetTime: 0 }
+    }
+
+    await updateDoc(doc(db, 'users', userId), resetData)
+    return true
+  } catch (error) {
+    console.error('Error resetting user:', error)
+    return false
+  }
+}
+
+// Give all users an item
+export async function adminGiveItemToAll(itemId: string): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'))
+    let count = 0
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data() as UserData
+      const purchasedItems = userData.purchasedItems || []
+
+      if (!purchasedItems.includes(itemId)) {
+        purchasedItems.push(itemId)
+        await updateDoc(doc(db, 'users', userDoc.id), { purchasedItems })
+        count++
+      }
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error giving item to all:', error)
+    return 0
+  }
+}
+
+// Give all users war bucks
+export async function adminGiveWarBucksToAll(amount: number): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const usersSnapshot = await getDocs(collection(db, 'users'))
+    let count = 0
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data() as UserData
+      const newWarBucks = (userData.warBucks || 0) + amount
+      await updateDoc(doc(db, 'users', userDoc.id), { warBucks: newWarBucks })
+      count++
+    }
+
+    return count
+  } catch (error) {
+    console.error('Error giving war bucks to all:', error)
+    return 0
+  }
+}
