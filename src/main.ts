@@ -6420,6 +6420,17 @@ async function startMultiplayerGame() {
       render()
     }
 
+    // Always ensure turn tracking is in sync with game state
+    if (game.currentTurn && multiplayerTeam) {
+      const shouldBeMyTurn = game.currentTurn === multiplayerTeam
+      if (isMyTurnInMultiplayer !== shouldBeMyTurn) {
+        isMyTurnInMultiplayer = shouldBeMyTurn
+        waitingForOpponent = !shouldBeMyTurn
+        // Re-render if turn status changed
+        render()
+      }
+    }
+
     // Check if game is over
     if (game.status === 'finished' && game.winner) {
       if (gameState !== 'gameOver') {
@@ -8986,10 +8997,17 @@ function handleSquareClick(col: string, row: number) {
   }
 
   // Block clicks when it's not your turn in multiplayer
-  if (multiplayerGameId && multiplayerTeam && !isMyTurnInMultiplayer) {
+  // Use both isMyTurnInMultiplayer flag AND direct turn check for reliability
+  const isMyTurn = isMyTurnInMultiplayer || currentTurn === multiplayerTeam
+  if (multiplayerGameId && multiplayerTeam && !isMyTurn) {
     message = t('opponentsTurn')
     render()
     return
+  }
+  // Update the flag if it was out of sync
+  if (multiplayerGameId && multiplayerTeam && currentTurn === multiplayerTeam && !isMyTurnInMultiplayer) {
+    isMyTurnInMultiplayer = true
+    waitingForOpponent = false
   }
 
   // Get pieces at this location (handles barricade + piece behind it, or tunnel soldier + above ground piece)
