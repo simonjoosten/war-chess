@@ -1675,19 +1675,36 @@ export async function adminCreateSampleEvents(): Promise<number> {
   if (!db || !isCurrentUserAdmin() || !currentUserData) return 0
 
   const sampleEvents: Array<Omit<GameEvent, 'id' | 'createdAt' | 'createdBy' | 'claimedBy'>> = [
-    // Game mode events
+    // Game mode events - all modes
     { type: 'gamemode', title: 'Disco Mode Active!', message: 'Party time! Flashing colors everywhere!', icon: '🪩', active: true, gameMode: 'disco' },
     { type: 'gamemode', title: 'Jumpscare Mode!', message: 'Beware of random scary surprises...', icon: '👻', active: false, gameMode: 'jumpscare' },
     { type: 'gamemode', title: 'Chaos Mode!', message: 'Everything is unpredictable!', icon: '🌀', active: false, gameMode: 'chaos' },
     { type: 'gamemode', title: 'Rainbow Mode!', message: 'Beautiful rainbow colors!', icon: '🌈', active: false, gameMode: 'rainbow' },
     { type: 'gamemode', title: 'Matrix Mode!', message: 'Enter the Matrix...', icon: '💊', active: false, gameMode: 'matrix' },
     { type: 'gamemode', title: 'Earthquake Mode!', message: 'The board is shaking!', icon: '🌋', active: false, gameMode: 'earthquake' },
+    { type: 'gamemode', title: 'Mirror Mode!', message: 'Everything is reversed!', icon: '🪞', active: false, gameMode: 'mirror' },
+    { type: 'gamemode', title: 'Speed Mode!', message: 'Everything moves faster!', icon: '⚡', active: false, gameMode: 'speed' },
+    { type: 'gamemode', title: 'Giant Mode!', message: 'Pieces are huge!', icon: '🦖', active: false, gameMode: 'giant' },
+    { type: 'gamemode', title: 'Tiny Mode!', message: 'Pieces are tiny!', icon: '🐜', active: false, gameMode: 'tiny' },
+
     // Reward events
     { type: 'reward', title: 'Welcome Bonus!', message: 'Claim your free War Bucks!', icon: '🎁', active: true, rewardType: 'warBucks', rewardAmount: 100 },
     { type: 'reward', title: 'Weekend Special!', message: 'Extra War Bucks for everyone!', icon: '💰', active: false, rewardType: 'warBucks', rewardAmount: 250 },
+    { type: 'reward', title: 'Daily Login!', message: 'Thanks for playing today!', icon: '📅', active: true, rewardType: 'warBucks', rewardAmount: 50 },
+    { type: 'reward', title: 'Lucky Day!', message: 'You got extra lucky today!', icon: '🍀', active: false, rewardType: 'warBucks', rewardAmount: 500 },
+    { type: 'reward', title: 'Free Theme!', message: 'Get a free desert theme!', icon: '🏜️', active: false, rewardType: 'item', rewardItemId: 'theme_desert' },
+
     // Announcement events
-    { type: 'announcement', title: 'Welcome to War Chess!', message: 'Thanks for playing! Have fun!', icon: '👋', active: true },
-    { type: 'update', title: 'New Features!', message: 'Check out the shop for new items!', icon: '🆕', active: true },
+    { type: 'announcement', title: 'Welcome to War Chess!', message: 'Thanks for playing! Have fun and good luck!', icon: '👋', active: true },
+    { type: 'update', title: 'New Features!', message: 'Check out the shop for new items and skins!', icon: '🆕', active: true },
+    { type: 'announcement', title: 'Multiplayer is Live!', message: 'Challenge your friends to a match!', icon: '🎮', active: true },
+    { type: 'maintenance', title: 'Server Update', message: 'Brief maintenance scheduled for tonight.', icon: '🔧', active: false },
+    { type: 'event', title: 'Tournament Coming!', message: 'Big tournament next week with prizes!', icon: '🏆', active: false },
+
+    // Polls
+    { type: 'poll', title: 'Favorite Game Mode?', message: 'Vote for your favorite!', icon: '📊', active: true, pollOptions: ['Disco 🪩', 'Matrix 💊', 'Chaos 🌀', 'Rainbow 🌈'] },
+    { type: 'poll', title: 'Next Feature?', message: 'What should we add next?', icon: '🗳️', active: true, pollOptions: ['More maps', 'New pieces', 'Chat system', 'Tournaments'] },
+    { type: 'poll', title: 'Best Team?', message: 'Which team do you prefer?', icon: '⚔️', active: false, pollOptions: ['Yellow 💛', 'Green 💚'] },
   ]
 
   let count = 0

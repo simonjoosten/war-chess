@@ -15325,7 +15325,31 @@ function render() {
       const winRate = userData && userData.stats.gamesPlayed > 0
         ? Math.round((userData.stats.gamesWon / userData.stats.gamesPlayed) * 100)
         : 0
-      app.innerHTML = `
+
+      // Check for notifications (events, rewards, polls, messages)
+      const renderProfileWithNotifications = async () => {
+        const events = await getActiveEvents()
+        const messages = await getActiveGlobalMessages()
+        const userId = getCurrentUser()?.uid || ''
+
+        // Count unclaimed rewards
+        const unclaimedRewards = events.filter(e =>
+          e.type === 'reward' && !e.claimedBy?.includes(userId)
+        ).length
+
+        // Count unvoted polls
+        const unvotedPolls = events.filter(e =>
+          e.type === 'poll' && !e.pollVotes?.[userId]
+        ).length
+
+        // Count active game modes
+        const activeGameModesCount = events.filter(e => e.type === 'gamemode').length
+
+        // Total notifications for events button
+        const eventNotifications = unclaimedRewards + unvotedPolls
+        const messageNotifications = messages.length
+
+        app.innerHTML = `
         <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
           <h1 class="text-2xl sm:text-4xl font-bold text-white">👤 ${t('profileTitle')}</h1>
           ${userData ? `
@@ -15378,9 +15402,11 @@ function render() {
               <span class="text-3xl sm:text-4xl">🎖️</span>
               <span class="text-sm sm:text-base">${t('warPassTitle')}</span>
             </button>
-            <button id="events-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+            <button id="events-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              ${eventNotifications > 0 ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">${eventNotifications}</span>` : ''}
               <span class="text-3xl sm:text-4xl">📢</span>
               <span class="text-sm sm:text-base">Events</span>
+              ${activeGameModesCount > 0 ? `<span class="text-xs bg-purple-500 px-2 rounded-full">${activeGameModesCount} modes</span>` : ''}
             </button>
             ${isCurrentUserAdmin() ? `
             <button id="admin-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
@@ -15400,32 +15426,41 @@ function render() {
           </div>
         </div>
       `
-      document.getElementById('shop-btn')?.addEventListener('click', () => {
-        showAuthScreen = 'shop'
-        render()
-      })
-      document.getElementById('warpass-btn')?.addEventListener('click', () => {
-        showAuthScreen = 'warpass'
-        render()
-      })
-      document.getElementById('events-btn')?.addEventListener('click', () => {
-        showAuthScreen = 'events'
-        render()
-      })
-      document.getElementById('admin-btn')?.addEventListener('click', () => {
-        showAuthScreen = 'admin'
-        render()
-      })
-      document.getElementById('profile-back-btn')?.addEventListener('click', () => {
-        showAuthScreen = 'none'
-        render()
-      })
-      document.getElementById('logout-btn')?.addEventListener('click', async () => {
-        await logoutUser()
-        setOfflineMode(false)
-        showAuthScreen = 'login'
-        render()
-      })
+
+        // Show global messages if any
+        if (messageNotifications > 0) {
+          showNextGlobalMessage()
+        }
+
+        document.getElementById('shop-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'shop'
+          render()
+        })
+        document.getElementById('warpass-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'warpass'
+          render()
+        })
+        document.getElementById('events-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'events'
+          render()
+        })
+        document.getElementById('admin-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'admin'
+          render()
+        })
+        document.getElementById('profile-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'none'
+          render()
+        })
+        document.getElementById('logout-btn')?.addEventListener('click', async () => {
+          await logoutUser()
+          setOfflineMode(false)
+          showAuthScreen = 'login'
+          render()
+        })
+      }
+
+      renderProfileWithNotifications()
       return
     }
 
