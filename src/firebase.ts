@@ -1529,3 +1529,37 @@ export async function adminGiveAllItemsToAll(): Promise<number> {
     return 0
   }
 }
+
+// Delete a user account completely
+export async function adminDeleteUser(userId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    // Get user data to find username for cleanup
+    const userDoc = await getDoc(doc(db, 'users', userId))
+    if (userDoc.exists()) {
+      const userData = userDoc.data() as UserData
+      // Delete username mapping
+      try {
+        await deleteDoc(doc(db, 'usernames', userData.username.toLowerCase()))
+      } catch (e) {
+        console.log('Could not delete username mapping')
+      }
+    }
+
+    // Delete the user document
+    await deleteDoc(doc(db, 'users', userId))
+
+    // Also remove from online collection if present
+    try {
+      await deleteDoc(doc(db, 'online', userId))
+    } catch (e) {
+      // Ignore if not online
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    return false
+  }
+}

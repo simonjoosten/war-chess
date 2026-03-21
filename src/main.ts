@@ -68,7 +68,8 @@ import {
   adminResetAllWarBucks,
   adminDeleteAllEvents,
   adminDeleteAllGames,
-  adminGiveAllItemsToAll
+  adminGiveAllItemsToAll,
+  adminDeleteUser
 } from './firebase'
 
 // Auth state
@@ -15447,6 +15448,7 @@ function render() {
                               ? `<button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+Admin</button>`
                               : `<button class="admin-remove-admin bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">-Admin</button>`
                             }
+                            <button class="admin-delete-user bg-red-800 hover:bg-red-700 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}" data-username="${user.username}">🗑️</button>
                           </div>
                         </div>
                       `).join('')}
@@ -15629,6 +15631,18 @@ function render() {
           btn.addEventListener('click', async (e) => {
             const userId = (e.target as HTMLElement).dataset.userid
             if (userId) { await adminSetAdmin(userId, false); renderAdminPanel() }
+          })
+        })
+        document.querySelectorAll('.admin-delete-user').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const userId = (e.target as HTMLElement).dataset.userid
+            const username = (e.target as HTMLElement).dataset.username
+            if (userId && confirm(`⚠️ DELETE user "${username}"? This cannot be undone!`)) {
+              if (confirm('Are you REALLY sure? This will permanently delete the account!')) {
+                await adminDeleteUser(userId)
+                renderAdminPanel()
+              }
+            }
           })
         })
 
