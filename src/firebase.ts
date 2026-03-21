@@ -1248,7 +1248,7 @@ export async function adminGiveWarBucksToAll(amount: number): Promise<number> {
 
 export interface GameEvent {
   id: string
-  type: 'announcement' | 'maintenance' | 'event' | 'reward' | 'update' | 'gamemode'
+  type: 'announcement' | 'maintenance' | 'event' | 'reward' | 'update' | 'gamemode' | 'poll'
   title: string
   message: string
   icon: string
@@ -1263,6 +1263,20 @@ export interface GameEvent {
   claimedBy?: string[] // User IDs who claimed the reward
   // For game mode events
   gameMode?: 'disco' | 'jumpscare' | 'chaos' | 'mirror' | 'speed' | 'giant' | 'tiny' | 'rainbow' | 'matrix' | 'earthquake'
+  // For poll events
+  pollOptions?: string[]
+  pollVotes?: Record<string, string> // { odataId leserfout: optionIndex }
+}
+
+// Global message interface
+export interface GlobalMessage {
+  id: string
+  message: string
+  type: 'info' | 'warning' | 'success' | 'error'
+  createdAt: number
+  createdBy: string
+  expiresAt: number
+  seenBy: string[]
 }
 
 // Pre-defined special game modes
@@ -1414,6 +1428,132 @@ export async function claimEventReward(eventId: string): Promise<boolean> {
   } catch (error) {
     console.error('Error claiming reward:', error)
     return false
+  }
+}
+
+// ==================== GLOBAL MESSAGES ====================
+
+// Send a global message to all players
+export async function adminSendGlobalMessage(message: string, type: 'info' | 'warning' | 'success' | 'error' = 'info', durationMinutes: number = 60): Promise<string | null> {
+  if (!db || !isCurrentUserAdmin() || !currentUserData) return null
+
+  try {
+    const msgRef = doc(collection(db, 'globalMessages'))
+    await setDoc(msgRef, {
+      message,
+      type,
+      createdAt: Date.now(),
+      createdBy: currentUserData.username,
+      expiresAt: Date.now() + (durationMinutes * 60 * 1000),
+      seenBy: []
+    })
+    return msgRef.id
+  } catch (error) {
+    console.error('Error sending global message:', error)
+    return null
+  }
+}
+
+// Get active global messages for current user
+export async function getActiveGlobalMessages(): Promise<GlobalMessage[]> {
+  if (!db || !currentUser) return []
+
+  try {
+    const msgsSnapshot = await getDocs(collection(db, 'globalMessages'))
+    const now = Date.now()
+    return msgsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as GlobalMessage))
+      .filter(msg => msg.expiresAt > now && !msg.seenBy?.includes(currentUser!.uid))
+      .sort((a, b) => b.createdAt - a.createdAt)
+  } catch (error) {
+    console.error('Error getting global messages:', error)
+    return []
+  }
+}
+
+// Mark global message as seen
+export async function markMessageSeen(messageId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const msgDoc = await getDoc(doc(db, 'globalMessages', messageId))
+    if (!msgDoc.exists()) return false
+
+    const seenBy = msgDoc.data().seenBy || []
+    if (!seenBy.includes(currentUser.uid)) {
+      seenBy.push(currentUser.uid)
+      await updateDoc(doc(db, 'globalMessages', messageId), { seenBy })
+    }
+    return true
+  } catch (error) {
+    console.error('Error marking message seen:', error)
+    return false
+  }
+}
+
+// Delete all global messages (admin)
+export async function adminDeleteAllMessages(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const msgsSnapshot = await getDocs(collection(db, 'globalMessages'))
+    let count = 0
+    for (const msgDoc of msgsSnapshot.docs) {
+      await deleteDoc(doc(db, 'globalMessages', msgDoc.id))
+      count++
+    }
+    return count
+  } catch (error) {
+    console.error('Error deleting messages:', error)
+    return 0
+  }
+}
+
+// ==================== POLLS / VOTING ====================
+
+// Vote on a poll
+export async function votePoll(eventId: string, optionIndex: number): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const eventDoc = await getDoc(doc(db, 'events', eventId))
+    if (!eventDoc.exists()) return false
+
+    const event = eventDoc.data() as GameEvent
+    if (event.type !== 'poll') return false
+
+    const pollVotes = event.pollVotes || {}
+    pollVotes[currentUser.uid] = String(optionIndex)
+
+    await updateDoc(doc(db, 'events', eventId), { pollVotes })
+    return true
+  } catch (error) {
+    console.error('Error voting:', error)
+    return false
+  }
+}
+
+// Get poll results
+export async function getPollResults(eventId: string): Promise<Record<string, number>> {
+  if (!db) return {}
+
+  try {
+    const eventDoc = await getDoc(doc(db, 'events', eventId))
+    if (!eventDoc.exists()) return {}
+
+    const event = eventDoc.data() as GameEvent
+    const pollVotes = event.pollVotes || {}
+    const results: Record<string, number> = {}
+
+    // Count votes for each option
+    Object.values(pollVotes).forEach(vote => {
+      results[vote] = (results[vote] || 0) + 1
+    })
+
+    return results
+  } catch (error) {
+    console.error('Error getting poll results:', error)
+    return {}
   }
 }
 

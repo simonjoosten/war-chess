@@ -70,7 +70,16 @@ import {
   adminDeleteAllGames,
   adminGiveAllItemsToAll,
   adminDeleteUser,
-  adminCreateSampleEvents
+  adminCreateSampleEvents,
+  // Global messages
+  GlobalMessage,
+  adminSendGlobalMessage,
+  getActiveGlobalMessages,
+  markMessageSeen,
+  adminDeleteAllMessages,
+  // Polls
+  votePoll,
+  getPollResults
 } from './firebase'
 
 // Auth state
@@ -103,6 +112,10 @@ let showOpponentLeftModal = false // Show modal when opponent leaves
 let activeGameModes: string[] = []
 let lastJumpscareTime = 0
 let gameModeIntervals: ReturnType<typeof setInterval>[] = []
+
+// Global messages
+let pendingGlobalMessages: GlobalMessage[] = []
+let showingGlobalMessage: GlobalMessage | null = null
 let matrixDrops: { x: number; y: number; speed: number; chars: string[] }[] = []
 
 // Apply game mode visual effects
@@ -421,6 +434,86 @@ function clearGameModeEffects() {
 
   const style = document.getElementById('game-mode-styles')
   if (style) style.remove()
+}
+
+// Check and show global messages
+async function checkGlobalMessages() {
+  if (!getCurrentUser()) return
+
+  pendingGlobalMessages = await getActiveGlobalMessages()
+  showNextGlobalMessage()
+}
+
+function showNextGlobalMessage() {
+  if (pendingGlobalMessages.length === 0) {
+    showingGlobalMessage = null
+    return
+  }
+
+  showingGlobalMessage = pendingGlobalMessages.shift()!
+  renderGlobalMessagePopup()
+}
+
+function renderGlobalMessagePopup() {
+  if (!showingGlobalMessage) return
+
+  // Remove existing popup
+  document.getElementById('global-message-popup')?.remove()
+
+  const typeColors = {
+    info: 'from-blue-600 to-blue-800',
+    warning: 'from-yellow-600 to-yellow-800',
+    success: 'from-green-600 to-green-800',
+    error: 'from-red-600 to-red-800'
+  }
+
+  const typeIcons = {
+    info: '📢',
+    warning: '⚠️',
+    success: '✅',
+    error: '❌'
+  }
+
+  const popup = document.createElement('div')
+  popup.id = 'global-message-popup'
+  popup.className = 'fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4'
+  popup.innerHTML = `
+    <div class="bg-gradient-to-br ${typeColors[showingGlobalMessage.type]} p-6 rounded-xl max-w-md w-full shadow-2xl animate-bounce-in">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-4xl">${typeIcons[showingGlobalMessage.type]}</span>
+        <h2 class="text-xl font-bold text-white">Global Message</h2>
+      </div>
+      <p class="text-white text-lg mb-4">${showingGlobalMessage.message}</p>
+      <p class="text-white/70 text-sm mb-4">From: ${showingGlobalMessage.createdBy}</p>
+      <button id="dismiss-global-msg" class="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+        OK
+      </button>
+    </div>
+  `
+  document.body.appendChild(popup)
+
+  // Add animation style if not exists
+  if (!document.getElementById('global-msg-style')) {
+    const style = document.createElement('style')
+    style.id = 'global-msg-style'
+    style.textContent = `
+      @keyframes bounce-in {
+        0% { transform: scale(0.5); opacity: 0; }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-bounce-in { animation: bounce-in 0.3s ease-out; }
+    `
+    document.head.appendChild(style)
+  }
+
+  document.getElementById('dismiss-global-msg')?.addEventListener('click', async () => {
+    if (showingGlobalMessage) {
+      await markMessageSeen(showingGlobalMessage.id)
+    }
+    popup.remove()
+    showNextGlobalMessage()
+  })
 }
 
 // Equipped cosmetics (loaded from user data)
@@ -15143,6 +15236,8 @@ function render() {
             equippedSoundPack = userData.equippedItems?.soundPack || null
             equippedMusicPack = userData.equippedItems?.musicPack || null
           }
+          // Check for global messages
+          checkGlobalMessages()
         } else {
           authError = result.error || 'Login failed'
         }
@@ -15719,7 +15814,14 @@ function render() {
         const events = await getActiveEvents()
         const gameModes = events.filter(e => e.type === 'gamemode')
         const rewards = events.filter(e => e.type === 'reward')
-        const announcements = events.filter(e => e.type !== 'gamemode' && e.type !== 'reward')
+        const polls = events.filter(e => e.type === 'poll')
+        const announcements = events.filter(e => e.type !== 'gamemode' && e.type !== 'reward' && e.type !== 'poll')
+
+        // Get poll results for all polls
+        const pollResultsMap: Record<string, Record<string, number>> = {}
+        for (const poll of polls) {
+          pollResultsMap[poll.id] = await getPollResults(poll.id)
+        }
 
         app.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
@@ -15764,6 +15866,56 @@ function render() {
                           </button>`
                       }
                     </div>
+                  </div>
+                `}).join('')}
+              </div>
+            </div>
+            ` : ''}
+
+            ${polls.length > 0 ? `
+            <div class="bg-gray-800 p-4 rounded-lg w-full max-w-[600px]">
+              <h2 class="text-lg font-bold text-white mb-3">📊 Polls</h2>
+              <div class="flex flex-col gap-4">
+                ${polls.map(poll => {
+                  const userVote = poll.pollVotes?.[getCurrentUser()?.uid || '']
+                  const hasVoted = userVote !== undefined
+                  const results = pollResultsMap[poll.id] || {}
+                  const totalVotes = Object.values(results).reduce((a, b) => a + b, 0)
+
+                  return `
+                  <div class="bg-gray-700 p-4 rounded-lg">
+                    <div class="flex items-center gap-2 mb-3">
+                      <span class="text-2xl">${poll.icon}</span>
+                      <span class="text-white font-bold">${poll.title}</span>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                      ${(poll.pollOptions || []).map((option, index) => {
+                        const votes = results[String(index)] || 0
+                        const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0
+                        const isMyVote = userVote === String(index)
+
+                        if (hasVoted) {
+                          return `
+                            <div class="relative">
+                              <div class="bg-gray-600 rounded-lg overflow-hidden">
+                                <div class="bg-purple-600 h-10 transition-all" style="width: ${percent}%"></div>
+                                <div class="absolute inset-0 flex items-center justify-between px-3">
+                                  <span class="text-white font-medium ${isMyVote ? 'underline' : ''}">${option} ${isMyVote ? '✓' : ''}</span>
+                                  <span class="text-white font-bold">${percent}% (${votes})</span>
+                                </div>
+                              </div>
+                            </div>
+                          `
+                        } else {
+                          return `
+                            <button class="poll-vote-btn bg-gray-600 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded-lg text-left transition-colors" data-pollid="${poll.id}" data-option="${index}">
+                              ${option}
+                            </button>
+                          `
+                        }
+                      }).join('')}
+                    </div>
+                    ${hasVoted ? `<div class="text-gray-400 text-sm mt-2">Total votes: ${totalVotes}</div>` : ''}
                   </div>
                 `}).join('')}
               </div>
@@ -15815,6 +15967,22 @@ function render() {
                 renderEventsScreen()
               } else {
                 alert('Could not claim reward.')
+              }
+            }
+          })
+        })
+
+        // Poll vote buttons
+        document.querySelectorAll('.poll-vote-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const pollId = (e.target as HTMLElement).dataset.pollid
+            const optionIndex = parseInt((e.target as HTMLElement).dataset.option || '0')
+            if (pollId) {
+              const success = await votePoll(pollId, optionIndex)
+              if (success) {
+                renderEventsScreen()
+              } else {
+                alert('Could not vote.')
               }
             }
           })
@@ -16045,12 +16213,47 @@ function render() {
                   </div>
                 </div>
                 <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">📢 Global Message</h2>
+                  <p class="text-gray-400 text-sm mb-3">Send a popup message to ALL players</p>
+                  <div class="flex flex-col gap-3">
+                    <textarea id="global-msg-text" placeholder="Your message to all players..." class="bg-gray-600 text-white px-3 py-2 rounded h-20"></textarea>
+                    <div class="flex gap-2">
+                      <select id="global-msg-type" class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <option value="info">📢 Info</option>
+                        <option value="success">✅ Success</option>
+                        <option value="warning">⚠️ Warning</option>
+                        <option value="error">❌ Error</option>
+                      </select>
+                      <select id="global-msg-duration" class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <option value="60">1 hour</option>
+                        <option value="180">3 hours</option>
+                        <option value="720">12 hours</option>
+                        <option value="1440">24 hours</option>
+                      </select>
+                    </div>
+                    <button id="send-global-msg" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded">Send to Everyone</button>
+                  </div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">📊 Create Poll</h2>
+                  <p class="text-gray-400 text-sm mb-3">Create a vote for all players</p>
+                  <div class="flex flex-col gap-3">
+                    <input type="text" id="poll-question" placeholder="Poll question..." class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <input type="text" id="poll-option-1" placeholder="Option 1" class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <input type="text" id="poll-option-2" placeholder="Option 2" class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <input type="text" id="poll-option-3" placeholder="Option 3 (optional)" class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <input type="text" id="poll-option-4" placeholder="Option 4 (optional)" class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <button id="create-poll" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded">Create Poll</button>
+                  </div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-lg">
                   <h2 class="text-lg font-bold text-red-400 mb-4">⚠️ Danger Zone</h2>
                   <div class="flex flex-wrap gap-2">
                     <button id="admin-reset-all-stats" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">Reset All User Stats</button>
                     <button id="admin-reset-all-bucks" class="bg-orange-700 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded text-sm">Reset All War Bucks</button>
                     <button id="admin-delete-all-events" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded text-sm">Delete All Events</button>
                     <button id="admin-delete-all-games" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded text-sm">Clear All Games</button>
+                    <button id="admin-delete-all-msgs" class="bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm">Delete All Messages</button>
                   </div>
                 </div>
               ` : ''}
@@ -16147,6 +16350,67 @@ function render() {
         document.getElementById('admin-delete-all-games')?.addEventListener('click', async () => {
           if (confirm('⚠️ DELETE ALL GAMES? This will end all active games!')) {
             const c = await adminDeleteAllGames(); alert(`Deleted ${c} games!`); renderAdminPanel()
+          }
+        })
+        document.getElementById('admin-delete-all-msgs')?.addEventListener('click', async () => {
+          if (confirm('⚠️ DELETE ALL GLOBAL MESSAGES?')) {
+            const c = await adminDeleteAllMessages(); alert(`Deleted ${c} messages!`); renderAdminPanel()
+          }
+        })
+
+        // Global message
+        document.getElementById('send-global-msg')?.addEventListener('click', async () => {
+          const message = (document.getElementById('global-msg-text') as HTMLTextAreaElement).value
+          const type = (document.getElementById('global-msg-type') as HTMLSelectElement).value as 'info' | 'warning' | 'success' | 'error'
+          const duration = parseInt((document.getElementById('global-msg-duration') as HTMLSelectElement).value)
+
+          if (!message.trim()) { alert('Please enter a message'); return }
+
+          const result = await adminSendGlobalMessage(message, type, duration)
+          if (result) {
+            alert('Global message sent!')
+            ;(document.getElementById('global-msg-text') as HTMLTextAreaElement).value = ''
+          } else {
+            alert('Failed to send message')
+          }
+        })
+
+        // Create poll
+        document.getElementById('create-poll')?.addEventListener('click', async () => {
+          const question = (document.getElementById('poll-question') as HTMLInputElement).value
+          const opt1 = (document.getElementById('poll-option-1') as HTMLInputElement).value
+          const opt2 = (document.getElementById('poll-option-2') as HTMLInputElement).value
+          const opt3 = (document.getElementById('poll-option-3') as HTMLInputElement).value
+          const opt4 = (document.getElementById('poll-option-4') as HTMLInputElement).value
+
+          if (!question.trim() || !opt1.trim() || !opt2.trim()) {
+            alert('Question and at least 2 options required')
+            return
+          }
+
+          const options = [opt1, opt2]
+          if (opt3.trim()) options.push(opt3)
+          if (opt4.trim()) options.push(opt4)
+
+          const result = await adminCreateEvent({
+            type: 'poll',
+            title: question,
+            message: 'Vote for your choice!',
+            icon: '📊',
+            active: true,
+            pollOptions: options
+          })
+
+          if (result) {
+            alert('Poll created!')
+            ;(document.getElementById('poll-question') as HTMLInputElement).value = ''
+            ;(document.getElementById('poll-option-1') as HTMLInputElement).value = ''
+            ;(document.getElementById('poll-option-2') as HTMLInputElement).value = ''
+            ;(document.getElementById('poll-option-3') as HTMLInputElement).value = ''
+            ;(document.getElementById('poll-option-4') as HTMLInputElement).value = ''
+            renderAdminPanel()
+          } else {
+            alert('Failed to create poll')
           }
         })
 
