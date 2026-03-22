@@ -5302,8 +5302,20 @@ async function syncMultiplayerState() {
   // Pass who made the move (the team that just finished their turn)
   const lastMoveBy = multiplayerTeam
   console.log('[MP SYNC] Syncing state:', { gameId: multiplayerGameId, currentTurn, lastMoveBy, piecesCount: state.pieces.length })
+
+  // Show sync indicator
+  message = '⏳ Syncing move...'
+  render()
+
   const success = await updateGameState(multiplayerGameId, state, currentTurn, lastMoveBy)
   console.log('[MP SYNC] Sync result:', success)
+
+  if (success) {
+    message = '✅ Move synced! Waiting for opponent...'
+  } else {
+    message = '❌ Sync failed! Try again.'
+  }
+  render()
 
   // If game is over, end the game in Firebase
   if (gameState === 'gameOver' && winner) {
@@ -7002,6 +7014,10 @@ async function startMultiplayerGame() {
       lastSeenMoveCount = game.moveCount || 0
       console.log('[MP LISTEN] Applying opponent move, new lastSeenMoveCount:', lastSeenMoveCount)
 
+      // Show receiving indicator
+      message = '📥 Receiving opponent move...'
+      render()
+
       // Opponent made a move, apply the new state
       const state = game.gameState as SerializedGameState
       deserializeGameState(state)
@@ -7011,10 +7027,13 @@ async function startMultiplayerGame() {
 
       // Update message
       message = multiplayerTeam === 'yellow'
-        ? `${t('youAreYellow')} - ${t('yourTurn')}`
-        : `${t('youAreGreen')} - ${t('yourTurn')}`
+        ? `✅ ${t('youAreYellow')} - ${t('yourTurn')}`
+        : `✅ ${t('youAreGreen')} - ${t('yourTurn')}`
 
       render()
+    } else if (!opponentMoved && !isNewMove && game.gameState) {
+      // This is our own move echoing back, or an old move
+      console.log('[MP LISTEN] Ignoring: own move or old move')
     }
 
     // Always ensure turn tracking is in sync with game state
