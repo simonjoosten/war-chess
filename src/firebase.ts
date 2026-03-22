@@ -2035,44 +2035,65 @@ export async function adminCreateSampleEvents(): Promise<number> {
 // Delete a user account completely
 // Returns true even if user doesn't exist (so phantom accounts can be removed from UI)
 export async function adminDeleteUser(userId: string): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] Attempting to delete user:', userId)
+
+  if (!db) {
+    console.error('[ADMIN] Database not initialized')
+    return false
+  }
+
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] Not an admin, cannot delete user')
+    return false
+  }
 
   try {
     // Get user data to find username for cleanup
     const userDoc = await getDoc(doc(db, 'users', userId))
+    console.log('[ADMIN] User document exists:', userDoc.exists())
+
     if (userDoc.exists()) {
       const userData = userDoc.data() as UserData
+      console.log('[ADMIN] Deleting user:', userData.username)
+
       // Delete username mapping
       try {
         await deleteDoc(doc(db, 'usernames', userData.username.toLowerCase()))
+        console.log('[ADMIN] Deleted username mapping')
       } catch (e) {
-        console.log('Could not delete username mapping')
+        console.log('[ADMIN] Could not delete username mapping (might not exist):', e)
       }
+
       // Delete the user document
       await deleteDoc(doc(db, 'users', userId))
+      console.log('[ADMIN] Deleted user document')
+    } else {
+      console.log('[ADMIN] User document does not exist, nothing to delete')
     }
-    // If user doesn't exist, that's fine - it was already deleted
-    // We still return true so the UI can remove the phantom entry
 
     // Also remove from online collection if present
     try {
       await deleteDoc(doc(db, 'online', userId))
+      console.log('[ADMIN] Removed from online collection')
     } catch (e) {
       // Ignore if not online
     }
 
+    console.log('[ADMIN] User deletion successful')
     return true
   } catch (error) {
-    console.error('Error deleting user:', error)
+    console.error('[ADMIN] Error deleting user:', error)
+
     // Even if there's an error, if the user doesn't exist we should return true
     // to allow removing phantom entries from the UI
     try {
       const checkDoc = await getDoc(doc(db, 'users', userId))
       if (!checkDoc.exists()) {
+        console.log('[ADMIN] User does not exist after error, treating as success')
         return true // User doesn't exist, so "deletion" succeeded
       }
     } catch (e) {
-      // Can't verify, assume deletion failed
+      console.error('[ADMIN] Could not verify user existence:', e)
     }
     return false
   }
