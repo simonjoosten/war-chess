@@ -15762,6 +15762,11 @@ function render() {
           } else if (itemType === 'music_pack') {
             newEquipped.musicPack = itemId
             equippedMusicPack = itemId
+            // Restart music with new pack if music is playing
+            if (musicEnabled && musicInterval) {
+              stopMusic()
+              startMusic()
+            }
           }
 
           await saveUserData({ equippedItems: newEquipped })
@@ -15794,6 +15799,11 @@ function render() {
           } else if (itemType === 'music_pack') {
             newEquipped.musicPack = null
             equippedMusicPack = null
+            // Restart music with settings style if music is playing
+            if (musicEnabled && musicInterval) {
+              stopMusic()
+              startMusic()
+            }
           }
 
           await saveUserData({ equippedItems: newEquipped })
