@@ -6770,8 +6770,8 @@ function fireArtillery(artillery: Piece) {
   // Pick random target
   const target = validTargets[Math.floor(Math.random() * validTargets.length)]
 
-  // Check if there's a piece that can be destroyed
-  const destructibleTypes: PieceType[] = ['train', 'helicopter', 'tank', 'ship', 'sub', 'soldier', 'suv']
+  // Check if there's a piece that can be destroyed (all units except structures and planes)
+  const destructibleTypes: PieceType[] = ['train', 'helicopter', 'tank', 'ship', 'sub', 'soldier', 'suv', 'hacker', 'fighter', 'builder', 'carrier']
 
   // Remove the artillery immediately (single use)
   const artilleryIndex = pieces.indexOf(artillery)
@@ -6788,20 +6788,31 @@ function fireArtillery(artillery: Piece) {
 
   // After explosion animation, complete the action
   setTimeout(() => {
-    // 1 in 3 chance to hit (33%)
-    const hitChance = Math.random()
-    const didHit = hitChance < 0.33
+    // Check what's at the target NOW (in case something moved)
+    const currentPiece = getPieceAt(target.col, target.row)
 
-    if (didHit && target.piece && destructibleTypes.includes(target.piece.type)) {
-      // Destroy the piece
-      const targetIndex = pieces.indexOf(target.piece)
-      if (targetIndex !== -1) {
-        pieces.splice(targetIndex, 1)
-        capturedPieces.push(target.piece)
-        message = `Artillery hit ${target.piece.type} at ${target.col}${target.row}! (+${target.piece.points} points)`
+    if (currentPiece && destructibleTypes.includes(currentPiece.type)) {
+      // 1 in 3 chance to hit (33%)
+      const hitChance = Math.random()
+      const didHit = hitChance < 0.33
+
+      if (didHit) {
+        // Destroy the piece
+        const targetIndex = pieces.indexOf(currentPiece)
+        if (targetIndex !== -1) {
+          pieces.splice(targetIndex, 1)
+          capturedPieces.push(currentPiece)
+          message = `🎯 Artillery HIT ${currentPiece.type} at ${target.col}${target.row}! (+${currentPiece.points} points)`
+        }
+      } else {
+        message = `💨 Artillery fired at ${currentPiece.type} at ${target.col}${target.row} - missed! (33% accuracy)`
       }
+    } else if (currentPiece) {
+      // Hit a non-destructible piece (barricade, spike, artillery, plane)
+      message = `💥 Artillery fired at ${target.col}${target.row} - ${currentPiece.type} is immune!`
     } else {
-      message = `Artillery fired at ${target.col}${target.row} - miss!`
+      // Empty square
+      message = `💥 Artillery fired at empty square ${target.col}${target.row}`
     }
 
     explosionAt = null
