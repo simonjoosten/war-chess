@@ -1478,12 +1478,17 @@ async function startMusic() {
   measureCount = 0
   musicPhase = 0
 
+  // Check for equipped music pack first, then fall back to settings
+  const activeMusicStyle = getActiveMusicStyle()
+
   // Start the appropriate music style
-  switch (musicStyle) {
+  switch (activeMusicStyle) {
     case 'ambient':
+    case 'lofi': // Lo-fi uses ambient style
       startAmbientMusic()
       break
     case 'tension':
+    case 'jazz': // Jazz uses tension style (more mellow)
       startTensionMusic()
       break
     case 'electronic':
@@ -1493,13 +1498,38 @@ async function startMusic() {
       startOrchestralMusic()
       break
     case 'retro':
+    case 'chiptune':
       startRetroMusic()
       break
+    case 'rock': // Rock uses epic style (more intense)
     case 'epic':
     default:
       startEpicMusic()
       break
   }
+}
+
+// Get the active music style (shop item overrides settings)
+function getActiveMusicStyle(): string {
+  if (equippedMusicPack) {
+    // Get the packId from the equipped item
+    const item = SHOP_ITEMS.find(i => i.id === equippedMusicPack)
+    if (item?.packId) {
+      return item.packId
+    }
+  }
+  return musicStyle
+}
+
+// Get the active sound pack (null means default sounds)
+function getActiveSoundPack(): string | null {
+  if (equippedSoundPack) {
+    const item = SHOP_ITEMS.find(i => i.id === equippedSoundPack)
+    if (item?.packId) {
+      return item.packId
+    }
+  }
+  return null
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3186,15 +3216,105 @@ function createNoiseBuffer(duration: number): AudioBuffer {
 type SoundType = 'move' | 'capture' | 'shoot' | 'explosion' | 'click' | 'win' | 'tick' |
   'walk' | 'engine' | 'train' | 'hack' | 'build' | 'boat' | 'helicopter' | 'plane' | 'rocket'
 
-// Master gain node for SFX
+// Master gain node for SFX with sound pack processing
 let sfxGainNode: GainNode | null = null
+let sfxPackFilter: BiquadFilterNode | null = null
+let sfxPackDistortion: WaveShaperNode | null = null
+let currentSfxPack: string | null = null
+
+function createDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
+  const samples = 44100
+  const curve = new Float32Array(samples)
+  for (let i = 0; i < samples; i++) {
+    const x = (i * 2) / samples - 1
+    curve[i] = ((3 + amount) * x * 20 * (Math.PI / 180)) / (Math.PI + amount * Math.abs(x))
+  }
+  return curve as Float32Array<ArrayBuffer>
+}
 
 function getSfxGain(): GainNode | null {
   if (!audioContext) return null
+
+  const pack = getActiveSoundPack()
+
+  // Rebuild the chain if pack changed
+  if (pack !== currentSfxPack) {
+    currentSfxPack = pack
+    sfxGainNode = null
+    sfxPackFilter = null
+    sfxPackDistortion = null
+  }
+
   if (!sfxGainNode) {
     sfxGainNode = audioContext.createGain()
-    sfxGainNode.connect(audioContext.destination)
+
+    // Apply sound pack processing
+    if (pack) {
+      sfxPackFilter = audioContext.createBiquadFilter()
+      sfxPackDistortion = audioContext.createWaveShaper()
+
+      switch (pack) {
+        case 'retro':
+          // 8-bit style: heavy lowpass + slight distortion
+          sfxPackFilter.type = 'lowpass'
+          sfxPackFilter.frequency.value = 2000
+          sfxPackFilter.Q.value = 2
+          sfxPackDistortion.curve = createDistortionCurve(20)
+          break
+        case 'scifi':
+          // Futuristic: high resonance + brightness
+          sfxPackFilter.type = 'highpass'
+          sfxPackFilter.frequency.value = 400
+          sfxPackFilter.Q.value = 4
+          break
+        case 'cartoon':
+          // Bouncy: boost highs
+          sfxPackFilter.type = 'highshelf'
+          sfxPackFilter.frequency.value = 2000
+          sfxPackFilter.gain.value = 6
+          break
+        case 'war':
+          // Realistic: boost bass
+          sfxPackFilter.type = 'lowshelf'
+          sfxPackFilter.frequency.value = 200
+          sfxPackFilter.gain.value = 8
+          break
+        case 'nature':
+          // Soft: lowpass + quiet
+          sfxPackFilter.type = 'lowpass'
+          sfxPackFilter.frequency.value = 4000
+          sfxPackFilter.Q.value = 0.5
+          break
+        case 'horror':
+          // Creepy: distortion + low resonance
+          sfxPackFilter.type = 'bandpass'
+          sfxPackFilter.frequency.value = 800
+          sfxPackFilter.Q.value = 3
+          sfxPackDistortion.curve = createDistortionCurve(50)
+          break
+        case 'medieval':
+          // Metallic: high Q bandpass
+          sfxPackFilter.type = 'peaking'
+          sfxPackFilter.frequency.value = 1200
+          sfxPackFilter.Q.value = 8
+          sfxPackFilter.gain.value = 4
+          break
+      }
+
+      // Connect: sfxGainNode -> filter -> distortion -> destination
+      sfxGainNode.connect(sfxPackFilter)
+      if (sfxPackDistortion.curve) {
+        sfxPackFilter.connect(sfxPackDistortion)
+        sfxPackDistortion.connect(audioContext.destination)
+      } else {
+        sfxPackFilter.connect(audioContext.destination)
+      }
+    } else {
+      // No pack - direct connection
+      sfxGainNode.connect(audioContext.destination)
+    }
   }
+
   sfxGainNode.gain.value = sfxVolume * masterVolume
   return sfxGainNode
 }
@@ -16305,44 +16425,50 @@ function render() {
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
 
-        // User actions
+        // User actions - use currentTarget to get the button, not the clicked element inside
         document.querySelectorAll('.admin-give-bucks').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const userId = (e.target as HTMLElement).dataset.userid
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId) { await adminGiveWarBucks(userId, 100); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-give-all-items').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const userId = (e.target as HTMLElement).dataset.userid
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId && confirm('Give ALL items?')) { await adminGiveAllItems(userId); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-reset-user').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const userId = (e.target as HTMLElement).dataset.userid
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId && confirm('Reset user?')) { await adminResetUser(userId); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-make-admin').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const userId = (e.target as HTMLElement).dataset.userid
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId) { await adminSetAdmin(userId, true); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-remove-admin').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const userId = (e.target as HTMLElement).dataset.userid
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId) { await adminSetAdmin(userId, false); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-delete-user').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const userId = (e.target as HTMLElement).dataset.userid
-            const username = (e.target as HTMLElement).dataset.username
+            const button = e.currentTarget as HTMLElement
+            const userId = button.dataset.userid
+            const username = button.dataset.username
             if (userId && confirm(`⚠️ DELETE user "${username}"? This cannot be undone!`)) {
               if (confirm('Are you REALLY sure? This will permanently delete the account!')) {
-                await adminDeleteUser(userId)
+                const success = await adminDeleteUser(userId)
+                if (success) {
+                  alert(`User "${username}" deleted successfully!`)
+                } else {
+                  alert('Failed to delete user. Check console for errors.')
+                }
                 renderAdminPanel()
               }
             }
