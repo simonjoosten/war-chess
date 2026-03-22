@@ -1492,12 +1492,16 @@ async function startMusic() {
   // Start the appropriate music style
   switch (activeMusicStyle) {
     case 'ambient':
-    case 'lofi': // Lo-fi uses ambient style
       startAmbientMusic()
       break
+    case 'lofi':
+      startLofiMusic()
+      break
     case 'tension':
-    case 'jazz': // Jazz uses tension style (more mellow)
       startTensionMusic()
+      break
+    case 'jazz':
+      startJazzMusic()
       break
     case 'electronic':
       startElectronicMusic()
@@ -1509,7 +1513,9 @@ async function startMusic() {
     case 'chiptune':
       startRetroMusic()
       break
-    case 'rock': // Rock uses epic style (more intense)
+    case 'rock':
+      startRockMusic()
+      break
     case 'epic':
     default:
       startEpicMusic()
@@ -3216,6 +3222,630 @@ function startEpicMusic() {
     }
 
   }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROCK MUSIC - Electric guitar, rock drums, bass - real rock structure!
+// ═══════════════════════════════════════════════════════════════════════════
+function startRockMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // E minor pentatonic - classic rock scale
+  const notes: Record<string, number> = {
+    E2: 82.41, G2: 98.00, A2: 110.00, B2: 123.47, D3: 146.83,
+    E3: 164.81, G3: 196.00, A3: 220.00, B3: 246.94, D4: 293.66,
+    E4: 329.63, G4: 392.00, A4: 440.00, B4: 493.88, D5: 587.33, E5: 659.25
+  }
+
+  // Distorted electric guitar sound
+  function playGuitar(freq: number, startTime: number, duration: number, palm: boolean = false) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    // Multiple detuned oscillators for thick guitar sound
+    for (let i = 0; i < 3; i++) {
+      const osc = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const distortion = audioContext.createWaveShaper()
+      const filter = audioContext.createBiquadFilter()
+
+      osc.type = 'sawtooth'
+      osc.frequency.value = freq * (1 + (i - 1) * 0.005) // Slight detune
+
+      // Distortion curve for rock guitar
+      const curve = new Float32Array(256)
+      for (let j = 0; j < 256; j++) {
+        const x = (j / 128) - 1
+        curve[j] = Math.tanh(x * 3)
+      }
+      distortion.curve = curve as Float32Array<ArrayBuffer>
+
+      filter.type = 'lowpass'
+      filter.frequency.value = palm ? 800 : 2500
+      filter.Q.value = 2
+
+      const vol = palm ? 0.03 : 0.05
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.01)
+      gain.gain.setValueAtTime(vol * 0.8, startTime + duration * 0.3)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      osc.connect(distortion)
+      distortion.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(startTime)
+      osc.stop(startTime + duration + 0.1)
+    }
+  }
+
+  // Rock drums - kick, snare, hi-hat
+  function playRockDrums(pattern: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+    const beat = 0.25 // 16th notes at 120 BPM
+
+    // Kick drum pattern
+    const kickPattern = pattern % 2 === 0
+      ? [0, 4, 8, 10, 12] // Standard rock
+      : [0, 3, 6, 8, 12, 14] // Variation
+
+    kickPattern.forEach(b => {
+      const time = now + b * beat
+      const kick = audioContext!.createOscillator()
+      const kickGain = audioContext!.createGain()
+      kick.type = 'sine'
+      kick.frequency.setValueAtTime(150, time)
+      kick.frequency.exponentialRampToValueAtTime(40, time + 0.1)
+      kickGain.gain.setValueAtTime(0.4, time)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2)
+      kick.connect(kickGain)
+      kickGain.connect(musicGainNode!)
+      kick.start(time)
+      kick.stop(time + 0.25)
+    })
+
+    // Snare on 2 and 4
+    ;[4, 12].forEach(b => {
+      const time = now + b * beat
+      const snare = audioContext!.createBufferSource()
+      const snareGain = audioContext!.createGain()
+      const snareFilter = audioContext!.createBiquadFilter()
+      snare.buffer = createNoiseBuffer(0.15)
+      snareFilter.type = 'highpass'
+      snareFilter.frequency.value = 1500
+      snareGain.gain.setValueAtTime(0.25, time)
+      snareGain.gain.exponentialRampToValueAtTime(0.001, time + 0.12)
+      snare.connect(snareFilter)
+      snareFilter.connect(snareGain)
+      snareGain.connect(musicGainNode!)
+      snare.start(time)
+      snare.stop(time + 0.2)
+
+      // Snare body
+      const body = audioContext!.createOscillator()
+      const bodyGain = audioContext!.createGain()
+      body.type = 'triangle'
+      body.frequency.value = 180
+      bodyGain.gain.setValueAtTime(0.15, time)
+      bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08)
+      body.connect(bodyGain)
+      bodyGain.connect(musicGainNode!)
+      body.start(time)
+      body.stop(time + 0.1)
+    })
+
+    // Hi-hat on every 8th note
+    for (let b = 0; b < 16; b += 2) {
+      const time = now + b * beat
+      const hihat = audioContext!.createBufferSource()
+      const hihatGain = audioContext!.createGain()
+      const hihatFilter = audioContext!.createBiquadFilter()
+      hihat.buffer = createNoiseBuffer(0.05)
+      hihatFilter.type = 'highpass'
+      hihatFilter.frequency.value = 8000
+      hihatGain.gain.setValueAtTime(0.08, time)
+      hihatGain.gain.exponentialRampToValueAtTime(0.001, time + 0.04)
+      hihat.connect(hihatFilter)
+      hihatFilter.connect(hihatGain)
+      hihatGain.connect(musicGainNode!)
+      hihat.start(time)
+      hihat.stop(time + 0.06)
+    }
+  }
+
+  // Bass guitar
+  function playBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sawtooth'
+    osc.frequency.value = freq
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 400
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02)
+    gain.gain.setValueAtTime(0.12, startTime + duration * 0.5)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Rock riff patterns (verse, chorus structure)
+  const verseRiff = [
+    { note: 'E2', time: 0, dur: 0.4, palm: true },
+    { note: 'E2', time: 0.5, dur: 0.2, palm: true },
+    { note: 'G2', time: 0.75, dur: 0.2, palm: true },
+    { note: 'A2', time: 1, dur: 0.4, palm: true },
+    { note: 'E2', time: 1.5, dur: 0.2, palm: true },
+    { note: 'B2', time: 2, dur: 0.4, palm: false },
+    { note: 'A2', time: 2.5, dur: 0.4, palm: false },
+    { note: 'G2', time: 3, dur: 0.8, palm: false },
+  ]
+
+  const chorusRiff = [
+    { note: 'E3', time: 0, dur: 0.8, palm: false },
+    { note: 'G3', time: 1, dur: 0.8, palm: false },
+    { note: 'A3', time: 2, dur: 0.8, palm: false },
+    { note: 'B3', time: 3, dur: 0.8, palm: false },
+  ]
+
+  const bassLine = ['E2', 'E2', 'G2', 'A2', 'E2', 'B2', 'A2', 'G2']
+
+  function playSection(isChorus: boolean) {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+    const riff = isChorus ? chorusRiff : verseRiff
+
+    // Play guitar riff
+    riff.forEach(r => {
+      playGuitar(notes[r.note], now + r.time, r.dur, r.palm)
+    })
+
+    // Play bass
+    bassLine.forEach((note, i) => {
+      playBass(notes[note], now + i * 0.5, 0.45)
+    })
+
+    // Play drums
+    playRockDrums(measureCount)
+  }
+
+  // Start with verse
+  playSection(false)
+
+  const measureDuration = 4000 // 4 seconds
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+
+    // Alternate between verse (0-3) and chorus (4-7), then bridge (8-9)
+    const section = measureCount % 10
+    const isChorus = section >= 4 && section < 8
+    const isBridge = section >= 8
+
+    if (isBridge) {
+      // Bridge - just drums and bass, building tension
+      playRockDrums(measureCount)
+      const now = audioContext!.currentTime
+      bassLine.forEach((note, i) => {
+        playBass(notes[note], now + i * 0.5, 0.45)
+      })
+    } else {
+      playSection(isChorus)
+    }
+  }, measureDuration)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JAZZ MUSIC - Smooth piano, walking bass, brushed drums
+// ═══════════════════════════════════════════════════════════════════════════
+function startJazzMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // Jazz scale (Dorian mode for that jazzy feel)
+  const notes: Record<string, number> = {
+    C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54,
+    C3: 130.81, D3: 146.83, Eb3: 155.56, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08,
+    C4: 261.63, D4: 293.66, Eb4: 311.13, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16,
+    C5: 523.25, D5: 587.33, Eb5: 622.25
+  }
+
+  // Rhodes-style electric piano
+  function playPiano(freq: number, startTime: number, duration: number, velocity: number = 0.8) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    // Rhodes uses sine waves with bell-like harmonics
+    const harmonics = [1, 2, 3, 4, 6]
+    const gains = [1, 0.5, 0.3, 0.15, 0.08]
+
+    harmonics.forEach((h, i) => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const trem = audioContext!.createOscillator()
+      const tremGain = audioContext!.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.value = freq * h
+
+      // Subtle tremolo for Rhodes character
+      trem.type = 'sine'
+      trem.frequency.value = 5
+      tremGain.gain.value = 0.1
+
+      const vol = gains[i] * velocity * 0.03
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.005)
+      gain.gain.exponentialRampToValueAtTime(vol * 0.6, startTime + 0.1)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      trem.connect(tremGain)
+      tremGain.connect(gain.gain)
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(startTime)
+      trem.start(startTime)
+      osc.stop(startTime + duration + 0.1)
+      trem.stop(startTime + duration + 0.1)
+    })
+  }
+
+  // Walking bass
+  function playBass(freq: number, startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'triangle'
+    osc.frequency.value = freq
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 500
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.9)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + 1)
+  }
+
+  // Brushed drums (soft swishing)
+  function playBrushes() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Soft brush swishes
+    for (let i = 0; i < 4; i++) {
+      const brush = audioContext.createBufferSource()
+      const brushGain = audioContext.createGain()
+      const brushFilter = audioContext.createBiquadFilter()
+
+      brush.buffer = createNoiseBuffer(0.3)
+      brushFilter.type = 'bandpass'
+      brushFilter.frequency.value = 3000
+      brushFilter.Q.value = 0.5
+
+      brushGain.gain.setValueAtTime(0.001, now + i)
+      brushGain.gain.linearRampToValueAtTime(0.04, now + i + 0.1)
+      brushGain.gain.exponentialRampToValueAtTime(0.001, now + i + 0.8)
+
+      brush.connect(brushFilter)
+      brushFilter.connect(brushGain)
+      brushGain.connect(musicGainNode!)
+
+      brush.start(now + i)
+      brush.stop(now + i + 1)
+    }
+
+    // Soft hi-hat
+    for (let i = 0; i < 8; i++) {
+      const hihat = audioContext.createBufferSource()
+      const hihatGain = audioContext.createGain()
+      const hihatFilter = audioContext.createBiquadFilter()
+
+      hihat.buffer = createNoiseBuffer(0.03)
+      hihatFilter.type = 'highpass'
+      hihatFilter.frequency.value = 10000
+
+      hihatGain.gain.setValueAtTime(0.02, now + i * 0.5 + 0.25)
+      hihatGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.5 + 0.35)
+
+      hihat.connect(hihatFilter)
+      hihatFilter.connect(hihatGain)
+      hihatGain.connect(musicGainNode!)
+
+      hihat.start(now + i * 0.5 + 0.25)
+      hihat.stop(now + i * 0.5 + 0.4)
+    }
+  }
+
+  // Jazz chord progressions (ii-V-I and variations)
+  const chordProgressions = [
+    // Dm7 - G7 - Cmaj7 - Cmaj7
+    [['D3', 'F3', 'A3', 'C4'], ['G2', 'B2', 'D3', 'F3'], ['C3', 'E3', 'G3', 'B3'], ['C3', 'E3', 'G3', 'B3']],
+    // Am7 - D7 - Gmaj7 - Gmaj7
+    [['A2', 'C3', 'E3', 'G3'], ['D3', 'F3', 'A3', 'C4'], ['G2', 'B2', 'D3', 'F3'], ['G2', 'B2', 'D3', 'F3']],
+  ]
+
+  // Walking bass lines
+  const bassLines = [
+    ['C2', 'E2', 'G2', 'A2', 'G2', 'F2', 'E2', 'D2'],
+    ['A2', 'C3', 'D3', 'E3', 'D3', 'C3', 'Bb2', 'A2'],
+  ]
+
+  let currentProgression = 0
+
+  function playJazzBar() {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    const progression = chordProgressions[currentProgression % chordProgressions.length]
+    const bassLine = bassLines[currentProgression % bassLines.length]
+
+    // Play chords (comping style - not on every beat)
+    progression.forEach((chord, i) => {
+      if (i === 0 || i === 2 || Math.random() > 0.5) {
+        chord.forEach((note, j) => {
+          playPiano(notes[note], now + i + j * 0.02, 0.8, 0.6 + Math.random() * 0.3)
+        })
+      }
+    })
+
+    // Walking bass
+    bassLine.forEach((note, i) => {
+      playBass(notes[note], now + i * 0.5)
+    })
+
+    // Brushes
+    playBrushes()
+
+    currentProgression++
+  }
+
+  // Start
+  playJazzBar()
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+    playJazzBar()
+  }, 4000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LO-FI MUSIC - Chill beats, mellow piano, vinyl crackle
+// ═══════════════════════════════════════════════════════════════════════════
+function startLofiMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  const notes: Record<string, number> = {
+    C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+    C5: 523.25, D5: 587.33, E5: 659.25
+  }
+
+  // Vinyl crackle (continuous)
+  let crackleNode: AudioBufferSourceNode | null = null
+  function startCrackle() {
+    if (!audioContext || !musicGainNode) return
+
+    crackleNode = audioContext.createBufferSource()
+    const crackleGain = audioContext.createGain()
+    const crackleFilter = audioContext.createBiquadFilter()
+
+    // Create longer crackle buffer
+    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 10, audioContext.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < data.length; i++) {
+      // Sparse crackles
+      data[i] = Math.random() > 0.997 ? (Math.random() * 2 - 1) * 0.3 : 0
+    }
+
+    crackleNode.buffer = buffer
+    crackleNode.loop = true
+
+    crackleFilter.type = 'highpass'
+    crackleFilter.frequency.value = 1000
+
+    crackleGain.gain.value = 0.08
+
+    crackleNode.connect(crackleFilter)
+    crackleFilter.connect(crackleGain)
+    crackleGain.connect(musicGainNode!)
+
+    crackleNode.start()
+  }
+
+  startCrackle()
+
+  // Mellow piano with low-pass filter (like through a tape)
+  function playMellowPiano(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 1500 // Muffled sound
+    filter.Q.value = 0.5
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.06, startTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+
+    // Add second oscillator for warmth
+    const osc2 = audioContext.createOscillator()
+    const gain2 = audioContext.createGain()
+    osc2.type = 'sine'
+    osc2.frequency.value = freq * 2
+    gain2.gain.setValueAtTime(0.001, startTime)
+    gain2.gain.linearRampToValueAtTime(0.02, startTime + 0.02)
+    gain2.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.7)
+    osc2.connect(filter)
+    filter.connect(gain2)
+    gain2.connect(musicGainNode!)
+    osc2.start(startTime)
+    osc2.stop(startTime + duration)
+  }
+
+  // Lo-fi drums - muffled kick and snare
+  function playLofiBeat() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    // Muffled kick
+    ;[0, 2].forEach(beat => {
+      const time = now + beat
+      const kick = audioContext!.createOscillator()
+      const kickGain = audioContext!.createGain()
+      const kickFilter = audioContext!.createBiquadFilter()
+
+      kick.type = 'sine'
+      kick.frequency.setValueAtTime(80, time)
+      kick.frequency.exponentialRampToValueAtTime(40, time + 0.1)
+
+      kickFilter.type = 'lowpass'
+      kickFilter.frequency.value = 200
+
+      kickGain.gain.setValueAtTime(0.25, time)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.3)
+
+      kick.connect(kickFilter)
+      kickFilter.connect(kickGain)
+      kickGain.connect(musicGainNode!)
+      kick.start(time)
+      kick.stop(time + 0.35)
+    })
+
+    // Soft snare with vinyl texture
+    ;[1, 3].forEach(beat => {
+      const time = now + beat
+      const snare = audioContext!.createBufferSource()
+      const snareGain = audioContext!.createGain()
+      const snareFilter = audioContext!.createBiquadFilter()
+
+      snare.buffer = createNoiseBuffer(0.2)
+      snareFilter.type = 'bandpass'
+      snareFilter.frequency.value = 2000
+      snareFilter.Q.value = 0.5
+
+      snareGain.gain.setValueAtTime(0.08, time)
+      snareGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15)
+
+      snare.connect(snareFilter)
+      snareFilter.connect(snareGain)
+      snareGain.connect(musicGainNode!)
+      snare.start(time)
+      snare.stop(time + 0.25)
+    })
+
+    // Soft hi-hats
+    for (let i = 0; i < 8; i++) {
+      const time = now + i * 0.5
+      const hihat = audioContext.createBufferSource()
+      const hihatGain = audioContext.createGain()
+      const hihatFilter = audioContext.createBiquadFilter()
+
+      hihat.buffer = createNoiseBuffer(0.02)
+      hihatFilter.type = 'highpass'
+      hihatFilter.frequency.value = 7000
+
+      hihatGain.gain.setValueAtTime(0.03, time)
+      hihatGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05)
+
+      hihat.connect(hihatFilter)
+      hihatFilter.connect(hihatGain)
+      hihatGain.connect(musicGainNode!)
+      hihat.start(time)
+      hihat.stop(time + 0.1)
+    }
+  }
+
+  // Chill chord progressions
+  const chords = [
+    ['C4', 'E4', 'G4', 'B4'],  // Cmaj7
+    ['A3', 'C4', 'E4', 'G4'],  // Am7
+    ['F3', 'A3', 'C4', 'E4'],  // Fmaj7
+    ['G3', 'B3', 'D4', 'F4'],  // G7
+  ]
+
+  // Melody fragments
+  const melodies = [
+    ['E5', 'D5', 'C5', 'B4'],
+    ['G4', 'A4', 'B4', 'C5'],
+    ['C5', 'B4', 'A4', 'G4'],
+    ['D5', 'E5', 'D5', 'C5'],
+  ]
+
+  function playLofiBar() {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    // Play chord (spread out for that chill vibe)
+    const chord = chords[measureCount % chords.length]
+    chord.forEach((note, i) => {
+      playMellowPiano(notes[note], now + i * 0.1, 3.5)
+    })
+
+    // Sometimes play melody
+    if (measureCount % 2 === 0) {
+      const melody = melodies[measureCount % melodies.length]
+      melody.forEach((note, i) => {
+        playMellowPiano(notes[note], now + 0.5 + i * 0.75, 0.6)
+      })
+    }
+
+    // Lo-fi beat
+    playLofiBeat()
+  }
+
+  // Start
+  playLofiBar()
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) {
+      stopMusic()
+      return
+    }
+    measureCount++
+    playLofiBar()
+  }, 4000)
 }
 
 function stopMusic() {
