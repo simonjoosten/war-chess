@@ -92,22 +92,50 @@ import {
   getDailyPuzzles,
   recordPuzzleAttempt,
   Puzzle,
+  adminCreateSamplePuzzles,
+  adminGetAllPuzzles,
+  adminDeletePuzzle,
   // Admin extras
   adminBanUser,
   adminSetWarBucks,
   adminGetChatLogs,
   isUserBanned,
-  getBanRemainingMinutes
+  getBanRemainingMinutes,
+  // Tournaments
+  Tournament,
+  TournamentMatch,
+  getActiveTournaments,
+  getAllTournaments,
+  getTournament,
+  listenToTournament,
+  stopListeningToTournament,
+  registerForTournament,
+  unregisterFromTournament,
+  getTournamentMatches,
+  getMyTournamentMatch,
+  adminCreateTournament,
+  adminStartTournament,
+  adminCancelTournament,
+  adminDeleteTournament,
+  createTournamentGame,
+  recordTournamentMatchResult
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
 let authLoading = false
 let firebaseInitialized = false
 let loginWithEmail = false
+
+// Tournament state
+let activeTournaments: Tournament[] = []
+let currentTournament: Tournament | null = null
+let currentTournamentMatches: TournamentMatch[] = []
+let tournamentListening = false
+let myTournamentMatch: TournamentMatch | null = null
 
 // Multiplayer state
 let onlinePlayers: OnlinePlayer[] = []
@@ -136,8 +164,12 @@ let chatListening = false
 let currentPuzzle: Puzzle | null = null
 let puzzleAttempts = 0
 let puzzleMovesLeft = 0
-let showPuzzleScreen = false
+let puzzleAiMoveIndex = 0
+let puzzleSolving = false
+let puzzleFailed = false
+let puzzleSolved = false
 let dailyPuzzles: Puzzle[] = []
+let lastCapturedPieceType: string | null = null
 
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
@@ -8136,6 +8168,14 @@ function evaluateCapture(piece: Piece): number {
 
 // Switch turn to the other team and handle frozen pieces
 function switchTurn() {
+  // Handle puzzle mode
+  if (puzzleSolving && currentPuzzle) {
+    const capturedType = lastCapturedPieceType
+    lastCapturedPieceType = null
+    onPuzzleMoveComplete(capturedType || undefined)
+    return
+  }
+
   const newTeam: Team = currentTurn === 'yellow' ? 'green' : 'yellow'
   currentTurn = newTeam
   // Decrement frozen turns for the team that is now playing
@@ -9147,6 +9187,176 @@ function showResetConfirm() {
 function cancelReset() {
   gameState = 'playing'
   render()
+}
+
+// Convert column index (0-8) to column letter (A-I)
+const colIndexToLetter = (index: number): string => columns[index] || 'A'
+const colLetterToIndex = (letter: string): number => columns.indexOf(letter)
+
+// Start a puzzle
+function startPuzzle(puzzle: Puzzle) {
+  // Reset puzzle state
+  currentPuzzle = puzzle
+  puzzleAttempts = 0
+  puzzleMovesLeft = puzzle.maxMoves
+  puzzleAiMoveIndex = 0
+  puzzleSolving = true
+  puzzleFailed = false
+  puzzleSolved = false
+
+  // Clear the board and set up puzzle position
+  pieces.length = 0
+
+  // Add pieces from puzzle (player is yellow, enemy is green)
+  for (const pieceData of puzzle.initialBoard) {
+    const team: Team = pieceData.team === 'blue' ? 'yellow' : 'green'
+    pieces.push({
+      type: pieceData.type as PieceType,
+      col: colIndexToLetter(pieceData.position.col),
+      row: pieceData.position.row,
+      team: team,
+      points: 1
+    })
+  }
+
+  // Set player as yellow team
+  currentTurn = 'yellow'
+  gameState = 'playing'
+  selectedPiece = null
+  validMoves = []
+  shootTargets = []
+  message = null
+  capturedPieces = []
+  moveLog = []
+
+  // Switch to game view
+  showAuthScreen = 'none'
+
+  render()
+}
+
+// Stop solving current puzzle
+function stopPuzzle() {
+  if (!puzzleSolving) return
+
+  puzzleSolving = false
+  currentPuzzle = null
+  puzzleMovesLeft = 0
+  puzzleAiMoveIndex = 0
+  puzzleFailed = false
+  puzzleSolved = false
+
+  // Go back to puzzles screen
+  showAuthScreen = 'puzzles'
+
+  // Reset game state
+  pieces.length = 0
+  pieces.push(...getInitialPieces())
+  currentTurn = 'yellow'
+
+  render()
+}
+
+// Execute AI move in puzzle
+function executePuzzleAiMove() {
+  if (!currentPuzzle || puzzleAiMoveIndex >= currentPuzzle.aiMoves.length) return
+
+  const aiMove = currentPuzzle.aiMoves[puzzleAiMoveIndex]
+  const fromCol = colIndexToLetter(aiMove.from.col)
+  const toCol = colIndexToLetter(aiMove.to.col)
+
+  const aiPiece = pieces.find(p =>
+    p.row === aiMove.from.row &&
+    p.col === fromCol &&
+    p.team === 'green'
+  )
+
+  if (aiPiece) {
+    // Check if there's an enemy piece to capture
+    const targetPiece = pieces.find(p =>
+      p.row === aiMove.to.row &&
+      p.col === toCol &&
+      p.team !== 'green'
+    )
+
+    if (targetPiece) {
+      const idx = pieces.indexOf(targetPiece)
+      if (idx > -1) pieces.splice(idx, 1)
+    }
+
+    aiPiece.col = toCol
+    aiPiece.row = aiMove.to.row
+  }
+
+  puzzleAiMoveIndex++
+
+  // Check if player lost due to AI moves
+  checkPuzzleObjective()
+}
+
+// Check if puzzle objective is complete
+function checkPuzzleObjective(): boolean {
+  if (!currentPuzzle) return false
+
+  if (currentPuzzle.objectiveType === 'capture') {
+    const targetExists = pieces.some(p =>
+      p.type === currentPuzzle!.targetPieceType &&
+      p.team === 'green'
+    )
+
+    if (!targetExists) {
+      // Objective complete!
+      puzzleSolved = true
+      return true
+    }
+  }
+
+  return false
+}
+
+// Handle puzzle move completion
+async function onPuzzleMoveComplete(capturedPieceType?: string) {
+  if (!currentPuzzle || !puzzleSolving) return
+
+  puzzleAttempts++
+  puzzleMovesLeft--
+
+  // Check if captured the target
+  if (currentPuzzle.objectiveType === 'capture' && capturedPieceType === currentPuzzle.targetPieceType) {
+    puzzleSolved = true
+
+    // Record the solve
+    const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
+
+    setTimeout(() => {
+      alert(`🎉 Puzzle Solved!\n\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+      stopPuzzle()
+    }, 500)
+    return
+  }
+
+  // Execute AI move if there are any
+  if (puzzleAiMoveIndex < currentPuzzle.aiMoves.length) {
+    setTimeout(() => {
+      executePuzzleAiMove()
+      currentTurn = 'yellow'
+      render()
+    }, 500)
+  }
+
+  // Check if out of moves
+  if (puzzleMovesLeft <= 0 && !puzzleSolved) {
+    puzzleFailed = true
+
+    setTimeout(() => {
+      if (confirm('❌ Out of moves!\n\nTry again?')) {
+        // Restart the puzzle
+        startPuzzle(currentPuzzle!)
+      } else {
+        stopPuzzle()
+      }
+    }, 500)
+  }
 }
 
 async function resetGame() {
@@ -10649,6 +10859,11 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   const movingTeam = piece.team
   const fromCol = piece.col
   const fromRow = piece.row
+
+  // Track captured piece type for puzzle mode
+  if (capturedPiece) {
+    lastCapturedPieceType = capturedPiece.type
+  }
 
   // Play sound based on piece type
   if (capturedPiece) {
@@ -17626,6 +17841,15 @@ function render() {
               <span class="text-sm sm:text-base">Events</span>
               ${activeGameModesCount > 0 ? `<span class="text-xs bg-purple-500 px-2 rounded-full">${activeGameModesCount} modes</span>` : ''}
             </button>
+            <button id="puzzles-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-orange-500 to-orange-700 hover:from-orange-400 hover:to-orange-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">🧩</span>
+              <span class="text-sm sm:text-base">Puzzles</span>
+              ${userData?.puzzleStats?.dailyStreak ? `<span class="text-xs bg-yellow-500 px-2 rounded-full">🔥 ${userData.puzzleStats.dailyStreak}</span>` : ''}
+            </button>
+            <button id="tournaments-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-cyan-500 to-cyan-700 hover:from-cyan-400 hover:to-cyan-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">🏆</span>
+              <span class="text-sm sm:text-base">Tournaments</span>
+            </button>
             ${isCurrentUserAdmin() ? `
             <button id="admin-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
               <span class="text-3xl sm:text-4xl">🔧</span>
@@ -17660,6 +17884,14 @@ function render() {
         })
         document.getElementById('events-btn')?.addEventListener('click', () => {
           showAuthScreen = 'events'
+          render()
+        })
+        document.getElementById('puzzles-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'puzzles'
+          render()
+        })
+        document.getElementById('tournaments-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'tournaments'
           render()
         })
         document.getElementById('admin-btn')?.addEventListener('click', () => {
@@ -18261,6 +18493,470 @@ function render() {
       return
     }
 
+    // Puzzles screen
+    if (showAuthScreen === 'puzzles') {
+      const userData = getCurrentUserData()
+
+      const renderPuzzlesScreen = async () => {
+        const puzzles = await getDailyPuzzles()
+        dailyPuzzles = puzzles
+
+        const getDifficultyColor = (difficulty: string) => {
+          switch (difficulty) {
+            case 'easy': return 'bg-green-600'
+            case 'medium': return 'bg-yellow-600'
+            case 'hard': return 'bg-red-600'
+            default: return 'bg-gray-600'
+          }
+        }
+
+        const getDifficultyIcon = (difficulty: string) => {
+          switch (difficulty) {
+            case 'easy': return '⭐'
+            case 'medium': return '⭐⭐'
+            case 'hard': return '⭐⭐⭐'
+            default: return '⭐'
+          }
+        }
+
+        app.innerHTML = `
+          <div class="flex flex-col items-center justify-center min-h-screen p-4 gap-6">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white">🧩 Daily Puzzles</h1>
+
+            <!-- Puzzle Stats -->
+            <div class="bg-gray-800 rounded-lg p-4 w-full max-w-md">
+              <div class="grid grid-cols-4 gap-4 text-center">
+                <div>
+                  <div class="text-2xl font-bold text-green-400">${userData?.puzzleStats?.puzzlesSolved || 0}</div>
+                  <div class="text-gray-400 text-xs">Solved</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-yellow-400">${userData?.puzzleStats?.perfectSolves || 0}</div>
+                  <div class="text-gray-400 text-xs">Perfect</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-orange-400">🔥 ${userData?.puzzleStats?.dailyStreak || 0}</div>
+                  <div class="text-gray-400 text-xs">Streak</div>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold text-blue-400">${userData?.puzzleStats?.puzzlesAttempted || 0}</div>
+                  <div class="text-gray-400 text-xs">Attempted</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Daily Puzzles -->
+            <div class="bg-gray-800 rounded-lg p-4 w-full max-w-2xl">
+              <h2 class="text-lg font-bold text-white mb-4">Today's Puzzles</h2>
+              ${puzzles.length === 0 ? `
+                <div class="text-center py-8">
+                  <div class="text-4xl mb-4">🧩</div>
+                  <p class="text-gray-400">No puzzles available yet.</p>
+                  <p class="text-gray-500 text-sm mt-2">Check back soon for new puzzles!</p>
+                </div>
+              ` : `
+                <div class="grid gap-4">
+                  ${puzzles.map((puzzle, index) => {
+                    const alreadySolved = userData?.puzzleStats?.solvedPuzzleIds?.includes(puzzle.id)
+                    return `
+                      <div class="bg-gray-700 rounded-lg p-4 flex items-center justify-between ${alreadySolved ? 'opacity-60' : ''}">
+                        <div class="flex items-center gap-4">
+                          <div class="text-3xl">${puzzle.icon || '🧩'}</div>
+                          <div>
+                            <h3 class="text-white font-bold">${puzzle.name || `Puzzle ${index + 1}`}</h3>
+                            <p class="text-gray-400 text-sm">${puzzle.objective}</p>
+                            <div class="flex gap-2 mt-1">
+                              <span class="${getDifficultyColor(puzzle.difficulty)} text-white text-xs px-2 py-1 rounded">${getDifficultyIcon(puzzle.difficulty)} ${puzzle.difficulty}</span>
+                              <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">${puzzle.maxMoves} moves</span>
+                              <span class="bg-yellow-600 text-white text-xs px-2 py-1 rounded">💰 ${puzzle.rewards.warBucks}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          ${alreadySolved ? `
+                            <span class="text-green-400 font-bold">✓ Solved</span>
+                          ` : `
+                            <button class="puzzle-play-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded" data-puzzleid="${puzzle.id}">
+                              Play
+                            </button>
+                          `}
+                        </div>
+                      </div>
+                    `
+                  }).join('')}
+                </div>
+              `}
+            </div>
+
+            <!-- How to Play -->
+            <div class="bg-gray-800 rounded-lg p-4 w-full max-w-2xl">
+              <h2 class="text-lg font-bold text-white mb-3">How to Play</h2>
+              <div class="grid sm:grid-cols-3 gap-4 text-center">
+                <div class="bg-gray-700 rounded-lg p-3">
+                  <div class="text-2xl mb-2">🎯</div>
+                  <p class="text-gray-300 text-sm">Complete the objective within the move limit</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                  <div class="text-2xl mb-2">⚡</div>
+                  <p class="text-gray-300 text-sm">First try = max reward, each retry = less reward</p>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                  <div class="text-2xl mb-2">🔥</div>
+                  <p class="text-gray-300 text-sm">Solve daily puzzles to build your streak!</p>
+                </div>
+              </div>
+            </div>
+
+            <button id="puzzles-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
+              Back
+            </button>
+          </div>
+        `
+
+        // Puzzle play buttons
+        document.querySelectorAll('.puzzle-play-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const puzzleId = (e.target as HTMLElement).dataset.puzzleid
+            if (puzzleId) {
+              const puzzle = dailyPuzzles.find(p => p.id === puzzleId)
+              if (puzzle) {
+                startPuzzle(puzzle)
+              }
+            }
+          })
+        })
+
+        document.getElementById('puzzles-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'profile'
+          render()
+        })
+      }
+
+      renderPuzzlesScreen()
+      return
+    }
+
+    // Tournaments screen
+    if (showAuthScreen === 'tournaments') {
+      const userData = getCurrentUserData()
+
+      const renderTournamentsScreen = async () => {
+        const tournaments = await getActiveTournaments()
+        activeTournaments = tournaments
+
+        const formatTime = (timestamp: number) => {
+          const date = new Date(timestamp)
+          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+
+        const getStatusColor = (status: string) => {
+          switch (status) {
+            case 'registration': return 'bg-green-600'
+            case 'starting': return 'bg-yellow-600'
+            case 'in_progress': return 'bg-blue-600'
+            case 'finished': return 'bg-gray-600'
+            default: return 'bg-gray-600'
+          }
+        }
+
+        const getStatusText = (status: string) => {
+          switch (status) {
+            case 'registration': return 'Open for Registration'
+            case 'starting': return 'Starting Soon'
+            case 'in_progress': return 'In Progress'
+            case 'finished': return 'Finished'
+            default: return status
+          }
+        }
+
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white">🏆 Tournaments</h1>
+
+            ${userData ? `<div class="text-blue-400 font-bold">👤 ${userData.username}</div>` : ''}
+
+            ${tournaments.length > 0 ? `
+              <div class="w-full max-w-[700px] flex flex-col gap-4">
+                ${tournaments.map(t => {
+                  const isRegistered = t.registeredPlayers.some(p => p.odataId === getCurrentUser()?.uid)
+                  const isFull = t.currentPlayers >= t.maxPlayers
+                  const canRegister = t.status === 'registration' && !isRegistered && !isFull
+
+                  return `
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                      <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                          <span class="text-4xl">${t.icon}</span>
+                          <div>
+                            <h3 class="text-white font-bold text-lg">${t.name}</h3>
+                            <p class="text-gray-400 text-sm">${t.description}</p>
+                          </div>
+                        </div>
+                        <span class="${getStatusColor(t.status)} text-white text-xs px-2 py-1 rounded font-bold">
+                          ${getStatusText(t.status)}
+                        </span>
+                      </div>
+
+                      <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                          <div class="text-gray-400">Players</div>
+                          <div class="text-white font-bold">${t.currentPlayers}/${t.maxPlayers}</div>
+                        </div>
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                          <div class="text-gray-400">Starts</div>
+                          <div class="text-white font-bold text-xs">${formatTime(t.startTime)}</div>
+                        </div>
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                          <div class="text-gray-400">1st Prize</div>
+                          <div class="text-yellow-400 font-bold">💰 ${t.prizes.first.warBucks}</div>
+                        </div>
+                        <div class="bg-gray-700 p-2 rounded text-center">
+                          <div class="text-gray-400">Timer</div>
+                          <div class="text-white font-bold">${t.timerEnabled ? t.timerMinutes + 'min' : 'Off'}</div>
+                        </div>
+                      </div>
+
+                      <div class="mt-4 flex gap-2">
+                        ${canRegister ? `
+                          <button class="tournament-register-btn bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded flex-1" data-tournamentid="${t.id}">
+                            Register
+                          </button>
+                        ` : ''}
+                        ${isRegistered && t.status === 'registration' ? `
+                          <button class="tournament-unregister-btn bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded flex-1" data-tournamentid="${t.id}">
+                            Unregister
+                          </button>
+                        ` : ''}
+                        ${isRegistered && t.status !== 'registration' ? `
+                          <span class="bg-blue-600 text-white font-bold py-2 px-4 rounded flex-1 text-center">
+                            ✓ Registered
+                          </span>
+                        ` : ''}
+                        ${isFull && !isRegistered ? `
+                          <span class="bg-gray-600 text-gray-400 font-bold py-2 px-4 rounded flex-1 text-center">
+                            Full
+                          </span>
+                        ` : ''}
+                        <button class="tournament-view-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded" data-tournamentid="${t.id}">
+                          View Bracket
+                        </button>
+                      </div>
+
+                      ${isRegistered ? `
+                        <div class="mt-2 text-green-400 text-sm text-center">✓ You are registered for this tournament</div>
+                      ` : ''}
+                    </div>
+                  `
+                }).join('')}
+              </div>
+            ` : `
+              <div class="bg-gray-800 p-8 rounded-lg text-center">
+                <span class="text-4xl">🏆</span>
+                <p class="text-gray-400 mt-4">No active tournaments right now.</p>
+                <p class="text-gray-500 text-sm">Check back later for upcoming tournaments!</p>
+              </div>
+            `}
+
+            <button id="tournaments-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+              Back
+            </button>
+          </div>
+        `
+
+        // Register buttons
+        document.querySelectorAll('.tournament-register-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+            if (tournamentId) {
+              const result = await registerForTournament(tournamentId)
+              if (result.success) {
+                alert('Successfully registered!')
+                renderTournamentsScreen()
+              } else {
+                alert(result.error || 'Could not register')
+              }
+            }
+          })
+        })
+
+        // Unregister buttons
+        document.querySelectorAll('.tournament-unregister-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+            if (tournamentId && confirm('Unregister from this tournament?')) {
+              const success = await unregisterFromTournament(tournamentId)
+              if (success) {
+                renderTournamentsScreen()
+              } else {
+                alert('Could not unregister')
+              }
+            }
+          })
+        })
+
+        // View bracket buttons
+        document.querySelectorAll('.tournament-view-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+            if (tournamentId) {
+              await showTournamentBracket(tournamentId)
+            }
+          })
+        })
+
+        document.getElementById('tournaments-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'profile'
+          render()
+        })
+      }
+
+      // Show tournament bracket
+      const showTournamentBracket = async (tournamentId: string) => {
+        const tournament = await getTournament(tournamentId)
+        if (!tournament) return
+
+        const matches = await getTournamentMatches(tournamentId)
+        currentTournament = tournament
+        currentTournamentMatches = matches
+
+        // Check if I have a match ready
+        myTournamentMatch = await getMyTournamentMatch(tournamentId)
+
+        // Group matches by round
+        const rounds: Record<number, TournamentMatch[]> = {}
+        matches.forEach(m => {
+          if (!rounds[m.round]) rounds[m.round] = []
+          rounds[m.round].push(m)
+        })
+
+        const roundNames: Record<number, string> = {
+          1: 'Finals',
+          2: 'Semi-Finals',
+          3: 'Quarter-Finals',
+          4: 'Round of 16',
+          5: 'Round of 32'
+        }
+
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white">${tournament.icon} ${tournament.name}</h1>
+            <p class="text-gray-400">${tournament.description}</p>
+
+            <div class="flex items-center gap-4 text-sm">
+              <span class="bg-gray-700 px-3 py-1 rounded text-white">👥 ${tournament.currentPlayers}/${tournament.maxPlayers}</span>
+              <span class="bg-${tournament.status === 'in_progress' ? 'blue' : tournament.status === 'registration' ? 'green' : 'gray'}-600 px-3 py-1 rounded text-white font-bold">
+                ${tournament.status === 'registration' ? 'Registration Open' : tournament.status === 'in_progress' ? 'In Progress' : tournament.status}
+              </span>
+            </div>
+
+            ${myTournamentMatch ? `
+              <div class="bg-yellow-600 p-4 rounded-lg w-full max-w-[500px] text-center">
+                <div class="text-white font-bold text-lg">🎮 Your match is ready!</div>
+                <div class="text-yellow-200 mt-2">
+                  vs ${myTournamentMatch.player1Id === getCurrentUser()?.uid ? myTournamentMatch.player2Username : myTournamentMatch.player1Username}
+                </div>
+                <button id="start-tournament-match" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded mt-3">
+                  Start Match
+                </button>
+              </div>
+            ` : ''}
+
+            ${tournament.status === 'in_progress' || tournament.status === 'finished' ? `
+              <div class="w-full max-w-[800px] overflow-x-auto">
+                <div class="flex gap-4 min-w-max p-4">
+                  ${Object.keys(rounds).sort((a, b) => Number(b) - Number(a)).map(roundNum => {
+                    const round = Number(roundNum)
+                    const roundMatches = rounds[round] || []
+                    return `
+                      <div class="flex flex-col gap-2 min-w-[200px]">
+                        <h3 class="text-white font-bold text-center mb-2">${roundNames[round] || 'Round ' + round}</h3>
+                        ${roundMatches.map(match => {
+                          const isMyMatch = match.player1Id === getCurrentUser()?.uid || match.player2Id === getCurrentUser()?.uid
+                          return `
+                            <div class="bg-gray-800 rounded-lg p-3 ${isMyMatch ? 'ring-2 ring-yellow-400' : ''}">
+                              <div class="flex items-center gap-2 ${match.winnerId === match.player1Id ? 'text-green-400 font-bold' : 'text-white'}">
+                                ${match.player1Username || 'TBD'}
+                                ${match.winnerId === match.player1Id ? ' 🏆' : ''}
+                              </div>
+                              <div class="text-gray-500 text-center text-xs my-1">vs</div>
+                              <div class="flex items-center gap-2 ${match.winnerId === match.player2Id ? 'text-green-400 font-bold' : 'text-white'}">
+                                ${match.player2Username || 'TBD'}
+                                ${match.winnerId === match.player2Id ? ' 🏆' : ''}
+                              </div>
+                              <div class="text-xs text-center mt-2 ${match.status === 'ready' ? 'text-yellow-400' : match.status === 'playing' ? 'text-blue-400' : match.status === 'finished' ? 'text-green-400' : 'text-gray-500'}">
+                                ${match.status === 'ready' ? '⏳ Ready' : match.status === 'playing' ? '🎮 Playing' : match.status === 'finished' ? '✓ Complete' : match.status === 'bye' ? 'Bye' : 'Pending'}
+                              </div>
+                            </div>
+                          `
+                        }).join('')}
+                      </div>
+                    `
+                  }).join('')}
+                </div>
+              </div>
+            ` : `
+              <div class="bg-gray-800 p-6 rounded-lg w-full max-w-[500px] text-center">
+                <div class="text-gray-400">Tournament hasn't started yet</div>
+                <div class="text-white mt-2">Registered Players:</div>
+                <div class="flex flex-wrap gap-2 justify-center mt-3">
+                  ${tournament.registeredPlayers.map(p => `
+                    <span class="bg-gray-700 text-white px-3 py-1 rounded text-sm">${p.odataUsername}</span>
+                  `).join('')}
+                </div>
+              </div>
+            `}
+
+            ${tournament.winnerId ? `
+              <div class="bg-yellow-600 p-6 rounded-lg w-full max-w-[500px] text-center">
+                <div class="text-4xl">🏆</div>
+                <div class="text-white font-bold text-xl mt-2">${tournament.winnerUsername} Wins!</div>
+                <div class="text-yellow-200">Prize: 💰 ${tournament.prizes.first.warBucks} War Bucks</div>
+              </div>
+            ` : ''}
+
+            <button id="bracket-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+              Back to Tournaments
+            </button>
+          </div>
+        `
+
+        document.getElementById('start-tournament-match')?.addEventListener('click', async () => {
+          if (myTournamentMatch) {
+            const gameId = await createTournamentGame(myTournamentMatch.id)
+            if (gameId) {
+              // Join the game
+              multiplayerGameId = gameId
+              await joinGame(gameId)
+              listenToGame(gameId, (game) => {
+                if (game) {
+                  multiplayerGame = game
+                  multiplayerTeam = getMyTeamInGame(game)
+                  if ((game.status === 'playing' || (game.yellowJoined && game.greenJoined)) && !multiplayerGameStarted) {
+                    startMultiplayerGame()
+                  } else if (!multiplayerGameStarted) {
+                    render()
+                  }
+                }
+              })
+              render()
+            } else {
+              alert('Could not start match')
+            }
+          }
+        })
+
+        document.getElementById('bracket-back-btn')?.addEventListener('click', () => {
+          currentTournament = null
+          currentTournamentMatches = []
+          myTournamentMatch = null
+          renderTournamentsScreen()
+        })
+      }
+
+      renderTournamentsScreen()
+      return
+    }
+
     // Admin panel screen
     if (showAuthScreen === 'admin') {
       if (!isCurrentUserAdmin()) {
@@ -18270,7 +18966,7 @@ function render() {
       }
 
       // Admin panel state
-      let adminTab: 'users' | 'events' | 'system' = 'users'
+      let adminTab: 'users' | 'events' | 'puzzles' | 'system' = 'users'
       let adminSearchQuery = ''
       let showCreateEvent = false
       let expandedUserId: string | null = null
@@ -18294,12 +18990,15 @@ function render() {
             <h1 class="text-2xl sm:text-4xl font-bold text-white">🔧 Admin Panel</h1>
 
             <!-- Tabs -->
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
               <button id="tab-users" class="${tabClass('users')} font-bold py-2 px-4 rounded transition-colors">
                 👥 Users
               </button>
               <button id="tab-events" class="${tabClass('events')} font-bold py-2 px-4 rounded transition-colors">
                 📢 Events
+              </button>
+              <button id="tab-puzzles" class="${tabClass('puzzles')} font-bold py-2 px-4 rounded transition-colors">
+                🧩 Puzzles
               </button>
               <button id="tab-system" class="${tabClass('system')} font-bold py-2 px-4 rounded transition-colors">
                 🖥️ System
@@ -18528,6 +19227,21 @@ function render() {
                 </div>
               ` : ''}
 
+              ${adminTab === 'puzzles' ? `
+                <!-- Puzzles Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">🧩 Puzzles</h2>
+                    <button id="create-sample-puzzles" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">
+                      🎮 Create Sample Puzzles
+                    </button>
+                  </div>
+                  <div id="puzzles-list" class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+                    <div class="text-gray-400 text-center py-4">Loading puzzles...</div>
+                  </div>
+                </div>
+              ` : ''}
+
               ${adminTab === 'system' ? `
                 <!-- System Tab -->
                 <div class="bg-gray-800 p-4 rounded-lg">
@@ -18621,9 +19335,60 @@ function render() {
         // Tab navigation
         document.getElementById('tab-users')?.addEventListener('click', () => { adminTab = 'users'; renderAdminPanel() })
         document.getElementById('tab-events')?.addEventListener('click', () => { adminTab = 'events'; renderAdminPanel() })
+        document.getElementById('tab-puzzles')?.addEventListener('click', () => { adminTab = 'puzzles'; renderAdminPanel() })
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
+
+        // Puzzles tab
+        document.getElementById('create-sample-puzzles')?.addEventListener('click', async () => {
+          const count = await adminCreateSamplePuzzles()
+          alert(`Created ${count} sample puzzles!`)
+          renderAdminPanel()
+        })
+
+        // Load and display puzzles when on puzzles tab
+        if (adminTab === 'puzzles') {
+          adminGetAllPuzzles().then(puzzles => {
+            const puzzlesList = document.getElementById('puzzles-list')
+            if (puzzlesList) {
+              if (puzzles.length === 0) {
+                puzzlesList.innerHTML = `<div class="text-gray-400 text-center py-4">No puzzles yet. Click "Create Sample Puzzles" to add some!</div>`
+              } else {
+                puzzlesList.innerHTML = puzzles.map(puzzle => `
+                  <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                      <span class="text-2xl">${puzzle.icon || '🧩'}</span>
+                      <div>
+                        <h3 class="text-white font-bold">${puzzle.name}</h3>
+                        <p class="text-gray-400 text-sm">${puzzle.objective}</p>
+                        <div class="flex gap-2 mt-1">
+                          <span class="bg-${puzzle.difficulty === 'easy' ? 'green' : puzzle.difficulty === 'medium' ? 'yellow' : 'red'}-600 text-white text-xs px-2 py-1 rounded">${puzzle.difficulty}</span>
+                          <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">${puzzle.maxMoves} moves</span>
+                          <span class="text-gray-400 text-xs">Solved: ${puzzle.timesSolved}/${puzzle.timesAttempted}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button class="admin-delete-puzzle bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}">
+                      🗑️
+                    </button>
+                  </div>
+                `).join('')
+
+                // Add delete listeners
+                document.querySelectorAll('.admin-delete-puzzle').forEach(btn => {
+                  btn.addEventListener('click', async (e) => {
+                    const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
+                    if (puzzleId && confirm('Delete this puzzle?')) {
+                      await adminDeletePuzzle(puzzleId)
+                      renderAdminPanel()
+                    }
+                  })
+                })
+              }
+            }
+          })
+        }
 
         // User card expansion
         document.querySelectorAll('.admin-user-expand').forEach(btn => {
@@ -19560,9 +20325,35 @@ function render() {
     </div>
   ` : ''
 
+  // Puzzle mode header
+  const puzzleHeaderHtml = puzzleSolving && currentPuzzle ? `
+    <div class="fixed top-0 left-0 right-0 bg-gradient-to-r from-orange-600 to-orange-800 p-3 z-40 shadow-lg">
+      <div class="max-w-4xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-2xl">${currentPuzzle.icon || '🧩'}</span>
+          <div>
+            <h2 class="text-white font-bold">${currentPuzzle.name}</h2>
+            <p class="text-orange-200 text-sm">${currentPuzzle.objective}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="bg-orange-900 px-4 py-2 rounded-lg">
+            <span class="text-orange-200 text-sm">Moves Left:</span>
+            <span class="text-white font-bold text-xl ml-2">${puzzleMovesLeft}</span>
+          </div>
+          <button id="stop-puzzle-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded transition-colors">
+            Stop Solving
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="h-16"></div>
+  ` : ''
+
   // Playing state
   app.innerHTML = `
     <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4">
+      ${puzzleHeaderHtml}
       ${opponentLeftModalHtml}
       ${forcedTrenchWarning}
       ${rocketReadyMessage}
@@ -19610,6 +20401,9 @@ function render() {
 
   // Add reset button listener
   document.getElementById('reset-btn')?.addEventListener('click', showResetConfirm)
+
+  // Add stop puzzle button listener
+  document.getElementById('stop-puzzle-btn')?.addEventListener('click', stopPuzzle)
 
   // Opponent left modal listeners
   document.getElementById('opponent-left-menu')?.addEventListener('click', () => {

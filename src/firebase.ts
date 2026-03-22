@@ -21,7 +21,8 @@ import {
   deleteDoc,
   serverTimestamp,
   Timestamp,
-  getDocs
+  getDocs,
+  arrayUnion
 } from 'firebase/firestore'
 
 // Firebase configuration
@@ -139,6 +140,7 @@ export interface UserData {
     perfectSolves: number  // First try solves
     dailyStreak: number
     lastPuzzleDate: number  // Timestamp of last puzzle completed
+    solvedPuzzleIds: string[]  // IDs of puzzles solved today
   }
 }
 
@@ -449,7 +451,8 @@ export function getDefaultUserData(username: string, email: string): UserData {
       puzzlesAttempted: 0,
       perfectSolves: 0,
       dailyStreak: 0,
-      lastPuzzleDate: 0
+      lastPuzzleDate: 0,
+      solvedPuzzleIds: []
     }
   }
 }
@@ -1477,7 +1480,7 @@ export async function adminResetUser(userId: string): Promise<boolean> {
       purchasedItems: [],
       equippedItems: { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null },
       warPass: { claimedRewards: [], completedCount: 0, lastResetTime: 0 },
-      puzzleStats: { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0 }
+      puzzleStats: { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0, solvedPuzzleIds: [] }
     }
 
     await updateDoc(doc(db, 'users', userId), resetData)
@@ -1880,7 +1883,7 @@ export async function adminResetAllStats(): Promise<number> {
           totalWarBucksEarned: 0,
           totalWarBucksSpent: 0
         },
-        puzzleStats: { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0 }
+        puzzleStats: { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0, solvedPuzzleIds: [] }
       })
       count++
     }
@@ -2212,14 +2215,20 @@ export function stopListeningToChat(): void {
 // Puzzle interface
 export interface Puzzle {
   id: string
+  name: string
+  icon: string
   difficulty: 'easy' | 'medium' | 'hard'
-  movesAllowed: number  // 1, 2, or 3
+  maxMoves: number  // 1, 2, or 3
   objective: string  // e.g., "Capture the Tank", "Eliminate the Builder"
   objectiveType: 'capture' | 'score' | 'survive'
   targetPieceType?: string  // For capture objectives
   targetScore?: number  // For score objectives
-  initialPosition: unknown  // Serialized game state
-  aiMoves: unknown[]  // Pre-determined AI responses
+  initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
+  aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>
+  rewards: {
+    warBucks: number
+    xp: number
+  }
   createdAt: number
   createdBy: string
   timesAttempted: number
@@ -2291,7 +2300,8 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
       puzzlesAttempted: 0,
       perfectSolves: 0,
       dailyStreak: 0,
-      lastPuzzleDate: 0
+      lastPuzzleDate: 0,
+      solvedPuzzleIds: []
     }
 
     const today = new Date().setHours(0, 0, 0, 0)
@@ -2313,7 +2323,8 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
       'puzzleStats.puzzlesAttempted': puzzleStats.puzzlesAttempted + attempts,
       'puzzleStats.perfectSolves': perfect ? puzzleStats.perfectSolves + 1 : puzzleStats.perfectSolves,
       'puzzleStats.dailyStreak': newStreak,
-      'puzzleStats.lastPuzzleDate': Date.now()
+      'puzzleStats.lastPuzzleDate': Date.now(),
+      'puzzleStats.solvedPuzzleIds': arrayUnion(puzzleId)
     })
 
     return { warBucks, perfect }
@@ -2371,6 +2382,164 @@ export async function adminDeletePuzzle(puzzleId: string): Promise<boolean> {
     console.error('Error deleting puzzle:', error)
     return false
   }
+}
+
+// Admin: Create sample puzzles
+export async function adminCreateSamplePuzzles(): Promise<number> {
+  if (!db || !isCurrentUserAdmin() || !currentUserData) return 0
+
+  const samplePuzzles: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>[] = [
+    // Easy puzzles - 1 move captures
+    {
+      name: 'Capture the Tank',
+      icon: '🎯',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Capture the enemy tank in one move',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },
+        { type: 'tank', position: { row: 3, col: 3 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25 }
+    },
+    {
+      name: 'Sniper Shot',
+      icon: '🎯',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Use your soldier to capture the enemy soldier',
+      objectiveType: 'capture',
+      targetPieceType: 'soldier',
+      initialBoard: [
+        { type: 'soldier', position: { row: 5, col: 2 }, team: 'blue' },
+        { type: 'soldier', position: { row: 3, col: 2 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25 }
+    },
+    {
+      name: 'Helicopter Hunt',
+      icon: '🚁',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Shoot down the helicopter',
+      objectiveType: 'capture',
+      targetPieceType: 'helicopter',
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 2, col: 4 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25 }
+    },
+    // Medium puzzles - 2 moves
+    {
+      name: 'Tank Trap',
+      icon: '💣',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Position and capture the enemy tank',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      initialBoard: [
+        { type: 'soldier', position: { row: 6, col: 2 }, team: 'blue' },
+        { type: 'tank', position: { row: 3, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [
+        { from: { row: 4, col: 5 }, to: { row: 5, col: 5 } }
+      ],
+      rewards: { warBucks: 75, xp: 40 }
+    },
+    {
+      name: 'Builder Elimination',
+      icon: '🔨',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Capture the enemy builder before it can build',
+      objectiveType: 'capture',
+      targetPieceType: 'builder',
+      initialBoard: [
+        { type: 'soldier', position: { row: 5, col: 1 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'blue' },
+        { type: 'builder', position: { row: 3, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 2, col: 3 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [
+        { from: { row: 2, col: 3 }, to: { row: 3, col: 3 } }
+      ],
+      rewards: { warBucks: 75, xp: 40 }
+    },
+    // Hard puzzles - 3 moves
+    {
+      name: 'Ship Destroyer',
+      icon: '⚓',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Sink the enemy ship - watch out for defenders!',
+      objectiveType: 'capture',
+      targetPieceType: 'ship',
+      initialBoard: [
+        { type: 'soldier', position: { row: 6, col: 0 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 2 }, team: 'blue' },
+        { type: 'ship', position: { row: 2, col: 1 }, team: 'red' },
+        { type: 'soldier', position: { row: 3, col: 1 }, team: 'red' },
+        { type: 'soldier', position: { row: 4, col: 2 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [
+        { from: { row: 3, col: 1 }, to: { row: 4, col: 1 } },
+        { from: { row: 4, col: 2 }, to: { row: 5, col: 2 } }
+      ],
+      rewards: { warBucks: 100, xp: 60 }
+    },
+    {
+      name: 'Rocket Launcher Assault',
+      icon: '🚀',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Destroy the rocket launcher while avoiding enemy fire',
+      objectiveType: 'capture',
+      targetPieceType: 'rocketLauncher',
+      initialBoard: [
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'blue' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'blue' },
+        { type: 'rocketLauncher', position: { row: 1, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 2, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 2, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 3, col: 4 }, team: 'red' },
+        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [
+        { from: { row: 2, col: 3 }, to: { row: 3, col: 3 } },
+        { from: { row: 2, col: 5 }, to: { row: 3, col: 5 } }
+      ],
+      rewards: { warBucks: 100, xp: 60 }
+    }
+  ]
+
+  let count = 0
+  for (const puzzle of samplePuzzles) {
+    const id = await adminCreatePuzzle(puzzle)
+    if (id) count++
+  }
+
+  return count
 }
 
 // ==================== ADMIN BAN SYSTEM ====================
