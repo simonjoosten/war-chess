@@ -46,6 +46,7 @@ import {
   // Admin
   isCurrentUserAdmin,
   getAllUsers,
+  adminUpdateUser,
   adminGiveWarBucks,
   adminGiveItem,
   adminSetAdmin,
@@ -8812,8 +8813,9 @@ function selectPiece(piece: Piece) {
     } else if (piece.inTrench) {
       // Show how many turns left in trench
       showSoldierActions = true
-      validMoves = []
-      message = `In trench (${turnsInTrench}/3 turns)`
+      actionMode = 'move'  // Auto-select move mode
+      validMoves = getValidMovesForSoldier(piece)  // Show moves so they can exit
+      message = `In trench (${turnsInTrench}/3 turns) - Click to exit`
     } else {
       // Auto-select move action, but keep buttons visible to switch
       showSoldierActions = true
@@ -16891,6 +16893,7 @@ function render() {
       let adminTab: 'users' | 'events' | 'system' = 'users'
       let adminSearchQuery = ''
       let showCreateEvent = false
+      let expandedUserId: string | null = null
 
       const renderAdminPanel = async () => {
         const allUsers = await getAllUsers()
@@ -16938,29 +16941,120 @@ function render() {
                       ${adminSearchQuery ? 'No users found.' : 'No users found. Check Firebase rules.'}
                     </div>
                   ` : `
-                    <div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
-                      ${users.map(user => `
-                        <div class="bg-gray-700 p-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-2">
-                          <div class="flex-1">
-                            <div class="flex items-center gap-2">
-                              <span class="text-white font-bold">${user.username}</span>
-                              ${user.isAdmin ? '<span class="text-red-400 text-xs bg-red-900/50 px-2 py-0.5 rounded">ADMIN</span>' : ''}
+                    <div class="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
+                      ${users.map(user => {
+                        const isExpanded = expandedUserId === user.odataId
+                        const ownedItems = user.purchasedItems?.length || 0
+                        const stats = user.stats || { gamesPlayed: 0, gamesWon: 0, piecesEliminated: 0 }
+                        return `
+                        <div class="bg-gray-700 rounded-lg overflow-hidden">
+                          <div class="p-3 flex flex-col sm:flex-row sm:items-center gap-2 cursor-pointer admin-user-expand" data-userid="${user.odataId}">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2">
+                                <span class="text-white font-bold">${user.username}</span>
+                                ${user.isAdmin ? '<span class="text-red-400 text-xs bg-red-900/50 px-2 py-0.5 rounded">ADMIN</span>' : ''}
+                                <span class="text-gray-500 text-xs">${isExpanded ? '▼' : '▶'}</span>
+                              </div>
+                              <div class="text-gray-400 text-xs">${user.email}</div>
+                              <div class="flex gap-3 text-xs mt-1">
+                                <span class="text-yellow-400">💰 ${user.warBucks || 0}</span>
+                                <span class="text-blue-400">🎮 ${stats.gamesPlayed} games</span>
+                                <span class="text-green-400">🏆 ${stats.gamesWon} wins</span>
+                                <span class="text-purple-400">🛒 ${ownedItems} items</span>
+                              </div>
                             </div>
-                            <div class="text-gray-400 text-xs">${user.email}</div>
-                            <div class="text-yellow-400 text-xs">💰 ${user.warBucks || 0}</div>
+                            <div class="flex flex-wrap gap-1">
+                              <button class="admin-give-bucks bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+100💰</button>
+                              <button class="admin-give-all-items bg-purple-600 hover:bg-purple-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">All Items</button>
+                              ${!user.isAdmin
+                                ? `<button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+Admin</button>`
+                                : `<button class="admin-remove-admin bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">-Admin</button>`
+                              }
+                              <button class="admin-delete-user bg-red-800 hover:bg-red-700 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}" data-username="${user.username}">🗑️</button>
+                            </div>
                           </div>
-                          <div class="flex flex-wrap gap-1">
-                            <button class="admin-give-bucks bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+100💰</button>
-                            <button class="admin-give-all-items bg-purple-600 hover:bg-purple-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Items</button>
-                            <button class="admin-reset-user bg-orange-600 hover:bg-orange-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Reset</button>
-                            ${!user.isAdmin
-                              ? `<button class="admin-make-admin bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">+Admin</button>`
-                              : `<button class="admin-remove-admin bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">-Admin</button>`
-                            }
-                            <button class="admin-delete-user bg-red-800 hover:bg-red-700 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}" data-username="${user.username}">🗑️</button>
+                          ${isExpanded ? `
+                          <div class="bg-gray-800 p-3 border-t border-gray-600">
+                            <!-- Custom War Bucks -->
+                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                              <span class="text-white text-sm">💰 Give War Bucks:</span>
+                              <input type="number" class="admin-custom-bucks-input bg-gray-600 text-white px-2 py-1 rounded w-24 text-sm" placeholder="Amount" data-userid="${user.odataId}">
+                              <button class="admin-custom-bucks-btn bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Give</button>
+                              <button class="admin-take-bucks-btn bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Take</button>
+                            </div>
+                            <!-- Give Specific Item -->
+                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                              <span class="text-white text-sm">🎁 Give Item:</span>
+                              <select class="admin-item-select bg-gray-600 text-white px-2 py-1 rounded text-sm" data-userid="${user.odataId}">
+                                <option value="">Select item...</option>
+                                <optgroup label="🎨 Themes">
+                                  ${SHOP_ITEMS.filter(i => i.type === 'theme').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
+                                </optgroup>
+                                <optgroup label="⚔️ Skins">
+                                  ${SHOP_ITEMS.filter(i => i.type === 'piece_skin').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
+                                </optgroup>
+                                <optgroup label="✨ Effects">
+                                  ${SHOP_ITEMS.filter(i => i.type === 'effect').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
+                                </optgroup>
+                                <optgroup label="🔊 Sound Packs">
+                                  ${SHOP_ITEMS.filter(i => i.type === 'sound_pack').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
+                                </optgroup>
+                                <optgroup label="🎵 Music Packs">
+                                  ${SHOP_ITEMS.filter(i => i.type === 'music_pack').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
+                                </optgroup>
+                              </select>
+                              <button class="admin-give-item-btn bg-purple-600 hover:bg-purple-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Give</button>
+                            </div>
+                            <!-- User Stats -->
+                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
+                              <div class="bg-gray-700 p-2 rounded text-center">
+                                <div class="text-lg font-bold text-white">${stats.gamesPlayed}</div>
+                                <div class="text-gray-400 text-xs">Games</div>
+                              </div>
+                              <div class="bg-gray-700 p-2 rounded text-center">
+                                <div class="text-lg font-bold text-green-400">${stats.gamesWon}</div>
+                                <div class="text-gray-400 text-xs">Wins</div>
+                              </div>
+                              <div class="bg-gray-700 p-2 rounded text-center">
+                                <div class="text-lg font-bold text-red-400">${stats.gamesLost || 0}</div>
+                                <div class="text-gray-400 text-xs">Losses</div>
+                              </div>
+                              <div class="bg-gray-700 p-2 rounded text-center">
+                                <div class="text-lg font-bold text-orange-400">${stats.piecesEliminated}</div>
+                                <div class="text-gray-400 text-xs">Kills</div>
+                              </div>
+                              <div class="bg-gray-700 p-2 rounded text-center">
+                                <div class="text-lg font-bold text-blue-400">${stats.totalPointsScored || 0}</div>
+                                <div class="text-gray-400 text-xs">Points</div>
+                              </div>
+                              <div class="bg-gray-700 p-2 rounded text-center">
+                                <div class="text-lg font-bold text-purple-400">${Math.floor((stats.timePlayed || 0) / 60)}m</div>
+                                <div class="text-gray-400 text-xs">Playtime</div>
+                              </div>
+                            </div>
+                            <!-- Owned Items Preview -->
+                            <div class="mb-2">
+                              <span class="text-white text-sm">Owned Items:</span>
+                              <div class="flex flex-wrap gap-1 mt-1">
+                                ${(user.purchasedItems || []).length === 0
+                                  ? '<span class="text-gray-500 text-xs">No items owned</span>'
+                                  : (user.purchasedItems || []).slice(0, 10).map((itemId: string) => {
+                                      const item = SHOP_ITEMS.find(i => i.id === itemId)
+                                      return item ? `<span class="bg-gray-600 px-2 py-0.5 rounded text-xs" title="${item.name}">${item.icon}</span>` : ''
+                                    }).join('') + ((user.purchasedItems || []).length > 10 ? `<span class="text-gray-400 text-xs">+${(user.purchasedItems || []).length - 10} more</span>` : '')
+                                }
+                              </div>
+                            </div>
+                            <!-- Reset / Danger -->
+                            <div class="flex gap-2 mt-3 pt-3 border-t border-gray-600">
+                              <button class="admin-reset-user bg-orange-600 hover:bg-orange-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Reset Stats</button>
+                              <button class="admin-reset-items bg-orange-700 hover:bg-orange-600 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Reset Items</button>
+                              <button class="admin-reset-bucks bg-orange-800 hover:bg-orange-700 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Reset Bucks</button>
+                            </div>
                           </div>
+                          ` : ''}
                         </div>
-                      `).join('')}
+                      `}).join('')}
                     </div>
                   `}
                 </div>
@@ -17151,39 +17245,131 @@ function render() {
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
 
+        // User card expansion
+        document.querySelectorAll('.admin-user-expand').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            // Don't expand if clicking a button inside
+            if ((e.target as HTMLElement).tagName === 'BUTTON') return
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
+            if (userId) {
+              expandedUserId = expandedUserId === userId ? null : userId
+              renderAdminPanel()
+            }
+          })
+        })
+
         // User actions - use currentTarget to get the button, not the clicked element inside
         document.querySelectorAll('.admin-give-bucks').forEach(btn => {
           btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId) { await adminGiveWarBucks(userId, 100); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-give-all-items').forEach(btn => {
           btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId && confirm('Give ALL items?')) { await adminGiveAllItems(userId); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-reset-user').forEach(btn => {
           btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
-            if (userId && confirm('Reset user?')) { await adminResetUser(userId); renderAdminPanel() }
+            if (userId && confirm('Reset user stats?')) { await adminResetUser(userId); renderAdminPanel() }
+          })
+        })
+
+        // Custom War Bucks
+        document.querySelectorAll('.admin-custom-bucks-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
+            const input = document.querySelector(`.admin-custom-bucks-input[data-userid="${userId}"]`) as HTMLInputElement
+            const amount = parseInt(input?.value || '0')
+            if (userId && amount > 0) {
+              await adminGiveWarBucks(userId, amount)
+              input.value = ''
+              renderAdminPanel()
+            } else {
+              alert('Enter a valid amount')
+            }
+          })
+        })
+        document.querySelectorAll('.admin-take-bucks-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
+            const input = document.querySelector(`.admin-custom-bucks-input[data-userid="${userId}"]`) as HTMLInputElement
+            const amount = parseInt(input?.value || '0')
+            if (userId && amount > 0) {
+              await adminGiveWarBucks(userId, -amount)
+              input.value = ''
+              renderAdminPanel()
+            } else {
+              alert('Enter a valid amount')
+            }
+          })
+        })
+
+        // Give specific item
+        document.querySelectorAll('.admin-give-item-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
+            const select = document.querySelector(`.admin-item-select[data-userid="${userId}"]`) as HTMLSelectElement
+            const itemId = select?.value
+            if (userId && itemId) {
+              await adminGiveItem(userId, itemId)
+              select.value = ''
+              renderAdminPanel()
+            } else {
+              alert('Select an item')
+            }
+          })
+        })
+
+        // Reset items
+        document.querySelectorAll('.admin-reset-items').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
+            if (userId && confirm('Remove ALL items from this user?')) {
+              await adminUpdateUser(userId, { purchasedItems: [], equippedItems: { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null } })
+              renderAdminPanel()
+            }
+          })
+        })
+
+        // Reset bucks
+        document.querySelectorAll('.admin-reset-bucks').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const userId = (e.currentTarget as HTMLElement).dataset.userid
+            if (userId && confirm('Reset War Bucks to 0?')) {
+              await adminUpdateUser(userId, { warBucks: 0 })
+              renderAdminPanel()
+            }
           })
         })
         document.querySelectorAll('.admin-make-admin').forEach(btn => {
           btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId) { await adminSetAdmin(userId, true); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-remove-admin').forEach(btn => {
           btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId) { await adminSetAdmin(userId, false); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.admin-delete-user').forEach(btn => {
           btn.addEventListener('click', async (e) => {
+            e.stopPropagation()
             const button = e.currentTarget as HTMLElement
             const userId = button.dataset.userid
             const username = button.dataset.username
@@ -17348,14 +17534,14 @@ function render() {
         })
         document.querySelectorAll('.toggle-event-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const eventId = (e.target as HTMLElement).dataset.eventid
-            const isActive = (e.target as HTMLElement).dataset.active === 'true'
+            const eventId = (e.currentTarget as HTMLElement).dataset.eventid
+            const isActive = (e.currentTarget as HTMLElement).dataset.active === 'true'
             if (eventId) { await adminToggleEvent(eventId, !isActive); renderAdminPanel() }
           })
         })
         document.querySelectorAll('.delete-event-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
-            const eventId = (e.target as HTMLElement).dataset.eventid
+            const eventId = (e.currentTarget as HTMLElement).dataset.eventid
             if (eventId && confirm('Delete event?')) { await adminDeleteEvent(eventId); renderAdminPanel() }
           })
         })
