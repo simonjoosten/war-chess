@@ -5232,7 +5232,9 @@ function serializeGameState(): SerializedGameState {
   // Only add winner/winReason if they exist (Firebase doesn't accept undefined)
   if (winner) result.winner = winner
   if (winReason) result.winReason = winReason
-  return result
+
+  // Remove any undefined values recursively (Firebase doesn't accept them)
+  return JSON.parse(JSON.stringify(result))
 }
 
 // Deserialize game state from multiplayer sync
