@@ -5296,7 +5296,10 @@ function deserializeGameState(state: SerializedGameState) {
 
 // Sync game state to Firebase for multiplayer
 async function syncMultiplayerState() {
-  if (!multiplayerGameId || !multiplayerTeam) return
+  if (!multiplayerGameId || !multiplayerTeam) {
+    alert('Sync skipped: No game ID or team! gameId=' + multiplayerGameId + ' team=' + multiplayerTeam)
+    return
+  }
 
   const state = serializeGameState()
   // Pass who made the move (the team that just finished their turn)
@@ -5313,7 +5316,8 @@ async function syncMultiplayerState() {
   if (success) {
     message = '✅ Move synced! Waiting for opponent...'
   } else {
-    message = '❌ Sync failed! Try again.'
+    message = '❌ Sync failed!'
+    alert('SYNC FAILED - check console for details. GameId: ' + multiplayerGameId)
   }
   render()
 
