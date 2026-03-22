@@ -92,6 +92,7 @@ import {
   getDailyPuzzles,
   recordPuzzleAttempt,
   Puzzle,
+  adminCreatePuzzle,
   adminCreateSamplePuzzles,
   adminGetAllPuzzles,
   adminDeletePuzzle,
@@ -18966,7 +18967,7 @@ function render() {
       }
 
       // Admin panel state
-      let adminTab: 'users' | 'events' | 'puzzles' | 'system' = 'users'
+      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'system' = 'users'
       let adminSearchQuery = ''
       let showCreateEvent = false
       let expandedUserId: string | null = null
@@ -18999,6 +19000,9 @@ function render() {
               </button>
               <button id="tab-puzzles" class="${tabClass('puzzles')} font-bold py-2 px-4 rounded transition-colors">
                 🧩 Puzzles
+              </button>
+              <button id="tab-tournaments" class="${tabClass('tournaments')} font-bold py-2 px-4 rounded transition-colors">
+                🏆 Tournaments
               </button>
               <button id="tab-system" class="${tabClass('system')} font-bold py-2 px-4 rounded transition-colors">
                 🖥️ System
@@ -19232,12 +19236,106 @@ function render() {
                 <div class="bg-gray-800 p-4 rounded-lg">
                   <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-white">🧩 Puzzles</h2>
-                    <button id="create-sample-puzzles" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">
-                      🎮 Create Sample Puzzles
-                    </button>
+                    <div class="flex gap-2">
+                      <button id="create-sample-puzzles" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        🎮 Sample Puzzles
+                      </button>
+                      <button id="toggle-create-puzzle" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        + New Puzzle
+                      </button>
+                    </div>
                   </div>
+
+                  <div id="create-puzzle-form" class="hidden bg-gray-700 p-4 rounded-lg mb-4">
+                    <h3 class="text-white font-bold mb-3">Create New Puzzle</h3>
+                    <div class="grid gap-3">
+                      <input type="text" id="puzzle-name" placeholder="Puzzle name..." class="bg-gray-600 text-white px-3 py-2 rounded">
+                      <input type="text" id="puzzle-icon" placeholder="Icon (emoji)..." class="bg-gray-600 text-white px-3 py-2 rounded" value="🧩">
+                      <select id="puzzle-difficulty" class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <option value="easy">⭐ Easy (1 move)</option>
+                        <option value="medium">⭐⭐ Medium (2 moves)</option>
+                        <option value="hard">⭐⭐⭐ Hard (3 moves)</option>
+                      </select>
+                      <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
+                      <select id="puzzle-objective-type" class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <option value="capture">Capture piece</option>
+                        <option value="score">Reach score</option>
+                        <option value="survive">Survive turns</option>
+                      </select>
+                      <select id="puzzle-target-piece" class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <option value="soldier">Soldier</option>
+                        <option value="tank">Tank</option>
+                        <option value="ship">Ship</option>
+                        <option value="helicopter">Helicopter</option>
+                        <option value="builder">Builder</option>
+                        <option value="rocketLauncher">Rocket Launcher</option>
+                        <option value="hacker">Hacker</option>
+                      </select>
+                      <div class="flex gap-2">
+                        <input type="number" id="puzzle-warbucks" placeholder="War Bucks reward" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="50">
+                        <input type="number" id="puzzle-xp" placeholder="XP reward" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="25">
+                      </div>
+                      <p class="text-gray-400 text-sm">Note: Puzzles will use a simple preset board. For custom boards, use Sample Puzzles as templates.</p>
+                      <button id="create-puzzle-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded">Create Puzzle</button>
+                    </div>
+                  </div>
+
                   <div id="puzzles-list" class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
                     <div class="text-gray-400 text-center py-4">Loading puzzles...</div>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${adminTab === 'tournaments' ? `
+                <!-- Tournaments Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">🏆 Tournaments</h2>
+                    <button id="toggle-create-tournament" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded text-sm">
+                      + New Tournament
+                    </button>
+                  </div>
+
+                  <div id="create-tournament-form" class="hidden bg-gray-700 p-4 rounded-lg mb-4">
+                    <h3 class="text-white font-bold mb-3">Create New Tournament</h3>
+                    <div class="grid gap-3">
+                      <input type="text" id="tournament-name" placeholder="Tournament name..." class="bg-gray-600 text-white px-3 py-2 rounded">
+                      <input type="text" id="tournament-icon" placeholder="Icon (emoji)..." class="bg-gray-600 text-white px-3 py-2 rounded" value="🏆">
+                      <textarea id="tournament-description" placeholder="Description..." class="bg-gray-600 text-white px-3 py-2 rounded h-16"></textarea>
+                      <select id="tournament-max-players" class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <option value="4">4 Players</option>
+                        <option value="8" selected>8 Players</option>
+                        <option value="16">16 Players</option>
+                        <option value="32">32 Players</option>
+                      </select>
+                      <div class="flex gap-2">
+                        <label class="text-white flex items-center gap-2">
+                          <input type="checkbox" id="tournament-timer" checked>
+                          Timer enabled
+                        </label>
+                        <input type="number" id="tournament-timer-minutes" value="5" class="bg-gray-600 text-white px-2 py-1 rounded w-20">
+                        <span class="text-gray-300">min</span>
+                      </div>
+                      <div class="grid grid-cols-3 gap-2">
+                        <div>
+                          <label class="text-gray-300 text-sm">1st Prize 💰</label>
+                          <input type="number" id="tournament-prize-1" value="500" class="bg-gray-600 text-white px-2 py-1 rounded w-full">
+                        </div>
+                        <div>
+                          <label class="text-gray-300 text-sm">2nd Prize 💰</label>
+                          <input type="number" id="tournament-prize-2" value="250" class="bg-gray-600 text-white px-2 py-1 rounded w-full">
+                        </div>
+                        <div>
+                          <label class="text-gray-300 text-sm">3rd Prize 💰</label>
+                          <input type="number" id="tournament-prize-3" value="100" class="bg-gray-600 text-white px-2 py-1 rounded w-full">
+                        </div>
+                      </div>
+                      <button id="create-tournament-btn" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded">Create Tournament</button>
+                    </div>
+                  </div>
+
+                  <div id="tournaments-list" class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+                    <div class="text-gray-400 text-center py-4">Loading tournaments...</div>
                   </div>
                 </div>
               ` : ''}
@@ -19336,6 +19434,7 @@ function render() {
         document.getElementById('tab-users')?.addEventListener('click', () => { adminTab = 'users'; renderAdminPanel() })
         document.getElementById('tab-events')?.addEventListener('click', () => { adminTab = 'events'; renderAdminPanel() })
         document.getElementById('tab-puzzles')?.addEventListener('click', () => { adminTab = 'puzzles'; renderAdminPanel() })
+        document.getElementById('tab-tournaments')?.addEventListener('click', () => { adminTab = 'tournaments'; renderAdminPanel() })
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
@@ -19345,6 +19444,56 @@ function render() {
           const count = await adminCreateSamplePuzzles()
           alert(`Created ${count} sample puzzles!`)
           renderAdminPanel()
+        })
+
+        document.getElementById('toggle-create-puzzle')?.addEventListener('click', () => {
+          const form = document.getElementById('create-puzzle-form')
+          if (form) form.classList.toggle('hidden')
+        })
+
+        document.getElementById('create-puzzle-btn')?.addEventListener('click', async () => {
+          const name = (document.getElementById('puzzle-name') as HTMLInputElement)?.value
+          const icon = (document.getElementById('puzzle-icon') as HTMLInputElement)?.value || '🧩'
+          const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
+          const objective = (document.getElementById('puzzle-objective') as HTMLInputElement)?.value
+          const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive'
+          const targetPieceType = (document.getElementById('puzzle-target-piece') as HTMLSelectElement)?.value
+          const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
+          const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
+
+          if (!name || !objective) {
+            alert('Please fill in name and objective!')
+            return
+          }
+
+          const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
+
+          // Create a simple default board
+          const puzzleData = {
+            name,
+            icon,
+            difficulty,
+            maxMoves,
+            objective,
+            objectiveType,
+            targetPieceType,
+            initialBoard: [
+              { type: 'soldier', position: { row: 5, col: 4 }, team: 'blue' },
+              { type: targetPieceType, position: { row: 3, col: 4 }, team: 'red' },
+              { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
+              { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+            ],
+            aiMoves: [],
+            rewards: { warBucks, xp }
+          }
+
+          const id = await adminCreatePuzzle(puzzleData)
+          if (id) {
+            alert('Puzzle created!')
+            renderAdminPanel()
+          } else {
+            alert('Failed to create puzzle. Check console.')
+          }
         })
 
         // Load and display puzzles when on puzzles tab
@@ -19381,6 +19530,115 @@ function render() {
                     const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
                     if (puzzleId && confirm('Delete this puzzle?')) {
                       await adminDeletePuzzle(puzzleId)
+                      renderAdminPanel()
+                    }
+                  })
+                })
+              }
+            }
+          })
+        }
+
+        // Tournaments tab
+        document.getElementById('toggle-create-tournament')?.addEventListener('click', () => {
+          const form = document.getElementById('create-tournament-form')
+          if (form) form.classList.toggle('hidden')
+        })
+
+        document.getElementById('create-tournament-btn')?.addEventListener('click', async () => {
+          const name = (document.getElementById('tournament-name') as HTMLInputElement)?.value
+          const icon = (document.getElementById('tournament-icon') as HTMLInputElement)?.value || '🏆'
+          const description = (document.getElementById('tournament-description') as HTMLTextAreaElement)?.value
+          const maxPlayers = parseInt((document.getElementById('tournament-max-players') as HTMLSelectElement)?.value) as 4 | 8 | 16 | 32
+          const timerEnabled = (document.getElementById('tournament-timer') as HTMLInputElement)?.checked
+          const timerMinutes = parseInt((document.getElementById('tournament-timer-minutes') as HTMLInputElement)?.value) || 5
+          const prize1 = parseInt((document.getElementById('tournament-prize-1') as HTMLInputElement)?.value) || 500
+          const prize2 = parseInt((document.getElementById('tournament-prize-2') as HTMLInputElement)?.value) || 250
+          const prize3 = parseInt((document.getElementById('tournament-prize-3') as HTMLInputElement)?.value) || 100
+
+          if (!name) {
+            alert('Please enter a tournament name!')
+            return
+          }
+
+          const tournamentData = {
+            name,
+            icon,
+            description: description || 'Tournament',
+            maxPlayers,
+            startTime: Date.now() + 24 * 60 * 60 * 1000, // Default: starts in 24 hours
+            timerEnabled,
+            timerMinutes,
+            prizes: {
+              first: { warBucks: prize1 },
+              second: { warBucks: prize2 },
+              third: { warBucks: prize3 }
+            }
+          }
+
+          const id = await adminCreateTournament(tournamentData)
+          if (id) {
+            alert('Tournament created!')
+            renderAdminPanel()
+          } else {
+            alert('Failed to create tournament. Check console.')
+          }
+        })
+
+        // Load and display tournaments when on tournaments tab
+        if (adminTab === 'tournaments') {
+          getAllTournaments().then(tournaments => {
+            const tournamentsList = document.getElementById('tournaments-list')
+            if (tournamentsList) {
+              if (tournaments.length === 0) {
+                tournamentsList.innerHTML = `<div class="text-gray-400 text-center py-4">No tournaments yet. Create one!</div>`
+              } else {
+                tournamentsList.innerHTML = tournaments.map(tournament => `
+                  <div class="bg-gray-700 p-3 rounded-lg">
+                    <div class="flex justify-between items-start">
+                      <div class="flex items-center gap-3">
+                        <span class="text-2xl">${tournament.icon || '🏆'}</span>
+                        <div>
+                          <h3 class="text-white font-bold">${tournament.name}</h3>
+                          <p class="text-gray-400 text-sm">${tournament.description}</p>
+                          <div class="flex gap-2 mt-1">
+                            <span class="bg-${tournament.status === 'registration' ? 'green' : tournament.status === 'in_progress' ? 'blue' : 'gray'}-600 text-white text-xs px-2 py-1 rounded">${tournament.status}</span>
+                            <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">${tournament.currentPlayers}/${tournament.maxPlayers} players</span>
+                            <span class="text-yellow-400 text-xs">🏆 ${tournament.prizes.first.warBucks}💰</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex gap-2">
+                        ${tournament.status === 'registration' && tournament.currentPlayers >= 2 ? `
+                          <button class="admin-start-tournament bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm" data-tournamentid="${tournament.id}">
+                            ▶️ Start
+                          </button>
+                        ` : ''}
+                        <button class="admin-delete-tournament bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-tournamentid="${tournament.id}">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')
+
+                // Add start tournament listeners
+                document.querySelectorAll('.admin-start-tournament').forEach(btn => {
+                  btn.addEventListener('click', async (e) => {
+                    const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+                    if (tournamentId && confirm('Start this tournament?')) {
+                      await adminStartTournament(tournamentId)
+                      renderAdminPanel()
+                    }
+                  })
+                })
+
+                // Add delete tournament listeners
+                document.querySelectorAll('.admin-delete-tournament').forEach(btn => {
+                  btn.addEventListener('click', async (e) => {
+                    const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+                    if (tournamentId && confirm('Delete this tournament?')) {
+                      await adminDeleteTournament(tournamentId)
                       renderAdminPanel()
                     }
                   })
@@ -20052,6 +20310,14 @@ function render() {
           <button id="multiplayer-btn" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
             🌐 ${t('multiplayerButton')}
           </button>
+          <div class="flex gap-2">
+            <button id="puzzles-menu-btn" class="bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
+              🧩 Puzzles
+            </button>
+            <button id="tournaments-menu-btn" class="bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
+              🏆 Tournaments
+            </button>
+          </div>
           ` : ''}
           <button id="settings-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
             ⚙️ ${t('settingsButton')}
@@ -20095,6 +20361,14 @@ function render() {
     })
     document.getElementById('multiplayer-btn')?.addEventListener('click', () => {
       showAuthScreen = 'multiplayer'
+      render()
+    })
+    document.getElementById('puzzles-menu-btn')?.addEventListener('click', () => {
+      showAuthScreen = 'puzzles'
+      render()
+    })
+    document.getElementById('tournaments-menu-btn')?.addEventListener('click', () => {
+      showAuthScreen = 'tournaments'
       render()
     })
     document.getElementById('login-start-btn')?.addEventListener('click', () => {
