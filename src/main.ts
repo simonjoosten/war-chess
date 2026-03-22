@@ -3477,56 +3477,151 @@ function startRockMusic() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// JAZZ MUSIC - Smooth piano, walking bass, brushed drums
+// JAZZ MUSIC - Saxophone, trumpet, piano, walking bass, brushed drums
 // ═══════════════════════════════════════════════════════════════════════════
 function startJazzMusic() {
   if (!audioContext || !musicGainNode) return
 
-  // Jazz scale (Dorian mode for that jazzy feel)
+  // Full chromatic scale for jazz
   const notes: Record<string, number> = {
-    C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54,
-    C3: 130.81, D3: 146.83, Eb3: 155.56, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08,
-    C4: 261.63, D4: 293.66, Eb4: 311.13, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16,
-    C5: 523.25, D5: 587.33, Eb5: 622.25
+    C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, Bb2: 116.54, B2: 123.47,
+    C3: 130.81, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, Bb3: 233.08, B3: 246.94,
+    C4: 261.63, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16, B4: 493.88,
+    C5: 523.25, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46, G5: 783.99
+  }
+
+  // Saxophone sound - warm, breathy tone with vibrato
+  function playSaxophone(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    // Main tone with harmonics (sawtooth-like but warmer)
+    for (let h = 1; h <= 6; h++) {
+      const osc = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+      const vibrato = audioContext.createOscillator()
+      const vibratoGain = audioContext.createGain()
+
+      osc.type = h <= 2 ? 'sawtooth' : 'sine'
+      osc.frequency.value = freq * h
+
+      // Warm vibrato
+      vibrato.type = 'sine'
+      vibrato.frequency.value = 5 + Math.random() * 0.5
+      vibratoGain.gain.value = freq * 0.015
+
+      vibrato.connect(vibratoGain)
+      vibratoGain.connect(osc.frequency)
+
+      // Saxophone formant filter
+      filter.type = 'bandpass'
+      filter.frequency.value = 1200 + h * 200
+      filter.Q.value = 2
+
+      const vol = 0.04 / (h * 1.2)
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.08)
+      gain.gain.setValueAtTime(vol * 0.9, startTime + duration * 0.7)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      vibrato.start(startTime)
+      osc.start(startTime)
+      vibrato.stop(startTime + duration + 0.1)
+      osc.stop(startTime + duration + 0.1)
+    }
+
+    // Breath noise for realism
+    const breath = audioContext.createBufferSource()
+    const breathGain = audioContext.createGain()
+    const breathFilter = audioContext.createBiquadFilter()
+    breath.buffer = createNoiseBuffer(duration)
+    breathFilter.type = 'bandpass'
+    breathFilter.frequency.value = 2000
+    breathFilter.Q.value = 1
+    breathGain.gain.setValueAtTime(0.008, startTime)
+    breathGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+    breath.connect(breathFilter)
+    breathFilter.connect(breathGain)
+    breathGain.connect(musicGainNode!)
+    breath.start(startTime)
+    breath.stop(startTime + duration)
+  }
+
+  // Trumpet sound - bright, brassy with punch
+  function playTrumpet(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    // Brass harmonics - lots of odd harmonics
+    for (let h = 1; h <= 8; h++) {
+      const osc = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+      const vibrato = audioContext.createOscillator()
+      const vibratoGain = audioContext.createGain()
+
+      osc.type = 'sawtooth'
+      osc.frequency.value = freq * h
+
+      // Slower, wider vibrato for trumpet
+      vibrato.type = 'sine'
+      vibrato.frequency.value = 4
+      vibratoGain.gain.value = freq * 0.01
+
+      vibrato.connect(vibratoGain)
+      vibratoGain.connect(osc.frequency)
+
+      // Bright brass filter
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(800, startTime)
+      filter.frequency.linearRampToValueAtTime(3000, startTime + 0.05)
+      filter.Q.value = 1
+
+      const vol = (h % 2 === 1 ? 0.035 : 0.02) / h
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.03)
+      gain.gain.setValueAtTime(vol * 0.85, startTime + duration * 0.6)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      vibrato.start(startTime)
+      osc.start(startTime)
+      vibrato.stop(startTime + duration + 0.1)
+      osc.stop(startTime + duration + 0.1)
+    }
   }
 
   // Rhodes-style electric piano
   function playPiano(freq: number, startTime: number, duration: number, velocity: number = 0.8) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
-    // Rhodes uses sine waves with bell-like harmonics
     const harmonics = [1, 2, 3, 4, 6]
     const gains = [1, 0.5, 0.3, 0.15, 0.08]
 
     harmonics.forEach((h, i) => {
       const osc = audioContext!.createOscillator()
       const gain = audioContext!.createGain()
-      const trem = audioContext!.createOscillator()
-      const tremGain = audioContext!.createGain()
 
       osc.type = 'sine'
       osc.frequency.value = freq * h
 
-      // Subtle tremolo for Rhodes character
-      trem.type = 'sine'
-      trem.frequency.value = 5
-      tremGain.gain.value = 0.1
-
-      const vol = gains[i] * velocity * 0.03
+      const vol = gains[i] * velocity * 0.025
       gain.gain.setValueAtTime(0.001, startTime)
       gain.gain.linearRampToValueAtTime(vol, startTime + 0.005)
       gain.gain.exponentialRampToValueAtTime(vol * 0.6, startTime + 0.1)
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-      trem.connect(tremGain)
-      tremGain.connect(gain.gain)
       osc.connect(gain)
       gain.connect(musicGainNode!)
 
       osc.start(startTime)
-      trem.start(startTime)
       osc.stop(startTime + duration + 0.1)
-      trem.stop(startTime + duration + 0.1)
     })
   }
 
@@ -3545,7 +3640,7 @@ function startJazzMusic() {
     filter.frequency.value = 500
 
     gain.gain.setValueAtTime(0.001, startTime)
-    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02)
+    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02)
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.9)
 
     osc.connect(filter)
@@ -3556,68 +3651,73 @@ function startJazzMusic() {
     osc.stop(startTime + 1)
   }
 
-  // Brushed drums (soft swishing)
+  // Brushed drums
   function playBrushes() {
     if (!audioContext || !musicEnabled || !musicGainNode) return
     const now = audioContext.currentTime
 
-    // Soft brush swishes
-    for (let i = 0; i < 4; i++) {
-      const brush = audioContext.createBufferSource()
-      const brushGain = audioContext.createGain()
-      const brushFilter = audioContext.createBiquadFilter()
+    // Soft brush swishes on 2 and 4
+    ;[1, 3].forEach(beat => {
+      const brush = audioContext!.createBufferSource()
+      const brushGain = audioContext!.createGain()
+      const brushFilter = audioContext!.createBiquadFilter()
 
       brush.buffer = createNoiseBuffer(0.3)
       brushFilter.type = 'bandpass'
       brushFilter.frequency.value = 3000
       brushFilter.Q.value = 0.5
 
-      brushGain.gain.setValueAtTime(0.001, now + i)
-      brushGain.gain.linearRampToValueAtTime(0.04, now + i + 0.1)
-      brushGain.gain.exponentialRampToValueAtTime(0.001, now + i + 0.8)
+      brushGain.gain.setValueAtTime(0.001, now + beat)
+      brushGain.gain.linearRampToValueAtTime(0.05, now + beat + 0.1)
+      brushGain.gain.exponentialRampToValueAtTime(0.001, now + beat + 0.6)
 
       brush.connect(brushFilter)
       brushFilter.connect(brushGain)
       brushGain.connect(musicGainNode!)
 
-      brush.start(now + i)
-      brush.stop(now + i + 1)
-    }
+      brush.start(now + beat)
+      brush.stop(now + beat + 1)
+    })
 
-    // Soft hi-hat
-    for (let i = 0; i < 8; i++) {
-      const hihat = audioContext.createBufferSource()
-      const hihatGain = audioContext.createGain()
-      const hihatFilter = audioContext.createBiquadFilter()
+    // Ride cymbal pattern
+    for (let i = 0; i < 4; i++) {
+      const ride = audioContext.createOscillator()
+      const rideGain = audioContext.createGain()
 
-      hihat.buffer = createNoiseBuffer(0.03)
-      hihatFilter.type = 'highpass'
-      hihatFilter.frequency.value = 10000
+      ride.type = 'triangle'
+      ride.frequency.value = 400
 
-      hihatGain.gain.setValueAtTime(0.02, now + i * 0.5 + 0.25)
-      hihatGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.5 + 0.35)
+      rideGain.gain.setValueAtTime(0.02, now + i + 0.5)
+      rideGain.gain.exponentialRampToValueAtTime(0.001, now + i + 0.9)
 
-      hihat.connect(hihatFilter)
-      hihatFilter.connect(hihatGain)
-      hihatGain.connect(musicGainNode!)
+      ride.connect(rideGain)
+      rideGain.connect(musicGainNode!)
 
-      hihat.start(now + i * 0.5 + 0.25)
-      hihat.stop(now + i * 0.5 + 0.4)
+      ride.start(now + i + 0.5)
+      ride.stop(now + i + 1)
     }
   }
 
-  // Jazz chord progressions (ii-V-I and variations)
+  // Jazz chord progressions (ii-V-I) - using correct notes
   const chordProgressions = [
     // Dm7 - G7 - Cmaj7 - Cmaj7
-    [['D3', 'F3', 'A3', 'C4'], ['G2', 'B2', 'D3', 'F3'], ['C3', 'E3', 'G3', 'B3'], ['C3', 'E3', 'G3', 'B3']],
+    [['D3', 'F3', 'A3', 'C4'], ['G3', 'B3', 'D4', 'F4'], ['C3', 'E3', 'G3', 'B3'], ['C3', 'E3', 'G3', 'B3']],
     // Am7 - D7 - Gmaj7 - Gmaj7
-    [['A2', 'C3', 'E3', 'G3'], ['D3', 'F3', 'A3', 'C4'], ['G2', 'B2', 'D3', 'F3'], ['G2', 'B2', 'D3', 'F3']],
+    [['A3', 'C4', 'E4', 'G4'], ['D3', 'F3', 'A3', 'C4'], ['G3', 'B3', 'D4', 'F4'], ['G3', 'B3', 'D4', 'F4']],
   ]
 
   // Walking bass lines
   const bassLines = [
     ['C2', 'E2', 'G2', 'A2', 'G2', 'F2', 'E2', 'D2'],
     ['A2', 'C3', 'D3', 'E3', 'D3', 'C3', 'Bb2', 'A2'],
+  ]
+
+  // Saxophone/trumpet melody phrases
+  const melodyPhrases = [
+    ['G4', 'A4', 'B4', 'C5', 'D5', 'C5', 'B4', 'G4'],
+    ['E4', 'G4', 'A4', 'C5', 'B4', 'A4', 'G4', 'E4'],
+    ['C5', 'D5', 'E5', 'D5', 'C5', 'A4', 'G4', 'F4'],
+    ['A4', 'B4', 'C5', 'E5', 'D5', 'C5', 'B4', 'A4'],
   ]
 
   let currentProgression = 0
@@ -3628,19 +3728,38 @@ function startJazzMusic() {
 
     const progression = chordProgressions[currentProgression % chordProgressions.length]
     const bassLine = bassLines[currentProgression % bassLines.length]
+    const melody = melodyPhrases[measureCount % melodyPhrases.length]
 
-    // Play chords (comping style - not on every beat)
+    // Play chords (comping style)
     progression.forEach((chord, i) => {
-      if (i === 0 || i === 2 || Math.random() > 0.5) {
+      if (i === 0 || i === 2) {
         chord.forEach((note, j) => {
-          playPiano(notes[note], now + i + j * 0.02, 0.8, 0.6 + Math.random() * 0.3)
+          if (notes[note]) {
+            playPiano(notes[note], now + i + j * 0.02, 0.8, 0.5)
+          }
         })
       }
     })
 
     // Walking bass
     bassLine.forEach((note, i) => {
-      playBass(notes[note], now + i * 0.5)
+      if (notes[note]) {
+        playBass(notes[note], now + i * 0.5)
+      }
+    })
+
+    // Saxophone or trumpet melody (alternate)
+    const useTrumpet = measureCount % 4 < 2
+    melody.forEach((note, i) => {
+      if (notes[note]) {
+        const timing = now + 0.25 + i * 0.45
+        const duration = 0.4
+        if (useTrumpet) {
+          playTrumpet(notes[note], timing, duration)
+        } else {
+          playSaxophone(notes[note], timing, duration)
+        }
+      }
     })
 
     // Brushes
@@ -17939,7 +18058,7 @@ function render() {
                         const ownedItems = user.purchasedItems?.length || 0
                         const stats = user.stats || { gamesPlayed: 0, gamesWon: 0, piecesEliminated: 0 }
                         return `
-                        <div class="bg-gray-700 rounded-lg overflow-hidden">
+                        <div class="bg-gray-700 rounded-lg">
                           <div class="p-3 flex flex-col sm:flex-row sm:items-center gap-2 cursor-pointer admin-user-expand" data-userid="${user.odataId}">
                             <div class="flex-1">
                               <div class="flex items-center gap-2">
