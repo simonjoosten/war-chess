@@ -7675,23 +7675,115 @@ async function startMultiplayerGame() {
       lastSeenMoveCount = game.moveCount || 0
       console.log('[MP LISTEN] Applying opponent move, new lastSeenMoveCount:', lastSeenMoveCount)
 
-      // Show receiving indicator
-      message = '📥 Receiving opponent move...'
-      render()
-
-      // Opponent made a move, apply the new state
+      // Get the last move from the new state's move log
       const state = game.gameState as SerializedGameState
-      deserializeGameState(state)
+      const newMoveLog = state.moveLog || []
+      const lastMove = newMoveLog[newMoveLog.length - 1]
 
-      // Play a sound to indicate opponent moved
-      playSound('move')
+      if (lastMove && lastMove.from && lastMove.to && lastMove.from !== lastMove.to) {
+        // Parse from/to positions
+        const fromCol = lastMove.from[0]
+        const fromRow = parseInt(lastMove.from.slice(1))
+        const toCol = lastMove.to[0]
+        const toRow = parseInt(lastMove.to.slice(1))
 
-      // Update message
-      message = multiplayerTeam === 'yellow'
-        ? `✅ ${t('youAreYellow')} - ${t('yourTurn')}`
-        : `✅ ${t('youAreGreen')} - ${t('yourTurn')}`
+        // Show receiving indicator
+        message = '📥 Opponent moving...'
+        render()
 
-      render()
+        // Find the piece type and team from the move
+        const movingPieceType = lastMove.piece
+        const movingTeam = lastMove.team
+
+        // Create a temporary piece for animation at the FROM position
+        const tempAnimPiece: Piece = {
+          type: movingPieceType as PieceType,
+          team: movingTeam as Team,
+          col: fromCol,
+          row: fromRow,
+          points: 0
+        }
+
+        // Start opponent move animation
+        moveAnimation = {
+          piece: tempAnimPiece,
+          fromCol: fromCol,
+          fromRow: fromRow,
+          toCol: toCol,
+          toRow: toRow,
+          progress: 0
+        }
+
+        // Play appropriate sound for the piece type
+        if (lastMove.captured) {
+          playSound('capture')
+        } else {
+          switch (movingPieceType) {
+            case 'soldier': playSound('walk'); break
+            case 'tank': case 'suv': playSound('engine'); break
+            case 'train': playSound('train'); break
+            case 'ship': case 'sub': case 'carrier': playSound('boat'); break
+            case 'helicopter': playSound('helicopter'); break
+            case 'hacker': playSound('hack'); break
+            default: playSound('move')
+          }
+        }
+
+        // Show explosion if there was a capture
+        if (lastMove.captured) {
+          explosionAt = { col: toCol, row: toRow }
+          spawnEffectParticles(
+            30 + columns.indexOf(toCol) * 50 + 25,
+            (11 - toRow) * 50 + 25,
+            20
+          )
+        }
+
+        render()
+
+        // Animate the move
+        const startTime = Date.now()
+        const moveDuration = 300 * getSpeedMultiplier()
+
+        function animateOpponentMove() {
+          const elapsed = Date.now() - startTime
+          const progress = Math.min(elapsed / moveDuration, 1)
+
+          if (moveAnimation) {
+            moveAnimation.progress = progress
+          }
+
+          render()
+
+          if (progress < 1) {
+            requestAnimationFrame(animateOpponentMove)
+          } else {
+            // Animation complete - apply the actual state
+            moveAnimation = null
+            explosionAt = null
+            deserializeGameState(state)
+
+            // Update message
+            message = multiplayerTeam === 'yellow'
+              ? `✅ ${t('youAreYellow')} - ${t('yourTurn')}`
+              : `✅ ${t('youAreGreen')} - ${t('yourTurn')}`
+
+            render()
+          }
+        }
+
+        requestAnimationFrame(animateOpponentMove)
+      } else {
+        // No animation needed (same position or special move)
+        deserializeGameState(state)
+        playSound('move')
+
+        message = multiplayerTeam === 'yellow'
+          ? `✅ ${t('youAreYellow')} - ${t('yourTurn')}`
+          : `✅ ${t('youAreGreen')} - ${t('yourTurn')}`
+
+        render()
+      }
     } else if (!opponentMoved && !isNewMove && game.gameState) {
       // This is our own move echoing back, or an old move
       console.log('[MP LISTEN] Ignoring: own move or old move')
