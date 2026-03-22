@@ -1015,6 +1015,169 @@ function renderEffectParticles(): string {
   }).join('')
 }
 
+// Theme ambient effects state
+let themeParticles: { x: number; y: number; vx: number; vy: number; size: number; life: number; type: string }[] = []
+let lastThemeUpdate = 0
+
+// Render theme-specific ambient effects around board edges
+function renderThemeAmbientEffects(totalWidth: number, totalHeight: number): string {
+  if (!equippedTheme) return ''
+
+  const now = Date.now()
+  const delta = (now - lastThemeUpdate) / 1000
+  lastThemeUpdate = now
+
+  // Get theme type from equipped theme
+  const themeId = equippedTheme
+
+  // Spawn new particles if needed
+  const maxParticles = 30
+  if (themeParticles.length < maxParticles && Math.random() > 0.7) {
+    spawnThemeParticle(totalWidth, totalHeight, themeId)
+  }
+
+  // Update particles
+  themeParticles = themeParticles.filter(p => {
+    p.x += p.vx * delta * 60
+    p.y += p.vy * delta * 60
+    p.life -= delta * 0.3
+
+    // Wrap around edges
+    if (p.x < -20) p.x = totalWidth + 10
+    if (p.x > totalWidth + 20) p.x = -10
+    if (p.y < -20) p.y = totalHeight + 10
+    if (p.y > totalHeight + 20) p.y = -10
+
+    return p.life > 0
+  })
+
+  // Render particles
+  return themeParticles.map(p => {
+    const opacity = Math.min(1, p.life)
+
+    switch (p.type) {
+      case 'sand':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size}" fill="#d4a574" opacity="${opacity * 0.6}" class="pointer-events-none" />`
+      case 'snow':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size}" fill="#ffffff" opacity="${opacity * 0.8}" class="pointer-events-none" />`
+      case 'leaf':
+        return `<ellipse cx="${p.x}" cy="${p.y}" rx="${p.size}" ry="${p.size * 0.5}" fill="#228b22" opacity="${opacity * 0.7}" transform="rotate(${p.life * 360}, ${p.x}, ${p.y})" class="pointer-events-none" />`
+      case 'star':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size * 0.5}" fill="#ffffff" opacity="${opacity * (0.5 + Math.sin(now / 200 + p.x) * 0.3)}" class="pointer-events-none" />`
+      case 'bubble':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size}" fill="none" stroke="#4fc3f7" stroke-width="1" opacity="${opacity * 0.5}" class="pointer-events-none" />`
+      case 'ember':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size}" fill="${Math.random() > 0.5 ? '#ff5722' : '#ff9800'}" opacity="${opacity * 0.8}" class="pointer-events-none" />`
+      case 'sparkle':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size * (0.5 + Math.sin(now / 100 + p.y) * 0.5)}" fill="#ff69b4" opacity="${opacity}" class="pointer-events-none" />`
+      case 'firefly':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size * (0.5 + Math.sin(now / 150 + p.x * p.y) * 0.5)}" fill="#90ee90" opacity="${opacity * 0.9}" class="pointer-events-none" />`
+      case 'ray':
+        return `<line x1="${p.x}" y1="${p.y}" x2="${p.x + p.vx * 50}" y2="${p.y + p.vy * 50}" stroke="#ff6347" stroke-width="${p.size * 0.5}" opacity="${opacity * 0.3}" class="pointer-events-none" />`
+      case 'neon':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size * (1 + Math.sin(now / 100) * 0.3)}" fill="${['#ff00ff', '#00ffff', '#ffff00'][Math.floor(p.x + p.y) % 3]}" opacity="${opacity * 0.7}" class="pointer-events-none" />`
+      case 'gear':
+        return `<circle cx="${p.x}" cy="${p.y}" r="${p.size}" fill="none" stroke="#d4af37" stroke-width="2" opacity="${opacity * 0.5}" stroke-dasharray="2 2" transform="rotate(${now / 20 + p.x}, ${p.x}, ${p.y})" class="pointer-events-none" />`
+      case 'autumn':
+        return `<ellipse cx="${p.x}" cy="${p.y}" rx="${p.size}" ry="${p.size * 0.6}" fill="${['#daa520', '#cd853f', '#8b4513'][Math.floor(p.x) % 3]}" opacity="${opacity * 0.7}" transform="rotate(${p.life * 180}, ${p.x}, ${p.y})" class="pointer-events-none" />`
+      default:
+        return ''
+    }
+  }).join('')
+}
+
+// Spawn theme-specific particle
+function spawnThemeParticle(totalWidth: number, totalHeight: number, themeId: string) {
+  const edge = Math.floor(Math.random() * 4) // 0=top, 1=right, 2=bottom, 3=left
+  let x = 0, y = 0, vx = 0, vy = 0
+  let type = 'sparkle'
+  let size = 2 + Math.random() * 4
+
+  // Position at random edge
+  switch (edge) {
+    case 0: x = Math.random() * totalWidth; y = -10; break
+    case 1: x = totalWidth + 10; y = Math.random() * totalHeight; break
+    case 2: x = Math.random() * totalWidth; y = totalHeight + 10; break
+    case 3: x = -10; y = Math.random() * totalHeight; break
+  }
+
+  // Theme-specific particle types and movement
+  switch (themeId) {
+    case 'theme_desert':
+      type = 'sand'
+      vx = 1 + Math.random()
+      vy = 0.2 + Math.random() * 0.3
+      break
+    case 'theme_arctic':
+    case 'theme_winter':
+      type = 'snow'
+      vx = Math.random() * 0.5 - 0.25
+      vy = 0.5 + Math.random() * 0.5
+      size = 2 + Math.random() * 3
+      break
+    case 'theme_jungle':
+    case 'theme_forest':
+      type = themeId === 'theme_forest' ? 'firefly' : 'leaf'
+      vx = Math.random() * 0.5 - 0.25
+      vy = 0.3 + Math.random() * 0.3
+      break
+    case 'theme_night':
+    case 'theme_space':
+      type = 'star'
+      vx = 0
+      vy = 0
+      x = Math.random() * totalWidth
+      y = Math.random() * totalHeight
+      size = 1 + Math.random() * 2
+      break
+    case 'theme_ocean':
+    case 'theme_underwater':
+      type = 'bubble'
+      vx = Math.random() * 0.3 - 0.15
+      vy = -0.3 - Math.random() * 0.3
+      break
+    case 'theme_lava':
+      type = 'ember'
+      vx = Math.random() * 0.6 - 0.3
+      vy = -0.5 - Math.random() * 0.5
+      break
+    case 'theme_candy':
+      type = 'sparkle'
+      vx = Math.random() - 0.5
+      vy = Math.random() - 0.5
+      break
+    case 'theme_sunset':
+      type = 'ray'
+      vx = 0.5
+      vy = 0.3
+      x = 0
+      y = Math.random() * totalHeight * 0.5
+      break
+    case 'theme_neon':
+      type = 'neon'
+      vx = Math.random() - 0.5
+      vy = Math.random() - 0.5
+      break
+    case 'theme_steampunk':
+      type = 'gear'
+      vx = 0
+      vy = 0
+      x = 10 + Math.random() * 30
+      y = 10 + Math.random() * 30
+      size = 5 + Math.random() * 10
+      break
+    case 'theme_autumn':
+      type = 'autumn'
+      vx = 0.3 + Math.random() * 0.3
+      vy = 0.4 + Math.random() * 0.3
+      break
+    default:
+      return // No effect for unknown themes
+  }
+
+  themeParticles.push({ x, y, vx, vy, size, life: 1 + Math.random() * 2, type })
+}
+
 // Serialized piece type for multiplayer sync (no circular references)
 interface SerializedPiece {
   type: PieceType
@@ -16447,6 +16610,9 @@ function createBoard(): string {
 
   // Render equipped cosmetic effect particles
   svg += renderEffectParticles()
+
+  // Render theme-specific ambient effects around the board edges
+  svg += renderThemeAmbientEffects(totalWidth, totalHeight)
 
   svg += '</svg>'
   return svg

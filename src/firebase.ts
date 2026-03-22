@@ -1790,6 +1790,7 @@ export async function adminCreateSampleEvents(): Promise<number> {
 }
 
 // Delete a user account completely
+// Returns true even if user doesn't exist (so phantom accounts can be removed from UI)
 export async function adminDeleteUser(userId: string): Promise<boolean> {
   if (!db || !isCurrentUserAdmin()) return false
 
@@ -1804,10 +1805,11 @@ export async function adminDeleteUser(userId: string): Promise<boolean> {
       } catch (e) {
         console.log('Could not delete username mapping')
       }
+      // Delete the user document
+      await deleteDoc(doc(db, 'users', userId))
     }
-
-    // Delete the user document
-    await deleteDoc(doc(db, 'users', userId))
+    // If user doesn't exist, that's fine - it was already deleted
+    // We still return true so the UI can remove the phantom entry
 
     // Also remove from online collection if present
     try {
@@ -1819,6 +1821,16 @@ export async function adminDeleteUser(userId: string): Promise<boolean> {
     return true
   } catch (error) {
     console.error('Error deleting user:', error)
+    // Even if there's an error, if the user doesn't exist we should return true
+    // to allow removing phantom entries from the UI
+    try {
+      const checkDoc = await getDoc(doc(db, 'users', userId))
+      if (!checkDoc.exists()) {
+        return true // User doesn't exist, so "deletion" succeeded
+      }
+    } catch (e) {
+      // Can't verify, assume deletion failed
+    }
     return false
   }
 }
