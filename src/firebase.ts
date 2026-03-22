@@ -1009,14 +1009,11 @@ export async function updateGameState(gameId: string, gameState: unknown, curren
 
     if (!gameDoc.exists()) {
       console.error('[FB UPDATE] Game document does not exist:', gameId)
-      alert('Game not found: ' + gameId)
       return false
     }
 
     const currentMoveCount = gameDoc.data().moveCount || 0
     const newMoveCount = currentMoveCount + 1
-
-    console.log('[FB UPDATE] Updating game:', { gameId, currentTurn, lastMoveBy, moveCount: newMoveCount })
 
     await updateDoc(doc(db, 'games', gameId), {
       gameState,
@@ -1025,12 +1022,9 @@ export async function updateGameState(gameId: string, gameState: unknown, curren
       moveCount: newMoveCount,
       lastMove: serverTimestamp()
     })
-    console.log('[FB UPDATE] Update successful')
     return true
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    console.error('[FB UPDATE] Error updating game:', errorMessage)
-    alert('Sync error: ' + errorMessage)
+  } catch (error) {
+    console.error('[FB UPDATE] Error updating game:', error)
     return false
   }
 }
