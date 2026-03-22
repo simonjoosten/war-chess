@@ -1049,6 +1049,14 @@ interface SerializedGameState {
   gameState: string
   winner?: Team
   winReason?: string
+  moveLog?: Array<{
+    from: string
+    to: string
+    piece?: string
+    team?: Team
+    captured?: string
+    capturedPoints?: number
+  }>
 }
 
 // Language settings
@@ -5227,7 +5235,8 @@ function serializeGameState(): SerializedGameState {
     currentTurn,
     yellowTurnCount,
     greenTurnCount,
-    gameState
+    gameState,
+    moveLog: moveLog
   }
   // Only add winner/winReason if they exist (Firebase doesn't accept undefined)
   if (winner) result.winner = winner
@@ -5290,6 +5299,12 @@ function deserializeGameState(state: SerializedGameState) {
   gameState = state.gameState as GameState
   winner = state.winner || null
   winReason = (state.winReason as 'points' | 'builder') || null
+
+  // Restore move log
+  if (state.moveLog) {
+    moveLog.length = 0
+    state.moveLog.forEach(m => moveLog.push(m as Move))
+  }
 
   // Update multiplayer turn tracking
   if (multiplayerTeam) {
