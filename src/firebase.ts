@@ -2434,3 +2434,572 @@ export async function adminGetChatLogs(gameId: string): Promise<GameChatMessage[
     return []
   }
 }
+
+// ==================== TOURNAMENT SYSTEM ====================
+
+// Tournament status
+export type TournamentStatus = 'registration' | 'starting' | 'in_progress' | 'finished' | 'cancelled'
+
+// Tournament match
+export interface TournamentMatch {
+  id: string
+  tournamentId: string
+  round: number  // 1 = finals, 2 = semi-finals, etc.
+  matchNumber: number  // Position in round
+  player1Id: string | null
+  player1Username: string | null
+  player2Id: string | null
+  player2Username: string | null
+  winnerId: string | null
+  winnerUsername: string | null
+  gameId: string | null  // Link to multiplayer game
+  status: 'pending' | 'ready' | 'playing' | 'finished' | 'bye'
+  scheduledTime?: number
+}
+
+// Tournament interface
+export interface Tournament {
+  id: string
+  name: string
+  description: string
+  icon: string
+  createdBy: string
+  createdAt: number
+  startTime: number  // When registration closes and tournament starts
+  status: TournamentStatus
+  maxPlayers: 4 | 8 | 16 | 32  // Power of 2 for bracket
+  currentPlayers: number
+  registeredPlayers: Array<{ odataId: string; odataUsername: string; registeredAt: number }>
+  // Prizes
+  prizes: {
+    first: { warBucks: number; itemId?: string }
+    second: { warBucks: number; itemId?: string }
+    third: { warBucks: number; itemId?: string }
+  }
+  // Settings
+  timerEnabled: boolean
+  timerMinutes: number
+  // Results
+  winnerId?: string
+  winnerUsername?: string
+  secondPlaceId?: string
+  secondPlaceUsername?: string
+  thirdPlaceId?: string
+  thirdPlaceUsername?: string
+}
+
+// Tournament listener
+let tournamentUnsubscribe: (() => void) | null = null
+let tournamentCallback: ((tournament: Tournament | null) => void) | null = null
+
+// Get all active tournaments
+export async function getActiveTournaments(): Promise<Tournament[]> {
+  if (!db) return []
+
+  try {
+    const tournamentsSnapshot = await getDocs(collection(db, 'tournaments'))
+    const now = Date.now()
+    return tournamentsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Tournament))
+      .filter(t => t.status !== 'cancelled' && t.status !== 'finished')
+      .sort((a, b) => a.startTime - b.startTime)
+  } catch (error) {
+    console.error('Error getting tournaments:', error)
+    return []
+  }
+}
+
+// Get all tournaments (including finished)
+export async function getAllTournaments(): Promise<Tournament[]> {
+  if (!db) return []
+
+  try {
+    const tournamentsSnapshot = await getDocs(collection(db, 'tournaments'))
+    return tournamentsSnapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Tournament))
+      .sort((a, b) => b.createdAt - a.createdAt)
+  } catch (error) {
+    console.error('Error getting tournaments:', error)
+    return []
+  }
+}
+
+// Get tournament by ID
+export async function getTournament(tournamentId: string): Promise<Tournament | null> {
+  if (!db) return null
+
+  try {
+    const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId))
+    if (!tournamentDoc.exists()) return null
+    return { id: tournamentDoc.id, ...tournamentDoc.data() } as Tournament
+  } catch (error) {
+    console.error('Error getting tournament:', error)
+    return null
+  }
+}
+
+// Listen to tournament updates
+export function listenToTournament(tournamentId: string, callback: (tournament: Tournament | null) => void): void {
+  if (!db) return
+
+  tournamentCallback = callback
+
+  if (tournamentUnsubscribe) {
+    tournamentUnsubscribe()
+  }
+
+  tournamentUnsubscribe = onSnapshot(doc(db, 'tournaments', tournamentId), (docSnap) => {
+    if (docSnap.exists()) {
+      const tournament = { id: docSnap.id, ...docSnap.data() } as Tournament
+      if (tournamentCallback) {
+        tournamentCallback(tournament)
+      }
+    } else {
+      if (tournamentCallback) {
+        tournamentCallback(null)
+      }
+    }
+  })
+}
+
+// Stop listening to tournament
+export function stopListeningToTournament(): void {
+  if (tournamentUnsubscribe) {
+    tournamentUnsubscribe()
+    tournamentUnsubscribe = null
+  }
+}
+
+// Register for tournament
+export async function registerForTournament(tournamentId: string): Promise<{ success: boolean; error?: string }> {
+  if (!db || !currentUser || !currentUserData) {
+    return { success: false, error: 'Not logged in' }
+  }
+
+  try {
+    const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId))
+    if (!tournamentDoc.exists()) {
+      return { success: false, error: 'Tournament not found' }
+    }
+
+    const tournament = tournamentDoc.data() as Tournament
+
+    // Check if registration is open
+    if (tournament.status !== 'registration') {
+      return { success: false, error: 'Registration is closed' }
+    }
+
+    // Check if tournament is full
+    if (tournament.currentPlayers >= tournament.maxPlayers) {
+      return { success: false, error: 'Tournament is full' }
+    }
+
+    // Check if already registered
+    if (tournament.registeredPlayers.some(p => p.odataId === currentUser!.uid)) {
+      return { success: false, error: 'Already registered' }
+    }
+
+    // Register player
+    const updatedPlayers = [...tournament.registeredPlayers, {
+      odataId: currentUser.uid,
+      odataUsername: currentUserData.username,
+      registeredAt: Date.now()
+    }]
+
+    await updateDoc(doc(db, 'tournaments', tournamentId), {
+      registeredPlayers: updatedPlayers,
+      currentPlayers: updatedPlayers.length
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error registering for tournament:', error)
+    return { success: false, error: 'Failed to register' }
+  }
+}
+
+// Unregister from tournament
+export async function unregisterFromTournament(tournamentId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId))
+    if (!tournamentDoc.exists()) return false
+
+    const tournament = tournamentDoc.data() as Tournament
+
+    // Can only unregister during registration
+    if (tournament.status !== 'registration') return false
+
+    const updatedPlayers = tournament.registeredPlayers.filter(p => p.odataId !== currentUser!.uid)
+
+    await updateDoc(doc(db, 'tournaments', tournamentId), {
+      registeredPlayers: updatedPlayers,
+      currentPlayers: updatedPlayers.length
+    })
+
+    return true
+  } catch (error) {
+    console.error('Error unregistering from tournament:', error)
+    return false
+  }
+}
+
+// Get tournament matches
+export async function getTournamentMatches(tournamentId: string): Promise<TournamentMatch[]> {
+  if (!db) return []
+
+  try {
+    const q = query(
+      collection(db, 'tournamentMatches'),
+      where('tournamentId', '==', tournamentId)
+    )
+    const snapshot = await getDocs(q)
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as TournamentMatch))
+      .sort((a, b) => {
+        // Sort by round (descending - finals first), then by match number
+        if (a.round !== b.round) return b.round - a.round
+        return a.matchNumber - b.matchNumber
+      })
+  } catch (error) {
+    console.error('Error getting tournament matches:', error)
+    return []
+  }
+}
+
+// Check if user is in a tournament match that's ready
+export async function getMyTournamentMatch(tournamentId: string): Promise<TournamentMatch | null> {
+  if (!db || !currentUser) return null
+
+  try {
+    const matches = await getTournamentMatches(tournamentId)
+    return matches.find(m =>
+      (m.player1Id === currentUser!.uid || m.player2Id === currentUser!.uid) &&
+      (m.status === 'ready' || m.status === 'playing')
+    ) || null
+  } catch (error) {
+    console.error('Error getting my tournament match:', error)
+    return null
+  }
+}
+
+// Admin: Create tournament
+export async function adminCreateTournament(tournament: Omit<Tournament, 'id' | 'createdAt' | 'createdBy' | 'currentPlayers' | 'registeredPlayers' | 'status'>): Promise<string | null> {
+  if (!db || !isCurrentUserAdmin() || !currentUserData) return null
+
+  try {
+    const tournamentRef = doc(collection(db, 'tournaments'))
+    await setDoc(tournamentRef, {
+      ...tournament,
+      createdAt: Date.now(),
+      createdBy: currentUserData.username,
+      currentPlayers: 0,
+      registeredPlayers: [],
+      status: 'registration'
+    })
+    return tournamentRef.id
+  } catch (error) {
+    console.error('Error creating tournament:', error)
+    return null
+  }
+}
+
+// Admin: Start tournament (generate bracket)
+export async function adminStartTournament(tournamentId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    const tournamentDoc = await getDoc(doc(db, 'tournaments', tournamentId))
+    if (!tournamentDoc.exists()) return false
+
+    const tournament = tournamentDoc.data() as Tournament
+
+    // Need at least 2 players
+    if (tournament.currentPlayers < 2) return false
+
+    // Shuffle players for random seeding
+    const players = [...tournament.registeredPlayers]
+    for (let i = players.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[players[i], players[j]] = [players[j], players[i]]
+    }
+
+    // Calculate number of rounds needed
+    const numPlayers = players.length
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(numPlayers)))
+    const numRounds = Math.ceil(Math.log2(bracketSize))
+
+    // Create first round matches
+    const firstRoundMatches: Omit<TournamentMatch, 'id'>[] = []
+    const numFirstRoundMatches = bracketSize / 2
+
+    for (let i = 0; i < numFirstRoundMatches; i++) {
+      const player1 = players[i * 2] || null
+      const player2 = players[i * 2 + 1] || null
+
+      // If only one player, they get a bye
+      const isBye = !player1 || !player2
+      const byeWinner = player1 || player2
+
+      firstRoundMatches.push({
+        tournamentId,
+        round: numRounds,
+        matchNumber: i + 1,
+        player1Id: player1?.odataId || null,
+        player1Username: player1?.odataUsername || null,
+        player2Id: player2?.odataId || null,
+        player2Username: player2?.odataUsername || null,
+        winnerId: isBye ? byeWinner?.odataId || null : null,
+        winnerUsername: isBye ? byeWinner?.odataUsername || null : null,
+        gameId: null,
+        status: isBye ? 'bye' : 'ready'
+      })
+    }
+
+    // Create matches for all rounds (empty for future rounds)
+    for (const match of firstRoundMatches) {
+      const matchRef = doc(collection(db, 'tournamentMatches'))
+      await setDoc(matchRef, match)
+    }
+
+    // Create empty matches for subsequent rounds
+    for (let round = numRounds - 1; round >= 1; round--) {
+      const matchesInRound = Math.pow(2, round - 1)
+      for (let i = 0; i < matchesInRound; i++) {
+        const matchRef = doc(collection(db, 'tournamentMatches'))
+        await setDoc(matchRef, {
+          tournamentId,
+          round,
+          matchNumber: i + 1,
+          player1Id: null,
+          player1Username: null,
+          player2Id: null,
+          player2Username: null,
+          winnerId: null,
+          winnerUsername: null,
+          gameId: null,
+          status: 'pending'
+        })
+      }
+    }
+
+    // Update tournament status
+    await updateDoc(doc(db, 'tournaments', tournamentId), {
+      status: 'in_progress'
+    })
+
+    // Process any byes - advance winners to next round
+    await processRoundByes(tournamentId, numRounds)
+
+    return true
+  } catch (error) {
+    console.error('Error starting tournament:', error)
+    return false
+  }
+}
+
+// Process byes and advance winners
+async function processRoundByes(tournamentId: string, round: number): Promise<void> {
+  if (!db) return
+
+  const matches = await getTournamentMatches(tournamentId)
+  const roundMatches = matches.filter(m => m.round === round && m.status === 'bye')
+
+  for (const match of roundMatches) {
+    if (match.winnerId && match.winnerUsername) {
+      await advanceWinner(tournamentId, match, round)
+    }
+  }
+}
+
+// Advance winner to next round
+async function advanceWinner(tournamentId: string, match: TournamentMatch, currentRound: number): Promise<void> {
+  if (!db || !match.winnerId) return
+
+  const nextRound = currentRound - 1
+  if (nextRound < 1) return // Tournament finished
+
+  const matches = await getTournamentMatches(tournamentId)
+  const nextRoundMatches = matches.filter(m => m.round === nextRound)
+
+  // Find the next match this winner should go to
+  const nextMatchNumber = Math.ceil(match.matchNumber / 2)
+  const nextMatch = nextRoundMatches.find(m => m.matchNumber === nextMatchNumber)
+
+  if (!nextMatch) return
+
+  // Determine if winner goes to player1 or player2 slot
+  const isPlayer1 = match.matchNumber % 2 === 1
+
+  const updates: Record<string, unknown> = {}
+  if (isPlayer1) {
+    updates.player1Id = match.winnerId
+    updates.player1Username = match.winnerUsername
+  } else {
+    updates.player2Id = match.winnerId
+    updates.player2Username = match.winnerUsername
+  }
+
+  // Check if both players are now set
+  const existingPlayer1 = isPlayer1 ? match.winnerId : nextMatch.player1Id
+  const existingPlayer2 = isPlayer1 ? nextMatch.player2Id : match.winnerId
+
+  if (existingPlayer1 && existingPlayer2) {
+    updates.status = 'ready'
+  }
+
+  await updateDoc(doc(db, 'tournamentMatches', nextMatch.id), updates)
+}
+
+// Record match result
+export async function recordTournamentMatchResult(matchId: string, winnerId: string, winnerUsername: string): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    const matchDoc = await getDoc(doc(db, 'tournamentMatches', matchId))
+    if (!matchDoc.exists()) return false
+
+    const match = { id: matchDoc.id, ...matchDoc.data() } as TournamentMatch
+
+    // Update match
+    await updateDoc(doc(db, 'tournamentMatches', matchId), {
+      winnerId,
+      winnerUsername,
+      status: 'finished'
+    })
+
+    // Advance winner to next round
+    await advanceWinner(match.tournamentId, { ...match, winnerId, winnerUsername }, match.round)
+
+    // Check if tournament is finished (finals completed)
+    if (match.round === 1) {
+      await finishTournament(match.tournamentId, winnerId, winnerUsername, match)
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error recording match result:', error)
+    return false
+  }
+}
+
+// Finish tournament and award prizes
+async function finishTournament(tournamentId: string, winnerId: string, winnerUsername: string, finalsMatch: TournamentMatch): Promise<void> {
+  if (!db) return
+
+  try {
+    const tournament = await getTournament(tournamentId)
+    if (!tournament) return
+
+    // Determine second place (finals loser)
+    const secondPlaceId = finalsMatch.player1Id === winnerId ? finalsMatch.player2Id : finalsMatch.player1Id
+    const secondPlaceUsername = finalsMatch.player1Id === winnerId ? finalsMatch.player2Username : finalsMatch.player1Username
+
+    // Update tournament
+    await updateDoc(doc(db, 'tournaments', tournamentId), {
+      status: 'finished',
+      winnerId,
+      winnerUsername,
+      secondPlaceId,
+      secondPlaceUsername
+    })
+
+    // Award prizes
+    if (tournament.prizes.first.warBucks && winnerId) {
+      await adminGiveWarBucks(winnerId, tournament.prizes.first.warBucks)
+      if (tournament.prizes.first.itemId) {
+        await adminGiveItem(winnerId, tournament.prizes.first.itemId)
+      }
+    }
+    if (tournament.prizes.second.warBucks && secondPlaceId) {
+      await adminGiveWarBucks(secondPlaceId, tournament.prizes.second.warBucks)
+      if (tournament.prizes.second.itemId) {
+        await adminGiveItem(secondPlaceId, tournament.prizes.second.itemId)
+      }
+    }
+  } catch (error) {
+    console.error('Error finishing tournament:', error)
+  }
+}
+
+// Admin: Cancel tournament
+export async function adminCancelTournament(tournamentId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await updateDoc(doc(db, 'tournaments', tournamentId), {
+      status: 'cancelled'
+    })
+    return true
+  } catch (error) {
+    console.error('Error cancelling tournament:', error)
+    return false
+  }
+}
+
+// Admin: Delete tournament
+export async function adminDeleteTournament(tournamentId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    // Delete all matches
+    const matches = await getTournamentMatches(tournamentId)
+    for (const match of matches) {
+      await deleteDoc(doc(db, 'tournamentMatches', match.id))
+    }
+
+    // Delete tournament
+    await deleteDoc(doc(db, 'tournaments', tournamentId))
+    return true
+  } catch (error) {
+    console.error('Error deleting tournament:', error)
+    return false
+  }
+}
+
+// Create tournament game for a match
+export async function createTournamentGame(matchId: string): Promise<string | null> {
+  if (!db || !currentUser || !currentUserData) return null
+
+  try {
+    const matchDoc = await getDoc(doc(db, 'tournamentMatches', matchId))
+    if (!matchDoc.exists()) return null
+
+    const match = matchDoc.data() as TournamentMatch
+    if (!match.player1Id || !match.player2Id) return null
+
+    const tournament = await getTournament(match.tournamentId)
+    if (!tournament) return null
+
+    // Create the game
+    const gameRef = doc(collection(db, 'games'))
+    await setDoc(gameRef, {
+      yellowPlayerId: match.player1Id,
+      yellowUsername: match.player1Username,
+      greenPlayerId: match.player2Id,
+      greenUsername: match.player2Username,
+      currentTurn: 'yellow',
+      createdAt: serverTimestamp(),
+      lastMove: serverTimestamp(),
+      status: 'waiting',
+      gameState: null,
+      timerEnabled: tournament.timerEnabled,
+      timerMinutes: tournament.timerMinutes,
+      yellowJoined: false,
+      greenJoined: false,
+      tournamentMatchId: matchId  // Link to tournament match
+    })
+
+    // Update match with game ID
+    await updateDoc(doc(db, 'tournamentMatches', matchId), {
+      gameId: gameRef.id,
+      status: 'playing'
+    })
+
+    return gameRef.id
+  } catch (error) {
+    console.error('Error creating tournament game:', error)
+    return null
+  }
+}
