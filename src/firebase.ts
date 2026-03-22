@@ -69,6 +69,7 @@ export interface UserData {
   createdAt: number
   lastLogin: number
   isAdmin?: boolean
+  bannedUntil?: number  // Timestamp when ban expires (0 or undefined = not banned)
   // Stats
   stats: {
     gamesPlayed: number
@@ -78,6 +79,19 @@ export interface UserData {
     piecesEliminated: number
     engineersCaptured: number
     timePlayed: number // in seconds
+    // Combat stats for badges
+    tanksDestroyed: number
+    rocketsDestroyed: number
+    shipsDestroyed: number
+    helicoptersDestroyed: number
+    hackersDestroyed: number
+    // Multiplayer stats
+    multiplayerWins: number
+    multiplayerGames: number
+    chatMessagesSent: number
+    // Economy stats
+    totalWarBucksEarned: number
+    totalWarBucksSpent: number
   }
   // Badges
   badges: string[]
@@ -117,6 +131,14 @@ export interface UserData {
     claimedRewards: string[]  // Challenge IDs that have been claimed
     completedCount: number    // How many times completed all challenges
     lastResetTime: number     // Timestamp of last reset
+  }
+  // Puzzle progress
+  puzzleStats: {
+    puzzlesSolved: number
+    puzzlesAttempted: number
+    perfectSolves: number  // First try solves
+    dailyStreak: number
+    lastPuzzleDate: number  // Timestamp of last puzzle completed
   }
 }
 
@@ -236,6 +258,36 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'effect_rainbow', name: 'Rainbow Trail', description: 'Rainbow colors follow your pieces', price: 250, type: 'effect', icon: '🌈', effectType: 'sparkle' },
   { id: 'effect_snow', name: 'Snowfall', description: 'Gentle snowflakes falling', price: 200, type: 'effect', icon: '❄️', effectType: 'sparkle' },
   { id: 'effect_sakura', name: 'Cherry Blossoms', description: 'Beautiful sakura petals', price: 225, type: 'effect', icon: '🌸', effectType: 'sparkle' },
+
+  // NEW: More Themes
+  { id: 'theme_tropical', name: 'Tropical Beach', description: 'Sandy beach with palm trees', price: 200, type: 'theme', icon: '🏝️',
+    colors: { light: '#f4e8c1', dark: '#2e8b57', accent: '#ff6b6b', water: '#40e0d0' } },
+  { id: 'theme_haunted', name: 'Haunted', description: 'Spooky halloween theme', price: 225, type: 'theme', icon: '🎃',
+    colors: { light: '#2d1b4e', dark: '#1a0a2e', accent: '#ff6600', water: '#4a0080' } },
+  { id: 'theme_rainbow', name: 'Rainbow', description: 'Colorful rainbow theme', price: 175, type: 'theme', icon: '🌈',
+    colors: { light: '#ffb3ba', dark: '#bae1ff', accent: '#baffc9', water: '#ffffba' } },
+  { id: 'theme_gold', name: 'Gold Rush', description: 'Luxurious golden theme', price: 300, type: 'theme', icon: '💎',
+    colors: { light: '#ffd700', dark: '#b8860b', accent: '#daa520', water: '#cd853f' } },
+  { id: 'theme_ice', name: 'Ice Cave', description: 'Frozen ice cave theme', price: 225, type: 'theme', icon: '🧊',
+    colors: { light: '#e0ffff', dark: '#4169e1', accent: '#00bfff', water: '#1e90ff' } },
+
+  // NEW: More Piece Skins
+  { id: 'skin_zombie', name: 'Zombie Army', description: 'Undead zombie versions of pieces', price: 375, type: 'piece_skin', icon: '🧟',
+    skinStyle: 'fantasy', pieceColor: { yellow: '#556b2f', green: '#8b4513', accent: '#ff0000' } },
+  { id: 'skin_steampunk', name: 'Steampunk Units', description: 'Gears and steam powered units', price: 400, type: 'piece_skin', icon: '⚙️',
+    skinStyle: 'robot', pieceColor: { yellow: '#cd853f', green: '#8b4513', accent: '#ffd700' } },
+  { id: 'skin_crystal', name: 'Crystal Warriors', description: 'Beautiful crystal/diamond pieces', price: 450, type: 'piece_skin', icon: '💎',
+    skinStyle: 'minimal', pieceColor: { yellow: '#e0ffff', green: '#98fb98', accent: '#ff69b4' } },
+
+  // NEW: More Effects
+  { id: 'effect_bubble', name: 'Bubble Pop', description: 'Floating bubbles effect', price: 175, type: 'effect', icon: '🫧', effectType: 'sparkle' },
+  { id: 'effect_pixel', name: 'Pixel Burst', description: 'Retro pixel explosion effect', price: 200, type: 'effect', icon: '👾', effectType: 'sparkle' },
+  { id: 'effect_runes', name: 'Magic Runes', description: 'Magical symbols appear', price: 250, type: 'effect', icon: '🔮', effectType: 'sparkle' },
+  { id: 'effect_money', name: 'Money Rain', description: 'War Bucks falling effect', price: 300, type: 'effect', icon: '💵', effectType: 'sparkle' },
+
+  // NEW: More Music Packs
+  { id: 'music_tropical', name: 'Tropical Vibes', description: 'Chill beach music', price: 200, type: 'music_pack', icon: '🏖️', packId: 'tropical' },
+  { id: 'music_dark', name: 'Dark Orchestra', description: 'Dark cinematic orchestra', price: 275, type: 'music_pack', icon: '🦇', packId: 'dark' },
 ]
 
 // War Pass Challenges
@@ -345,7 +397,20 @@ export function getDefaultUserData(username: string, email: string): UserData {
       totalPointsScored: 0,
       piecesEliminated: 0,
       engineersCaptured: 0,
-      timePlayed: 0
+      timePlayed: 0,
+      // Combat stats
+      tanksDestroyed: 0,
+      rocketsDestroyed: 0,
+      shipsDestroyed: 0,
+      helicoptersDestroyed: 0,
+      hackersDestroyed: 0,
+      // Multiplayer stats
+      multiplayerWins: 0,
+      multiplayerGames: 0,
+      chatMessagesSent: 0,
+      // Economy stats
+      totalWarBucksEarned: 0,
+      totalWarBucksSpent: 0
     },
     badges: [],
     warBucks: 0,
@@ -378,6 +443,13 @@ export function getDefaultUserData(username: string, email: string): UserData {
       claimedRewards: [],
       completedCount: 0,
       lastResetTime: Date.now()
+    },
+    puzzleStats: {
+      puzzlesSolved: 0,
+      puzzlesAttempted: 0,
+      perfectSolves: 0,
+      dailyStreak: 0,
+      lastPuzzleDate: 0
     }
   }
 }
@@ -590,6 +662,7 @@ export async function loadUserData(): Promise<UserData | null> {
 
 // Badge definitions
 export const BADGES = {
+  // Original badges
   FIRST_WIN: { id: 'first_win', name: 'First Victory', description: 'Win your first game', icon: '🏆' },
   ENGINEER_HUNTER: { id: 'engineer_hunter', name: 'Engineer Hunter', description: 'Capture 10 Engineers', icon: '🔧' },
   SHARPSHOOTER: { id: 'sharpshooter', name: 'Sharpshooter', description: 'Eliminate 100 pieces', icon: '🎯' },
@@ -603,34 +676,74 @@ export const BADGES = {
   // War Pass badges
   WAR_PASS_1: { id: 'war_pass_1', name: 'War Pass Rookie', description: 'Complete the War Pass 1 time', icon: '🎖️' },
   WAR_PASS_5: { id: 'war_pass_5', name: 'War Pass Veteran', description: 'Complete the War Pass 5 times', icon: '🏅' },
-  WAR_PASS_10: { id: 'war_pass_10', name: 'War Pass Legend', description: 'Complete the War Pass 10 times', icon: '🥇' }
+  WAR_PASS_10: { id: 'war_pass_10', name: 'War Pass Legend', description: 'Complete the War Pass 10 times', icon: '🥇' },
+  // Puzzle badges
+  PUZZLE_FIRST: { id: 'puzzle_first', name: 'Puzzle Beginner', description: 'Solve your first puzzle', icon: '🧩' },
+  PUZZLE_10: { id: 'puzzle_10', name: 'Puzzle Solver', description: 'Solve 10 puzzles', icon: '🧠' },
+  PUZZLE_50: { id: 'puzzle_50', name: 'Puzzle Master', description: 'Solve 50 puzzles', icon: '🎓' },
+  PUZZLE_100: { id: 'puzzle_100', name: 'Puzzle Legend', description: 'Solve 100 puzzles', icon: '🏆' },
+  PUZZLE_PERFECT_5: { id: 'puzzle_perfect_5', name: 'Quick Thinker', description: 'Solve 5 puzzles on first try', icon: '⚡' },
+  PUZZLE_PERFECT_25: { id: 'puzzle_perfect_25', name: 'Genius', description: 'Solve 25 puzzles on first try', icon: '💡' },
+  PUZZLE_STREAK_7: { id: 'puzzle_streak_7', name: 'Week Warrior', description: '7 day puzzle streak', icon: '📅' },
+  PUZZLE_STREAK_30: { id: 'puzzle_streak_30', name: 'Month Master', description: '30 day puzzle streak', icon: '🗓️' },
+  // Combat badges
+  TANK_DESTROYER: { id: 'tank_destroyer', name: 'Tank Destroyer', description: 'Destroy 25 tanks', icon: '💣' },
+  ROCKET_CATCHER: { id: 'rocket_catcher', name: 'Rocket Catcher', description: 'Capture 10 rockets', icon: '🚀' },
+  SHIP_SINKER: { id: 'ship_sinker', name: 'Ship Sinker', description: 'Destroy 20 ships', icon: '⚓' },
+  HELICOPTER_HUNTER: { id: 'helicopter_hunter', name: 'Heli Hunter', description: 'Shoot down 15 helicopters', icon: '🚁' },
+  BUILDER_NEMESIS: { id: 'builder_nemesis', name: 'Builder Nemesis', description: 'Capture 25 builders', icon: '🔨' },
+  HACKER_BLOCKER: { id: 'hacker_blocker', name: 'Hacker Blocker', description: 'Eliminate 10 hackers', icon: '💻' },
+  // Multiplayer badges
+  MP_FIRST: { id: 'mp_first', name: 'First Online Win', description: 'Win your first multiplayer game', icon: '🌐' },
+  MP_10: { id: 'mp_10', name: 'Online Warrior', description: 'Win 10 multiplayer games', icon: '⚔️' },
+  MP_50: { id: 'mp_50', name: 'Online Champion', description: 'Win 50 multiplayer games', icon: '🏅' },
+  FRIENDLY_PLAYER: { id: 'friendly_player', name: 'Friendly Player', description: 'Send 50 chat messages', icon: '💬' },
+  QUICK_MATCH: { id: 'quick_match', name: 'Speed Demon', description: 'Win a match in under 3 minutes', icon: '⏱️' },
+  // Collection badges
+  COLLECTOR_THEMES: { id: 'collector_themes', name: 'Theme Collector', description: 'Buy all themes', icon: '🎨' },
+  COLLECTOR_SKINS: { id: 'collector_skins', name: 'Skin Collector', description: 'Buy all skins', icon: '👔' },
+  COLLECTOR_EFFECTS: { id: 'collector_effects', name: 'Effect Collector', description: 'Buy all effects', icon: '✨' },
+  COLLECTOR_ALL: { id: 'collector_all', name: 'Ultimate Collector', description: 'Buy EVERYTHING in the shop', icon: '👑' },
+  BIG_SPENDER: { id: 'big_spender', name: 'Big Spender', description: 'Spend 5000 War Bucks', icon: '💸' },
+  WAR_MILLIONAIRE: { id: 'war_millionaire', name: 'War Millionaire', description: 'Earn 10000 War Bucks total', icon: '💰' },
+  // Milestone badges
+  GAMES_100: { id: 'games_100', name: 'Centurion', description: 'Play 100 games', icon: '💯' },
+  GAMES_500: { id: 'games_500', name: 'Dedicated', description: 'Play 500 games', icon: '🎖️' },
+  WINS_50: { id: 'wins_50', name: 'Half Century', description: 'Win 50 games', icon: '5️⃣' },
+  WINS_100: { id: 'wins_100', name: 'Century Winner', description: 'Win 100 games', icon: '🏆' },
+  PLAYTIME_10H: { id: 'playtime_10h', name: 'Time Invested', description: 'Play for 10 hours total', icon: '⏰' },
+  PLAYTIME_50H: { id: 'playtime_50h', name: 'Hardcore', description: 'Play for 50 hours total', icon: '🔥' }
 }
 
 // Check and award badges
 export function checkBadges(userData: UserData): string[] {
   const newBadges: string[] = []
+  const stats = userData.stats
+  const puzzleStats = userData.puzzleStats || { puzzlesSolved: 0, perfectSolves: 0, dailyStreak: 0, puzzlesAttempted: 0, lastPuzzleDate: 0 }
 
-  if (!userData.badges.includes('first_win') && userData.stats.gamesWon >= 1) {
+  // Original badges
+  if (!userData.badges.includes('first_win') && stats.gamesWon >= 1) {
     newBadges.push('first_win')
   }
-  if (!userData.badges.includes('engineer_hunter') && userData.stats.engineersCaptured >= 10) {
+  if (!userData.badges.includes('engineer_hunter') && stats.engineersCaptured >= 10) {
     newBadges.push('engineer_hunter')
   }
-  if (!userData.badges.includes('sharpshooter') && userData.stats.piecesEliminated >= 100) {
+  if (!userData.badges.includes('sharpshooter') && stats.piecesEliminated >= 100) {
     newBadges.push('sharpshooter')
   }
-  if (!userData.badges.includes('veteran') && userData.stats.gamesPlayed >= 50) {
+  if (!userData.badges.includes('veteran') && stats.gamesPlayed >= 50) {
     newBadges.push('veteran')
   }
-  if (!userData.badges.includes('master') && userData.stats.gamesWon >= 25) {
+  if (!userData.badges.includes('master') && stats.gamesWon >= 25) {
     newBadges.push('master')
   }
   if (!userData.badges.includes('rich') && userData.warBucks >= 1000) {
     newBadges.push('rich')
   }
-  if (!userData.badges.includes('strategist') && userData.stats.totalPointsScored >= 500) {
+  if (!userData.badges.includes('strategist') && stats.totalPointsScored >= 500) {
     newBadges.push('strategist')
   }
+
   // War Pass badges
   const warPassCount = userData.warPass?.completedCount || 0
   if (!userData.badges.includes('war_pass_1') && warPassCount >= 1) {
@@ -641,6 +754,112 @@ export function checkBadges(userData: UserData): string[] {
   }
   if (!userData.badges.includes('war_pass_10') && warPassCount >= 10) {
     newBadges.push('war_pass_10')
+  }
+
+  // Puzzle badges
+  if (!userData.badges.includes('puzzle_first') && puzzleStats.puzzlesSolved >= 1) {
+    newBadges.push('puzzle_first')
+  }
+  if (!userData.badges.includes('puzzle_10') && puzzleStats.puzzlesSolved >= 10) {
+    newBadges.push('puzzle_10')
+  }
+  if (!userData.badges.includes('puzzle_50') && puzzleStats.puzzlesSolved >= 50) {
+    newBadges.push('puzzle_50')
+  }
+  if (!userData.badges.includes('puzzle_100') && puzzleStats.puzzlesSolved >= 100) {
+    newBadges.push('puzzle_100')
+  }
+  if (!userData.badges.includes('puzzle_perfect_5') && puzzleStats.perfectSolves >= 5) {
+    newBadges.push('puzzle_perfect_5')
+  }
+  if (!userData.badges.includes('puzzle_perfect_25') && puzzleStats.perfectSolves >= 25) {
+    newBadges.push('puzzle_perfect_25')
+  }
+  if (!userData.badges.includes('puzzle_streak_7') && puzzleStats.dailyStreak >= 7) {
+    newBadges.push('puzzle_streak_7')
+  }
+  if (!userData.badges.includes('puzzle_streak_30') && puzzleStats.dailyStreak >= 30) {
+    newBadges.push('puzzle_streak_30')
+  }
+
+  // Combat badges
+  if (!userData.badges.includes('tank_destroyer') && (stats.tanksDestroyed || 0) >= 25) {
+    newBadges.push('tank_destroyer')
+  }
+  if (!userData.badges.includes('rocket_catcher') && (stats.rocketsDestroyed || 0) >= 10) {
+    newBadges.push('rocket_catcher')
+  }
+  if (!userData.badges.includes('ship_sinker') && (stats.shipsDestroyed || 0) >= 20) {
+    newBadges.push('ship_sinker')
+  }
+  if (!userData.badges.includes('helicopter_hunter') && (stats.helicoptersDestroyed || 0) >= 15) {
+    newBadges.push('helicopter_hunter')
+  }
+  if (!userData.badges.includes('builder_nemesis') && stats.engineersCaptured >= 25) {
+    newBadges.push('builder_nemesis')
+  }
+  if (!userData.badges.includes('hacker_blocker') && (stats.hackersDestroyed || 0) >= 10) {
+    newBadges.push('hacker_blocker')
+  }
+
+  // Multiplayer badges
+  if (!userData.badges.includes('mp_first') && (stats.multiplayerWins || 0) >= 1) {
+    newBadges.push('mp_first')
+  }
+  if (!userData.badges.includes('mp_10') && (stats.multiplayerWins || 0) >= 10) {
+    newBadges.push('mp_10')
+  }
+  if (!userData.badges.includes('mp_50') && (stats.multiplayerWins || 0) >= 50) {
+    newBadges.push('mp_50')
+  }
+  if (!userData.badges.includes('friendly_player') && (stats.chatMessagesSent || 0) >= 50) {
+    newBadges.push('friendly_player')
+  }
+
+  // Collection badges
+  const allThemes = SHOP_ITEMS.filter(i => i.type === 'theme').map(i => i.id)
+  const allSkins = SHOP_ITEMS.filter(i => i.type === 'piece_skin').map(i => i.id)
+  const allEffects = SHOP_ITEMS.filter(i => i.type === 'effect').map(i => i.id)
+  const allItems = SHOP_ITEMS.map(i => i.id)
+  const owned = userData.purchasedItems || []
+
+  if (!userData.badges.includes('collector_themes') && allThemes.every(id => owned.includes(id))) {
+    newBadges.push('collector_themes')
+  }
+  if (!userData.badges.includes('collector_skins') && allSkins.every(id => owned.includes(id))) {
+    newBadges.push('collector_skins')
+  }
+  if (!userData.badges.includes('collector_effects') && allEffects.every(id => owned.includes(id))) {
+    newBadges.push('collector_effects')
+  }
+  if (!userData.badges.includes('collector_all') && allItems.every(id => owned.includes(id))) {
+    newBadges.push('collector_all')
+  }
+  if (!userData.badges.includes('big_spender') && (stats.totalWarBucksSpent || 0) >= 5000) {
+    newBadges.push('big_spender')
+  }
+  if (!userData.badges.includes('war_millionaire') && (stats.totalWarBucksEarned || 0) >= 10000) {
+    newBadges.push('war_millionaire')
+  }
+
+  // Milestone badges
+  if (!userData.badges.includes('games_100') && stats.gamesPlayed >= 100) {
+    newBadges.push('games_100')
+  }
+  if (!userData.badges.includes('games_500') && stats.gamesPlayed >= 500) {
+    newBadges.push('games_500')
+  }
+  if (!userData.badges.includes('wins_50') && stats.gamesWon >= 50) {
+    newBadges.push('wins_50')
+  }
+  if (!userData.badges.includes('wins_100') && stats.gamesWon >= 100) {
+    newBadges.push('wins_100')
+  }
+  if (!userData.badges.includes('playtime_10h') && stats.timePlayed >= 36000) { // 10 hours in seconds
+    newBadges.push('playtime_10h')
+  }
+  if (!userData.badges.includes('playtime_50h') && stats.timePlayed >= 180000) { // 50 hours in seconds
+    newBadges.push('playtime_50h')
   }
 
   return newBadges
@@ -1233,7 +1452,6 @@ export async function adminResetUser(userId: string): Promise<boolean> {
     const userDoc = await getDoc(doc(db, 'users', userId))
     if (!userDoc.exists()) return false
 
-    const userData = userDoc.data() as UserData
     const resetData: Partial<UserData> = {
       stats: {
         gamesPlayed: 0,
@@ -1242,13 +1460,24 @@ export async function adminResetUser(userId: string): Promise<boolean> {
         totalPointsScored: 0,
         piecesEliminated: 0,
         engineersCaptured: 0,
-        timePlayed: 0
+        timePlayed: 0,
+        tanksDestroyed: 0,
+        rocketsDestroyed: 0,
+        shipsDestroyed: 0,
+        helicoptersDestroyed: 0,
+        hackersDestroyed: 0,
+        multiplayerWins: 0,
+        multiplayerGames: 0,
+        chatMessagesSent: 0,
+        totalWarBucksEarned: 0,
+        totalWarBucksSpent: 0
       },
       badges: [],
       warBucks: 0,
       purchasedItems: [],
       equippedItems: { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null },
-      warPass: { claimedRewards: [], completedCount: 0, lastResetTime: 0 }
+      warPass: { claimedRewards: [], completedCount: 0, lastResetTime: 0 },
+      puzzleStats: { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0 }
     }
 
     await updateDoc(doc(db, 'users', userId), resetData)
@@ -1639,8 +1868,19 @@ export async function adminResetAllStats(): Promise<number> {
           totalPointsScored: 0,
           piecesEliminated: 0,
           engineersCaptured: 0,
-          timePlayed: 0
-        }
+          timePlayed: 0,
+          tanksDestroyed: 0,
+          rocketsDestroyed: 0,
+          shipsDestroyed: 0,
+          helicoptersDestroyed: 0,
+          hackersDestroyed: 0,
+          multiplayerWins: 0,
+          multiplayerGames: 0,
+          chatMessagesSent: 0,
+          totalWarBucksEarned: 0,
+          totalWarBucksSpent: 0
+        },
+        puzzleStats: { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0 }
       })
       count++
     }
@@ -1832,5 +2072,365 @@ export async function adminDeleteUser(userId: string): Promise<boolean> {
       // Can't verify, assume deletion failed
     }
     return false
+  }
+}
+
+// ==================== CHAT SYSTEM ====================
+
+// Bad words filter (Dutch + English)
+const BAD_WORDS = [
+  // Dutch
+  'kut', 'lul', 'eikel', 'klootzak', 'hoer', 'slet', 'kanker', 'tyfus', 'tering', 'godver', 'kak', 'stront', 'pik', 'neuken', 'flikker', 'homo', 'mongool', 'debiel', 'idioot', 'sukkel', 'stomkop', 'drol', 'poep', 'schijt',
+  // English
+  'fuck', 'shit', 'ass', 'bitch', 'damn', 'hell', 'crap', 'dick', 'cock', 'pussy', 'whore', 'slut', 'bastard', 'cunt', 'nigger', 'faggot', 'retard', 'idiot', 'stupid', 'dumb'
+]
+
+// Filter bad words from message
+export function filterBadWords(message: string): { filtered: string; wasFiltered: boolean } {
+  let filtered = message
+  let wasFiltered = false
+
+  for (const word of BAD_WORDS) {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi')
+    if (regex.test(filtered)) {
+      wasFiltered = true
+      filtered = filtered.replace(regex, '*'.repeat(word.length))
+    }
+  }
+
+  return { filtered, wasFiltered }
+}
+
+// Quick chat messages
+export const QUICK_CHAT_MESSAGES = [
+  { id: 'gg', text: 'Good game!', textNL: 'Goed gespeeld!' },
+  { id: 'nice', text: 'Nice move!', textNL: 'Goede zet!' },
+  { id: 'think', text: 'Thinking...', textNL: 'Ik denk na...' },
+  { id: 'gl', text: 'Good luck!', textNL: 'Succes!' },
+  { id: 'thanks', text: 'Thanks!', textNL: 'Bedankt!' },
+  { id: 'sorry', text: 'Sorry!', textNL: 'Sorry!' },
+  { id: 'wow', text: 'Wow!', textNL: 'Wow!' },
+  { id: 'oops', text: 'Oops!', textNL: 'Oeps!' }
+]
+
+// Chat message interface
+export interface GameChatMessage {
+  id: string
+  gameId: string
+  fromPlayerId: string
+  fromUsername: string
+  message: string
+  timestamp: number
+  team: 'yellow' | 'green'
+  isQuickChat: boolean
+  quickChatId?: string
+}
+
+// Chat listener
+let chatUnsubscribe: (() => void) | null = null
+let chatCallback: ((messages: GameChatMessage[]) => void) | null = null
+
+// Send chat message
+export async function sendChatMessage(gameId: string, message: string, team: 'yellow' | 'green', isQuickChat: boolean = false, quickChatId?: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    // Filter bad words if not quick chat
+    let finalMessage = message
+    if (!isQuickChat) {
+      const { filtered } = filterBadWords(message)
+      finalMessage = filtered
+    }
+
+    const chatRef = doc(collection(db, 'gameChats'))
+    await setDoc(chatRef, {
+      gameId,
+      fromPlayerId: currentUser.uid,
+      fromUsername: currentUserData.username,
+      message: finalMessage,
+      timestamp: Date.now(),
+      team,
+      isQuickChat,
+      quickChatId: quickChatId || null
+    })
+
+    // Update chat messages sent stat
+    const newChatCount = (currentUserData.stats.chatMessagesSent || 0) + 1
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      'stats.chatMessagesSent': newChatCount
+    })
+
+    return true
+  } catch (error) {
+    console.error('Error sending chat message:', error)
+    return false
+  }
+}
+
+// Listen to game chat
+export function listenToGameChat(gameId: string, callback: (messages: GameChatMessage[]) => void): void {
+  if (!db) return
+
+  chatCallback = callback
+
+  // Clean up existing listener
+  if (chatUnsubscribe) {
+    chatUnsubscribe()
+  }
+
+  const q = query(
+    collection(db, 'gameChats'),
+    where('gameId', '==', gameId)
+  )
+
+  chatUnsubscribe = onSnapshot(q, (snapshot) => {
+    const messages: GameChatMessage[] = []
+    snapshot.forEach((docSnap) => {
+      messages.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as GameChatMessage)
+    })
+    // Sort by timestamp
+    messages.sort((a, b) => a.timestamp - b.timestamp)
+    if (chatCallback) {
+      chatCallback(messages)
+    }
+  })
+}
+
+// Stop listening to chat
+export function stopListeningToChat(): void {
+  if (chatUnsubscribe) {
+    chatUnsubscribe()
+    chatUnsubscribe = null
+  }
+}
+
+// ==================== PUZZLE SYSTEM ====================
+
+// Puzzle interface
+export interface Puzzle {
+  id: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  movesAllowed: number  // 1, 2, or 3
+  objective: string  // e.g., "Capture the Tank", "Eliminate the Builder"
+  objectiveType: 'capture' | 'score' | 'survive'
+  targetPieceType?: string  // For capture objectives
+  targetScore?: number  // For score objectives
+  initialPosition: unknown  // Serialized game state
+  aiMoves: unknown[]  // Pre-determined AI responses
+  createdAt: number
+  createdBy: string
+  timesAttempted: number
+  timesSolved: number
+  rating: number  // Difficulty rating based on solve rate
+}
+
+// Get daily puzzles
+export async function getDailyPuzzles(): Promise<Puzzle[]> {
+  if (!db) return []
+
+  try {
+    const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
+    const puzzles = puzzlesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Puzzle))
+
+    // Return 3 puzzles (one of each difficulty)
+    const easy = puzzles.filter(p => p.difficulty === 'easy')
+    const medium = puzzles.filter(p => p.difficulty === 'medium')
+    const hard = puzzles.filter(p => p.difficulty === 'hard')
+
+    const result: Puzzle[] = []
+    if (easy.length > 0) result.push(easy[Math.floor(Math.random() * easy.length)])
+    if (medium.length > 0) result.push(medium[Math.floor(Math.random() * medium.length)])
+    if (hard.length > 0) result.push(hard[Math.floor(Math.random() * hard.length)])
+
+    return result
+  } catch (error) {
+    console.error('Error getting puzzles:', error)
+    return []
+  }
+}
+
+// Record puzzle attempt
+export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, attempts: number): Promise<{ warBucks: number; perfect: boolean }> {
+  if (!db || !currentUser || !currentUserData) return { warBucks: 0, perfect: false }
+
+  try {
+    // Update puzzle stats
+    const puzzleRef = doc(db, 'puzzles', puzzleId)
+    const puzzleDoc = await getDoc(puzzleRef)
+    if (puzzleDoc.exists()) {
+      const puzzle = puzzleDoc.data() as Puzzle
+      await updateDoc(puzzleRef, {
+        timesAttempted: puzzle.timesAttempted + 1,
+        timesSolved: solved ? puzzle.timesSolved + 1 : puzzle.timesSolved
+      })
+    }
+
+    if (!solved) return { warBucks: 0, perfect: false }
+
+    // Calculate rewards
+    let warBucks = 0
+    const perfect = attempts === 1
+
+    if (attempts === 1) {
+      warBucks = 50  // Perfect solve
+    } else if (attempts === 2) {
+      warBucks = 30
+    } else {
+      warBucks = 15
+    }
+
+    // Update user stats
+    const puzzleStats = currentUserData.puzzleStats || {
+      puzzlesSolved: 0,
+      puzzlesAttempted: 0,
+      perfectSolves: 0,
+      dailyStreak: 0,
+      lastPuzzleDate: 0
+    }
+
+    const today = new Date().setHours(0, 0, 0, 0)
+    const lastPuzzle = new Date(puzzleStats.lastPuzzleDate).setHours(0, 0, 0, 0)
+    const yesterday = today - 86400000
+
+    let newStreak = puzzleStats.dailyStreak
+    if (lastPuzzle === yesterday) {
+      newStreak += 1  // Continue streak
+    } else if (lastPuzzle !== today) {
+      newStreak = 1  // Start new streak
+    }
+    // If solved today already, don't change streak
+
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      warBucks: currentUserData.warBucks + warBucks,
+      'stats.totalWarBucksEarned': (currentUserData.stats.totalWarBucksEarned || 0) + warBucks,
+      'puzzleStats.puzzlesSolved': puzzleStats.puzzlesSolved + 1,
+      'puzzleStats.puzzlesAttempted': puzzleStats.puzzlesAttempted + attempts,
+      'puzzleStats.perfectSolves': perfect ? puzzleStats.perfectSolves + 1 : puzzleStats.perfectSolves,
+      'puzzleStats.dailyStreak': newStreak,
+      'puzzleStats.lastPuzzleDate': Date.now()
+    })
+
+    return { warBucks, perfect }
+  } catch (error) {
+    console.error('Error recording puzzle attempt:', error)
+    return { warBucks: 0, perfect: false }
+  }
+}
+
+// Admin: Create puzzle
+export async function adminCreatePuzzle(puzzle: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>): Promise<string | null> {
+  if (!db || !isCurrentUserAdmin() || !currentUserData) return null
+
+  try {
+    const puzzleRef = doc(collection(db, 'puzzles'))
+    await setDoc(puzzleRef, {
+      ...puzzle,
+      createdAt: Date.now(),
+      createdBy: currentUserData.username,
+      timesAttempted: 0,
+      timesSolved: 0,
+      rating: puzzle.difficulty === 'easy' ? 1 : puzzle.difficulty === 'medium' ? 2 : 3
+    })
+    return puzzleRef.id
+  } catch (error) {
+    console.error('Error creating puzzle:', error)
+    return null
+  }
+}
+
+// Admin: Get all puzzles
+export async function adminGetAllPuzzles(): Promise<Puzzle[]> {
+  if (!db || !isCurrentUserAdmin()) return []
+
+  try {
+    const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
+    return puzzlesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Puzzle))
+  } catch (error) {
+    console.error('Error getting puzzles:', error)
+    return []
+  }
+}
+
+// Admin: Delete puzzle
+export async function adminDeletePuzzle(puzzleId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await deleteDoc(doc(db, 'puzzles', puzzleId))
+    return true
+  } catch (error) {
+    console.error('Error deleting puzzle:', error)
+    return false
+  }
+}
+
+// ==================== ADMIN BAN SYSTEM ====================
+
+// Ban a user
+export async function adminBanUser(userId: string, durationMinutes: number): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    const banUntil = durationMinutes === 0 ? 0 : Date.now() + (durationMinutes * 60 * 1000)
+    await updateDoc(doc(db, 'users', userId), { bannedUntil: banUntil })
+    return true
+  } catch (error) {
+    console.error('Error banning user:', error)
+    return false
+  }
+}
+
+// Check if user is banned
+export function isUserBanned(userData: UserData): boolean {
+  if (!userData.bannedUntil) return false
+  return userData.bannedUntil > Date.now()
+}
+
+// Get ban remaining time in minutes
+export function getBanRemainingMinutes(userData: UserData): number {
+  if (!userData.bannedUntil || userData.bannedUntil <= Date.now()) return 0
+  return Math.ceil((userData.bannedUntil - Date.now()) / 60000)
+}
+
+// Admin: Set user War Bucks directly
+export async function adminSetWarBucks(userId: string, amount: number): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await updateDoc(doc(db, 'users', userId), { warBucks: amount })
+    return true
+  } catch (error) {
+    console.error('Error setting war bucks:', error)
+    return false
+  }
+}
+
+// Admin: Get chat logs for a game
+export async function adminGetChatLogs(gameId: string): Promise<GameChatMessage[]> {
+  if (!db || !isCurrentUserAdmin()) return []
+
+  try {
+    const q = query(
+      collection(db, 'gameChats'),
+      where('gameId', '==', gameId)
+    )
+    const snapshot = await getDocs(q)
+    const messages: GameChatMessage[] = []
+    snapshot.forEach(doc => {
+      messages.push({ id: doc.id, ...doc.data() } as GameChatMessage)
+    })
+    return messages.sort((a, b) => a.timestamp - b.timestamp)
+  } catch (error) {
+    console.error('Error getting chat logs:', error)
+    return []
   }
 }
