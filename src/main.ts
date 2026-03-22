@@ -5301,7 +5301,9 @@ async function syncMultiplayerState() {
   const state = serializeGameState()
   // Pass who made the move (the team that just finished their turn)
   const lastMoveBy = multiplayerTeam
-  await updateGameState(multiplayerGameId, state, currentTurn, lastMoveBy)
+  console.log('[MP SYNC] Syncing state:', { gameId: multiplayerGameId, currentTurn, lastMoveBy, piecesCount: state.pieces.length })
+  const success = await updateGameState(multiplayerGameId, state, currentTurn, lastMoveBy)
+  console.log('[MP SYNC] Sync result:', success)
 
   // If game is over, end the game in Firebase
   if (gameState === 'gameOver' && winner) {
@@ -6976,15 +6978,29 @@ async function startMultiplayerGame() {
 
   // Listen for game state updates from opponent
   listenToGame(multiplayerGameId, (game) => {
-    if (!game) return
+    if (!game) {
+      console.log('[MP LISTEN] No game data received')
+      return
+    }
+
+    console.log('[MP LISTEN] Game update received:', {
+      moveCount: game.moveCount,
+      lastMoveBy: game.lastMoveBy,
+      currentTurn: game.currentTurn,
+      myTeam: multiplayerTeam,
+      lastSeenMoveCount
+    })
 
     // Check if the opponent made a move (lastMoveBy is not us, and we haven't seen this move yet)
     const opponentMoved = game.lastMoveBy && game.lastMoveBy !== multiplayerTeam
     const isNewMove = (game.moveCount || 0) > lastSeenMoveCount
 
+    console.log('[MP LISTEN] Move check:', { opponentMoved, isNewMove, hasGameState: !!game.gameState })
+
     if (game.gameState && opponentMoved && isNewMove) {
       // Update the move counter
       lastSeenMoveCount = game.moveCount || 0
+      console.log('[MP LISTEN] Applying opponent move, new lastSeenMoveCount:', lastSeenMoveCount)
 
       // Opponent made a move, apply the new state
       const state = game.gameState as SerializedGameState

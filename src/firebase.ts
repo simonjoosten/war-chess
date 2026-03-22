@@ -970,10 +970,13 @@ export function listenToGame(gameId: string, callback: (game: MultiplayerGame | 
   }
 
   gameUnsubscribe = onSnapshot(doc(db, 'games', gameId), (docSnap) => {
+    console.log('[FB SNAPSHOT] Game snapshot received for:', gameId, 'exists:', docSnap.exists())
     if (docSnap.exists()) {
+      const data = docSnap.data()
+      console.log('[FB SNAPSHOT] Game data:', { moveCount: data.moveCount, currentTurn: data.currentTurn, lastMoveBy: data.lastMoveBy, status: data.status })
       currentMultiplayerGame = {
         id: docSnap.id,
-        ...docSnap.data()
+        ...data
       } as MultiplayerGame
     } else {
       currentMultiplayerGame = null
@@ -995,23 +998,30 @@ export function stopListeningToGame(): void {
 
 // Update game state
 export async function updateGameState(gameId: string, gameState: unknown, currentTurn: 'yellow' | 'green', lastMoveBy: 'yellow' | 'green'): Promise<boolean> {
-  if (!db) return false
+  if (!db) {
+    console.error('[FB UPDATE] No database connection')
+    return false
+  }
 
   try {
     // Get current move count and increment
     const gameDoc = await getDoc(doc(db, 'games', gameId))
     const currentMoveCount = gameDoc.exists() ? (gameDoc.data().moveCount || 0) : 0
+    const newMoveCount = currentMoveCount + 1
+
+    console.log('[FB UPDATE] Updating game:', { gameId, currentTurn, lastMoveBy, moveCount: newMoveCount })
 
     await updateDoc(doc(db, 'games', gameId), {
       gameState,
       currentTurn,
       lastMoveBy,
-      moveCount: currentMoveCount + 1,
+      moveCount: newMoveCount,
       lastMove: serverTimestamp()
     })
+    console.log('[FB UPDATE] Update successful')
     return true
   } catch (error) {
-    console.error('Error updating game:', error)
+    console.error('[FB UPDATE] Error updating game:', error)
     return false
   }
 }
