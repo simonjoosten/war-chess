@@ -80,7 +80,24 @@ import {
   adminDeleteAllMessages,
   // Polls
   votePoll,
-  getPollResults
+  getPollResults,
+  // Chat system
+  sendChatMessage,
+  listenToGameChat,
+  stopListeningToChat,
+  QUICK_CHAT_MESSAGES,
+  GameChatMessage,
+  filterBadWords,
+  // Puzzle system
+  getDailyPuzzles,
+  recordPuzzleAttempt,
+  Puzzle,
+  // Admin extras
+  adminBanUser,
+  adminSetWarBucks,
+  adminGetChatLogs,
+  isUserBanned,
+  getBanRemainingMinutes
 } from './firebase'
 
 // Auth state
@@ -108,6 +125,19 @@ let waitingForOpponent = false
 let multiplayerGameStarted = false
 let opponentLeftGame = false // Track if opponent left the game
 let showOpponentLeftModal = false // Show modal when opponent leaves
+
+// Chat state
+let chatMessages: GameChatMessage[] = []
+let chatInput = ''
+let showChat = false
+let chatListening = false
+
+// Puzzle state
+let currentPuzzle: Puzzle | null = null
+let puzzleAttempts = 0
+let puzzleMovesLeft = 0
+let showPuzzleScreen = false
+let dailyPuzzles: Puzzle[] = []
 
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
@@ -8817,6 +8847,22 @@ async function startMultiplayerGame() {
     startTimer()
   }
 
+  // Start listening to chat
+  if (!chatListening) {
+    chatListening = true
+    showChat = true // Show chat by default
+    chatMessages = []
+    listenToGameChat(multiplayerGameId, (messages) => {
+      chatMessages = messages
+      // Scroll to bottom of chat
+      const chatContainer = document.getElementById('chat-messages')
+      if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight
+      }
+      render()
+    })
+  }
+
   await initAudio()
 
   // Load active game modes
@@ -9108,6 +9154,10 @@ async function resetGame() {
   if (multiplayerGameId && multiplayerTeam && !opponentLeftGame) {
     await leaveGame(multiplayerGameId, multiplayerTeam)
     stopListeningToGame()
+    stopListeningToChat()
+    chatListening = false
+    chatMessages = []
+    showChat = false
   }
 
   // Reset opponent left state
@@ -16699,6 +16749,59 @@ function createMoveLog(): string {
   `
 }
 
+// Chat panel for multiplayer
+function createChatPanel(): string {
+  if (!multiplayerGameId || !multiplayerTeam) return ''
+
+  const teamColor = multiplayerTeam === 'yellow' ? 'yellow' : 'green'
+
+  return `
+    <div class="bg-gray-800 rounded-lg p-3 sm:p-4 w-full lg:w-64 flex flex-col ${showChat ? 'h-64' : 'h-auto'}">
+      <div class="flex items-center justify-between mb-2 border-b border-gray-700 pb-2">
+        <h2 class="text-gray-200 font-bold text-base sm:text-lg flex items-center gap-2">
+          💬 Chat
+          ${chatMessages.length > 0 ? `<span class="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">${chatMessages.length}</span>` : ''}
+        </h2>
+        <button id="toggle-chat" class="text-gray-400 hover:text-white text-sm px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">
+          ${showChat ? '▼ Hide' : '▲ Show'}
+        </button>
+      </div>
+      ${showChat ? `
+        <div id="chat-messages" class="flex-1 overflow-y-auto space-y-1 text-xs mb-2 min-h-0 max-h-32">
+          ${chatMessages.length === 0
+            ? '<p class="text-gray-500 italic">No messages yet</p>'
+            : chatMessages.map(msg => {
+                const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
+                const isMe = msg.fromPlayerId === getCurrentUser()?.uid
+                return `
+                  <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                    <span class="${msgColor} text-xs font-bold">${msg.fromUsername}</span>
+                    <span class="bg-gray-700 px-2 py-1 rounded ${isMe ? 'bg-${teamColor}-900' : ''}">${msg.message}</span>
+                  </div>
+                `
+              }).join('')
+          }
+        </div>
+        <div class="flex flex-col gap-1">
+          <div class="flex gap-1 flex-wrap">
+            ${QUICK_CHAT_MESSAGES.slice(0, 4).map(qc => `
+              <button class="quick-chat-btn bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 py-1 rounded" data-msg="${qc.id}">
+                ${qc.text.split('!')[0]}
+              </button>
+            `).join('')}
+          </div>
+          <div class="flex gap-1">
+            <input type="text" id="chat-input" class="flex-1 bg-gray-700 text-white text-sm px-2 py-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none" placeholder="Type message..." maxlength="100" value="${chatInput}">
+            <button id="send-chat" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded">
+              Send
+            </button>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `
+}
+
 function render() {
   const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -19499,6 +19602,7 @@ function render() {
         <div class="flex flex-row lg:flex-col gap-4 w-full lg:w-64 lg:h-[80vh]">
           ${createScorePanel()}
           ${createMoveLog()}
+          ${multiplayerGameId ? createChatPanel() : ''}
         </div>
       </div>
     </div>
@@ -19535,12 +19639,56 @@ function render() {
     isMyTurnInMultiplayer = false
     waitingForOpponent = false
     stopListeningToGame()
+    stopListeningToChat()
+    chatListening = false
     // If it was opponent's turn, trigger bot move
     if (currentTurn === 'green') {
       setTimeout(() => makeBotMove(), 500)
     }
     message = 'Continuing with Bot...'
     render()
+  })
+
+  // Chat listeners
+  document.getElementById('toggle-chat')?.addEventListener('click', () => {
+    showChat = !showChat
+    render()
+  })
+
+  document.getElementById('send-chat')?.addEventListener('click', async () => {
+    const input = document.getElementById('chat-input') as HTMLInputElement
+    if (input && input.value.trim() && multiplayerGameId && multiplayerTeam) {
+      await sendChatMessage(multiplayerGameId, input.value.trim(), multiplayerTeam)
+      chatInput = ''
+      input.value = ''
+    }
+  })
+
+  document.getElementById('chat-input')?.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+      const input = e.target as HTMLInputElement
+      if (input.value.trim() && multiplayerGameId && multiplayerTeam) {
+        await sendChatMessage(multiplayerGameId, input.value.trim(), multiplayerTeam)
+        chatInput = ''
+        input.value = ''
+      }
+    }
+  })
+
+  document.getElementById('chat-input')?.addEventListener('input', (e) => {
+    chatInput = (e.target as HTMLInputElement).value
+  })
+
+  document.querySelectorAll('.quick-chat-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const msgId = (e.currentTarget as HTMLElement).dataset.msg
+      if (msgId && multiplayerGameId && multiplayerTeam) {
+        const quickMsg = QUICK_CHAT_MESSAGES.find(m => m.id === msgId)
+        if (quickMsg) {
+          await sendChatMessage(multiplayerGameId, quickMsg.text, multiplayerTeam, true, msgId)
+        }
+      }
+    })
   })
 
   // Add soldier action listeners
