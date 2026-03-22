@@ -1533,197 +1533,215 @@ function getActiveSoundPack(): string | null {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// AMBIENT MUSIC - Calm, peaceful background
+// AMBIENT MUSIC - Beautiful piano with strings - 16 bar phrases
 // ═══════════════════════════════════════════════════════════════════════════
 function startAmbientMusic() {
   if (!audioContext || !musicGainNode) return
 
-  // Peaceful C major / A minor scale
-  const scale = {
+  // Full piano range with all notes
+  const notes: Record<string, number> = {
     C2: 65.41, D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
     C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
     C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
-    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99
+    C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00
   }
 
-  // Rich evolving pad with multiple oscillators
-  function playAmbientPad() {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
-    const now = audioContext.currentTime
+  // Create reverb impulse response for spacious sound
+  function createReverb(): ConvolverNode {
+    const convolver = audioContext!.createConvolver()
+    const rate = audioContext!.sampleRate
+    const length = rate * 2.5 // 2.5 second reverb
+    const impulse = audioContext!.createBuffer(2, length, rate)
 
-    // Beautiful chord progressions
-    const chords = [
-      [scale.C3, scale.E3, scale.G3, scale.B3],    // Cmaj7
-      [scale.A2, scale.C3, scale.E3, scale.G3],    // Am7
-      [scale.F2, scale.A2, scale.C3, scale.E3],    // Fmaj7
-      [scale.G2, scale.B2, scale.D3, scale.F3],    // G7
-      [scale.E2, scale.G2, scale.B2, scale.D3],    // Em7
-      [scale.D2, scale.F2, scale.A2, scale.C3],    // Dm7
-    ]
-    const chord = chords[measureCount % chords.length]
-
-    chord.forEach((freq, i) => {
-      // Layer 1: Pure sine foundation
-      const osc1 = audioContext!.createOscillator()
-      const gain1 = audioContext!.createGain()
-      osc1.type = 'sine'
-      osc1.frequency.value = freq
-      gain1.gain.setValueAtTime(0.001, now + i * 0.15)
-      gain1.gain.linearRampToValueAtTime(0.03, now + 2.5)
-      gain1.gain.linearRampToValueAtTime(0.025, now + 6)
-      gain1.gain.linearRampToValueAtTime(0.001, now + 8)
-      osc1.connect(gain1)
-      gain1.connect(musicGainNode!)
-      osc1.start(now + i * 0.15)
-      osc1.stop(now + 8.5)
-
-      // Layer 2: Octave shimmer
-      const osc2 = audioContext!.createOscillator()
-      const gain2 = audioContext!.createGain()
-      const filter2 = audioContext!.createBiquadFilter()
-      osc2.type = 'sine'
-      osc2.frequency.value = freq * 2
-      filter2.type = 'lowpass'
-      filter2.frequency.value = 1000
-      gain2.gain.setValueAtTime(0.001, now + i * 0.15 + 0.5)
-      gain2.gain.linearRampToValueAtTime(0.015, now + 3)
-      gain2.gain.linearRampToValueAtTime(0.001, now + 7.5)
-      osc2.connect(filter2)
-      filter2.connect(gain2)
-      gain2.connect(musicGainNode!)
-      osc2.start(now + i * 0.15 + 0.5)
-      osc2.stop(now + 8)
-    })
+    for (let channel = 0; channel < 2; channel++) {
+      const channelData = impulse.getChannelData(channel)
+      for (let i = 0; i < length; i++) {
+        // Exponential decay with some randomness
+        channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5)
+      }
+    }
+    convolver.buffer = impulse
+    return convolver
   }
 
-  // Gentle harp-like arpeggios
-  function playAmbientArpeggio() {
+  const reverb = createReverb()
+  const reverbGain = audioContext.createGain()
+  reverbGain.gain.value = 0.3
+  reverb.connect(reverbGain)
+  reverbGain.connect(musicGainNode)
+
+  // Realistic piano note with harmonics
+  function playPianoNote(freq: number, startTime: number, duration: number, velocity: number = 0.8) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
-    const now = audioContext.currentTime
 
-    const patterns = [
-      [scale.C4, scale.E4, scale.G4, scale.C5, scale.G4, scale.E4],
-      [scale.A3, scale.C4, scale.E4, scale.A4, scale.E4, scale.C4],
-      [scale.F3, scale.A3, scale.C4, scale.F4, scale.C4, scale.A3],
-      [scale.G3, scale.B3, scale.D4, scale.G4, scale.D4, scale.B3],
-    ]
-    const notes = patterns[measureCount % patterns.length]
+    const noteGain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = 4000 + velocity * 2000
+    filter.Q.value = 0.5
 
-    notes.forEach((freq, i) => {
+    // Piano harmonics (fundamental + overtones)
+    const harmonics = [1, 2, 3, 4, 5, 6]
+    const harmonicGains = [1, 0.5, 0.25, 0.15, 0.08, 0.04]
+
+    harmonics.forEach((h, i) => {
       const osc = audioContext!.createOscillator()
+      const oscGain = audioContext!.createGain()
+
+      // Mix of sine and triangle for piano character
+      osc.type = i === 0 ? 'triangle' : 'sine'
+      osc.frequency.value = freq * h
+
+      // Slightly detune higher harmonics for warmth
+      if (h > 1) osc.detune.value = h * 0.5
+
+      oscGain.gain.value = harmonicGains[i] * velocity * 0.02
+
+      osc.connect(oscGain)
+      oscGain.connect(filter)
+      osc.start(startTime)
+      osc.stop(startTime + duration + 0.5)
+    })
+
+    // Piano envelope - quick attack, natural decay
+    noteGain.gain.setValueAtTime(0.001, startTime)
+    noteGain.gain.linearRampToValueAtTime(velocity * 0.15, startTime + 0.008)
+    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.08, startTime + 0.1)
+    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    filter.connect(noteGain)
+    noteGain.connect(musicGainNode!)
+    noteGain.connect(reverb)
+  }
+
+  // Warm string pad for atmosphere
+  function playStringPad(freqs: number[], startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    freqs.forEach((freq, idx) => {
+      const osc1 = audioContext!.createOscillator()
+      const osc2 = audioContext!.createOscillator()
       const gain = audioContext!.createGain()
       const filter = audioContext!.createBiquadFilter()
 
-      osc.type = 'sine'
-      osc.frequency.value = freq
+      // Sawtooth for strings with slight detune for chorus
+      osc1.type = 'sawtooth'
+      osc2.type = 'sawtooth'
+      osc1.frequency.value = freq
+      osc2.frequency.value = freq * 1.003 // Slight detune
 
       filter.type = 'lowpass'
-      filter.frequency.value = 2000
-      filter.Q.value = 1
+      filter.frequency.value = 800
+      filter.Q.value = 0.7
 
-      // Gentle pluck envelope
-      gain.gain.setValueAtTime(0.001, now + i * 0.35)
-      gain.gain.linearRampToValueAtTime(0.04, now + i * 0.35 + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.35 + 1.2)
+      // Slow attack, sustain, slow release
+      gain.gain.setValueAtTime(0.001, startTime + idx * 0.1)
+      gain.gain.linearRampToValueAtTime(0.012, startTime + idx * 0.1 + 1.5)
+      gain.gain.setValueAtTime(0.01, startTime + duration - 2)
+      gain.gain.linearRampToValueAtTime(0.001, startTime + duration)
 
-      osc.connect(filter)
+      osc1.connect(filter)
+      osc2.connect(filter)
       filter.connect(gain)
       gain.connect(musicGainNode!)
-      osc.start(now + i * 0.35)
-      osc.stop(now + i * 0.35 + 1.5)
+      gain.connect(reverb)
+
+      osc1.start(startTime + idx * 0.1)
+      osc2.start(startTime + idx * 0.1)
+      osc1.stop(startTime + duration + 0.5)
+      osc2.stop(startTime + duration + 0.5)
     })
   }
 
-  // Soft wind chimes
-  function playWindChimes() {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
+  // Beautiful 16-bar piano melody that repeats
+  const melodyA = [
+    // Bar 1-4: Opening theme
+    { note: 'E4', time: 0, dur: 1.5 }, { note: 'G4', time: 1.5, dur: 0.5 }, { note: 'A4', time: 2, dur: 2 },
+    { note: 'G4', time: 4, dur: 1 }, { note: 'E4', time: 5, dur: 1 }, { note: 'D4', time: 6, dur: 2 },
+    { note: 'C4', time: 8, dur: 1.5 }, { note: 'D4', time: 9.5, dur: 0.5 }, { note: 'E4', time: 10, dur: 2 },
+    { note: 'D4', time: 12, dur: 1 }, { note: 'C4', time: 13, dur: 1 }, { note: 'B3', time: 14, dur: 2 },
+    // Bar 5-8: Development
+    { note: 'C4', time: 16, dur: 1 }, { note: 'E4', time: 17, dur: 1 }, { note: 'G4', time: 18, dur: 2 },
+    { note: 'A4', time: 20, dur: 1.5 }, { note: 'G4', time: 21.5, dur: 0.5 }, { note: 'E4', time: 22, dur: 2 },
+    { note: 'F4', time: 24, dur: 1 }, { note: 'E4', time: 25, dur: 1 }, { note: 'D4', time: 26, dur: 2 },
+    { note: 'E4', time: 28, dur: 2 }, { note: 'C4', time: 30, dur: 2 },
+    // Bar 9-12: Climax
+    { note: 'G4', time: 32, dur: 1 }, { note: 'A4', time: 33, dur: 1 }, { note: 'C5', time: 34, dur: 2 },
+    { note: 'B4', time: 36, dur: 1 }, { note: 'A4', time: 37, dur: 1 }, { note: 'G4', time: 38, dur: 2 },
+    { note: 'A4', time: 40, dur: 1.5 }, { note: 'G4', time: 41.5, dur: 0.5 }, { note: 'E4', time: 42, dur: 2 },
+    { note: 'D4', time: 44, dur: 2 }, { note: 'E4', time: 46, dur: 2 },
+    // Bar 13-16: Resolution
+    { note: 'C4', time: 48, dur: 1 }, { note: 'D4', time: 49, dur: 1 }, { note: 'E4', time: 50, dur: 2 },
+    { note: 'G4', time: 52, dur: 1 }, { note: 'F4', time: 53, dur: 1 }, { note: 'E4', time: 54, dur: 2 },
+    { note: 'D4', time: 56, dur: 1.5 }, { note: 'E4', time: 57.5, dur: 0.5 }, { note: 'C4', time: 58, dur: 2 },
+    { note: 'C4', time: 60, dur: 4 },
+  ]
+
+  // Left hand accompaniment pattern (bass + chord)
+  const bassPattern = [
+    { note: 'C2', time: 0 }, { note: 'G2', time: 2 },
+    { note: 'A2', time: 4 }, { note: 'E2', time: 6 },
+    { note: 'F2', time: 8 }, { note: 'C3', time: 10 },
+    { note: 'G2', time: 12 }, { note: 'D2', time: 14 },
+  ]
+
+  // Chord progression (strings)
+  const chordProg = [
+    { chords: ['C3', 'E3', 'G3'], time: 0 },      // C major
+    { chords: ['A2', 'C3', 'E3'], time: 8 },      // A minor
+    { chords: ['F2', 'A2', 'C3'], time: 16 },     // F major
+    { chords: ['G2', 'B2', 'D3'], time: 24 },     // G major
+    { chords: ['E2', 'G2', 'B2'], time: 32 },     // E minor
+    { chords: ['A2', 'C3', 'E3'], time: 40 },     // A minor
+    { chords: ['D2', 'F2', 'A2'], time: 48 },     // D minor
+    { chords: ['G2', 'B2', 'D3'], time: 56 },     // G major
+  ]
+
+  let phraseStart = 0
+  const phraseDuration = 64 // 16 bars * 4 beats
+
+  function playPhrase() {
+    if (!audioContext || !musicEnabled) return
     const now = audioContext.currentTime
 
-    const chimeNotes = [scale.C5, scale.E5, scale.G5, scale.D5]
-    const numChimes = 2 + Math.floor(Math.random() * 3)
+    // Play melody
+    melodyA.forEach(m => {
+      const freq = notes[m.note]
+      if (freq) {
+        const velocity = 0.6 + Math.random() * 0.2 // Slight variation
+        playPianoNote(freq, now + m.time * 0.5, m.dur * 0.5, velocity)
+      }
+    })
 
-    for (let i = 0; i < numChimes; i++) {
-      const freq = chimeNotes[Math.floor(Math.random() * chimeNotes.length)]
-      const startTime = now + Math.random() * 2
-
-      const osc = audioContext.createOscillator()
-      const gain = audioContext.createGain()
-
-      osc.type = 'sine'
-      osc.frequency.value = freq
-
-      gain.gain.setValueAtTime(0.001, startTime)
-      gain.gain.linearRampToValueAtTime(0.02, startTime + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 2)
-
-      osc.connect(gain)
-      gain.connect(musicGainNode)
-      osc.start(startTime)
-      osc.stop(startTime + 2.5)
+    // Play bass notes
+    for (let bar = 0; bar < 8; bar++) {
+      bassPattern.forEach(b => {
+        const freq = notes[b.note]
+        if (freq) {
+          playPianoNote(freq, now + (bar * 8 + b.time) * 0.5, 1.5, 0.5)
+        }
+      })
     }
+
+    // Play string chords
+    chordProg.forEach(c => {
+      const freqs = c.chords.map(n => notes[n]).filter(f => f)
+      playStringPad(freqs, now + c.time * 0.5, 8 * 0.5)
+    })
   }
 
-  // Deep soft bass
-  function playAmbientBass() {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
-    const now = audioContext.currentTime
+  // Start first phrase
+  playPhrase()
 
-    const bassNotes = [scale.C2, scale.A2, scale.F2, scale.G2]
-    const freq = bassNotes[measureCount % bassNotes.length]
-
-    const osc = audioContext.createOscillator()
-    const gain = audioContext.createGain()
-    const filter = audioContext.createBiquadFilter()
-
-    osc.type = 'sine'
-    osc.frequency.value = freq
-
-    filter.type = 'lowpass'
-    filter.frequency.value = 100
-
-    gain.gain.setValueAtTime(0.001, now)
-    gain.gain.linearRampToValueAtTime(0.08, now + 1)
-    gain.gain.setValueAtTime(0.06, now + 3)
-    gain.gain.linearRampToValueAtTime(0.001, now + 4)
-
-    osc.connect(filter)
-    filter.connect(gain)
-    gain.connect(musicGainNode)
-    osc.start(now)
-    osc.stop(now + 4.5)
-  }
-
-  // Start with pad and bass
-  playAmbientPad()
-  playAmbientBass()
-
-  const measureDuration = 4000 // 4 seconds per measure
-
+  // Repeat phrase every 32 seconds (64 beats * 0.5 sec)
   musicInterval = window.setInterval(() => {
     if (!musicEnabled) {
       stopMusic()
       return
     }
     measureCount++
-
-    // Pad every 2 measures
-    if (measureCount % 2 === 0) {
-      playAmbientPad()
-    }
-
-    // Arpeggios every 3 measures
-    if (measureCount % 3 === 0) {
-      playAmbientArpeggio()
-    }
-
-    // Bass every measure
-    playAmbientBass()
-
-    // Wind chimes occasionally
-    if (measureCount % 4 === 2) {
-      playWindChimes()
-    }
-  }, measureDuration)
+    playPhrase()
+  }, phraseDuration * 500)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -15099,13 +15117,16 @@ function render() {
       // Music style buttons
       document.querySelectorAll('.style-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-          const newStyle = (e.target as HTMLElement).getAttribute('data-style') as MusicStyle
-          musicStyle = newStyle
-          if (musicEnabled) {
-            stopMusic()
-            startMusic()
+          const button = e.currentTarget as HTMLElement
+          const newStyle = button.getAttribute('data-style') as MusicStyle
+          if (newStyle) {
+            musicStyle = newStyle
+            if (musicEnabled) {
+              stopMusic()
+              startMusic()
+            }
+            render()
           }
-          render()
         })
       })
 
