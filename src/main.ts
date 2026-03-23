@@ -93,6 +93,7 @@ import {
   recordPuzzleAttempt,
   Puzzle,
   adminCreatePuzzle,
+  adminUpdatePuzzle,
   adminCreateSamplePuzzles,
   adminGetAllPuzzles,
   adminDeletePuzzle,
@@ -183,6 +184,8 @@ interface PuzzleEditorPiece {
 }
 let puzzleEditorPieces: PuzzleEditorPiece[] = []
 let puzzleEditorTargetIdx: number = -1  // Index of target piece in editor
+let puzzleEditorAiMoves: Array<{ fromRow: number; fromCol: number; toRow: number; toCol: number }> = []
+let editingPuzzleId: string | null = null  // ID van puzzle die we bewerken (null = nieuwe puzzle)
 
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
@@ -9259,6 +9262,12 @@ function startPuzzle(puzzle: Puzzle) {
       points: 1
     })
   }
+
+  // Set turn counts based on startingTurn (for rocket/hacker cooldowns)
+  // startingTurn 1 = begin game, 2+ = simulate turns already passed
+  const startTurn = puzzle.startingTurn || 1
+  yellowTurnCount = startTurn - 1  // -1 because the first move will increment it
+  greenTurnCount = startTurn - 1
 
   // Set player as yellow team
   currentTurn = 'yellow'
@@ -19302,25 +19311,55 @@ function render() {
                   </div>
 
                   <div id="create-puzzle-form" class="hidden bg-gray-700 p-4 rounded-lg mb-4">
-                    <h3 class="text-white font-bold mb-3">Create New Puzzle</h3>
+                    <h3 id="puzzle-form-title" class="text-white font-bold mb-3">Create New Puzzle</h3>
                     <div class="grid gap-3">
                       <div class="grid grid-cols-2 gap-2">
                         <input type="text" id="puzzle-name" placeholder="Puzzle name..." class="bg-gray-600 text-white px-3 py-2 rounded">
                         <input type="text" id="puzzle-icon" placeholder="Icon 🧩" class="bg-gray-600 text-white px-3 py-2 rounded" value="🧩">
                       </div>
-                      <div class="grid grid-cols-2 gap-2">
+                      <div class="grid grid-cols-3 gap-2">
                         <select id="puzzle-difficulty" class="bg-gray-600 text-white px-3 py-2 rounded">
-                          <option value="easy">⭐ Easy (1 move)</option>
-                          <option value="medium">⭐⭐ Medium (2 moves)</option>
-                          <option value="hard">⭐⭐⭐ Hard (3 moves)</option>
+                          <option value="easy">⭐ Easy</option>
+                          <option value="medium">⭐⭐ Medium</option>
+                          <option value="hard">⭐⭐⭐ Hard</option>
+                        </select>
+                        <select id="puzzle-max-moves" class="bg-gray-600 text-white px-3 py-2 rounded">
+                          <option value="1">1 zet</option>
+                          <option value="2">2 zetten</option>
+                          <option value="3" selected>3 zetten</option>
+                          <option value="4">4 zetten</option>
+                          <option value="5">5 zetten</option>
+                          <option value="6">6 zetten</option>
                         </select>
                         <select id="puzzle-objective-type" class="bg-gray-600 text-white px-3 py-2 rounded">
-                          <option value="capture">Capture piece</option>
-                          <option value="score">Reach score</option>
-                          <option value="survive">Survive turns</option>
+                          <option value="capture">🎯 Capture</option>
+                          <option value="score">💰 Score</option>
+                          <option value="survive">🛡️ Survive</option>
                         </select>
                       </div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <div>
+                          <label class="text-gray-300 text-xs">Start beurt (voor cooldowns):</label>
+                          <select id="puzzle-starting-turn" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
+                            <option value="1">Beurt 1</option>
+                            <option value="2">Beurt 2</option>
+                            <option value="3">Beurt 3</option>
+                            <option value="4">Beurt 4</option>
+                            <option value="5">Beurt 5</option>
+                            <option value="6">Beurt 6</option>
+                          </select>
+                        </div>
+                        <div class="text-gray-400 text-xs pt-4">
+                          💡 Rocket/Hacker hebben cooldown. Start op beurt 2+ om ze direct te kunnen gebruiken.
+                        </div>
+                      </div>
                       <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
+
+                      <!-- Target Score (only for score objectives) -->
+                      <div id="puzzle-score-section" class="hidden">
+                        <label class="text-gray-300 text-sm">Target Score to reach:</label>
+                        <input type="number" id="puzzle-target-score" placeholder="e.g. 10" class="bg-gray-600 text-white px-3 py-2 rounded w-full" value="10">
+                      </div>
 
                       <!-- Board Editor -->
                       <div class="bg-gray-800 p-3 rounded-lg">
@@ -19351,6 +19390,18 @@ function render() {
                         <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(9, 24px); width: fit-content;"></div>
                         <div class="text-gray-400 text-xs mt-2">Click to place/remove. Shift+click enemy to set as TARGET 🎯</div>
                         <div class="text-gray-400 text-xs">Pieces: <span id="puzzle-piece-count">0</span> | Target: <span id="puzzle-target-display" class="text-red-400">None</span></div>
+                      </div>
+
+                      <!-- AI Moves Editor -->
+                      <div class="bg-gray-800 p-3 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                          <span class="text-white font-bold text-sm">🤖 AI Zetten (na jouw zet)</span>
+                          <button id="add-ai-move" class="bg-purple-600 hover:bg-purple-500 text-white text-xs px-2 py-1 rounded">+ Add Move</button>
+                        </div>
+                        <div id="ai-moves-list" class="space-y-2 text-sm">
+                          <div class="text-gray-400 text-xs">Geen AI zetten. De vijand doet niks.</div>
+                        </div>
+                        <div class="text-gray-500 text-xs mt-2">Format: Na zet 1 doet AI move 1, na zet 2 doet AI move 2, etc.</div>
                       </div>
 
                       <div class="flex gap-2">
@@ -19533,7 +19584,47 @@ function render() {
             form.classList.toggle('hidden')
             // Render board editor when form opens
             if (!form.classList.contains('hidden')) {
+              // Reset to create mode (not edit mode)
+              editingPuzzleId = null
+              puzzleEditorPieces = []
+              puzzleEditorTargetIdx = -1
+              puzzleEditorAiMoves = []
+
+              // Reset form fields
+              const nameInput = document.getElementById('puzzle-name') as HTMLInputElement
+              const iconInput = document.getElementById('puzzle-icon') as HTMLInputElement
+              const difficultySelect = document.getElementById('puzzle-difficulty') as HTMLSelectElement
+              const maxMovesSelect = document.getElementById('puzzle-max-moves') as HTMLSelectElement
+              const startingTurnSelect = document.getElementById('puzzle-starting-turn') as HTMLSelectElement
+              const objectiveInput = document.getElementById('puzzle-objective') as HTMLInputElement
+              const objectiveTypeSelect = document.getElementById('puzzle-objective-type') as HTMLSelectElement
+              const targetScoreInput = document.getElementById('puzzle-target-score') as HTMLInputElement
+              const warBucksInput = document.getElementById('puzzle-warbucks') as HTMLInputElement
+              const xpInput = document.getElementById('puzzle-xp') as HTMLInputElement
+
+              if (nameInput) nameInput.value = ''
+              if (iconInput) iconInput.value = '🧩'
+              if (difficultySelect) difficultySelect.value = 'easy'
+              if (maxMovesSelect) maxMovesSelect.value = '3'
+              if (startingTurnSelect) startingTurnSelect.value = '1'
+              if (objectiveInput) objectiveInput.value = ''
+              if (objectiveTypeSelect) objectiveTypeSelect.value = 'capture'
+              if (targetScoreInput) targetScoreInput.value = '10'
+              if (warBucksInput) warBucksInput.value = '50'
+              if (xpInput) xpInput.value = '25'
+
+              // Reset form title and button text
+              const formTitle = document.getElementById('puzzle-form-title')
+              if (formTitle) formTitle.textContent = 'Create New Puzzle'
+              const createBtn = document.getElementById('create-puzzle-btn')
+              if (createBtn) createBtn.textContent = 'Create Puzzle'
+
+              // Hide score section
+              const scoreSection = document.getElementById('puzzle-score-section')
+              if (scoreSection) scoreSection.classList.add('hidden')
+
               renderPuzzleBoardEditor()
+              renderAiMovesList()
             }
           }
         })
@@ -19626,7 +19717,9 @@ function render() {
         document.getElementById('clear-puzzle-board')?.addEventListener('click', () => {
           puzzleEditorPieces = []
           puzzleEditorTargetIdx = -1
+          puzzleEditorAiMoves = []
           renderPuzzleBoardEditor()
+          renderAiMovesList()
         })
 
         // Render board if form is already visible
@@ -19634,13 +19727,67 @@ function render() {
           renderPuzzleBoardEditor()
         }
 
+        // Show/hide target score field based on objective type
+        document.getElementById('puzzle-objective-type')?.addEventListener('change', (e) => {
+          const scoreSection = document.getElementById('puzzle-score-section')
+          if (scoreSection) {
+            scoreSection.classList.toggle('hidden', (e.target as HTMLSelectElement).value !== 'score')
+          }
+        })
+
+        // AI Moves: Add move button
+        document.getElementById('add-ai-move')?.addEventListener('click', () => {
+          const fromRow = prompt('Van rij (1-11):')
+          const fromCol = prompt('Van kolom (0-8, waar 0=A):')
+          const toRow = prompt('Naar rij (1-11):')
+          const toCol = prompt('Naar kolom (0-8):')
+
+          if (fromRow && fromCol && toRow && toCol) {
+            puzzleEditorAiMoves.push({
+              fromRow: parseInt(fromRow),
+              fromCol: parseInt(fromCol),
+              toRow: parseInt(toRow),
+              toCol: parseInt(toCol)
+            })
+            renderAiMovesList()
+          }
+        })
+
+        function renderAiMovesList() {
+          const list = document.getElementById('ai-moves-list')
+          if (!list) return
+
+          if (puzzleEditorAiMoves.length === 0) {
+            list.innerHTML = '<div class="text-gray-400 text-xs">Geen AI zetten. De vijand doet niks.</div>'
+          } else {
+            list.innerHTML = puzzleEditorAiMoves.map((move, idx) => `
+              <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
+                <span class="text-white">Zet ${idx + 1}: (${move.fromRow},${move.fromCol}) → (${move.toRow},${move.toCol})</span>
+                <button class="remove-ai-move bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded" data-idx="${idx}">×</button>
+              </div>
+            `).join('')
+
+            // Add remove handlers
+            document.querySelectorAll('.remove-ai-move').forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                const idx = parseInt((e.currentTarget as HTMLElement).dataset.idx || '0')
+                puzzleEditorAiMoves.splice(idx, 1)
+                renderAiMovesList()
+              })
+            })
+          }
+        }
+
         document.getElementById('create-puzzle-btn')?.addEventListener('click', async () => {
           addDebugLog('info', 'Create Puzzle', 'Button clicked')
           const name = (document.getElementById('puzzle-name') as HTMLInputElement)?.value
           const icon = (document.getElementById('puzzle-icon') as HTMLInputElement)?.value || '🧩'
           const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
+          const maxMoves = parseInt((document.getElementById('puzzle-max-moves') as HTMLSelectElement)?.value) || 3
+          const startingTurn = parseInt((document.getElementById('puzzle-starting-turn') as HTMLSelectElement)?.value) || 1
           const objective = (document.getElementById('puzzle-objective') as HTMLInputElement)?.value
           const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive'
+          const targetScore = parseInt((document.getElementById('puzzle-target-score') as HTMLInputElement)?.value) || 10
           const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
           const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
 
@@ -19663,12 +19810,10 @@ function render() {
             alert('Place at least one Player (yellow) piece!')
             return
           }
-          if (enemyPieces.length === 0) {
+          if (objectiveType !== 'score' && enemyPieces.length === 0) {
             alert('Place at least one Enemy (green) piece!')
             return
           }
-
-          const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
 
           // Check if target is set for capture objectives
           if (objectiveType === 'capture' && puzzleEditorTargetIdx < 0) {
@@ -19678,9 +19823,9 @@ function render() {
           }
 
           // Get target piece info
-          const targetPiece = puzzleEditorTargetIdx >= 0 ? puzzleEditorPieces[puzzleEditorTargetIdx] : enemyPieces[0]
-          const targetPieceType = targetPiece.type
-          const targetPosition = { row: targetPiece.row, col: targetPiece.col }
+          const targetPiece = puzzleEditorTargetIdx >= 0 ? puzzleEditorPieces[puzzleEditorTargetIdx] : (enemyPieces[0] || null)
+          const targetPieceType = targetPiece?.type || 'soldier'
+          const targetPosition = targetPiece ? { row: targetPiece.row, col: targetPiece.col } : undefined
 
           // Convert editor pieces to puzzle format
           const initialBoard = [
@@ -19694,33 +19839,63 @@ function render() {
             { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
           ]
 
-          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Pieces: ${puzzleEditorPieces.length}, Target: ${targetPieceType} at row ${targetPosition.row}`)
+          // Convert AI moves
+          const aiMoves = puzzleEditorAiMoves.map(m => ({
+            from: { row: m.fromRow, col: m.fromCol },
+            to: { row: m.toRow, col: m.toCol }
+          }))
+
+          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Moves: ${maxMoves}, StartTurn: ${startingTurn}, Pieces: ${puzzleEditorPieces.length}, AI Moves: ${aiMoves.length}`)
 
           const puzzleData = {
             name,
             icon,
             difficulty,
             maxMoves,
+            startingTurn,
             objective,
             objectiveType,
             targetPieceType,
             targetPosition,
+            targetScore: objectiveType === 'score' ? targetScore : undefined,
             initialBoard,
-            aiMoves: [],
+            aiMoves,
             rewards: { warBucks, xp }
           }
 
-          addDebugLog('info', 'Creating Puzzle', `Calling adminCreatePuzzle...`)
-          const id = await adminCreatePuzzle(puzzleData)
-          if (id) {
-            addDebugLog('success', 'Puzzle Created', `ID: ${id}`)
-            alert('Puzzle created!')
-            puzzleEditorPieces = []  // Clear editor
-            puzzleEditorTargetIdx = -1  // Clear target
-            renderAdminPanel()
+          if (editingPuzzleId) {
+            // Update existing puzzle
+            addDebugLog('info', 'Updating Puzzle', `Calling adminUpdatePuzzle for ${editingPuzzleId}...`)
+            const success = await adminUpdatePuzzle(editingPuzzleId, puzzleData)
+            if (success) {
+              addDebugLog('success', 'Puzzle Updated', `ID: ${editingPuzzleId}`)
+              alert('Puzzle updated!')
+              puzzleEditorPieces = []  // Clear editor
+              puzzleEditorTargetIdx = -1  // Clear target
+              puzzleEditorAiMoves = []  // Clear AI moves
+              editingPuzzleId = null  // Reset editing mode
+              // Clear from cache so it reloads
+              dailyPuzzles = []
+              renderAdminPanel()
+            } else {
+              addDebugLog('error', 'Update Puzzle Failed', 'adminUpdatePuzzle returned false - check if you are admin')
+              alert('Failed to update puzzle. Check F9 debug panel.')
+            }
           } else {
-            addDebugLog('error', 'Create Puzzle Failed', 'adminCreatePuzzle returned null - check if you are admin')
-            alert('Failed to create puzzle. Check F9 debug panel.')
+            // Create new puzzle
+            addDebugLog('info', 'Creating Puzzle', `Calling adminCreatePuzzle...`)
+            const id = await adminCreatePuzzle(puzzleData)
+            if (id) {
+              addDebugLog('success', 'Puzzle Created', `ID: ${id}`)
+              alert('Puzzle created!')
+              puzzleEditorPieces = []  // Clear editor
+              puzzleEditorTargetIdx = -1  // Clear target
+              puzzleEditorAiMoves = []  // Clear AI moves
+              renderAdminPanel()
+            } else {
+              addDebugLog('error', 'Create Puzzle Failed', 'adminCreatePuzzle returned null - check if you are admin')
+              alert('Failed to create puzzle. Check F9 debug panel.')
+            }
           }
         })
 
@@ -19742,13 +19917,19 @@ function render() {
                         <div class="flex gap-2 mt-1">
                           <span class="bg-${puzzle.difficulty === 'easy' ? 'green' : puzzle.difficulty === 'medium' ? 'yellow' : 'red'}-600 text-white text-xs px-2 py-1 rounded">${puzzle.difficulty}</span>
                           <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">${puzzle.maxMoves} moves</span>
+                          <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">Start: ${puzzle.startingTurn || 1}</span>
                           <span class="text-gray-400 text-xs">Solved: ${puzzle.timesSolved}/${puzzle.timesAttempted}</span>
                         </div>
                       </div>
                     </div>
-                    <button class="admin-delete-puzzle bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}">
-                      🗑️
-                    </button>
+                    <div class="flex gap-2">
+                      <button class="admin-edit-puzzle bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}">
+                        ✏️
+                      </button>
+                      <button class="admin-delete-puzzle bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}">
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 `).join('')
 
@@ -19771,6 +19952,88 @@ function render() {
                       }
                       renderAdminPanel()
                     }
+                  })
+                })
+
+                // Add edit listeners
+                document.querySelectorAll('.admin-edit-puzzle').forEach(btn => {
+                  btn.addEventListener('click', async (e) => {
+                    const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
+                    const puzzle = puzzles.find(p => p.id === puzzleId)
+                    if (!puzzle) return
+
+                    addDebugLog('info', 'Edit Puzzle', `Loading puzzle: ${puzzle.name}`)
+
+                    // Set editing mode
+                    editingPuzzleId = puzzleId || null
+
+                    // Show and populate the form
+                    const form = document.getElementById('create-puzzle-form')
+                    if (form) form.classList.remove('hidden')
+
+                    // Populate form fields
+                    const nameInput = document.getElementById('puzzle-name') as HTMLInputElement
+                    const iconInput = document.getElementById('puzzle-icon') as HTMLInputElement
+                    const difficultySelect = document.getElementById('puzzle-difficulty') as HTMLSelectElement
+                    const maxMovesSelect = document.getElementById('puzzle-max-moves') as HTMLSelectElement
+                    const startingTurnSelect = document.getElementById('puzzle-starting-turn') as HTMLSelectElement
+                    const objectiveInput = document.getElementById('puzzle-objective') as HTMLInputElement
+                    const objectiveTypeSelect = document.getElementById('puzzle-objective-type') as HTMLSelectElement
+                    const targetScoreInput = document.getElementById('puzzle-target-score') as HTMLInputElement
+                    const warBucksInput = document.getElementById('puzzle-warbucks') as HTMLInputElement
+                    const xpInput = document.getElementById('puzzle-xp') as HTMLInputElement
+
+                    if (nameInput) nameInput.value = puzzle.name
+                    if (iconInput) iconInput.value = puzzle.icon || '🧩'
+                    if (difficultySelect) difficultySelect.value = puzzle.difficulty
+                    if (maxMovesSelect) maxMovesSelect.value = String(puzzle.maxMoves)
+                    if (startingTurnSelect) startingTurnSelect.value = String(puzzle.startingTurn || 1)
+                    if (objectiveInput) objectiveInput.value = puzzle.objective
+                    if (objectiveTypeSelect) objectiveTypeSelect.value = puzzle.objectiveType
+                    if (targetScoreInput) targetScoreInput.value = String(puzzle.targetScore || 10)
+                    if (warBucksInput) warBucksInput.value = String(puzzle.rewards.warBucks)
+                    if (xpInput) xpInput.value = String(puzzle.rewards.xp)
+
+                    // Show/hide target score section
+                    const scoreSection = document.getElementById('puzzle-score-section')
+                    if (scoreSection) {
+                      scoreSection.classList.toggle('hidden', puzzle.objectiveType !== 'score')
+                    }
+
+                    // Load pieces into editor
+                    puzzleEditorPieces = puzzle.initialBoard
+                      .filter(p => p.type !== 'base')  // Skip bases
+                      .map((p, idx) => ({
+                        type: p.type,
+                        row: p.position.row,
+                        col: p.position.col,
+                        team: p.team as 'blue' | 'red',
+                        isTarget: puzzle.targetPosition ?
+                          (p.position.row === puzzle.targetPosition.row && p.position.col === puzzle.targetPosition.col) : false
+                      }))
+
+                    // Set target index
+                    puzzleEditorTargetIdx = puzzleEditorPieces.findIndex(p => p.isTarget)
+
+                    // Load AI moves
+                    puzzleEditorAiMoves = puzzle.aiMoves.map(m => ({
+                      fromRow: m.from.row,
+                      fromCol: m.from.col,
+                      toRow: m.to.row,
+                      toCol: m.to.col
+                    }))
+
+                    // Update the form title and button text
+                    const formTitle = document.getElementById('puzzle-form-title')
+                    if (formTitle) formTitle.textContent = `✏️ Edit Puzzle: ${puzzle.name}`
+                    const createBtn = document.getElementById('create-puzzle-btn')
+                    if (createBtn) createBtn.textContent = '✏️ Update Puzzle'
+
+                    // Render editor
+                    renderPuzzleBoardEditor()
+                    renderAiMovesList()
+
+                    addDebugLog('success', 'Puzzle Loaded', `${puzzleEditorPieces.length} pieces, ${puzzleEditorAiMoves.length} AI moves`)
                   })
                 })
               }

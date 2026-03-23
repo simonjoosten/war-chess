@@ -2299,6 +2299,7 @@ export interface Puzzle {
   targetPieceType?: string  // For capture objectives
   targetPosition?: { row: number; col: number }  // Specific target piece position
   targetScore?: number  // For score objectives
+  startingTurn?: number  // Welke beurt de puzzle start (voor rocket/hacker cooldowns)
   initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
   aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>
   rewards: {
@@ -2494,6 +2495,58 @@ export async function adminDeletePuzzle(puzzleId: string): Promise<boolean> {
     return true
   } catch (error) {
     console.error('[ADMIN] adminDeletePuzzle ERROR:', error)
+    return false
+  }
+}
+
+// Admin: Update existing puzzle
+export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
+  name: string
+  icon: string
+  difficulty: 'easy' | 'medium' | 'hard'
+  maxMoves: number
+  startingTurn?: number
+  objective: string
+  objectiveType: 'capture' | 'score' | 'survive'
+  targetPieceType?: string
+  targetPosition?: { row: number; col: number }
+  targetScore?: number
+  initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
+  aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>
+  rewards: { warBucks: number; xp: number }
+}): Promise<boolean> {
+  console.log('[ADMIN] adminUpdatePuzzle called', { puzzleId, puzzleData })
+
+  if (!db) {
+    console.error('[ADMIN] adminUpdatePuzzle FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminUpdatePuzzle FAILED: User is not admin')
+    return false
+  }
+
+  try {
+    console.log('[ADMIN] adminUpdatePuzzle: Updating puzzle document...')
+    await updateDoc(doc(db, 'puzzles', puzzleId), {
+      name: puzzleData.name,
+      icon: puzzleData.icon,
+      difficulty: puzzleData.difficulty,
+      maxMoves: puzzleData.maxMoves,
+      startingTurn: puzzleData.startingTurn || 1,
+      objective: puzzleData.objective,
+      objectiveType: puzzleData.objectiveType,
+      targetPieceType: puzzleData.targetPieceType,
+      targetPosition: puzzleData.targetPosition,
+      targetScore: puzzleData.targetScore,
+      initialBoard: puzzleData.initialBoard,
+      aiMoves: puzzleData.aiMoves,
+      rewards: puzzleData.rewards
+    })
+    console.log('[ADMIN] adminUpdatePuzzle SUCCESS')
+    return true
+  } catch (error) {
+    console.error('[ADMIN] adminUpdatePuzzle ERROR:', error)
     return false
   }
 }
