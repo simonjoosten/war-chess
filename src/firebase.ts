@@ -2297,6 +2297,7 @@ export interface Puzzle {
   objective: string  // e.g., "Capture the Tank", "Eliminate the Builder"
   objectiveType: 'capture' | 'score' | 'survive'
   targetPieceType?: string  // For capture objectives
+  targetPosition?: { row: number; col: number }  // Specific target piece position
   targetScore?: number  // For score objectives
   initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
   aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>

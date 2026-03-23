@@ -171,6 +171,7 @@ let puzzleFailed = false
 let puzzleSolved = false
 let dailyPuzzles: Puzzle[] = []
 let lastCapturedPieceType: string | null = null
+let lastCapturedPosition: { row: number; col: number } | null = null
 
 // Puzzle editor state
 interface PuzzleEditorPiece {
@@ -178,8 +179,10 @@ interface PuzzleEditorPiece {
   row: number
   col: number
   team: 'blue' | 'red'
+  isTarget?: boolean  // Mark this piece as the puzzle target
 }
 let puzzleEditorPieces: PuzzleEditorPiece[] = []
+let puzzleEditorTargetIdx: number = -1  // Index of target piece in editor
 
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
@@ -8207,8 +8210,10 @@ function switchTurn() {
   // Handle puzzle mode
   if (puzzleSolving && currentPuzzle) {
     const capturedType = lastCapturedPieceType
+    const capturedPos = lastCapturedPosition
     lastCapturedPieceType = null
-    onPuzzleMoveComplete(capturedType || undefined)
+    lastCapturedPosition = null
+    onPuzzleMoveComplete(capturedType || undefined, capturedPos || undefined)
     return
   }
 
@@ -9351,24 +9356,38 @@ function checkPuzzleObjective(): boolean {
 }
 
 // Handle puzzle move completion
-async function onPuzzleMoveComplete(capturedPieceType?: string) {
+async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition?: { row: number; col: number }) {
   if (!currentPuzzle || !puzzleSolving) return
 
   puzzleAttempts++
   puzzleMovesLeft--
 
   // Check if captured the target
-  if (currentPuzzle.objectiveType === 'capture' && capturedPieceType === currentPuzzle.targetPieceType) {
-    puzzleSolved = true
+  if (currentPuzzle.objectiveType === 'capture' && capturedPieceType) {
+    // Check if we have a specific target position
+    let isCorrectTarget = false
 
-    // Record the solve
-    const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
+    if (currentPuzzle.targetPosition && capturedPosition) {
+      // Check if captured piece was at the target position
+      isCorrectTarget = capturedPosition.row === currentPuzzle.targetPosition.row &&
+                        capturedPosition.col === currentPuzzle.targetPosition.col
+    } else {
+      // Fallback: just check piece type
+      isCorrectTarget = capturedPieceType === currentPuzzle.targetPieceType
+    }
 
-    setTimeout(() => {
-      alert(`🎉 Puzzle Solved!\n\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
-      stopPuzzle()
-    }, 500)
-    return
+    if (isCorrectTarget) {
+      puzzleSolved = true
+
+      // Record the solve
+      const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
+
+      setTimeout(() => {
+        alert(`🎉 Puzzle Solved!\n\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+        stopPuzzle()
+      }, 500)
+      return
+    }
   }
 
   // Execute AI move if there are any
@@ -10896,9 +10915,10 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   const fromCol = piece.col
   const fromRow = piece.row
 
-  // Track captured piece type for puzzle mode
+  // Track captured piece type and position for puzzle mode
   if (capturedPiece) {
     lastCapturedPieceType = capturedPiece.type
+    lastCapturedPosition = { row: capturedPiece.row, col: columns.indexOf(capturedPiece.col) }
   }
 
   // Play sound based on piece type
@@ -19329,7 +19349,8 @@ function render() {
                         </div>
 
                         <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(9, 24px); width: fit-content;"></div>
-                        <div class="text-gray-400 text-xs mt-2">Click to place/remove. Pieces: <span id="puzzle-piece-count">0</span></div>
+                        <div class="text-gray-400 text-xs mt-2">Click to place/remove. Shift+click enemy to set as TARGET 🎯</div>
+                        <div class="text-gray-400 text-xs">Pieces: <span id="puzzle-piece-count">0</span> | Target: <span id="puzzle-target-display" class="text-red-400">None</span></div>
                       </div>
 
                       <div class="flex gap-2">
@@ -19534,9 +19555,12 @@ function render() {
             for (let col = 0; col < 9; col++) {
               const isWater = col <= 1 || col >= 7
               const bgColor = isWater ? 'bg-blue-800' : (row + col) % 2 === 0 ? 'bg-yellow-200' : 'bg-green-600'
-              const piece = puzzleEditorPieces.find(p => p.row === row && p.col === col)
-              const pieceDisplay = piece ? `<span class="${piece.team === 'blue' ? 'text-yellow-400' : 'text-green-400'}">${pieceIcons[piece.type] || '?'}</span>` : ''
-              html += `<div class="puzzle-editor-cell ${bgColor} w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-75 text-sm border border-gray-700" data-row="${row}" data-col="${col}">${pieceDisplay}</div>`
+              const pieceIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
+              const piece = pieceIdx >= 0 ? puzzleEditorPieces[pieceIdx] : null
+              const isTarget = pieceIdx === puzzleEditorTargetIdx
+              const targetBorder = isTarget ? 'ring-2 ring-red-500' : ''
+              const pieceDisplay = piece ? `<span class="${piece.team === 'blue' ? 'text-yellow-400' : 'text-green-400'}">${pieceIcons[piece.type] || '?'}${isTarget ? '🎯' : ''}</span>` : ''
+              html += `<div class="puzzle-editor-cell ${bgColor} ${targetBorder} w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-75 text-xs border border-gray-700" data-row="${row}" data-col="${col}" data-idx="${pieceIdx}">${pieceDisplay}</div>`
             }
           }
           boardEditor.innerHTML = html
@@ -19545,21 +19569,52 @@ function render() {
           const countEl = document.getElementById('puzzle-piece-count')
           if (countEl) countEl.textContent = String(puzzleEditorPieces.length)
 
+          // Update target display
+          const targetEl = document.getElementById('puzzle-target-display')
+          if (targetEl) {
+            if (puzzleEditorTargetIdx >= 0 && puzzleEditorPieces[puzzleEditorTargetIdx]) {
+              const target = puzzleEditorPieces[puzzleEditorTargetIdx]
+              targetEl.textContent = `${pieceIcons[target.type]} at row ${target.row}`
+              targetEl.className = 'text-red-400 font-bold'
+            } else {
+              targetEl.textContent = 'None (shift+click enemy)'
+              targetEl.className = 'text-gray-500'
+            }
+          }
+
           // Add click handlers
           document.querySelectorAll('.puzzle-editor-cell').forEach(cell => {
-            cell.addEventListener('click', () => {
+            cell.addEventListener('click', (e) => {
               const row = parseInt((cell as HTMLElement).dataset.row || '0')
               const col = parseInt((cell as HTMLElement).dataset.col || '0')
               const pieceType = (document.getElementById('puzzle-piece-type') as HTMLSelectElement)?.value
               const pieceTeam = (document.getElementById('puzzle-piece-team') as HTMLSelectElement)?.value as 'blue' | 'red'
+              const shiftKey = (e as MouseEvent).shiftKey
 
               // Check if piece already exists at this position
               const existingIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
-              if (existingIdx >= 0) {
-                // Remove existing piece
+
+              if (shiftKey && existingIdx >= 0) {
+                // Shift+click: set this piece as target (only enemy pieces)
+                const piece = puzzleEditorPieces[existingIdx]
+                if (piece.team === 'red') {
+                  puzzleEditorTargetIdx = existingIdx
+                  addDebugLog('info', 'Target Set', `${piece.type} at row ${piece.row}, col ${piece.col}`)
+                } else {
+                  alert('Only enemy (green) pieces can be targets!')
+                }
+              } else if (existingIdx >= 0) {
+                // Normal click on existing: remove piece
+                // If this was the target, clear target
+                if (existingIdx === puzzleEditorTargetIdx) {
+                  puzzleEditorTargetIdx = -1
+                } else if (existingIdx < puzzleEditorTargetIdx) {
+                  // Adjust target index since we're removing a piece before it
+                  puzzleEditorTargetIdx--
+                }
                 puzzleEditorPieces.splice(existingIdx, 1)
               } else {
-                // Add new piece
+                // Normal click on empty: add new piece
                 puzzleEditorPieces.push({ type: pieceType, row, col, team: pieceTeam })
               }
               renderPuzzleBoardEditor()
@@ -19570,6 +19625,7 @@ function render() {
         // Clear board button
         document.getElementById('clear-puzzle-board')?.addEventListener('click', () => {
           puzzleEditorPieces = []
+          puzzleEditorTargetIdx = -1
           renderPuzzleBoardEditor()
         })
 
@@ -19614,8 +19670,17 @@ function render() {
 
           const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
 
-          // Find target piece type (first enemy piece)
-          const targetPieceType = enemyPieces[0].type
+          // Check if target is set for capture objectives
+          if (objectiveType === 'capture' && puzzleEditorTargetIdx < 0) {
+            addDebugLog('error', 'Create Puzzle Failed', 'No target piece selected')
+            alert('Shift+click on an enemy piece to set it as the TARGET!')
+            return
+          }
+
+          // Get target piece info
+          const targetPiece = puzzleEditorTargetIdx >= 0 ? puzzleEditorPieces[puzzleEditorTargetIdx] : enemyPieces[0]
+          const targetPieceType = targetPiece.type
+          const targetPosition = { row: targetPiece.row, col: targetPiece.col }
 
           // Convert editor pieces to puzzle format
           const initialBoard = [
@@ -19629,7 +19694,7 @@ function render() {
             { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
           ]
 
-          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Pieces: ${puzzleEditorPieces.length}, Target: ${targetPieceType}`)
+          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Pieces: ${puzzleEditorPieces.length}, Target: ${targetPieceType} at row ${targetPosition.row}`)
 
           const puzzleData = {
             name,
@@ -19639,6 +19704,7 @@ function render() {
             objective,
             objectiveType,
             targetPieceType,
+            targetPosition,
             initialBoard,
             aiMoves: [],
             rewards: { warBucks, xp }
@@ -19650,6 +19716,7 @@ function render() {
             addDebugLog('success', 'Puzzle Created', `ID: ${id}`)
             alert('Puzzle created!')
             puzzleEditorPieces = []  // Clear editor
+            puzzleEditorTargetIdx = -1  // Clear target
             renderAdminPanel()
           } else {
             addDebugLog('error', 'Create Puzzle Failed', 'adminCreatePuzzle returned null - check if you are admin')
