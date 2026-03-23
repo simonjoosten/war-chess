@@ -182,6 +182,32 @@ let pendingGlobalMessages: GlobalMessage[] = []
 let showingGlobalMessage: GlobalMessage | null = null
 let matrixDrops: { x: number; y: number; speed: number; chars: string[] }[] = []
 
+// Debug action log (shown in F9 panel)
+interface DebugLogEntry {
+  time: number
+  type: 'info' | 'success' | 'error' | 'warning'
+  action: string
+  details?: string
+}
+const debugActionLog: DebugLogEntry[] = []
+const MAX_DEBUG_LOG_ENTRIES = 50
+
+function addDebugLog(type: DebugLogEntry['type'], action: string, details?: string) {
+  debugActionLog.unshift({
+    time: Date.now(),
+    type,
+    action,
+    details
+  })
+  // Keep only the last N entries
+  if (debugActionLog.length > MAX_DEBUG_LOG_ENTRIES) {
+    debugActionLog.pop()
+  }
+  // Also log to console
+  const prefix = type === 'error' ? '[DEBUG ERROR]' : type === 'warning' ? '[DEBUG WARN]' : '[DEBUG]'
+  console.log(prefix, action, details || '')
+}
+
 // Apply game mode visual effects
 function applyGameModeEffects() {
   // Clear any existing intervals
@@ -19469,7 +19495,7 @@ function render() {
         })
 
         document.getElementById('create-puzzle-btn')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Create puzzle button clicked')
+          addDebugLog('info', 'Create Puzzle', 'Button clicked')
           const name = (document.getElementById('puzzle-name') as HTMLInputElement)?.value
           const icon = (document.getElementById('puzzle-icon') as HTMLInputElement)?.value || '🧩'
           const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
@@ -19480,10 +19506,10 @@ function render() {
           const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
           const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
 
-          console.log('[UI] Admin: Puzzle form values:', { name, icon, difficulty, objective, objectiveType, playerPieceType, targetPieceType, warBucks, xp })
+          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Difficulty: ${difficulty}, Player: ${playerPieceType}, Target: ${targetPieceType}`)
 
           if (!name || !objective) {
-            console.log('[UI] Admin: Validation failed - missing name or objective')
+            addDebugLog('error', 'Create Puzzle Failed', 'Missing name or objective')
             alert('Please fill in name and objective!')
             return
           }
@@ -19515,15 +19541,15 @@ function render() {
             rewards: { warBucks, xp }
           }
 
-          console.log('[UI] Admin: Creating puzzle with data:', puzzleData)
+          addDebugLog('info', 'Creating Puzzle', `Calling adminCreatePuzzle...`)
           const id = await adminCreatePuzzle(puzzleData)
           if (id) {
-            console.log('[UI] Admin: Puzzle created successfully with ID:', id)
+            addDebugLog('success', 'Puzzle Created', `ID: ${id}`)
             alert('Puzzle created!')
             renderAdminPanel()
           } else {
-            console.log('[UI] Admin: Failed to create puzzle - check [ADMIN] logs above for reason')
-            alert('Failed to create puzzle. Check console.')
+            addDebugLog('error', 'Create Puzzle Failed', 'adminCreatePuzzle returned null - check if you are admin')
+            alert('Failed to create puzzle. Check F9 debug panel.')
           }
         })
 
@@ -19559,18 +19585,18 @@ function render() {
                 document.querySelectorAll('.admin-delete-puzzle').forEach(btn => {
                   btn.addEventListener('click', async (e) => {
                     const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
-                    console.log('[UI] Admin: Delete puzzle clicked', { puzzleId })
+                    addDebugLog('info', 'Delete Puzzle', `ID: ${puzzleId}`)
                     if (puzzleId && confirm('Delete this puzzle?')) {
-                      console.log('[UI] Admin: Confirmed, executing adminDeletePuzzle...')
+                      addDebugLog('info', 'Delete Puzzle', 'Confirmed, executing...')
                       const result = await adminDeletePuzzle(puzzleId)
-                      console.log('[UI] Admin: Delete puzzle result:', result)
                       if (result) {
                         // Clear from dailyPuzzles cache
                         dailyPuzzles = dailyPuzzles.filter(p => p.id !== puzzleId)
-                        console.log('[UI] Admin: Removed from dailyPuzzles cache')
+                        addDebugLog('success', 'Puzzle Deleted', `Removed from cache`)
                         alert('Puzzle deleted!')
                       } else {
-                        alert('Failed to delete puzzle. Check console for [ADMIN] logs.')
+                        addDebugLog('error', 'Delete Puzzle Failed', 'adminDeletePuzzle returned false - check if you are admin')
+                        alert('Failed to delete puzzle. Check F9 debug panel.')
                       }
                       renderAdminPanel()
                     }
@@ -19588,7 +19614,7 @@ function render() {
         })
 
         document.getElementById('create-tournament-btn')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Create tournament button clicked')
+          addDebugLog('info', 'Create Tournament', 'Button clicked')
           const name = (document.getElementById('tournament-name') as HTMLInputElement)?.value
           const icon = (document.getElementById('tournament-icon') as HTMLInputElement)?.value || '🏆'
           const description = (document.getElementById('tournament-description') as HTMLTextAreaElement)?.value
@@ -19599,10 +19625,10 @@ function render() {
           const prize2 = parseInt((document.getElementById('tournament-prize-2') as HTMLInputElement)?.value) || 250
           const prize3 = parseInt((document.getElementById('tournament-prize-3') as HTMLInputElement)?.value) || 100
 
-          console.log('[UI] Admin: Tournament form values:', { name, icon, description, maxPlayers, timerEnabled, timerMinutes, prize1, prize2, prize3 })
+          addDebugLog('info', 'Tournament Data', `Name: ${name}, MaxPlayers: ${maxPlayers}, Prizes: ${prize1}/${prize2}/${prize3}`)
 
           if (!name) {
-            console.log('[UI] Admin: Validation failed - missing tournament name')
+            addDebugLog('error', 'Create Tournament Failed', 'Missing tournament name')
             alert('Please enter a tournament name!')
             return
           }
@@ -19622,15 +19648,15 @@ function render() {
             }
           }
 
-          console.log('[UI] Admin: Creating tournament with data:', tournamentData)
+          addDebugLog('info', 'Creating Tournament', `Calling adminCreateTournament...`)
           const id = await adminCreateTournament(tournamentData)
           if (id) {
-            console.log('[UI] Admin: Tournament created successfully with ID:', id)
+            addDebugLog('success', 'Tournament Created', `ID: ${id}`)
             alert('Tournament created!')
             renderAdminPanel()
           } else {
-            console.log('[UI] Admin: Failed to create tournament - check [ADMIN] logs above for reason')
-            alert('Failed to create tournament. Check console.')
+            addDebugLog('error', 'Create Tournament Failed', 'adminCreateTournament returned null - check if you are admin')
+            alert('Failed to create tournament. Check F9 debug panel.')
           }
         })
 
@@ -19675,18 +19701,18 @@ function render() {
                 document.querySelectorAll('.admin-start-tournament').forEach(btn => {
                   btn.addEventListener('click', async (e) => {
                     const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
-                    console.log('[UI] Admin: Start tournament clicked', { tournamentId })
+                    addDebugLog('info', 'Start Tournament', `ID: ${tournamentId}`)
                     if (tournamentId && confirm('Start this tournament?')) {
-                      console.log('[UI] Admin: Confirmed, executing adminStartTournament...')
+                      addDebugLog('info', 'Start Tournament', 'Confirmed, executing...')
                       const result = await adminStartTournament(tournamentId)
-                      console.log('[UI] Admin: Start tournament result:', result)
                       if (result) {
                         // Refresh the cached tournaments
                         activeTournaments = await getAllTournaments()
-                        console.log('[UI] Admin: Refreshed activeTournaments cache')
+                        addDebugLog('success', 'Tournament Started', 'Cache refreshed')
                         alert('Tournament started!')
                       } else {
-                        alert('Failed to start tournament. Check console for [ADMIN] logs.')
+                        addDebugLog('error', 'Start Tournament Failed', 'adminStartTournament returned false - check if you are admin')
+                        alert('Failed to start tournament. Check F9 debug panel.')
                       }
                       renderAdminPanel()
                     }
@@ -19697,18 +19723,18 @@ function render() {
                 document.querySelectorAll('.admin-delete-tournament').forEach(btn => {
                   btn.addEventListener('click', async (e) => {
                     const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
-                    console.log('[UI] Admin: Delete tournament clicked', { tournamentId })
+                    addDebugLog('info', 'Delete Tournament', `ID: ${tournamentId}`)
                     if (tournamentId && confirm('Delete this tournament?')) {
-                      console.log('[UI] Admin: Confirmed, executing adminDeleteTournament...')
+                      addDebugLog('info', 'Delete Tournament', 'Confirmed, executing...')
                       const result = await adminDeleteTournament(tournamentId)
-                      console.log('[UI] Admin: Delete tournament result:', result)
                       if (result) {
                         // Clear the cached tournaments so they refresh next time
                         activeTournaments = activeTournaments.filter(t => t.id !== tournamentId)
-                        console.log('[UI] Admin: Removed from activeTournaments cache')
+                        addDebugLog('success', 'Tournament Deleted', 'Removed from cache')
                         alert('Tournament deleted!')
                       } else {
-                        alert('Failed to delete tournament. Check console for [ADMIN] logs.')
+                        addDebugLog('error', 'Delete Tournament Failed', 'adminDeleteTournament returned false - check if you are admin')
+                        alert('Failed to delete tournament. Check F9 debug panel.')
                       }
                       renderAdminPanel()
                     }
@@ -19863,98 +19889,98 @@ function render() {
 
         // Global actions
         document.getElementById('admin-give-all-bucks')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Give +100 War Bucks to all clicked')
+          addDebugLog('info', 'Give +100 War Bucks', 'To all users')
           if (confirm('Give +100 to ALL?')) {
-            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(100)...')
+            addDebugLog('info', 'Give War Bucks', 'Confirmed, executing...')
             const c = await adminGiveWarBucksToAll(100)
-            console.log('[UI] Admin: Result:', c, 'users affected')
+            addDebugLog('success', 'Give War Bucks Complete', `${c} users affected`)
             alert(`Gave to ${c} users!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-give-all-bucks-1000')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Give +1000 War Bucks to all clicked')
+          addDebugLog('info', 'Give +1000 War Bucks', 'To all users')
           if (confirm('Give +1000 to ALL?')) {
-            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(1000)...')
+            addDebugLog('info', 'Give War Bucks', 'Confirmed, executing...')
             const c = await adminGiveWarBucksToAll(1000)
-            console.log('[UI] Admin: Result:', c, 'users affected')
+            addDebugLog('success', 'Give War Bucks Complete', `${c} users affected`)
             alert(`Gave to ${c} users!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-give-all-bucks-sys')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Give +100 War Bucks to all (sys) clicked')
+          addDebugLog('info', 'Give +100 War Bucks (sys)', 'To all users')
           if (confirm('Give +100 to ALL?')) {
-            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(100)...')
+            addDebugLog('info', 'Give War Bucks', 'Confirmed, executing...')
             const c = await adminGiveWarBucksToAll(100)
-            console.log('[UI] Admin: Result:', c, 'users affected')
+            addDebugLog('success', 'Give War Bucks Complete', `${c} users affected`)
             alert(`Gave to ${c} users!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-give-all-bucks-500')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Give +500 War Bucks to all clicked')
+          addDebugLog('info', 'Give +500 War Bucks', 'To all users')
           if (confirm('Give +500 to ALL?')) {
-            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(500)...')
+            addDebugLog('info', 'Give War Bucks', 'Confirmed, executing...')
             const c = await adminGiveWarBucksToAll(500)
-            console.log('[UI] Admin: Result:', c, 'users affected')
+            addDebugLog('success', 'Give War Bucks Complete', `${c} users affected`)
             alert(`Gave to ${c} users!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-give-all-items-sys')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Give all items to all clicked')
+          addDebugLog('info', 'Give All Items', 'To all users')
           if (confirm('Give ALL ITEMS to ALL users? This is a lot!')) {
-            console.log('[UI] Admin: Confirmed, executing adminGiveAllItemsToAll()...')
+            addDebugLog('info', 'Give All Items', 'Confirmed, executing...')
             const c = await adminGiveAllItemsToAll()
-            console.log('[UI] Admin: Result:', c, 'users affected')
+            addDebugLog('success', 'Give All Items Complete', `${c} users affected`)
             alert(`Gave all items to ${c} users!`); renderAdminPanel()
           }
         })
 
         // Danger zone actions
         document.getElementById('admin-reset-all-stats')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Reset all stats clicked')
+          addDebugLog('warning', 'Reset All Stats', 'DANGER: Requested')
           if (confirm('⚠️ RESET ALL USER STATS? This cannot be undone!')) {
             if (confirm('Are you REALLY sure?')) {
-              console.log('[UI] Admin: Confirmed, executing adminResetAllStats()...')
+              addDebugLog('warning', 'Reset All Stats', 'Confirmed, executing...')
               const c = await adminResetAllStats()
-              console.log('[UI] Admin: Result:', c, 'users affected')
+              addDebugLog('success', 'Reset All Stats Complete', `${c} users affected`)
               alert(`Reset stats for ${c} users!`); renderAdminPanel()
             }
           }
         })
         document.getElementById('admin-reset-all-bucks')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Reset all War Bucks clicked')
+          addDebugLog('warning', 'Reset All War Bucks', 'DANGER: Requested')
           if (confirm('⚠️ RESET ALL WAR BUCKS TO 0? This cannot be undone!')) {
             if (confirm('Are you REALLY sure?')) {
-              console.log('[UI] Admin: Confirmed, executing adminResetAllWarBucks()...')
+              addDebugLog('warning', 'Reset All War Bucks', 'Confirmed, executing...')
               const c = await adminResetAllWarBucks()
-              console.log('[UI] Admin: Result:', c, 'users affected')
+              addDebugLog('success', 'Reset All War Bucks Complete', `${c} users affected`)
               alert(`Reset war bucks for ${c} users!`); renderAdminPanel()
             }
           }
         })
         document.getElementById('admin-delete-all-events')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Delete all events clicked')
+          addDebugLog('warning', 'Delete All Events', 'DANGER: Requested')
           if (confirm('⚠️ DELETE ALL EVENTS? This cannot be undone!')) {
-            console.log('[UI] Admin: Confirmed, executing adminDeleteAllEvents()...')
+            addDebugLog('warning', 'Delete All Events', 'Confirmed, executing...')
             const c = await adminDeleteAllEvents()
-            console.log('[UI] Admin: Result:', c, 'events deleted')
+            addDebugLog('success', 'Delete All Events Complete', `${c} events deleted`)
             alert(`Deleted ${c} events!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-delete-all-games')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Delete all games clicked')
+          addDebugLog('warning', 'Delete All Games', 'DANGER: Requested')
           if (confirm('⚠️ DELETE ALL GAMES? This will end all active games!')) {
-            console.log('[UI] Admin: Confirmed, executing adminDeleteAllGames()...')
+            addDebugLog('warning', 'Delete All Games', 'Confirmed, executing...')
             const c = await adminDeleteAllGames()
-            console.log('[UI] Admin: Result:', c, 'games deleted')
+            addDebugLog('success', 'Delete All Games Complete', `${c} games deleted`)
             alert(`Deleted ${c} games!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-delete-all-msgs')?.addEventListener('click', async () => {
-          console.log('[UI] Admin: Delete all messages clicked')
+          addDebugLog('warning', 'Delete All Messages', 'DANGER: Requested')
           if (confirm('⚠️ DELETE ALL GLOBAL MESSAGES?')) {
-            console.log('[UI] Admin: Confirmed, executing adminDeleteAllMessages()...')
+            addDebugLog('warning', 'Delete All Messages', 'Confirmed, executing...')
             const c = await adminDeleteAllMessages()
-            console.log('[UI] Admin: Result:', c, 'messages deleted')
+            addDebugLog('success', 'Delete All Messages Complete', `${c} messages deleted`)
             alert(`Deleted ${c} messages!`); renderAdminPanel()
           }
         })
@@ -21111,11 +21137,53 @@ function showDebugPanel() {
         ` : '<div class="text-red-400">No user data available</div>'}
       </div>
 
+      <div class="bg-gray-800 rounded-lg p-4 mt-4">
+        <h2 class="text-lg font-bold text-white mb-3">Recent Admin Actions</h2>
+        <div id="debug-action-log"></div>
+        <div class="mt-2 text-gray-500 text-xs">
+          Showing last ${Math.min(debugActionLog.length, 20)} of ${debugActionLog.length} actions
+        </div>
+      </div>
+
       <div class="mt-4 text-center text-gray-500 text-sm">
         Press F9 again or click Close to hide this panel
       </div>
     </div>
   `
+
+  // Populate the debug action log separately to avoid nested template literal issues
+  const logContainer = overlay.querySelector('#debug-action-log')
+  if (logContainer) {
+    if (debugActionLog.length === 0) {
+      logContainer.innerHTML = '<div class="text-gray-400">No admin actions yet. Perform an action in the admin panel to see logs here.</div>'
+    } else {
+      const typeColors: Record<string, string> = {
+        info: 'text-blue-400',
+        success: 'text-green-400',
+        error: 'text-red-400',
+        warning: 'text-yellow-400'
+      }
+      const typeIcons: Record<string, string> = {
+        info: 'ℹ️',
+        success: '✅',
+        error: '❌',
+        warning: '⚠️'
+      }
+      logContainer.innerHTML = '<div class="space-y-1 max-h-64 overflow-y-auto font-mono text-xs">' +
+        debugActionLog.slice(0, 20).map(entry => {
+          const timeStr = new Date(entry.time).toLocaleTimeString()
+          return `
+            <div class="p-2 rounded bg-gray-700 ${typeColors[entry.type]}">
+              <span class="text-gray-500">${timeStr}</span>
+              <span>${typeIcons[entry.type]}</span>
+              <span class="font-bold">${entry.action}</span>
+              ${entry.details ? `<div class="text-gray-400 mt-1 pl-4">${entry.details}</div>` : ''}
+            </div>
+          `
+        }).join('') +
+        '</div>'
+    }
+  }
 
   document.body.appendChild(overlay)
 
