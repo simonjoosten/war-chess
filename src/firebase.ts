@@ -2313,9 +2313,33 @@ export interface Puzzle {
   rating: number  // Difficulty rating based on solve rate
 }
 
+// Check if solved puzzles should reset (new day)
+export async function checkDailyPuzzleReset(): Promise<void> {
+  if (!db || !currentUser || !currentUserData) return
+
+  const puzzleStats = currentUserData.puzzleStats
+  if (!puzzleStats) return
+
+  const today = new Date().setHours(0, 0, 0, 0)
+  const lastPuzzleDay = new Date(puzzleStats.lastPuzzleDate || 0).setHours(0, 0, 0, 0)
+
+  // If it's a new day, reset solvedPuzzleIds
+  if (lastPuzzleDay < today && puzzleStats.solvedPuzzleIds && puzzleStats.solvedPuzzleIds.length > 0) {
+    console.log('[PUZZLE] New day detected, resetting solvedPuzzleIds')
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      'puzzleStats.solvedPuzzleIds': []
+    })
+    // Update local data
+    currentUserData.puzzleStats.solvedPuzzleIds = []
+  }
+}
+
 // Get daily puzzles
 export async function getDailyPuzzles(): Promise<Puzzle[]> {
   if (!db) return []
+
+  // Check if we need to reset solved puzzles for new day
+  await checkDailyPuzzleReset()
 
   try {
     const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
@@ -2324,17 +2348,8 @@ export async function getDailyPuzzles(): Promise<Puzzle[]> {
       ...doc.data()
     } as Puzzle))
 
-    // Return 3 puzzles (one of each difficulty)
-    const easy = puzzles.filter(p => p.difficulty === 'easy')
-    const medium = puzzles.filter(p => p.difficulty === 'medium')
-    const hard = puzzles.filter(p => p.difficulty === 'hard')
-
-    const result: Puzzle[] = []
-    if (easy.length > 0) result.push(easy[Math.floor(Math.random() * easy.length)])
-    if (medium.length > 0) result.push(medium[Math.floor(Math.random() * medium.length)])
-    if (hard.length > 0) result.push(hard[Math.floor(Math.random() * hard.length)])
-
-    return result
+    // Return all puzzles (user can play any)
+    return puzzles
   } catch (error) {
     console.error('Error getting puzzles:', error)
     return []
