@@ -20836,3 +20836,184 @@ if (firebaseInitialized) {
 }
 
 render()
+
+// ==================== F9 DEBUG PANEL ====================
+let debugPanelVisible = false
+
+function showDebugPanel() {
+  const user = getCurrentUser()
+  const userData = getCurrentUserData()
+
+  const checks = [
+    {
+      name: 'Firebase Initialized',
+      status: firebaseInitialized,
+      reason: firebaseInitialized ? 'Firebase is connected' : 'Firebase failed to initialize - check config'
+    },
+    {
+      name: 'User Logged In',
+      status: !!user,
+      reason: user ? `Logged in as: ${user.email}` : 'Not logged in - login first'
+    },
+    {
+      name: 'User Data Loaded',
+      status: !!userData,
+      reason: userData ? `Username: ${userData.username}` : 'User data not loaded from Firestore'
+    },
+    {
+      name: 'Is Admin',
+      status: userData?.isAdmin === true,
+      reason: userData?.isAdmin ? 'You have admin privileges' : 'Not an admin - cannot use admin functions'
+    },
+    {
+      name: 'Offline Mode',
+      status: !isOffline(),
+      reason: isOffline() ? 'Running in offline mode - Firebase disabled' : 'Online mode active'
+    },
+    {
+      name: 'Puzzle Mode Active',
+      status: puzzleSolving,
+      reason: puzzleSolving ? `Solving puzzle: ${currentPuzzle?.name}` : 'Not in puzzle mode'
+    },
+    {
+      name: 'Multiplayer Game',
+      status: !!multiplayerGameId,
+      reason: multiplayerGameId ? `Game ID: ${multiplayerGameId}` : 'Not in multiplayer game'
+    },
+    {
+      name: 'Bot Mode',
+      status: botMode,
+      reason: botMode ? `Bot difficulty: ${botDifficulty}` : 'Playing vs human'
+    }
+  ]
+
+  const adminIssues = []
+  if (!firebaseInitialized) adminIssues.push('❌ Firebase not initialized')
+  if (!user) adminIssues.push('❌ Not logged in')
+  if (!userData) adminIssues.push('❌ User data not loaded')
+  if (!userData?.isAdmin) adminIssues.push('❌ Not an admin')
+
+  const puzzleIssues = []
+  if (!firebaseInitialized) puzzleIssues.push('❌ Firebase not initialized')
+  if (!user) puzzleIssues.push('❌ Not logged in')
+
+  const app = document.querySelector<HTMLDivElement>('#app')!
+
+  // Create debug overlay
+  const overlay = document.createElement('div')
+  overlay.id = 'debug-overlay'
+  overlay.className = 'fixed inset-0 bg-black bg-opacity-90 z-[9999] overflow-auto p-4'
+  overlay.innerHTML = `
+    <div class="max-w-2xl mx-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-yellow-400">🔧 Debug Panel (F9)</h1>
+        <button id="close-debug" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded">Close</button>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mb-4">
+        <h2 class="text-lg font-bold text-white mb-3">System Status</h2>
+        <div class="space-y-2">
+          ${checks.map(check => `
+            <div class="flex items-center gap-3 p-2 rounded ${check.status ? 'bg-green-900' : 'bg-red-900'}">
+              <span class="text-2xl">${check.status ? '✅' : '❌'}</span>
+              <div>
+                <div class="text-white font-bold">${check.name}</div>
+                <div class="text-gray-300 text-sm">${check.reason}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mb-4">
+        <h2 class="text-lg font-bold text-white mb-3">Why Admin Functions Don't Work</h2>
+        ${adminIssues.length === 0 ?
+          '<div class="text-green-400">✅ All admin requirements met!</div>' :
+          `<ul class="space-y-1">${adminIssues.map(i => `<li class="text-red-400">${i}</li>`).join('')}</ul>`
+        }
+        <div class="mt-3 text-gray-400 text-sm">
+          <p><strong>Firebase Security Rules:</strong> Make sure you've updated Firestore rules to allow admin actions.</p>
+          <p class="mt-1">Go to: Firebase Console → Firestore Database → Rules</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mb-4">
+        <h2 class="text-lg font-bold text-white mb-3">Why Puzzles Don't Work</h2>
+        ${puzzleIssues.length === 0 ?
+          '<div class="text-green-400">✅ All puzzle requirements met!</div>' :
+          `<ul class="space-y-1">${puzzleIssues.map(i => `<li class="text-red-400">${i}</li>`).join('')}</ul>`
+        }
+        <div class="mt-3 text-gray-400 text-sm">
+          <p><strong>Tip:</strong> Puzzles require Firebase rules that allow reading the 'puzzles' collection.</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mb-4">
+        <h2 class="text-lg font-bold text-white mb-3">Game State</h2>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div class="text-gray-400">Game State:</div>
+          <div class="text-white">${gameState}</div>
+          <div class="text-gray-400">Current Turn:</div>
+          <div class="text-white">${currentTurn}</div>
+          <div class="text-gray-400">Auth Screen:</div>
+          <div class="text-white">${showAuthScreen}</div>
+          <div class="text-gray-400">Pieces on Board:</div>
+          <div class="text-white">${pieces.length}</div>
+          <div class="text-gray-400">Yellow Turns:</div>
+          <div class="text-white">${yellowTurnCount}</div>
+          <div class="text-gray-400">Green Turns:</div>
+          <div class="text-white">${greenTurnCount}</div>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4">
+        <h2 class="text-lg font-bold text-white mb-3">User Data</h2>
+        ${userData ? `
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="text-gray-400">Username:</div>
+            <div class="text-white">${userData.username}</div>
+            <div class="text-gray-400">War Bucks:</div>
+            <div class="text-yellow-400">${userData.warBucks} 💰</div>
+            <div class="text-gray-400">Games Played:</div>
+            <div class="text-white">${userData.stats?.gamesPlayed || 0}</div>
+            <div class="text-gray-400">Wins:</div>
+            <div class="text-green-400">${userData.stats?.gamesWon || 0}</div>
+            <div class="text-gray-400">Is Admin:</div>
+            <div class="${userData.isAdmin ? 'text-green-400' : 'text-red-400'}">${userData.isAdmin ? 'Yes' : 'No'}</div>
+            <div class="text-gray-400">Puzzles Solved:</div>
+            <div class="text-white">${userData.puzzleStats?.puzzlesSolved || 0}</div>
+          </div>
+        ` : '<div class="text-red-400">No user data available</div>'}
+      </div>
+
+      <div class="mt-4 text-center text-gray-500 text-sm">
+        Press F9 again or click Close to hide this panel
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(overlay)
+
+  document.getElementById('close-debug')?.addEventListener('click', hideDebugPanel)
+  debugPanelVisible = true
+}
+
+function hideDebugPanel() {
+  const overlay = document.getElementById('debug-overlay')
+  if (overlay) {
+    overlay.remove()
+  }
+  debugPanelVisible = false
+}
+
+// F9 key listener
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'F9') {
+    e.preventDefault()
+    if (debugPanelVisible) {
+      hideDebugPanel()
+    } else {
+      showDebugPanel()
+    }
+  }
+})
