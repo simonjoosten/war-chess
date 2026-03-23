@@ -19340,17 +19340,10 @@ function render() {
                       <div class="grid grid-cols-2 gap-2">
                         <div>
                           <label class="text-gray-300 text-xs">Start beurt (voor cooldowns):</label>
-                          <select id="puzzle-starting-turn" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
-                            <option value="1">Beurt 1</option>
-                            <option value="2">Beurt 2</option>
-                            <option value="3">Beurt 3</option>
-                            <option value="4">Beurt 4</option>
-                            <option value="5">Beurt 5</option>
-                            <option value="6">Beurt 6</option>
-                          </select>
+                          <input type="number" id="puzzle-starting-turn" min="1" max="80" value="1" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
                         </div>
                         <div class="text-gray-400 text-xs pt-4">
-                          💡 Rocket/Hacker hebben cooldown. Start op beurt 2+ om ze direct te kunnen gebruiken.
+                          💡 Hacker cooldown=15, Rocket=1. Start op beurt 16+ voor hacker.
                         </div>
                       </div>
                       <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
@@ -19595,7 +19588,7 @@ function render() {
               const iconInput = document.getElementById('puzzle-icon') as HTMLInputElement
               const difficultySelect = document.getElementById('puzzle-difficulty') as HTMLSelectElement
               const maxMovesSelect = document.getElementById('puzzle-max-moves') as HTMLSelectElement
-              const startingTurnSelect = document.getElementById('puzzle-starting-turn') as HTMLSelectElement
+              const startingTurnSelect = document.getElementById('puzzle-starting-turn') as HTMLInputElement
               const objectiveInput = document.getElementById('puzzle-objective') as HTMLInputElement
               const objectiveTypeSelect = document.getElementById('puzzle-objective-type') as HTMLSelectElement
               const targetScoreInput = document.getElementById('puzzle-target-score') as HTMLInputElement
@@ -19784,7 +19777,7 @@ function render() {
           const icon = (document.getElementById('puzzle-icon') as HTMLInputElement)?.value || '🧩'
           const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
           const maxMoves = parseInt((document.getElementById('puzzle-max-moves') as HTMLSelectElement)?.value) || 3
-          const startingTurn = parseInt((document.getElementById('puzzle-starting-turn') as HTMLSelectElement)?.value) || 1
+          const startingTurn = parseInt((document.getElementById('puzzle-starting-turn') as HTMLInputElement)?.value) || 1
           const objective = (document.getElementById('puzzle-objective') as HTMLInputElement)?.value
           const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive'
           const targetScore = parseInt((document.getElementById('puzzle-target-score') as HTMLInputElement)?.value) || 10
@@ -19976,7 +19969,7 @@ function render() {
                     const iconInput = document.getElementById('puzzle-icon') as HTMLInputElement
                     const difficultySelect = document.getElementById('puzzle-difficulty') as HTMLSelectElement
                     const maxMovesSelect = document.getElementById('puzzle-max-moves') as HTMLSelectElement
-                    const startingTurnSelect = document.getElementById('puzzle-starting-turn') as HTMLSelectElement
+                    const startingTurnSelect = document.getElementById('puzzle-starting-turn') as HTMLInputElement
                     const objectiveInput = document.getElementById('puzzle-objective') as HTMLInputElement
                     const objectiveTypeSelect = document.getElementById('puzzle-objective-type') as HTMLSelectElement
                     const targetScoreInput = document.getElementById('puzzle-target-score') as HTMLInputElement
