@@ -2528,7 +2528,9 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
 
   try {
     console.log('[ADMIN] adminUpdatePuzzle: Updating puzzle document...')
-    await updateDoc(doc(db, 'puzzles', puzzleId), {
+
+    // Build update object without undefined values (Firestore doesn't accept undefined)
+    const updateData: Record<string, unknown> = {
       name: puzzleData.name,
       icon: puzzleData.icon,
       difficulty: puzzleData.difficulty,
@@ -2536,13 +2538,23 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
       startingTurn: puzzleData.startingTurn || 1,
       objective: puzzleData.objective,
       objectiveType: puzzleData.objectiveType,
-      targetPieceType: puzzleData.targetPieceType,
-      targetPosition: puzzleData.targetPosition,
-      targetScore: puzzleData.targetScore,
       initialBoard: puzzleData.initialBoard,
       aiMoves: puzzleData.aiMoves,
       rewards: puzzleData.rewards
-    })
+    }
+
+    // Only add optional fields if they're defined
+    if (puzzleData.targetPieceType !== undefined) {
+      updateData.targetPieceType = puzzleData.targetPieceType
+    }
+    if (puzzleData.targetPosition !== undefined) {
+      updateData.targetPosition = puzzleData.targetPosition
+    }
+    if (puzzleData.targetScore !== undefined) {
+      updateData.targetScore = puzzleData.targetScore
+    }
+
+    await updateDoc(doc(db, 'puzzles', puzzleId), updateData)
     console.log('[ADMIN] adminUpdatePuzzle SUCCESS')
     return true
   } catch (error) {
