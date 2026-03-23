@@ -2411,19 +2411,20 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
 
   const samplePuzzles: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>[] = [
     // Easy puzzles - 1 move captures
+    // Note: Yellow soldiers shoot UPWARD (toward higher rows), so player must be BELOW target
     {
       name: 'Capture the Tank',
       icon: '🎯',
       difficulty: 'easy',
       maxMoves: 1,
-      objective: 'Capture the enemy tank in one move',
+      objective: 'Shoot the enemy tank!',
       objectiveType: 'capture',
       targetPieceType: 'tank',
       initialBoard: [
-        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },
-        { type: 'tank', position: { row: 3, col: 3 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 3, col: 4 }, team: 'blue' },  // Player below
+        { type: 'tank', position: { row: 5, col: 4 }, team: 'red' },       // Target above
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
       aiMoves: [],
       rewards: { warBucks: 50, xp: 25 }
@@ -2433,14 +2434,14 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
       icon: '🎯',
       difficulty: 'easy',
       maxMoves: 1,
-      objective: 'Use your soldier to capture the enemy soldier',
+      objective: 'Shoot the enemy soldier!',
       objectiveType: 'capture',
       targetPieceType: 'soldier',
       initialBoard: [
-        { type: 'soldier', position: { row: 5, col: 2 }, team: 'blue' },
-        { type: 'soldier', position: { row: 3, col: 2 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },   // Player below
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },    // Target above (2 squares = in range)
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
       aiMoves: [],
       rewards: { warBucks: 50, xp: 25 }
@@ -2450,58 +2451,51 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
       icon: '🚁',
       difficulty: 'easy',
       maxMoves: 1,
-      objective: 'Shoot down the helicopter',
+      objective: 'Shoot down the helicopter!',
       objectiveType: 'capture',
       targetPieceType: 'helicopter',
       initialBoard: [
-        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
-        { type: 'helicopter', position: { row: 2, col: 4 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 3, col: 4 }, team: 'blue' },   // Player below
+        { type: 'helicopter', position: { row: 5, col: 4 }, team: 'red' }, // Target above
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
       aiMoves: [],
       rewards: { warBucks: 50, xp: 25 }
     },
-    // Medium puzzles - 2 moves
+    // Medium puzzles - 2 moves (move into position, then shoot)
     {
-      name: 'Tank Trap',
+      name: 'Tank Ambush',
       icon: '💣',
       difficulty: 'medium',
       maxMoves: 2,
-      objective: 'Position and capture the enemy tank',
+      objective: 'Move into position and destroy the tank!',
       objectiveType: 'capture',
       targetPieceType: 'tank',
       initialBoard: [
-        { type: 'soldier', position: { row: 6, col: 2 }, team: 'blue' },
-        { type: 'tank', position: { row: 3, col: 4 }, team: 'red' },
-        { type: 'soldier', position: { row: 4, col: 5 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 3, col: 2 }, team: 'blue' },   // Player - needs to move right
+        { type: 'tank', position: { row: 6, col: 4 }, team: 'red' },       // Target
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
-      aiMoves: [
-        { from: { row: 4, col: 5 }, to: { row: 5, col: 5 } }
-      ],
+      aiMoves: [],  // No AI moves needed
       rewards: { warBucks: 75, xp: 40 }
     },
     {
-      name: 'Builder Elimination',
+      name: 'Builder Hunt',
       icon: '🔨',
       difficulty: 'medium',
       maxMoves: 2,
-      objective: 'Capture the enemy builder before it can build',
+      objective: 'Catch and eliminate the builder!',
       objectiveType: 'capture',
       targetPieceType: 'builder',
       initialBoard: [
-        { type: 'soldier', position: { row: 5, col: 1 }, team: 'blue' },
-        { type: 'soldier', position: { row: 5, col: 7 }, team: 'blue' },
-        { type: 'builder', position: { row: 3, col: 4 }, team: 'red' },
-        { type: 'soldier', position: { row: 2, col: 3 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },   // Player
+        { type: 'builder', position: { row: 7, col: 5 }, team: 'red' },    // Target - need to move to col 5
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
-      aiMoves: [
-        { from: { row: 2, col: 3 }, to: { row: 3, col: 3 } }
-      ],
+      aiMoves: [],
       rewards: { warBucks: 75, xp: 40 }
     },
     // Hard puzzles - 3 moves
@@ -2510,46 +2504,34 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
       icon: '⚓',
       difficulty: 'hard',
       maxMoves: 3,
-      objective: 'Sink the enemy ship - watch out for defenders!',
+      objective: 'Navigate to the ship and sink it!',
       objectiveType: 'capture',
       targetPieceType: 'ship',
       initialBoard: [
-        { type: 'soldier', position: { row: 6, col: 0 }, team: 'blue' },
-        { type: 'soldier', position: { row: 6, col: 2 }, team: 'blue' },
-        { type: 'ship', position: { row: 2, col: 1 }, team: 'red' },
-        { type: 'soldier', position: { row: 3, col: 1 }, team: 'red' },
-        { type: 'soldier', position: { row: 4, col: 2 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 3, col: 1 }, team: 'blue' },   // Player - move right then up
+        { type: 'ship', position: { row: 8, col: 4 }, team: 'red' },       // Target ship
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
-      aiMoves: [
-        { from: { row: 3, col: 1 }, to: { row: 4, col: 1 } },
-        { from: { row: 4, col: 2 }, to: { row: 5, col: 2 } }
-      ],
+      aiMoves: [],  // Simplified - no AI interference
       rewards: { warBucks: 100, xp: 60 }
     },
     {
-      name: 'Rocket Launcher Assault',
+      name: 'Tank Assault',
       icon: '🚀',
       difficulty: 'hard',
       maxMoves: 3,
-      objective: 'Destroy the rocket launcher while avoiding enemy fire',
+      objective: 'Maneuver past obstacles and destroy the tank!',
       objectiveType: 'capture',
-      targetPieceType: 'rocketLauncher',
+      targetPieceType: 'tank',
       initialBoard: [
-        { type: 'soldier', position: { row: 7, col: 3 }, team: 'blue' },
-        { type: 'soldier', position: { row: 7, col: 5 }, team: 'blue' },
-        { type: 'rocketLauncher', position: { row: 1, col: 4 }, team: 'red' },
-        { type: 'soldier', position: { row: 2, col: 3 }, team: 'red' },
-        { type: 'soldier', position: { row: 2, col: 5 }, team: 'red' },
-        { type: 'tank', position: { row: 3, col: 4 }, team: 'red' },
-        { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 2, col: 2 }, team: 'blue' },   // Player starts left
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },       // Target tank on right
+        { type: 'barricade', position: { row: 4, col: 4 }, team: 'red' },  // Obstacle in middle
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
-      aiMoves: [
-        { from: { row: 2, col: 3 }, to: { row: 3, col: 3 } },
-        { from: { row: 2, col: 5 }, to: { row: 3, col: 5 } }
-      ],
+      aiMoves: [],
       rewards: { warBucks: 100, xp: 60 }
     }
   ]

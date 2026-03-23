@@ -19478,10 +19478,10 @@ function render() {
             objectiveType,
             targetPieceType,
             initialBoard: [
-              { type: 'soldier', position: { row: 5, col: 4 }, team: 'blue' },
-              { type: targetPieceType, position: { row: 3, col: 4 }, team: 'red' },
-              { type: 'base', position: { row: 7, col: 4 }, team: 'blue' },
-              { type: 'base', position: { row: 0, col: 4 }, team: 'red' }
+              { type: 'soldier', position: { row: 3, col: 4 }, team: 'blue' },  // Player below
+              { type: targetPieceType, position: { row: 5, col: 4 }, team: 'red' },  // Target above
+              { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+              { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
             ],
             aiMoves: [],
             rewards: { warBucks, xp }
