@@ -19516,11 +19516,39 @@ function render() {
 
           const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
 
-          // Position depends on piece type
-          // Ships/subs need water (cols 0-1 or 7-8), helicopters can be anywhere
+          // Smart positioning based on piece type and abilities
           const isWaterPiece = (type: string) => ['ship', 'sub', 'carrier'].includes(type)
-          const playerCol = isWaterPiece(playerPieceType) ? 1 : 4
-          const targetCol = isWaterPiece(targetPieceType) ? 1 : 4
+          const isLandPiece = (type: string) => !isWaterPiece(type)
+
+          // Land columns: 2-6 (C-G), Water columns: 0-1 (A-B) and 7-8 (H-I/J-K)
+          const getLandCol = () => 4  // Column E (middle of land)
+          const getWaterCol = () => 1  // Column B (water)
+
+          // Calculate proper distance based on piece attack range
+          const getAttackRange = (type: string): number => {
+            switch (type) {
+              case 'soldier': return 2      // Shoots 2 squares forward
+              case 'tank': return 2         // Moves 2 and crushes
+              case 'helicopter': return 3   // Flies 3 in any direction
+              case 'ship': return 3         // Moves on water
+              case 'sub': return 2          // Moves on water
+              case 'hacker': return 2       // Moves 1-2 squares
+              case 'rocket': return 10      // Long range
+              case 'builder': return 1      // Moves 1 square
+              default: return 2
+            }
+          }
+
+          const playerCol = isWaterPiece(playerPieceType) ? getWaterCol() : getLandCol()
+          const targetCol = isWaterPiece(targetPieceType) ? getWaterCol() : getLandCol()
+
+          // Player row and target row based on attack range
+          // Player should be able to reach target within maxMoves
+          const attackRange = getAttackRange(playerPieceType)
+          const playerRow = 4
+          const targetRow = Math.min(playerRow + attackRange, 8)  // Target within attack range
+
+          addDebugLog('info', 'Puzzle Positioning', `Player: ${playerPieceType} at row ${playerRow}, col ${playerCol}. Target: ${targetPieceType} at row ${targetRow}, col ${targetCol}. Range: ${attackRange}`)
 
           // Create board based on piece types
           const puzzleData = {
@@ -19532,8 +19560,8 @@ function render() {
             objectiveType,
             targetPieceType,
             initialBoard: [
-              { type: playerPieceType, position: { row: 3, col: playerCol }, team: 'blue' },
-              { type: targetPieceType, position: { row: 6, col: targetCol }, team: 'red' },
+              { type: playerPieceType, position: { row: playerRow, col: playerCol }, team: 'blue' },
+              { type: targetPieceType, position: { row: targetRow, col: targetCol }, team: 'red' },
               { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
               { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
             ],
