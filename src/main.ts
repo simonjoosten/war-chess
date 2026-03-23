@@ -8294,7 +8294,28 @@ function checkBuilderCaptured(capturedPiece: Piece, capturingTeam: Team) {
     }
     // Save game stats
     saveGameStats()
+
+    // Handle puzzle win if in puzzle mode and yellow won
+    if (puzzleSolving && currentPuzzle && capturingTeam === 'yellow' && !puzzleSolved) {
+      handlePuzzleWin()
+    }
   }
+}
+
+// Handle puzzle win - give rewards and mark as solved
+async function handlePuzzleWin() {
+  if (!currentPuzzle || puzzleSolved) return
+
+  puzzleSolved = true
+  puzzleFailed = false
+
+  // Record the solve
+  const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts || 1)
+
+  setTimeout(() => {
+    alert(`🎉 Puzzle Solved!\n\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+    stopPuzzle()
+  }, 1500)  // Longer delay so player sees the win screen first
 }
 
 // Save game stats to user profile
