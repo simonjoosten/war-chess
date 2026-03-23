@@ -172,6 +172,15 @@ let puzzleSolved = false
 let dailyPuzzles: Puzzle[] = []
 let lastCapturedPieceType: string | null = null
 
+// Puzzle editor state
+interface PuzzleEditorPiece {
+  type: string
+  row: number
+  col: number
+  team: 'blue' | 'red'
+}
+let puzzleEditorPieces: PuzzleEditorPiece[] = []
+
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
 let lastJumpscareTime = 0
@@ -19275,50 +19284,58 @@ function render() {
                   <div id="create-puzzle-form" class="hidden bg-gray-700 p-4 rounded-lg mb-4">
                     <h3 class="text-white font-bold mb-3">Create New Puzzle</h3>
                     <div class="grid gap-3">
-                      <input type="text" id="puzzle-name" placeholder="Puzzle name..." class="bg-gray-600 text-white px-3 py-2 rounded">
-                      <input type="text" id="puzzle-icon" placeholder="Icon (emoji)..." class="bg-gray-600 text-white px-3 py-2 rounded" value="🧩">
-                      <select id="puzzle-difficulty" class="bg-gray-600 text-white px-3 py-2 rounded">
-                        <option value="easy">⭐ Easy (1 move)</option>
-                        <option value="medium">⭐⭐ Medium (2 moves)</option>
-                        <option value="hard">⭐⭐⭐ Hard (3 moves)</option>
-                      </select>
-                      <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
-                      <select id="puzzle-objective-type" class="bg-gray-600 text-white px-3 py-2 rounded">
-                        <option value="capture">Capture piece</option>
-                        <option value="score">Reach score</option>
-                        <option value="survive">Survive turns</option>
-                      </select>
                       <div class="grid grid-cols-2 gap-2">
-                        <div>
-                          <label class="text-gray-300 text-sm">Player Piece</label>
-                          <select id="puzzle-player-piece" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
-                            <option value="soldier">🎖️ Soldier</option>
-                            <option value="tank">🚜 Tank</option>
-                            <option value="helicopter">🚁 Helicopter</option>
-                            <option value="ship">🚢 Ship</option>
-                            <option value="hacker">💻 Hacker</option>
-                            <option value="fighter">✈️ Fighter</option>
-                            <option value="sub">🦈 Submarine</option>
-                          </select>
+                        <input type="text" id="puzzle-name" placeholder="Puzzle name..." class="bg-gray-600 text-white px-3 py-2 rounded">
+                        <input type="text" id="puzzle-icon" placeholder="Icon 🧩" class="bg-gray-600 text-white px-3 py-2 rounded" value="🧩">
+                      </div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <select id="puzzle-difficulty" class="bg-gray-600 text-white px-3 py-2 rounded">
+                          <option value="easy">⭐ Easy (1 move)</option>
+                          <option value="medium">⭐⭐ Medium (2 moves)</option>
+                          <option value="hard">⭐⭐⭐ Hard (3 moves)</option>
+                        </select>
+                        <select id="puzzle-objective-type" class="bg-gray-600 text-white px-3 py-2 rounded">
+                          <option value="capture">Capture piece</option>
+                          <option value="score">Reach score</option>
+                          <option value="survive">Survive turns</option>
+                        </select>
+                      </div>
+                      <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
+
+                      <!-- Board Editor -->
+                      <div class="bg-gray-800 p-3 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                          <span class="text-white font-bold text-sm">🎨 Board Editor</span>
+                          <button id="clear-puzzle-board" class="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded">Clear</button>
                         </div>
-                        <div>
-                          <label class="text-gray-300 text-sm">Target Piece</label>
-                          <select id="puzzle-target-piece" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
+
+                        <div class="flex gap-2 mb-2 flex-wrap">
+                          <select id="puzzle-piece-type" class="bg-gray-600 text-white px-2 py-1 rounded text-sm flex-1">
                             <option value="soldier">🎖️ Soldier</option>
                             <option value="tank">🚜 Tank</option>
+                            <option value="helicopter">🚁 Heli</option>
                             <option value="ship">🚢 Ship</option>
-                            <option value="helicopter">🚁 Helicopter</option>
+                            <option value="sub">🦈 Sub</option>
+                            <option value="hacker">💻 Hacker</option>
                             <option value="builder">👷 Builder</option>
-                            <option value="hacker">💻 Hacker</option>
-                            <option value="sub">🦈 Submarine</option>
+                            <option value="fighter">✈️ Fighter</option>
+                            <option value="rocket">🚀 Rocket</option>
+                            <option value="barricade">🧱 Barricade</option>
+                          </select>
+                          <select id="puzzle-piece-team" class="bg-gray-600 text-white px-2 py-1 rounded text-sm">
+                            <option value="blue">🟡 Player</option>
+                            <option value="red">🟢 Enemy</option>
                           </select>
                         </div>
+
+                        <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(9, 24px); width: fit-content;"></div>
+                        <div class="text-gray-400 text-xs mt-2">Click to place/remove. Pieces: <span id="puzzle-piece-count">0</span></div>
                       </div>
+
                       <div class="flex gap-2">
-                        <input type="number" id="puzzle-warbucks" placeholder="War Bucks reward" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="50">
-                        <input type="number" id="puzzle-xp" placeholder="XP reward" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="25">
+                        <input type="number" id="puzzle-warbucks" placeholder="War Bucks" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="50">
+                        <input type="number" id="puzzle-xp" placeholder="XP" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="25">
                       </div>
-                      <p class="text-gray-400 text-sm">💡 Tip: Soldiers shoot forward, tanks move 2 squares, helicopters fly anywhere!</p>
                       <button id="create-puzzle-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded">Create Puzzle</button>
                     </div>
                   </div>
@@ -19491,8 +19508,75 @@ function render() {
 
         document.getElementById('toggle-create-puzzle')?.addEventListener('click', () => {
           const form = document.getElementById('create-puzzle-form')
-          if (form) form.classList.toggle('hidden')
+          if (form) {
+            form.classList.toggle('hidden')
+            // Render board editor when form opens
+            if (!form.classList.contains('hidden')) {
+              renderPuzzleBoardEditor()
+            }
+          }
         })
+
+        // Render puzzle board editor
+        function renderPuzzleBoardEditor() {
+          const boardEditor = document.getElementById('puzzle-board-editor')
+          if (!boardEditor) return
+
+          const pieceIcons: Record<string, string> = {
+            soldier: '🎖️', tank: '🚜', helicopter: '🚁', ship: '🚢', sub: '🦈',
+            hacker: '💻', builder: '👷', fighter: '✈️', rocket: '🚀', barricade: '🧱',
+            landmine: '💣', tunnel: '🕳️', base: '🏠'
+          }
+
+          let html = ''
+          for (let rowIdx = 0; rowIdx < 11; rowIdx++) {
+            const row = 11 - rowIdx  // Row 11 at top
+            for (let col = 0; col < 9; col++) {
+              const isWater = col <= 1 || col >= 7
+              const bgColor = isWater ? 'bg-blue-800' : (row + col) % 2 === 0 ? 'bg-yellow-200' : 'bg-green-600'
+              const piece = puzzleEditorPieces.find(p => p.row === row && p.col === col)
+              const pieceDisplay = piece ? `<span class="${piece.team === 'blue' ? 'text-yellow-400' : 'text-green-400'}">${pieceIcons[piece.type] || '?'}</span>` : ''
+              html += `<div class="puzzle-editor-cell ${bgColor} w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-75 text-sm border border-gray-700" data-row="${row}" data-col="${col}">${pieceDisplay}</div>`
+            }
+          }
+          boardEditor.innerHTML = html
+
+          // Update piece count
+          const countEl = document.getElementById('puzzle-piece-count')
+          if (countEl) countEl.textContent = String(puzzleEditorPieces.length)
+
+          // Add click handlers
+          document.querySelectorAll('.puzzle-editor-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+              const row = parseInt((cell as HTMLElement).dataset.row || '0')
+              const col = parseInt((cell as HTMLElement).dataset.col || '0')
+              const pieceType = (document.getElementById('puzzle-piece-type') as HTMLSelectElement)?.value
+              const pieceTeam = (document.getElementById('puzzle-piece-team') as HTMLSelectElement)?.value as 'blue' | 'red'
+
+              // Check if piece already exists at this position
+              const existingIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
+              if (existingIdx >= 0) {
+                // Remove existing piece
+                puzzleEditorPieces.splice(existingIdx, 1)
+              } else {
+                // Add new piece
+                puzzleEditorPieces.push({ type: pieceType, row, col, team: pieceTeam })
+              }
+              renderPuzzleBoardEditor()
+            })
+          })
+        }
+
+        // Clear board button
+        document.getElementById('clear-puzzle-board')?.addEventListener('click', () => {
+          puzzleEditorPieces = []
+          renderPuzzleBoardEditor()
+        })
+
+        // Render board if form is already visible
+        if (adminTab === 'puzzles') {
+          renderPuzzleBoardEditor()
+        }
 
         document.getElementById('create-puzzle-btn')?.addEventListener('click', async () => {
           addDebugLog('info', 'Create Puzzle', 'Button clicked')
@@ -19501,12 +19585,8 @@ function render() {
           const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
           const objective = (document.getElementById('puzzle-objective') as HTMLInputElement)?.value
           const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive'
-          const playerPieceType = (document.getElementById('puzzle-player-piece') as HTMLSelectElement)?.value
-          const targetPieceType = (document.getElementById('puzzle-target-piece') as HTMLSelectElement)?.value
           const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
           const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
-
-          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Difficulty: ${difficulty}, Player: ${playerPieceType}, Target: ${targetPieceType}`)
 
           if (!name || !objective) {
             addDebugLog('error', 'Create Puzzle Failed', 'Missing name or objective')
@@ -19514,43 +19594,43 @@ function render() {
             return
           }
 
-          const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
-
-          // Smart positioning based on piece type and abilities
-          const isWaterPiece = (type: string) => ['ship', 'sub', 'carrier'].includes(type)
-          const isLandPiece = (type: string) => !isWaterPiece(type)
-
-          // Land columns: 2-6 (C-G), Water columns: 0-1 (A-B) and 7-8 (H-I/J-K)
-          const getLandCol = () => 4  // Column E (middle of land)
-          const getWaterCol = () => 1  // Column B (water)
-
-          // Calculate proper distance based on piece attack range
-          const getAttackRange = (type: string): number => {
-            switch (type) {
-              case 'soldier': return 2      // Shoots 2 squares forward
-              case 'tank': return 2         // Moves 2 and crushes
-              case 'helicopter': return 3   // Flies 3 in any direction
-              case 'ship': return 3         // Moves on water
-              case 'sub': return 2          // Moves on water
-              case 'hacker': return 2       // Moves 1-2 squares
-              case 'rocket': return 10      // Long range
-              case 'builder': return 1      // Moves 1 square
-              default: return 2
-            }
+          if (puzzleEditorPieces.length === 0) {
+            addDebugLog('error', 'Create Puzzle Failed', 'No pieces placed on board')
+            alert('Place at least one piece on the board!')
+            return
           }
 
-          const playerCol = isWaterPiece(playerPieceType) ? getWaterCol() : getLandCol()
-          const targetCol = isWaterPiece(targetPieceType) ? getWaterCol() : getLandCol()
+          // Check for at least one player piece and one enemy piece
+          const playerPieces = puzzleEditorPieces.filter(p => p.team === 'blue')
+          const enemyPieces = puzzleEditorPieces.filter(p => p.team === 'red')
+          if (playerPieces.length === 0) {
+            alert('Place at least one Player (yellow) piece!')
+            return
+          }
+          if (enemyPieces.length === 0) {
+            alert('Place at least one Enemy (green) piece!')
+            return
+          }
 
-          // Player row and target row based on attack range
-          // Player should be able to reach target within maxMoves
-          const attackRange = getAttackRange(playerPieceType)
-          const playerRow = 4
-          const targetRow = Math.min(playerRow + attackRange, 8)  // Target within attack range
+          const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
 
-          addDebugLog('info', 'Puzzle Positioning', `Player: ${playerPieceType} at row ${playerRow}, col ${playerCol}. Target: ${targetPieceType} at row ${targetRow}, col ${targetCol}. Range: ${attackRange}`)
+          // Find target piece type (first enemy piece)
+          const targetPieceType = enemyPieces[0].type
 
-          // Create board based on piece types
+          // Convert editor pieces to puzzle format
+          const initialBoard = [
+            ...puzzleEditorPieces.map(p => ({
+              type: p.type,
+              position: { row: p.row, col: p.col },
+              team: p.team
+            })),
+            // Add bases automatically
+            { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+            { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+          ]
+
+          addDebugLog('info', 'Puzzle Data', `Name: ${name}, Pieces: ${puzzleEditorPieces.length}, Target: ${targetPieceType}`)
+
           const puzzleData = {
             name,
             icon,
@@ -19559,12 +19639,7 @@ function render() {
             objective,
             objectiveType,
             targetPieceType,
-            initialBoard: [
-              { type: playerPieceType, position: { row: playerRow, col: playerCol }, team: 'blue' },
-              { type: targetPieceType, position: { row: targetRow, col: targetCol }, team: 'red' },
-              { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-              { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-            ],
+            initialBoard,
             aiMoves: [],
             rewards: { warBucks, xp }
           }
@@ -19574,6 +19649,7 @@ function render() {
           if (id) {
             addDebugLog('success', 'Puzzle Created', `ID: ${id}`)
             alert('Puzzle created!')
+            puzzleEditorPieces = []  // Clear editor
             renderAdminPanel()
           } else {
             addDebugLog('error', 'Create Puzzle Failed', 'adminCreatePuzzle returned null - check if you are admin')
