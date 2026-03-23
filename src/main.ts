@@ -9408,11 +9408,16 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
     }, 500)
   }
 
-  // Check if out of moves
-  if (puzzleMovesLeft <= 0 && !puzzleSolved) {
+  // Check if out of moves (but not if game already won)
+  if (puzzleMovesLeft <= 0 && !puzzleSolved && !winner) {
     puzzleFailed = true
 
     setTimeout(() => {
+      // Double check winner wasn't set during timeout
+      if (winner) {
+        puzzleSolved = true
+        return
+      }
       if (confirm('❌ Out of moves!\n\nTry again?')) {
         // Restart the puzzle
         startPuzzle(currentPuzzle!)
