@@ -2404,6 +2404,21 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
       'puzzleStats.solvedPuzzleIds': arrayUnion(puzzleId)
     })
 
+    // Update local user data so UI reflects changes immediately
+    currentUserData.warBucks += warBucks
+    currentUserData.stats.totalWarBucksEarned = (currentUserData.stats.totalWarBucksEarned || 0) + warBucks
+    if (!currentUserData.puzzleStats) {
+      currentUserData.puzzleStats = { puzzlesSolved: 0, puzzlesAttempted: 0, perfectSolves: 0, dailyStreak: 0, lastPuzzleDate: 0, solvedPuzzleIds: [] }
+    }
+    currentUserData.puzzleStats.puzzlesSolved = puzzleStats.puzzlesSolved + 1
+    currentUserData.puzzleStats.puzzlesAttempted = puzzleStats.puzzlesAttempted + attempts
+    currentUserData.puzzleStats.perfectSolves = perfect ? puzzleStats.perfectSolves + 1 : puzzleStats.perfectSolves
+    currentUserData.puzzleStats.dailyStreak = newStreak
+    currentUserData.puzzleStats.lastPuzzleDate = Date.now()
+    if (!currentUserData.puzzleStats.solvedPuzzleIds.includes(puzzleId)) {
+      currentUserData.puzzleStats.solvedPuzzleIds.push(puzzleId)
+    }
+
     return { warBucks, perfect }
   } catch (error) {
     console.error('Error recording puzzle attempt:', error)
