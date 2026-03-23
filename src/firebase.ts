@@ -1371,64 +1371,118 @@ export async function getAllUsers(): Promise<Array<UserData & { odataId: string 
 }
 
 export async function adminUpdateUser(userId: string, updates: Partial<UserData>): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminUpdateUser called', { userId, updates })
+
+  if (!db) {
+    console.error('[ADMIN] adminUpdateUser FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminUpdateUser FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminUpdateUser: Updating user document...')
     await updateDoc(doc(db, 'users', userId), updates)
+    console.log('[ADMIN] adminUpdateUser SUCCESS')
     return true
   } catch (error) {
-    console.error('Error updating user:', error)
+    console.error('[ADMIN] adminUpdateUser ERROR:', error)
     return false
   }
 }
 
 export async function adminGiveWarBucks(userId: string, amount: number): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminGiveWarBucks called', { userId, amount })
+
+  if (!db) {
+    console.error('[ADMIN] adminGiveWarBucks FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminGiveWarBucks FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminGiveWarBucks: Fetching user document...')
     const userDoc = await getDoc(doc(db, 'users', userId))
-    if (!userDoc.exists()) return false
+    if (!userDoc.exists()) {
+      console.error('[ADMIN] adminGiveWarBucks FAILED: User not found')
+      return false
+    }
 
     const userData = userDoc.data() as UserData
     const newAmount = (userData.warBucks || 0) + amount
+    console.log('[ADMIN] adminGiveWarBucks: Current:', userData.warBucks, '+ Adding:', amount, '= New:', newAmount)
 
     await updateDoc(doc(db, 'users', userId), { warBucks: newAmount })
+    console.log('[ADMIN] adminGiveWarBucks SUCCESS')
     return true
   } catch (error) {
-    console.error('Error giving war bucks:', error)
+    console.error('[ADMIN] adminGiveWarBucks ERROR:', error)
     return false
   }
 }
 
 export async function adminGiveItem(userId: string, itemId: string): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminGiveItem called', { userId, itemId })
+
+  if (!db) {
+    console.error('[ADMIN] adminGiveItem FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminGiveItem FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminGiveItem: Fetching user document...')
     const userDoc = await getDoc(doc(db, 'users', userId))
-    if (!userDoc.exists()) return false
+    if (!userDoc.exists()) {
+      console.error('[ADMIN] adminGiveItem FAILED: User not found')
+      return false
+    }
 
     const userData = userDoc.data() as UserData
     const purchasedItems = userData.purchasedItems || []
 
     if (!purchasedItems.includes(itemId)) {
       purchasedItems.push(itemId)
+      console.log('[ADMIN] adminGiveItem: Adding item to user, new items count:', purchasedItems.length)
       await updateDoc(doc(db, 'users', userId), { purchasedItems })
+    } else {
+      console.log('[ADMIN] adminGiveItem: User already has this item')
     }
+    console.log('[ADMIN] adminGiveItem SUCCESS')
     return true
   } catch (error) {
-    console.error('Error giving item:', error)
+    console.error('[ADMIN] adminGiveItem ERROR:', error)
     return false
   }
 }
 
 export async function adminSetAdmin(userId: string, isAdmin: boolean): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminSetAdmin called', { userId, isAdmin })
+
+  if (!db) {
+    console.error('[ADMIN] adminSetAdmin FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminSetAdmin FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminSetAdmin: Updating admin status...')
     await updateDoc(doc(db, 'users', userId), { isAdmin })
+    console.log('[ADMIN] adminSetAdmin SUCCESS: User', userId, 'isAdmin =', isAdmin)
     return true
   } catch (error) {
-    console.error('Error setting admin:', error)
+    console.error('[ADMIN] adminSetAdmin ERROR:', error)
     return false
   }
 }
@@ -2357,9 +2411,23 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
 
 // Admin: Create puzzle
 export async function adminCreatePuzzle(puzzle: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>): Promise<string | null> {
-  if (!db || !isCurrentUserAdmin() || !currentUserData) return null
+  console.log('[ADMIN] adminCreatePuzzle called', { puzzleName: puzzle.name, difficulty: puzzle.difficulty })
+
+  if (!db) {
+    console.error('[ADMIN] adminCreatePuzzle FAILED: Database not initialized')
+    return null
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminCreatePuzzle FAILED: User is not admin')
+    return null
+  }
+  if (!currentUserData) {
+    console.error('[ADMIN] adminCreatePuzzle FAILED: No user data')
+    return null
+  }
 
   try {
+    console.log('[ADMIN] adminCreatePuzzle: Creating puzzle document...')
     const puzzleRef = doc(collection(db, 'puzzles'))
     await setDoc(puzzleRef, {
       ...puzzle,
@@ -2369,38 +2437,62 @@ export async function adminCreatePuzzle(puzzle: Omit<Puzzle, 'id' | 'createdAt' 
       timesSolved: 0,
       rating: puzzle.difficulty === 'easy' ? 1 : puzzle.difficulty === 'medium' ? 2 : 3
     })
+    console.log('[ADMIN] adminCreatePuzzle SUCCESS: Created puzzle with ID', puzzleRef.id)
     return puzzleRef.id
   } catch (error) {
-    console.error('Error creating puzzle:', error)
+    console.error('[ADMIN] adminCreatePuzzle ERROR:', error)
     return null
   }
 }
 
 // Admin: Get all puzzles
 export async function adminGetAllPuzzles(): Promise<Puzzle[]> {
-  if (!db || !isCurrentUserAdmin()) return []
+  console.log('[ADMIN] adminGetAllPuzzles called')
+
+  if (!db) {
+    console.error('[ADMIN] adminGetAllPuzzles FAILED: Database not initialized')
+    return []
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminGetAllPuzzles FAILED: User is not admin')
+    return []
+  }
 
   try {
+    console.log('[ADMIN] adminGetAllPuzzles: Fetching puzzles collection...')
     const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
-    return puzzlesSnapshot.docs.map(doc => ({
+    const puzzles = puzzlesSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as Puzzle))
+    console.log('[ADMIN] adminGetAllPuzzles SUCCESS: Found', puzzles.length, 'puzzles')
+    return puzzles
   } catch (error) {
-    console.error('Error getting puzzles:', error)
+    console.error('[ADMIN] adminGetAllPuzzles ERROR:', error)
     return []
   }
 }
 
 // Admin: Delete puzzle
 export async function adminDeletePuzzle(puzzleId: string): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminDeletePuzzle called', { puzzleId })
+
+  if (!db) {
+    console.error('[ADMIN] adminDeletePuzzle FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminDeletePuzzle FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminDeletePuzzle: Deleting puzzle document...')
     await deleteDoc(doc(db, 'puzzles', puzzleId))
+    console.log('[ADMIN] adminDeletePuzzle SUCCESS')
     return true
   } catch (error) {
-    console.error('Error deleting puzzle:', error)
+    console.error('[ADMIN] adminDeletePuzzle ERROR:', error)
     return false
   }
 }
@@ -2410,25 +2502,7 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
   if (!db || !isCurrentUserAdmin() || !currentUserData) return 0
 
   const samplePuzzles: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>[] = [
-    // Easy puzzles - 1 move captures
-    // Note: Yellow soldiers shoot UPWARD (toward higher rows), so player must be BELOW target
-    {
-      name: 'Capture the Tank',
-      icon: '🎯',
-      difficulty: 'easy',
-      maxMoves: 1,
-      objective: 'Shoot the enemy tank!',
-      objectiveType: 'capture',
-      targetPieceType: 'tank',
-      initialBoard: [
-        { type: 'soldier', position: { row: 3, col: 4 }, team: 'blue' },  // Player below
-        { type: 'tank', position: { row: 5, col: 4 }, team: 'red' },       // Target above
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-      ],
-      aiMoves: [],
-      rewards: { warBucks: 50, xp: 25 }
-    },
+    // === EASY PUZZLES (1 move) ===
     {
       name: 'Sniper Shot',
       icon: '🎯',
@@ -2438,8 +2512,8 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
       objectiveType: 'capture',
       targetPieceType: 'soldier',
       initialBoard: [
-        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },   // Player below
-        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },    // Target above (2 squares = in range)
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },
         { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
         { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
@@ -2447,87 +2521,140 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
       rewards: { warBucks: 50, xp: 25 }
     },
     {
-      name: 'Helicopter Hunt',
+      name: 'Tank Blast',
+      icon: '🚜',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Use your tank to crush the enemy!',
+      objectiveType: 'capture',
+      targetPieceType: 'soldier',
+      initialBoard: [
+        { type: 'tank', position: { row: 4, col: 4 }, team: 'blue' },      // Player tank
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },    // Target 2 squares away
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25 }
+    },
+    {
+      name: 'Helicopter Strike',
       icon: '🚁',
       difficulty: 'easy',
       maxMoves: 1,
-      objective: 'Shoot down the helicopter!',
+      objective: 'Fly your helicopter to capture the tank!',
       objectiveType: 'capture',
-      targetPieceType: 'helicopter',
+      targetPieceType: 'tank',
       initialBoard: [
-        { type: 'soldier', position: { row: 3, col: 4 }, team: 'blue' },   // Player below
-        { type: 'helicopter', position: { row: 5, col: 4 }, team: 'red' }, // Target above
+        { type: 'helicopter', position: { row: 3, col: 2 }, team: 'blue' }, // Player helicopter
+        { type: 'tank', position: { row: 7, col: 6 }, team: 'red' },        // Target anywhere - heli can fly!
         { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
         { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
       aiMoves: [],
       rewards: { warBucks: 50, xp: 25 }
     },
-    // Medium puzzles - 2 moves (move into position, then shoot)
+    // === MEDIUM PUZZLES (2 moves) ===
     {
-      name: 'Tank Ambush',
+      name: 'Tank Rush',
       icon: '💣',
       difficulty: 'medium',
       maxMoves: 2,
-      objective: 'Move into position and destroy the tank!',
+      objective: 'Drive your tank and destroy the helicopter!',
       objectiveType: 'capture',
-      targetPieceType: 'tank',
+      targetPieceType: 'helicopter',
       initialBoard: [
-        { type: 'soldier', position: { row: 3, col: 2 }, team: 'blue' },   // Player - needs to move right
-        { type: 'tank', position: { row: 6, col: 4 }, team: 'red' },       // Target
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-      ],
-      aiMoves: [],  // No AI moves needed
-      rewards: { warBucks: 75, xp: 40 }
-    },
-    {
-      name: 'Builder Hunt',
-      icon: '🔨',
-      difficulty: 'medium',
-      maxMoves: 2,
-      objective: 'Catch and eliminate the builder!',
-      objectiveType: 'capture',
-      targetPieceType: 'builder',
-      initialBoard: [
-        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },   // Player
-        { type: 'builder', position: { row: 7, col: 5 }, team: 'red' },    // Target - need to move to col 5
+        { type: 'tank', position: { row: 3, col: 2 }, team: 'blue' },       // Player tank
+        { type: 'helicopter', position: { row: 7, col: 4 }, team: 'red' }, // Target
         { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
         { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
       aiMoves: [],
       rewards: { warBucks: 75, xp: 40 }
     },
-    // Hard puzzles - 3 moves
     {
-      name: 'Ship Destroyer',
-      icon: '⚓',
-      difficulty: 'hard',
-      maxMoves: 3,
-      objective: 'Navigate to the ship and sink it!',
+      name: 'Naval Battle',
+      icon: '🚢',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Sail your ship and sink the enemy sub!',
       objectiveType: 'capture',
-      targetPieceType: 'ship',
+      targetPieceType: 'sub',
       initialBoard: [
-        { type: 'soldier', position: { row: 3, col: 1 }, team: 'blue' },   // Player - move right then up
-        { type: 'ship', position: { row: 8, col: 4 }, team: 'red' },       // Target ship
+        { type: 'ship', position: { row: 4, col: 0 }, team: 'blue' },      // Player ship in water
+        { type: 'sub', position: { row: 8, col: 1 }, team: 'red' },        // Enemy sub
         { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
         { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
-      aiMoves: [],  // Simplified - no AI interference
-      rewards: { warBucks: 100, xp: 60 }
+      aiMoves: [],
+      rewards: { warBucks: 75, xp: 40 }
     },
     {
-      name: 'Tank Assault',
-      icon: '🚀',
-      difficulty: 'hard',
-      maxMoves: 3,
-      objective: 'Maneuver past obstacles and destroy the tank!',
+      name: 'Hacker Mission',
+      icon: '💻',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Move your hacker and freeze the tank!',
       objectiveType: 'capture',
       targetPieceType: 'tank',
       initialBoard: [
-        { type: 'soldier', position: { row: 2, col: 2 }, team: 'blue' },   // Player starts left
-        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },       // Target tank on right
-        { type: 'barricade', position: { row: 4, col: 4 }, team: 'red' },  // Obstacle in middle
+        { type: 'hacker', position: { row: 3, col: 3 }, team: 'blue' },    // Player hacker
+        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },       // Target
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 75, xp: 40 }
+    },
+    // Hard puzzles - 3 moves with different piece types
+    {
+      name: 'Air Superiority',
+      icon: '🚁',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Fly your helicopter and destroy all targets!',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 1 }, team: 'blue' }, // Player helicopter
+        { type: 'tank', position: { row: 7, col: 6 }, team: 'red' },        // Target tank
+        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },     // Extra enemy
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 60 }
+    },
+    {
+      name: 'Naval Domination',
+      icon: '⚓',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Navigate your ship through water and sink the sub!',
+      objectiveType: 'capture',
+      targetPieceType: 'sub',
+      initialBoard: [
+        { type: 'ship', position: { row: 3, col: 0 }, team: 'blue' },      // Player ship in water column
+        { type: 'sub', position: { row: 8, col: 2 }, team: 'red' },        // Target sub
+        { type: 'soldier', position: { row: 6, col: 1 }, team: 'red' },    // Enemy guard
+        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 60 }
+    },
+    {
+      name: 'Cyber Warfare',
+      icon: '🖥️',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Use your hacker to freeze and capture the helicopter!',
+      objectiveType: 'capture',
+      targetPieceType: 'helicopter',
+      initialBoard: [
+        { type: 'hacker', position: { row: 2, col: 4 }, team: 'blue' },    // Player hacker
+        { type: 'helicopter', position: { row: 8, col: 6 }, team: 'red' }, // Target helicopter
+        { type: 'tank', position: { row: 5, col: 2 }, team: 'red' },       // Obstacle tank
         { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
         { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
       ],
@@ -2549,14 +2676,25 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
 
 // Ban a user
 export async function adminBanUser(userId: string, durationMinutes: number): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminBanUser called', { userId, durationMinutes })
+
+  if (!db) {
+    console.error('[ADMIN] adminBanUser FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminBanUser FAILED: User is not admin')
+    return false
+  }
 
   try {
     const banUntil = durationMinutes === 0 ? 0 : Date.now() + (durationMinutes * 60 * 1000)
+    console.log('[ADMIN] adminBanUser: Setting ban until', banUntil === 0 ? 'never (unban)' : new Date(banUntil).toISOString())
     await updateDoc(doc(db, 'users', userId), { bannedUntil: banUntil })
+    console.log('[ADMIN] adminBanUser SUCCESS')
     return true
   } catch (error) {
-    console.error('Error banning user:', error)
+    console.error('[ADMIN] adminBanUser ERROR:', error)
     return false
   }
 }
@@ -2575,13 +2713,24 @@ export function getBanRemainingMinutes(userData: UserData): number {
 
 // Admin: Set user War Bucks directly
 export async function adminSetWarBucks(userId: string, amount: number): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminSetWarBucks called', { userId, amount })
+
+  if (!db) {
+    console.error('[ADMIN] adminSetWarBucks FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminSetWarBucks FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminSetWarBucks: Setting War Bucks to', amount)
     await updateDoc(doc(db, 'users', userId), { warBucks: amount })
+    console.log('[ADMIN] adminSetWarBucks SUCCESS')
     return true
   } catch (error) {
-    console.error('Error setting war bucks:', error)
+    console.error('[ADMIN] adminSetWarBucks ERROR:', error)
     return false
   }
 }
@@ -2858,9 +3007,23 @@ export async function getMyTournamentMatch(tournamentId: string): Promise<Tourna
 
 // Admin: Create tournament
 export async function adminCreateTournament(tournament: Omit<Tournament, 'id' | 'createdAt' | 'createdBy' | 'currentPlayers' | 'registeredPlayers' | 'status'>): Promise<string | null> {
-  if (!db || !isCurrentUserAdmin() || !currentUserData) return null
+  console.log('[ADMIN] adminCreateTournament called', { tournamentName: tournament.name })
+
+  if (!db) {
+    console.error('[ADMIN] adminCreateTournament FAILED: Database not initialized')
+    return null
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminCreateTournament FAILED: User is not admin')
+    return null
+  }
+  if (!currentUserData) {
+    console.error('[ADMIN] adminCreateTournament FAILED: No user data')
+    return null
+  }
 
   try {
+    console.log('[ADMIN] adminCreateTournament: Creating tournament document...')
     const tournamentRef = doc(collection(db, 'tournaments'))
     await setDoc(tournamentRef, {
       ...tournament,
@@ -2870,9 +3033,10 @@ export async function adminCreateTournament(tournament: Omit<Tournament, 'id' | 
       registeredPlayers: [],
       status: 'registration'
     })
+    console.log('[ADMIN] adminCreateTournament SUCCESS: Created tournament with ID', tournamentRef.id)
     return tournamentRef.id
   } catch (error) {
-    console.error('Error creating tournament:', error)
+    console.error('[ADMIN] adminCreateTournament ERROR:', error)
     return null
   }
 }
@@ -3097,35 +3261,57 @@ async function finishTournament(tournamentId: string, winnerId: string, winnerUs
 
 // Admin: Cancel tournament
 export async function adminCancelTournament(tournamentId: string): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminCancelTournament called', { tournamentId })
+
+  if (!db) {
+    console.error('[ADMIN] adminCancelTournament FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminCancelTournament FAILED: User is not admin')
+    return false
+  }
 
   try {
+    console.log('[ADMIN] adminCancelTournament: Cancelling tournament...')
     await updateDoc(doc(db, 'tournaments', tournamentId), {
       status: 'cancelled'
     })
+    console.log('[ADMIN] adminCancelTournament SUCCESS')
     return true
   } catch (error) {
-    console.error('Error cancelling tournament:', error)
+    console.error('[ADMIN] adminCancelTournament ERROR:', error)
     return false
   }
 }
 
 // Admin: Delete tournament
 export async function adminDeleteTournament(tournamentId: string): Promise<boolean> {
-  if (!db || !isCurrentUserAdmin()) return false
+  console.log('[ADMIN] adminDeleteTournament called', { tournamentId })
+
+  if (!db) {
+    console.error('[ADMIN] adminDeleteTournament FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminDeleteTournament FAILED: User is not admin')
+    return false
+  }
 
   try {
-    // Delete all matches
+    console.log('[ADMIN] adminDeleteTournament: Deleting tournament matches...')
     const matches = await getTournamentMatches(tournamentId)
+    console.log('[ADMIN] adminDeleteTournament: Found', matches.length, 'matches to delete')
     for (const match of matches) {
       await deleteDoc(doc(db, 'tournamentMatches', match.id))
     }
 
-    // Delete tournament
+    console.log('[ADMIN] adminDeleteTournament: Deleting tournament document...')
     await deleteDoc(doc(db, 'tournaments', tournamentId))
+    console.log('[ADMIN] adminDeleteTournament SUCCESS')
     return true
   } catch (error) {
-    console.error('Error deleting tournament:', error)
+    console.error('[ADMIN] adminDeleteTournament ERROR:', error)
     return false
   }
 }

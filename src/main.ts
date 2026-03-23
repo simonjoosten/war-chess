@@ -19262,20 +19262,37 @@ function render() {
                         <option value="score">Reach score</option>
                         <option value="survive">Survive turns</option>
                       </select>
-                      <select id="puzzle-target-piece" class="bg-gray-600 text-white px-3 py-2 rounded">
-                        <option value="soldier">Soldier</option>
-                        <option value="tank">Tank</option>
-                        <option value="ship">Ship</option>
-                        <option value="helicopter">Helicopter</option>
-                        <option value="builder">Builder</option>
-                        <option value="rocketLauncher">Rocket Launcher</option>
-                        <option value="hacker">Hacker</option>
-                      </select>
+                      <div class="grid grid-cols-2 gap-2">
+                        <div>
+                          <label class="text-gray-300 text-sm">Player Piece</label>
+                          <select id="puzzle-player-piece" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
+                            <option value="soldier">🎖️ Soldier</option>
+                            <option value="tank">🚜 Tank</option>
+                            <option value="helicopter">🚁 Helicopter</option>
+                            <option value="ship">🚢 Ship</option>
+                            <option value="hacker">💻 Hacker</option>
+                            <option value="fighter">✈️ Fighter</option>
+                            <option value="sub">🦈 Submarine</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="text-gray-300 text-sm">Target Piece</label>
+                          <select id="puzzle-target-piece" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
+                            <option value="soldier">🎖️ Soldier</option>
+                            <option value="tank">🚜 Tank</option>
+                            <option value="ship">🚢 Ship</option>
+                            <option value="helicopter">🚁 Helicopter</option>
+                            <option value="builder">👷 Builder</option>
+                            <option value="hacker">💻 Hacker</option>
+                            <option value="sub">🦈 Submarine</option>
+                          </select>
+                        </div>
+                      </div>
                       <div class="flex gap-2">
                         <input type="number" id="puzzle-warbucks" placeholder="War Bucks reward" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="50">
                         <input type="number" id="puzzle-xp" placeholder="XP reward" class="bg-gray-600 text-white px-3 py-2 rounded flex-1" value="25">
                       </div>
-                      <p class="text-gray-400 text-sm">Note: Puzzles will use a simple preset board. For custom boards, use Sample Puzzles as templates.</p>
+                      <p class="text-gray-400 text-sm">💡 Tip: Soldiers shoot forward, tanks move 2 squares, helicopters fly anywhere!</p>
                       <button id="create-puzzle-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded">Create Puzzle</button>
                     </div>
                   </div>
@@ -19452,23 +19469,34 @@ function render() {
         })
 
         document.getElementById('create-puzzle-btn')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Create puzzle button clicked')
           const name = (document.getElementById('puzzle-name') as HTMLInputElement)?.value
           const icon = (document.getElementById('puzzle-icon') as HTMLInputElement)?.value || '🧩'
           const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
           const objective = (document.getElementById('puzzle-objective') as HTMLInputElement)?.value
           const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive'
+          const playerPieceType = (document.getElementById('puzzle-player-piece') as HTMLSelectElement)?.value
           const targetPieceType = (document.getElementById('puzzle-target-piece') as HTMLSelectElement)?.value
           const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
           const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
 
+          console.log('[UI] Admin: Puzzle form values:', { name, icon, difficulty, objective, objectiveType, playerPieceType, targetPieceType, warBucks, xp })
+
           if (!name || !objective) {
+            console.log('[UI] Admin: Validation failed - missing name or objective')
             alert('Please fill in name and objective!')
             return
           }
 
           const maxMoves = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3
 
-          // Create a simple default board
+          // Position depends on piece type
+          // Ships/subs need water (cols 0-1 or 7-8), helicopters can be anywhere
+          const isWaterPiece = (type: string) => ['ship', 'sub', 'carrier'].includes(type)
+          const playerCol = isWaterPiece(playerPieceType) ? 1 : 4
+          const targetCol = isWaterPiece(targetPieceType) ? 1 : 4
+
+          // Create board based on piece types
           const puzzleData = {
             name,
             icon,
@@ -19478,8 +19506,8 @@ function render() {
             objectiveType,
             targetPieceType,
             initialBoard: [
-              { type: 'soldier', position: { row: 3, col: 4 }, team: 'blue' },  // Player below
-              { type: targetPieceType, position: { row: 5, col: 4 }, team: 'red' },  // Target above
+              { type: playerPieceType, position: { row: 3, col: playerCol }, team: 'blue' },
+              { type: targetPieceType, position: { row: 6, col: targetCol }, team: 'red' },
               { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
               { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
             ],
@@ -19487,11 +19515,14 @@ function render() {
             rewards: { warBucks, xp }
           }
 
+          console.log('[UI] Admin: Creating puzzle with data:', puzzleData)
           const id = await adminCreatePuzzle(puzzleData)
           if (id) {
+            console.log('[UI] Admin: Puzzle created successfully with ID:', id)
             alert('Puzzle created!')
             renderAdminPanel()
           } else {
+            console.log('[UI] Admin: Failed to create puzzle - check [ADMIN] logs above for reason')
             alert('Failed to create puzzle. Check console.')
           }
         })
@@ -19528,8 +19559,19 @@ function render() {
                 document.querySelectorAll('.admin-delete-puzzle').forEach(btn => {
                   btn.addEventListener('click', async (e) => {
                     const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
+                    console.log('[UI] Admin: Delete puzzle clicked', { puzzleId })
                     if (puzzleId && confirm('Delete this puzzle?')) {
-                      await adminDeletePuzzle(puzzleId)
+                      console.log('[UI] Admin: Confirmed, executing adminDeletePuzzle...')
+                      const result = await adminDeletePuzzle(puzzleId)
+                      console.log('[UI] Admin: Delete puzzle result:', result)
+                      if (result) {
+                        // Clear from dailyPuzzles cache
+                        dailyPuzzles = dailyPuzzles.filter(p => p.id !== puzzleId)
+                        console.log('[UI] Admin: Removed from dailyPuzzles cache')
+                        alert('Puzzle deleted!')
+                      } else {
+                        alert('Failed to delete puzzle. Check console for [ADMIN] logs.')
+                      }
                       renderAdminPanel()
                     }
                   })
@@ -19546,6 +19588,7 @@ function render() {
         })
 
         document.getElementById('create-tournament-btn')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Create tournament button clicked')
           const name = (document.getElementById('tournament-name') as HTMLInputElement)?.value
           const icon = (document.getElementById('tournament-icon') as HTMLInputElement)?.value || '🏆'
           const description = (document.getElementById('tournament-description') as HTMLTextAreaElement)?.value
@@ -19556,7 +19599,10 @@ function render() {
           const prize2 = parseInt((document.getElementById('tournament-prize-2') as HTMLInputElement)?.value) || 250
           const prize3 = parseInt((document.getElementById('tournament-prize-3') as HTMLInputElement)?.value) || 100
 
+          console.log('[UI] Admin: Tournament form values:', { name, icon, description, maxPlayers, timerEnabled, timerMinutes, prize1, prize2, prize3 })
+
           if (!name) {
+            console.log('[UI] Admin: Validation failed - missing tournament name')
             alert('Please enter a tournament name!')
             return
           }
@@ -19576,11 +19622,14 @@ function render() {
             }
           }
 
+          console.log('[UI] Admin: Creating tournament with data:', tournamentData)
           const id = await adminCreateTournament(tournamentData)
           if (id) {
+            console.log('[UI] Admin: Tournament created successfully with ID:', id)
             alert('Tournament created!')
             renderAdminPanel()
           } else {
+            console.log('[UI] Admin: Failed to create tournament - check [ADMIN] logs above for reason')
             alert('Failed to create tournament. Check console.')
           }
         })
@@ -19626,8 +19675,19 @@ function render() {
                 document.querySelectorAll('.admin-start-tournament').forEach(btn => {
                   btn.addEventListener('click', async (e) => {
                     const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+                    console.log('[UI] Admin: Start tournament clicked', { tournamentId })
                     if (tournamentId && confirm('Start this tournament?')) {
-                      await adminStartTournament(tournamentId)
+                      console.log('[UI] Admin: Confirmed, executing adminStartTournament...')
+                      const result = await adminStartTournament(tournamentId)
+                      console.log('[UI] Admin: Start tournament result:', result)
+                      if (result) {
+                        // Refresh the cached tournaments
+                        activeTournaments = await getAllTournaments()
+                        console.log('[UI] Admin: Refreshed activeTournaments cache')
+                        alert('Tournament started!')
+                      } else {
+                        alert('Failed to start tournament. Check console for [ADMIN] logs.')
+                      }
                       renderAdminPanel()
                     }
                   })
@@ -19637,8 +19697,19 @@ function render() {
                 document.querySelectorAll('.admin-delete-tournament').forEach(btn => {
                   btn.addEventListener('click', async (e) => {
                     const tournamentId = (e.currentTarget as HTMLElement).dataset.tournamentid
+                    console.log('[UI] Admin: Delete tournament clicked', { tournamentId })
                     if (tournamentId && confirm('Delete this tournament?')) {
-                      await adminDeleteTournament(tournamentId)
+                      console.log('[UI] Admin: Confirmed, executing adminDeleteTournament...')
+                      const result = await adminDeleteTournament(tournamentId)
+                      console.log('[UI] Admin: Delete tournament result:', result)
+                      if (result) {
+                        // Clear the cached tournaments so they refresh next time
+                        activeTournaments = activeTournaments.filter(t => t.id !== tournamentId)
+                        console.log('[UI] Admin: Removed from activeTournaments cache')
+                        alert('Tournament deleted!')
+                      } else {
+                        alert('Failed to delete tournament. Check console for [ADMIN] logs.')
+                      }
                       renderAdminPanel()
                     }
                   })
@@ -19792,45 +19863,99 @@ function render() {
 
         // Global actions
         document.getElementById('admin-give-all-bucks')?.addEventListener('click', async () => {
-          if (confirm('Give +100 to ALL?')) { const c = await adminGiveWarBucksToAll(100); alert(`Gave to ${c} users!`); renderAdminPanel() }
+          console.log('[UI] Admin: Give +100 War Bucks to all clicked')
+          if (confirm('Give +100 to ALL?')) {
+            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(100)...')
+            const c = await adminGiveWarBucksToAll(100)
+            console.log('[UI] Admin: Result:', c, 'users affected')
+            alert(`Gave to ${c} users!`); renderAdminPanel()
+          }
         })
         document.getElementById('admin-give-all-bucks-1000')?.addEventListener('click', async () => {
-          if (confirm('Give +1000 to ALL?')) { const c = await adminGiveWarBucksToAll(1000); alert(`Gave to ${c} users!`); renderAdminPanel() }
+          console.log('[UI] Admin: Give +1000 War Bucks to all clicked')
+          if (confirm('Give +1000 to ALL?')) {
+            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(1000)...')
+            const c = await adminGiveWarBucksToAll(1000)
+            console.log('[UI] Admin: Result:', c, 'users affected')
+            alert(`Gave to ${c} users!`); renderAdminPanel()
+          }
         })
         document.getElementById('admin-give-all-bucks-sys')?.addEventListener('click', async () => {
-          if (confirm('Give +100 to ALL?')) { const c = await adminGiveWarBucksToAll(100); alert(`Gave to ${c} users!`); renderAdminPanel() }
+          console.log('[UI] Admin: Give +100 War Bucks to all (sys) clicked')
+          if (confirm('Give +100 to ALL?')) {
+            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(100)...')
+            const c = await adminGiveWarBucksToAll(100)
+            console.log('[UI] Admin: Result:', c, 'users affected')
+            alert(`Gave to ${c} users!`); renderAdminPanel()
+          }
         })
         document.getElementById('admin-give-all-bucks-500')?.addEventListener('click', async () => {
-          if (confirm('Give +500 to ALL?')) { const c = await adminGiveWarBucksToAll(500); alert(`Gave to ${c} users!`); renderAdminPanel() }
+          console.log('[UI] Admin: Give +500 War Bucks to all clicked')
+          if (confirm('Give +500 to ALL?')) {
+            console.log('[UI] Admin: Confirmed, executing adminGiveWarBucksToAll(500)...')
+            const c = await adminGiveWarBucksToAll(500)
+            console.log('[UI] Admin: Result:', c, 'users affected')
+            alert(`Gave to ${c} users!`); renderAdminPanel()
+          }
         })
         document.getElementById('admin-give-all-items-sys')?.addEventListener('click', async () => {
-          if (confirm('Give ALL ITEMS to ALL users? This is a lot!')) { const c = await adminGiveAllItemsToAll(); alert(`Gave all items to ${c} users!`); renderAdminPanel() }
+          console.log('[UI] Admin: Give all items to all clicked')
+          if (confirm('Give ALL ITEMS to ALL users? This is a lot!')) {
+            console.log('[UI] Admin: Confirmed, executing adminGiveAllItemsToAll()...')
+            const c = await adminGiveAllItemsToAll()
+            console.log('[UI] Admin: Result:', c, 'users affected')
+            alert(`Gave all items to ${c} users!`); renderAdminPanel()
+          }
         })
 
         // Danger zone actions
         document.getElementById('admin-reset-all-stats')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Reset all stats clicked')
           if (confirm('⚠️ RESET ALL USER STATS? This cannot be undone!')) {
-            if (confirm('Are you REALLY sure?')) { const c = await adminResetAllStats(); alert(`Reset stats for ${c} users!`); renderAdminPanel() }
+            if (confirm('Are you REALLY sure?')) {
+              console.log('[UI] Admin: Confirmed, executing adminResetAllStats()...')
+              const c = await adminResetAllStats()
+              console.log('[UI] Admin: Result:', c, 'users affected')
+              alert(`Reset stats for ${c} users!`); renderAdminPanel()
+            }
           }
         })
         document.getElementById('admin-reset-all-bucks')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Reset all War Bucks clicked')
           if (confirm('⚠️ RESET ALL WAR BUCKS TO 0? This cannot be undone!')) {
-            if (confirm('Are you REALLY sure?')) { const c = await adminResetAllWarBucks(); alert(`Reset war bucks for ${c} users!`); renderAdminPanel() }
+            if (confirm('Are you REALLY sure?')) {
+              console.log('[UI] Admin: Confirmed, executing adminResetAllWarBucks()...')
+              const c = await adminResetAllWarBucks()
+              console.log('[UI] Admin: Result:', c, 'users affected')
+              alert(`Reset war bucks for ${c} users!`); renderAdminPanel()
+            }
           }
         })
         document.getElementById('admin-delete-all-events')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Delete all events clicked')
           if (confirm('⚠️ DELETE ALL EVENTS? This cannot be undone!')) {
-            const c = await adminDeleteAllEvents(); alert(`Deleted ${c} events!`); renderAdminPanel()
+            console.log('[UI] Admin: Confirmed, executing adminDeleteAllEvents()...')
+            const c = await adminDeleteAllEvents()
+            console.log('[UI] Admin: Result:', c, 'events deleted')
+            alert(`Deleted ${c} events!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-delete-all-games')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Delete all games clicked')
           if (confirm('⚠️ DELETE ALL GAMES? This will end all active games!')) {
-            const c = await adminDeleteAllGames(); alert(`Deleted ${c} games!`); renderAdminPanel()
+            console.log('[UI] Admin: Confirmed, executing adminDeleteAllGames()...')
+            const c = await adminDeleteAllGames()
+            console.log('[UI] Admin: Result:', c, 'games deleted')
+            alert(`Deleted ${c} games!`); renderAdminPanel()
           }
         })
         document.getElementById('admin-delete-all-msgs')?.addEventListener('click', async () => {
+          console.log('[UI] Admin: Delete all messages clicked')
           if (confirm('⚠️ DELETE ALL GLOBAL MESSAGES?')) {
-            const c = await adminDeleteAllMessages(); alert(`Deleted ${c} messages!`); renderAdminPanel()
+            console.log('[UI] Admin: Confirmed, executing adminDeleteAllMessages()...')
+            const c = await adminDeleteAllMessages()
+            console.log('[UI] Admin: Result:', c, 'messages deleted')
+            alert(`Deleted ${c} messages!`); renderAdminPanel()
           }
         })
 
