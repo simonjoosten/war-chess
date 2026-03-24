@@ -9258,6 +9258,27 @@ function cancelReset() {
 const colIndexToLetter = (index: number): string => columns[index] || 'A'
 const colLetterToIndex = (letter: string): number => columns.indexOf(letter)
 
+// Get point value for a piece type
+function getPiecePointValue(type: string): number {
+  const pointValues: Record<string, number> = {
+    soldier: 5,
+    tank: 15,
+    helicopter: 8,
+    ship: 12,
+    sub: 12,
+    rocket: 25,
+    hacker: 30,
+    fighter: 40,
+    builder: 0,
+    base: 100,
+    barricade: 0,
+    landmine: 0,
+    tunnel: 0,
+    artillery: 0
+  }
+  return pointValues[type] || 1
+}
+
 // Start a puzzle
 function startPuzzle(puzzle: Puzzle) {
   // Reset puzzle state
@@ -9280,7 +9301,7 @@ function startPuzzle(puzzle: Puzzle) {
       col: colIndexToLetter(pieceData.position.col),
       row: pieceData.position.row,
       team: team,
-      points: 1
+      points: getPiecePointValue(pieceData.type)
     })
   }
 
