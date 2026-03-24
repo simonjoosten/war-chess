@@ -9413,7 +9413,7 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
   puzzleAttempts++
   puzzleMovesLeft--
 
-  // Check if captured the target
+  // Check if captured the target (for capture objectives)
   if (currentPuzzle.objectiveType === 'capture' && capturedPieceType) {
     // Check if we have a specific target position
     let isCorrectTarget = false
@@ -9435,6 +9435,23 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
 
       setTimeout(() => {
         alert(`🎉 Puzzle Solved!\n\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+        stopPuzzle()
+      }, 500)
+      return
+    }
+  }
+
+  // Check if reached target score (for score objectives)
+  if (currentPuzzle.objectiveType === 'score' && currentPuzzle.targetScore) {
+    const yellowScore = getTeamScore('yellow')
+    if (yellowScore >= currentPuzzle.targetScore) {
+      puzzleSolved = true
+
+      // Record the solve
+      const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
+
+      setTimeout(() => {
+        alert(`🎉 Puzzle Solved!\n\nYou scored ${yellowScore} points!\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
         stopPuzzle()
       }, 500)
       return
