@@ -204,6 +204,7 @@ let puzzleEditorPieces: PuzzleEditorPiece[] = []
 let puzzleEditorTargetIdx: number = -1  // Index of target piece in editor
 let puzzleEditorAiMoves: Array<{ fromRow: number; fromCol: number; toRow: number; toCol: number; action: 'move' | 'shoot' }> = []
 let editingPuzzleId: string | null = null  // ID van puzzle die we bewerken (null = nieuwe puzzle)
+let puzzleEditorMode: 'place' | 'target' | 'reach' = 'place'  // Current editor mode for mobile
 
 // Active game modes (from admin events)
 let activeGameModes: string[] = []
@@ -6636,6 +6637,24 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Eingelöst',
     warPassReward: 'Belohnung',
     warPassCompleted: 'Abgeschlossen!',
+    // Tips & Feedback
+    tipsTitle: 'Tipps & Feedback',
+    tipsShareTitle: 'Teile deinen Tipp oder Feedback!',
+    tipsPlaceholder: 'Dein Tipp oder Feedback...',
+    tipsSubmit: 'Absenden',
+    tipsNoTips: 'Noch keine Tipps in dieser Kategorie.',
+    tipsBeFirst: 'Sei der Erste, der einen Tipp teilt!',
+    tipsFillFields: 'Bitte Titel und Inhalt ausfüllen!',
+    tipsSuccess: 'Danke! Dein Feedback wird von einem Admin geprüft.',
+    tipsError: 'Konnte Feedback nicht senden. Bitte erneut versuchen.',
+    tipsBack: 'Zurück',
+    tipsAll: 'Alle',
+    tipsBy: 'Von:',
+    // Puzzle Editor
+    puzzleCurrentTarget: 'Aktuelles Ziel:',
+    puzzleNotSet: 'Nicht gesetzt',
+    puzzleNoAiMoves: 'Keine KI-Züge. Der Feind tut nichts.',
+    puzzleCtrlClick: 'STRG+Klick auf das Brett',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -6868,6 +6887,24 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Réclamé',
     warPassReward: 'Récompense',
     warPassCompleted: 'Terminé!',
+    // Tips & Feedback
+    tipsTitle: 'Conseils & Retours',
+    tipsShareTitle: 'Partagez votre conseil ou retour!',
+    tipsPlaceholder: 'Votre conseil ou retour...',
+    tipsSubmit: 'Envoyer',
+    tipsNoTips: 'Pas encore de conseils dans cette catégorie.',
+    tipsBeFirst: 'Soyez le premier à partager un conseil!',
+    tipsFillFields: 'Veuillez remplir le titre et le contenu!',
+    tipsSuccess: 'Merci! Votre retour sera examiné par un admin.',
+    tipsError: 'Impossible d\'envoyer le retour. Veuillez réessayer.',
+    tipsBack: 'Retour',
+    tipsAll: 'Tous',
+    tipsBy: 'Par:',
+    // Puzzle Editor
+    puzzleCurrentTarget: 'Cible actuelle:',
+    puzzleNotSet: 'Non défini',
+    puzzleNoAiMoves: 'Pas de coups IA. L\'ennemi ne fait rien.',
+    puzzleCtrlClick: 'CTRL+clic sur le plateau',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -7100,6 +7137,24 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Reclamado',
     warPassReward: 'Recompensa',
     warPassCompleted: '¡Completado!',
+    // Tips & Feedback
+    tipsTitle: 'Consejos y Comentarios',
+    tipsShareTitle: '¡Comparte tu consejo o comentario!',
+    tipsPlaceholder: 'Tu consejo o comentario...',
+    tipsSubmit: 'Enviar',
+    tipsNoTips: 'Aún no hay consejos en esta categoría.',
+    tipsBeFirst: '¡Sé el primero en compartir un consejo!',
+    tipsFillFields: '¡Por favor completa el título y contenido!',
+    tipsSuccess: '¡Gracias! Tu comentario será revisado por un admin.',
+    tipsError: 'No se pudo enviar el comentario. Intenta de nuevo.',
+    tipsBack: 'Volver',
+    tipsAll: 'Todos',
+    tipsBy: 'Por:',
+    // Puzzle Editor
+    puzzleCurrentTarget: 'Objetivo actual:',
+    puzzleNotSet: 'No establecido',
+    puzzleNoAiMoves: 'Sin movimientos de IA. El enemigo no hace nada.',
+    puzzleCtrlClick: 'CTRL+clic en el tablero',
   }
 }
 
@@ -19940,8 +19995,16 @@ function render() {
                           </select>
                         </div>
 
-                        <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(11, 24px); width: fit-content;"></div>
-                        <div class="text-gray-400 text-xs mt-2">Click to place/remove. Shift+click enemy to set as TARGET 🎯</div>
+                        <!-- Mobile mode toggles -->
+                        <div class="flex flex-wrap gap-2 mb-2">
+                          <button id="mode-place" class="puzzle-mode-btn bg-blue-600 text-white text-xs px-2 py-1 rounded">📦 Place</button>
+                          <button id="mode-target" class="puzzle-mode-btn bg-gray-600 text-white text-xs px-2 py-1 rounded">🎯 Set Target</button>
+                          <button id="mode-reach" class="puzzle-mode-btn bg-gray-600 text-white text-xs px-2 py-1 rounded">📍 Set Reach</button>
+                        </div>
+
+                        <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(11, minmax(20px, 28px)); width: fit-content;"></div>
+                        <div class="text-gray-400 text-xs mt-2 hidden sm:block">PC: Click=place, Shift+click=target 🎯, Ctrl+click=reach 📍</div>
+                        <div class="text-gray-400 text-xs sm:hidden">Mobiel: Gebruik knoppen hierboven om modus te kiezen</div>
                         <div class="text-gray-400 text-xs">Pieces: <span id="puzzle-piece-count">0</span> | Target: <span id="puzzle-target-display" class="text-red-400">None</span></div>
                       </div>
 
@@ -20257,8 +20320,8 @@ function render() {
               // Check if piece already exists at this position
               const existingIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
 
-              // CTRL+click: set reach target square
-              if (ctrlKey) {
+              // CTRL+click OR reach mode: set reach target square
+              if (ctrlKey || puzzleEditorMode === 'reach') {
                 const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
                 const targetRowInput = document.getElementById('puzzle-target-row') as HTMLInputElement
                 const targetColInput = document.getElementById('puzzle-target-col') as HTMLInputElement
@@ -20266,15 +20329,15 @@ function render() {
 
                 if (targetRowInput) targetRowInput.value = String(row)
                 if (targetColInput) targetColInput.value = String(col)
-                if (targetDisplay) targetDisplay.textContent = `${columns[col]}${row} (rij ${row}, kolom ${col})`
+                if (targetDisplay) targetDisplay.textContent = `${columns[col]}${row} (row ${row}, col ${col})`
 
                 addDebugLog('info', 'Reach Target Set', `${columns[col]}${row}`)
                 renderPuzzleBoardEditor()
                 return
               }
 
-              if (shiftKey && existingIdx >= 0) {
-                // Shift+click: set this piece as target (only enemy pieces)
+              // Shift+click OR target mode: set this piece as target
+              if ((shiftKey || puzzleEditorMode === 'target') && existingIdx >= 0) {
                 const piece = puzzleEditorPieces[existingIdx]
                 if (piece.team === 'red') {
                   puzzleEditorTargetIdx = existingIdx
@@ -20282,8 +20345,8 @@ function render() {
                 } else {
                   alert('Only enemy (green) pieces can be targets!')
                 }
-              } else if (existingIdx >= 0) {
-                // Normal click on existing: remove piece
+              } else if (existingIdx >= 0 && puzzleEditorMode === 'place') {
+                // Normal click on existing in place mode: remove piece
                 // If this was the target, clear target
                 if (existingIdx === puzzleEditorTargetIdx) {
                   puzzleEditorTargetIdx = -1
@@ -20292,11 +20355,26 @@ function render() {
                   puzzleEditorTargetIdx--
                 }
                 puzzleEditorPieces.splice(existingIdx, 1)
-              } else {
-                // Normal click on empty: add new piece
+              } else if (puzzleEditorMode === 'place') {
+                // Normal click on empty in place mode: add new piece
                 puzzleEditorPieces.push({ type: pieceType, row, col, team: pieceTeam })
               }
               renderPuzzleBoardEditor()
+            })
+          })
+
+          // Mode toggle buttons
+          document.querySelectorAll('.puzzle-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const mode = (btn as HTMLElement).id.replace('mode-', '') as 'place' | 'target' | 'reach'
+              puzzleEditorMode = mode
+              // Update button styles
+              document.querySelectorAll('.puzzle-mode-btn').forEach(b => {
+                b.classList.remove('bg-blue-600')
+                b.classList.add('bg-gray-600')
+              })
+              btn.classList.remove('bg-gray-600')
+              btn.classList.add('bg-blue-600')
             })
           })
         }
