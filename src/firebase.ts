@@ -2295,10 +2295,14 @@ export interface Puzzle {
   difficulty: 'easy' | 'medium' | 'hard'
   maxMoves: number  // 1, 2, or 3
   objective: string  // e.g., "Capture the Tank", "Eliminate the Builder"
-  objectiveType: 'capture' | 'score' | 'survive'
+  objectiveType: 'capture' | 'score' | 'survive' | 'reach' | 'eliminate_all' | 'protect'
   targetPieceType?: string  // For capture objectives
   targetPosition?: { row: number; col: number }  // Specific target piece position
   targetScore?: number  // For score objectives
+  targetSquare?: { row: number; col: number }  // For reach objectives
+  protectPieceType?: string  // For protect objectives
+  protectTurns?: number  // How many turns to protect
+  timerSeconds?: number  // Optional timer in seconds (0 = no timer)
   startingTurn?: number  // Welke beurt de puzzle start (voor rocket/hacker cooldowns)
   initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
   aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number }; action?: 'move' | 'shoot' }>
@@ -2536,13 +2540,17 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
   difficulty: 'easy' | 'medium' | 'hard'
   maxMoves: number
   startingTurn?: number
+  timerSeconds?: number
   objective: string
-  objectiveType: 'capture' | 'score' | 'survive'
+  objectiveType: 'capture' | 'score' | 'survive' | 'reach' | 'eliminate_all' | 'protect'
   targetPieceType?: string
   targetPosition?: { row: number; col: number }
   targetScore?: number
+  targetSquare?: { row: number; col: number }
+  protectPieceType?: string
+  protectTurns?: number
   initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
-  aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>
+  aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number }; action?: 'move' | 'shoot' }>
   rewards: { warBucks: number; xp: number }
 }): Promise<boolean> {
   console.log('[ADMIN] adminUpdatePuzzle called', { puzzleId, puzzleData })
@@ -2582,6 +2590,18 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
     }
     if (puzzleData.targetScore !== undefined) {
       updateData.targetScore = puzzleData.targetScore
+    }
+    if (puzzleData.timerSeconds !== undefined) {
+      updateData.timerSeconds = puzzleData.timerSeconds
+    }
+    if (puzzleData.targetSquare !== undefined) {
+      updateData.targetSquare = puzzleData.targetSquare
+    }
+    if (puzzleData.protectPieceType !== undefined) {
+      updateData.protectPieceType = puzzleData.protectPieceType
+    }
+    if (puzzleData.protectTurns !== undefined) {
+      updateData.protectTurns = puzzleData.protectTurns
     }
 
     await updateDoc(doc(db, 'puzzles', puzzleId), updateData)
@@ -3455,5 +3475,164 @@ export async function createTournamentGame(matchId: string): Promise<string | nu
   } catch (error) {
     console.error('Error creating tournament game:', error)
     return null
+  }
+}
+
+// ============================================
+// FEEDBACK & TIPS SYSTEM
+// ============================================
+
+export interface FeedbackTip {
+  id: string
+  userId: string
+  username: string
+  type: 'tip' | 'feedback' | 'bug' | 'feature'
+  title: string
+  content: string
+  category: 'gameplay' | 'strategy' | 'pieces' | 'puzzles' | 'general' | 'ui'
+  likes: number
+  likedBy: string[]  // User IDs who liked this
+  createdAt: number
+  approved: boolean  // Admin moet goedkeuren voordat zichtbaar
+}
+
+// Submit a tip or feedback
+export async function submitFeedback(
+  type: FeedbackTip['type'],
+  title: string,
+  content: string,
+  category: FeedbackTip['category']
+): Promise<string | null> {
+  if (!db || !currentUser || !currentUserData) return null
+
+  try {
+    const feedbackRef = doc(collection(db, 'feedback'))
+    await setDoc(feedbackRef, {
+      userId: currentUser.uid,
+      username: currentUserData.username,
+      type,
+      title,
+      content,
+      category,
+      likes: 0,
+      likedBy: [],
+      createdAt: Date.now(),
+      approved: false  // Needs admin approval
+    })
+    return feedbackRef.id
+  } catch (error) {
+    console.error('Error submitting feedback:', error)
+    return null
+  }
+}
+
+// Get approved tips (for display to all users)
+export async function getApprovedTips(category?: FeedbackTip['category']): Promise<FeedbackTip[]> {
+  if (!db) return []
+
+  try {
+    let q
+    if (category) {
+      q = query(
+        collection(db, 'feedback'),
+        where('approved', '==', true),
+        where('category', '==', category)
+      )
+    } else {
+      q = query(
+        collection(db, 'feedback'),
+        where('approved', '==', true)
+      )
+    }
+
+    const snapshot = await getDocs(q)
+    const tips: FeedbackTip[] = []
+    snapshot.forEach(doc => {
+      tips.push({ id: doc.id, ...doc.data() } as FeedbackTip)
+    })
+
+    // Sort by likes descending
+    tips.sort((a, b) => b.likes - a.likes)
+    return tips
+  } catch (error) {
+    console.error('Error getting tips:', error)
+    return []
+  }
+}
+
+// Like a tip
+export async function likeTip(tipId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const tipRef = doc(db, 'feedback', tipId)
+    const tipSnap = await getDoc(tipRef)
+
+    if (!tipSnap.exists()) return false
+
+    const tip = tipSnap.data() as FeedbackTip
+    if (tip.likedBy.includes(currentUser!.uid)) {
+      // Already liked - unlike it
+      await updateDoc(tipRef, {
+        likes: tip.likes - 1,
+        likedBy: tip.likedBy.filter(id => id !== currentUser!.uid)
+      })
+    } else {
+      // Like it
+      await updateDoc(tipRef, {
+        likes: tip.likes + 1,
+        likedBy: arrayUnion(currentUser!.uid)
+      })
+    }
+    return true
+  } catch (error) {
+    console.error('Error liking tip:', error)
+    return false
+  }
+}
+
+// Admin: Get all feedback (including unapproved)
+export async function adminGetAllFeedback(): Promise<FeedbackTip[]> {
+  if (!db || !isCurrentUserAdmin()) return []
+
+  try {
+    const snapshot = await getDocs(collection(db, 'feedback'))
+    const feedback: FeedbackTip[] = []
+    snapshot.forEach(doc => {
+      feedback.push({ id: doc.id, ...doc.data() } as FeedbackTip)
+    })
+
+    // Sort by createdAt descending (newest first)
+    feedback.sort((a, b) => b.createdAt - a.createdAt)
+    return feedback
+  } catch (error) {
+    console.error('Error getting all feedback:', error)
+    return []
+  }
+}
+
+// Admin: Approve a tip
+export async function adminApproveTip(tipId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await updateDoc(doc(db, 'feedback', tipId), { approved: true })
+    return true
+  } catch (error) {
+    console.error('Error approving tip:', error)
+    return false
+  }
+}
+
+// Admin: Delete feedback
+export async function adminDeleteFeedback(tipId: string): Promise<boolean> {
+  if (!db || !isCurrentUserAdmin()) return false
+
+  try {
+    await deleteDoc(doc(db, 'feedback', tipId))
+    return true
+  } catch (error) {
+    console.error('Error deleting feedback:', error)
+    return false
   }
 }

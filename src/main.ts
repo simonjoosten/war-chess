@@ -120,11 +120,19 @@ import {
   adminCancelTournament,
   adminDeleteTournament,
   createTournamentGame,
-  recordTournamentMatchResult
+  recordTournamentMatchResult,
+  // Feedback & Tips
+  FeedbackTip,
+  submitFeedback,
+  getApprovedTips,
+  likeTip,
+  adminGetAllFeedback,
+  adminApproveTip,
+  adminDeleteFeedback
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -137,6 +145,12 @@ let activeTournaments: Tournament[] = []
 let currentTournament: Tournament | null = null
 let currentTournamentMatches: TournamentMatch[] = []
 let tournamentListening = false
+
+// Feedback/Tips state
+let showFeedbackPanel = false
+let feedbackTips: FeedbackTip[] = []
+let feedbackCategory: FeedbackTip['category'] | 'all' = 'all'
+let adminFeedbackList: FeedbackTip[] = []
 let myTournamentMatch: TournamentMatch | null = null
 
 // Multiplayer state
@@ -173,6 +187,10 @@ let puzzleSolved = false
 let dailyPuzzles: Puzzle[] = []
 let lastCapturedPieceType: string | null = null
 let lastCapturedPosition: { row: number; col: number } | null = null
+let puzzleTimerSeconds = 0  // Remaining seconds
+let puzzleTimerInterval: ReturnType<typeof setInterval> | null = null
+let puzzleTurnCount = 0  // Track turns for protect objective
+let puzzleUndoHistory: Array<{ pieces: Piece[]; movesLeft: number; aiMoveIndex: number; turnCount: number }> = []
 
 // Puzzle editor state
 interface PuzzleEditorPiece {
@@ -9294,6 +9312,38 @@ function startPuzzle(puzzle: Puzzle) {
   puzzleSolving = true
   puzzleFailed = false
   puzzleSolved = false
+  puzzleTurnCount = 0
+  puzzleUndoHistory = []
+
+  // Start timer if set
+  if (puzzleTimerInterval) {
+    clearInterval(puzzleTimerInterval)
+    puzzleTimerInterval = null
+  }
+  if (puzzle.timerSeconds && puzzle.timerSeconds > 0) {
+    puzzleTimerSeconds = puzzle.timerSeconds
+    puzzleTimerInterval = setInterval(() => {
+      if (!puzzleSolving || puzzleSolved || puzzleFailed) {
+        if (puzzleTimerInterval) clearInterval(puzzleTimerInterval)
+        return
+      }
+      puzzleTimerSeconds--
+      render()
+      if (puzzleTimerSeconds <= 0) {
+        if (puzzleTimerInterval) clearInterval(puzzleTimerInterval)
+        puzzleFailed = true
+        setTimeout(() => {
+          if (confirm('⏱️ Time\'s up!\n\nTry again?')) {
+            startPuzzle(currentPuzzle!)
+          } else {
+            stopPuzzle()
+          }
+        }, 100)
+      }
+    }, 1000)
+  } else {
+    puzzleTimerSeconds = 0
+  }
 
   // Clear the board and set up puzzle position
   pieces.length = 0
@@ -9336,12 +9386,21 @@ function startPuzzle(puzzle: Puzzle) {
 function stopPuzzle() {
   if (!puzzleSolving) return
 
+  // Clear timer
+  if (puzzleTimerInterval) {
+    clearInterval(puzzleTimerInterval)
+    puzzleTimerInterval = null
+  }
+  puzzleTimerSeconds = 0
+
   puzzleSolving = false
   currentPuzzle = null
   puzzleMovesLeft = 0
   puzzleAiMoveIndex = 0
   puzzleFailed = false
   puzzleSolved = false
+  puzzleTurnCount = 0
+  puzzleUndoHistory = []
 
   // Go back to puzzles screen
   showAuthScreen = 'puzzles'
@@ -9352,6 +9411,48 @@ function stopPuzzle() {
   currentTurn = 'yellow'
 
   render()
+}
+
+// Undo last puzzle move
+function undoPuzzleMove() {
+  if (!puzzleSolving || !currentPuzzle || puzzleUndoHistory.length === 0) return
+
+  const lastState = puzzleUndoHistory.pop()!
+
+  // Restore pieces
+  pieces.length = 0
+  for (const p of lastState.pieces) {
+    pieces.push({ ...p })
+  }
+
+  // Restore state
+  puzzleMovesLeft = lastState.movesLeft
+  puzzleAiMoveIndex = lastState.aiMoveIndex
+  puzzleTurnCount = lastState.turnCount
+
+  // Clear selection
+  selectedPiece = null
+  validMoves = []
+  shootTargets = []
+
+  render()
+}
+
+// Save current puzzle state for undo
+function savePuzzleStateForUndo() {
+  if (!puzzleSolving) return
+
+  puzzleUndoHistory.push({
+    pieces: pieces.map(p => ({ ...p })),
+    movesLeft: puzzleMovesLeft,
+    aiMoveIndex: puzzleAiMoveIndex,
+    turnCount: puzzleTurnCount
+  })
+
+  // Limit history to 10 moves
+  if (puzzleUndoHistory.length > 10) {
+    puzzleUndoHistory.shift()
+  }
 }
 
 // Execute AI move in puzzle
@@ -9490,6 +9591,89 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
         alert(`🎉 Puzzle Solved!\n\nYou scored ${yellowScore} points!\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
         stopPuzzle()
       }, 500)
+      return
+    }
+  }
+
+  // Check if reached target square (for reach objectives)
+  if (currentPuzzle.objectiveType === 'reach' && currentPuzzle.targetSquare) {
+    const targetRow = currentPuzzle.targetSquare.row
+    const targetCol = currentPuzzle.targetSquare.col
+    const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+    const targetColLetter = columns[targetCol]
+
+    // Check if any yellow piece is at the target square
+    const pieceAtTarget = pieces.find(p =>
+      p.team === 'yellow' &&
+      p.row === targetRow &&
+      p.col === targetColLetter
+    )
+
+    if (pieceAtTarget) {
+      puzzleSolved = true
+
+      const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
+
+      setTimeout(() => {
+        alert(`🎉 Puzzle Solved!\n\nYou reached the target!\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+        stopPuzzle()
+      }, 500)
+      return
+    }
+  }
+
+  // Check if all enemies eliminated (for eliminate_all objectives)
+  if (currentPuzzle.objectiveType === 'eliminate_all') {
+    const greenPieces = pieces.filter(p => p.team === 'green')
+    if (greenPieces.length === 0) {
+      puzzleSolved = true
+
+      const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
+
+      setTimeout(() => {
+        alert(`🎉 Puzzle Solved!\n\nAll enemies eliminated!\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+        stopPuzzle()
+      }, 500)
+      return
+    }
+  }
+
+  // Increment turn count for protect objectives
+  puzzleTurnCount++
+
+  // Check protect objective (must survive all moves with protected piece)
+  if (currentPuzzle.objectiveType === 'protect' && currentPuzzle.protectPieceType) {
+    const protectPieceType = currentPuzzle.protectPieceType
+    const protectedPiece = pieces.find(p =>
+      p.team === 'yellow' &&
+      p.type === protectPieceType
+    )
+
+    if (!protectedPiece) {
+      // Protected piece was captured - fail!
+      puzzleFailed = true
+
+      setTimeout(() => {
+        if (confirm(`❌ Your ${protectPieceType} was captured!\n\nTry again?`)) {
+          startPuzzle(currentPuzzle!)
+        } else {
+          stopPuzzle()
+        }
+      }, 500)
+      return
+    }
+
+    // Check if we've survived enough turns
+    const requiredTurns = currentPuzzle.protectTurns || currentPuzzle.maxMoves
+    if (puzzleTurnCount >= requiredTurns) {
+      puzzleSolved = true
+
+      recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts).then(result => {
+        setTimeout(() => {
+          alert(`🎉 Puzzle Solved!\n\nYou protected your ${protectPieceType}!\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+          stopPuzzle()
+        }, 500)
+      })
       return
     }
   }
@@ -10732,6 +10916,11 @@ function isTunnelEntrance(col: string, row: number): boolean {
 function movePiece(col: string, row: number) {
   if (!selectedPiece) return
 
+  // Save state for undo in puzzle mode
+  if (puzzleSolving) {
+    savePuzzleStateForUndo()
+  }
+
   const move = validMoves.find(m => m.col === col && m.row === row)
 
   if (!move) {
@@ -11298,6 +11487,11 @@ function declineExitTunnel() {
 
 function shootPiece(col: string, row: number) {
   if (!selectedPiece) return
+
+  // Save state for undo in puzzle mode
+  if (puzzleSolving) {
+    savePuzzleStateForUndo()
+  }
 
   const target = shootTargets.find(t => t.col === col && t.row === row)
   if (!target) {
@@ -18034,6 +18228,10 @@ function render() {
               <span class="text-3xl sm:text-4xl">🏆</span>
               <span class="text-sm sm:text-base">Tournaments</span>
             </button>
+            <button id="tips-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-pink-500 to-pink-700 hover:from-pink-400 hover:to-pink-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">💡</span>
+              <span class="text-sm sm:text-base">Tips</span>
+            </button>
             ${isCurrentUserAdmin() ? `
             <button id="admin-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
               <span class="text-3xl sm:text-4xl">🔧</span>
@@ -18076,6 +18274,10 @@ function render() {
         })
         document.getElementById('tournaments-btn')?.addEventListener('click', () => {
           showAuthScreen = 'tournaments'
+          render()
+        })
+        document.getElementById('tips-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'tips'
           render()
         })
         document.getElementById('admin-btn')?.addEventListener('click', () => {
@@ -19141,6 +19343,170 @@ function render() {
       return
     }
 
+    // Tips & Feedback screen
+    if (showAuthScreen === 'tips') {
+      const renderTipsScreen = async () => {
+        // Load tips if not loaded yet
+        if (feedbackTips.length === 0) {
+          feedbackTips = await getApprovedTips()
+        }
+
+        const filteredTips = feedbackCategory === 'all'
+          ? feedbackTips
+          : feedbackTips.filter(t => t.category === feedbackCategory)
+
+        const categoryOptions = [
+          { value: 'all', label: 'Alle' },
+          { value: 'gameplay', label: '🎮 Gameplay' },
+          { value: 'strategy', label: '🧠 Strategy' },
+          { value: 'pieces', label: '♟️ Pieces' },
+          { value: 'puzzles', label: '🧩 Puzzles' },
+          { value: 'general', label: '📝 General' },
+          { value: 'ui', label: '🖥️ UI' }
+        ]
+
+        const typeIcons: Record<string, string> = {
+          tip: '💡',
+          feedback: '📢',
+          bug: '🐛',
+          feature: '✨'
+        }
+
+        app.innerHTML = `
+          <div class="min-h-screen p-4 sm:p-8">
+            <div class="max-w-4xl mx-auto bg-gray-800 rounded-xl p-6 shadow-xl">
+              <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                💡 Tips & Feedback
+              </h2>
+
+              <!-- Category filter -->
+              <div class="flex flex-wrap gap-2 mb-6">
+                ${categoryOptions.map(opt => `
+                  <button class="tips-category-btn px-3 py-1 rounded-full text-sm ${feedbackCategory === opt.value ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" data-category="${opt.value}">
+                    ${opt.label}
+                  </button>
+                `).join('')}
+              </div>
+
+              <!-- Submit tip form -->
+              <div class="bg-gray-700 rounded-lg p-4 mb-6">
+                <h3 class="text-white font-semibold mb-3">Deel jouw tip of feedback!</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <select id="submit-type" class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <option value="tip">💡 Tip</option>
+                    <option value="feedback">📢 Feedback</option>
+                    <option value="bug">🐛 Bug Report</option>
+                    <option value="feature">✨ Feature Request</option>
+                  </select>
+                  <select id="submit-category" class="bg-gray-600 text-white px-3 py-2 rounded">
+                    <option value="gameplay">🎮 Gameplay</option>
+                    <option value="strategy">🧠 Strategy</option>
+                    <option value="pieces">♟️ Pieces</option>
+                    <option value="puzzles">🧩 Puzzles</option>
+                    <option value="general">📝 General</option>
+                    <option value="ui">🖥️ UI</option>
+                  </select>
+                </div>
+                <input id="submit-title" type="text" placeholder="Titel" class="w-full bg-gray-600 text-white px-3 py-2 rounded mb-3">
+                <textarea id="submit-content" placeholder="Jouw tip of feedback..." rows="3" class="w-full bg-gray-600 text-white px-3 py-2 rounded mb-3"></textarea>
+                <button id="submit-feedback-btn" class="bg-pink-600 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                  Versturen
+                </button>
+                <p class="text-gray-400 text-xs mt-2">Je tip/feedback wordt na goedkeuring door een admin zichtbaar.</p>
+              </div>
+
+              <!-- Tips list -->
+              <div class="space-y-4">
+                ${filteredTips.length === 0 ? `
+                  <div class="text-center py-8">
+                    <span class="text-4xl">📭</span>
+                    <p class="text-gray-400 mt-2">Nog geen tips in deze categorie.</p>
+                    <p class="text-gray-500 text-sm">Wees de eerste die een tip deelt!</p>
+                  </div>
+                ` : filteredTips.map(tip => `
+                  <div class="bg-gray-700 rounded-lg p-4">
+                    <div class="flex items-start justify-between">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span class="text-lg">${typeIcons[tip.type] || '💡'}</span>
+                          <h4 class="text-white font-semibold">${tip.title}</h4>
+                          <span class="text-xs bg-gray-600 px-2 py-0.5 rounded text-gray-300">${categoryOptions.find(c => c.value === tip.category)?.label || tip.category}</span>
+                        </div>
+                        <p class="text-gray-300 text-sm mb-2">${tip.content}</p>
+                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                          <span>Door: ${tip.username}</span>
+                          <span>${new Date(tip.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <button class="like-tip-btn flex items-center gap-1 px-3 py-1 rounded ${tip.likedBy.includes(getCurrentUser()?.uid || '') ? 'bg-pink-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}" data-id="${tip.id}">
+                        👍 ${tip.likes}
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <button id="tips-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-6">
+                Terug
+              </button>
+            </div>
+          </div>
+        `
+
+        // Event listeners
+        document.querySelectorAll('.tips-category-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            feedbackCategory = (btn as HTMLElement).dataset.category as FeedbackTip['category'] | 'all'
+            renderTipsScreen()
+          })
+        })
+
+        document.getElementById('submit-feedback-btn')?.addEventListener('click', async () => {
+          const type = (document.getElementById('submit-type') as HTMLSelectElement)?.value as FeedbackTip['type']
+          const category = (document.getElementById('submit-category') as HTMLSelectElement)?.value as FeedbackTip['category']
+          const title = (document.getElementById('submit-title') as HTMLInputElement)?.value
+          const content = (document.getElementById('submit-content') as HTMLTextAreaElement)?.value
+
+          if (!title || !content) {
+            alert('Vul titel en inhoud in!')
+            return
+          }
+
+          const id = await submitFeedback(type, title, content, category)
+          if (id) {
+            alert('Bedankt! Je feedback wordt bekeken door een admin.')
+            // Clear form
+            ;(document.getElementById('submit-title') as HTMLInputElement).value = ''
+            ;(document.getElementById('submit-content') as HTMLTextAreaElement).value = ''
+          } else {
+            alert('Kon feedback niet versturen. Probeer opnieuw.')
+          }
+        })
+
+        document.querySelectorAll('.like-tip-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const tipId = (btn as HTMLElement).dataset.id
+            if (!tipId) return
+
+            const success = await likeTip(tipId)
+            if (success) {
+              // Reload tips to get updated like counts
+              feedbackTips = await getApprovedTips()
+              renderTipsScreen()
+            }
+          })
+        })
+
+        document.getElementById('tips-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'profile'
+          render()
+        })
+      }
+
+      renderTipsScreen()
+      return
+    }
+
     // Admin panel screen
     if (showAuthScreen === 'admin') {
       if (!isCurrentUserAdmin()) {
@@ -19150,7 +19516,7 @@ function render() {
       }
 
       // Admin panel state
-      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'system' = 'users'
+      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'feedback' | 'system' = 'users'
       let adminSearchQuery = ''
       let showCreateEvent = false
       let expandedUserId: string | null = null
@@ -19186,6 +19552,9 @@ function render() {
               </button>
               <button id="tab-tournaments" class="${tabClass('tournaments')} font-bold py-2 px-4 rounded transition-colors">
                 🏆 Tournaments
+              </button>
+              <button id="tab-feedback" class="${tabClass('feedback')} font-bold py-2 px-4 rounded transition-colors">
+                💬 Feedback
               </button>
               <button id="tab-system" class="${tabClass('system')} font-bold py-2 px-4 rounded transition-colors">
                 🖥️ System
@@ -19454,6 +19823,9 @@ function render() {
                           <option value="capture">🎯 Capture</option>
                           <option value="score">💰 Score</option>
                           <option value="survive">🛡️ Survive</option>
+                          <option value="reach">📍 Reach Square</option>
+                          <option value="eliminate_all">💀 Eliminate All</option>
+                          <option value="protect">🛡️ Protect Piece</option>
                         </select>
                       </div>
                       <div class="grid grid-cols-2 gap-2">
@@ -19461,8 +19833,9 @@ function render() {
                           <label class="text-gray-300 text-xs">Start beurt (voor cooldowns):</label>
                           <input type="number" id="puzzle-starting-turn" min="1" max="80" value="1" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
                         </div>
-                        <div class="text-gray-400 text-xs pt-4">
-                          💡 Hacker cooldown=15, Rocket=1. Start op beurt 16+ voor hacker.
+                        <div>
+                          <label class="text-gray-300 text-xs">Timer (seconden, 0=geen):</label>
+                          <input type="number" id="puzzle-timer" min="0" max="300" value="0" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
                         </div>
                       </div>
                       <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
@@ -19471,6 +19844,29 @@ function render() {
                       <div id="puzzle-score-section" class="hidden">
                         <label class="text-gray-300 text-sm">Target Score to reach:</label>
                         <input type="number" id="puzzle-target-score" placeholder="e.g. 10" class="bg-gray-600 text-white px-3 py-2 rounded w-full" value="10">
+                      </div>
+
+                      <!-- Target Square (only for reach objectives) -->
+                      <div id="puzzle-reach-section" class="hidden">
+                        <label class="text-gray-300 text-sm">Target Square (row, col):</label>
+                        <div class="grid grid-cols-2 gap-2">
+                          <input type="number" id="puzzle-target-row" placeholder="Row (1-11)" min="1" max="11" class="bg-gray-600 text-white px-3 py-2 rounded" value="6">
+                          <input type="number" id="puzzle-target-col" placeholder="Col (0-8)" min="0" max="8" class="bg-gray-600 text-white px-3 py-2 rounded" value="4">
+                        </div>
+                      </div>
+
+                      <!-- Protect settings (only for protect objectives) -->
+                      <div id="puzzle-protect-section" class="hidden">
+                        <label class="text-gray-300 text-sm">Protect which piece type for how many turns:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                          <select id="puzzle-protect-piece" class="bg-gray-600 text-white px-3 py-2 rounded">
+                            <option value="base">🏠 Base</option>
+                            <option value="builder">👷 Builder</option>
+                            <option value="hacker">💻 Hacker</option>
+                            <option value="fighter">✈️ Fighter</option>
+                          </select>
+                          <input type="number" id="puzzle-protect-turns" placeholder="Turns" min="1" max="10" class="bg-gray-600 text-white px-3 py-2 rounded" value="3">
+                        </div>
                       </div>
 
                       <!-- Board Editor -->
@@ -19508,7 +19904,7 @@ function render() {
                           </select>
                         </div>
 
-                        <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(9, 24px); width: fit-content;"></div>
+                        <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(11, 24px); width: fit-content;"></div>
                         <div class="text-gray-400 text-xs mt-2">Click to place/remove. Shift+click enemy to set as TARGET 🎯</div>
                         <div class="text-gray-400 text-xs">Pieces: <span id="puzzle-piece-count">0</span> | Target: <span id="puzzle-target-display" class="text-red-400">None</span></div>
                       </div>
@@ -19589,6 +19985,16 @@ function render() {
 
                   <div id="tournaments-list" class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
                     <div class="text-gray-400 text-center py-4">Loading tournaments...</div>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${adminTab === 'feedback' ? `
+                <!-- Feedback Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">💬 Feedback & Tips Management</h2>
+                  <div id="admin-feedback-list" class="space-y-3 max-h-[60vh] overflow-y-auto">
+                    <div class="text-gray-400 text-center py-4">Loading feedback...</div>
                   </div>
                 </div>
               ` : ''}
@@ -19688,6 +20094,7 @@ function render() {
         document.getElementById('tab-events')?.addEventListener('click', () => { adminTab = 'events'; renderAdminPanel() })
         document.getElementById('tab-puzzles')?.addEventListener('click', () => { adminTab = 'puzzles'; renderAdminPanel() })
         document.getElementById('tab-tournaments')?.addEventListener('click', () => { adminTab = 'tournaments'; renderAdminPanel() })
+        document.getElementById('tab-feedback')?.addEventListener('click', () => { adminTab = 'feedback'; renderAdminPanel() })
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
@@ -19765,8 +20172,8 @@ function render() {
           let html = ''
           for (let rowIdx = 0; rowIdx < 11; rowIdx++) {
             const row = 11 - rowIdx  // Row 11 at top
-            for (let col = 0; col < 9; col++) {
-              const isWater = col <= 1 || col >= 7
+            for (let col = 0; col < 11; col++) {
+              const isWater = col <= 1 || col >= 9
               const bgColor = isWater ? 'bg-blue-800' : (row + col) % 2 === 0 ? 'bg-yellow-200' : 'bg-green-600'
               const pieceIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
               const piece = pieceIdx >= 0 ? puzzleEditorPieces[pieceIdx] : null
@@ -19851,10 +20258,14 @@ function render() {
 
         // Show/hide target score field based on objective type
         document.getElementById('puzzle-objective-type')?.addEventListener('change', (e) => {
+          const objectiveType = (e.target as HTMLSelectElement).value
           const scoreSection = document.getElementById('puzzle-score-section')
-          if (scoreSection) {
-            scoreSection.classList.toggle('hidden', (e.target as HTMLSelectElement).value !== 'score')
-          }
+          const reachSection = document.getElementById('puzzle-reach-section')
+          const protectSection = document.getElementById('puzzle-protect-section')
+
+          if (scoreSection) scoreSection.classList.toggle('hidden', objectiveType !== 'score')
+          if (reachSection) reachSection.classList.toggle('hidden', objectiveType !== 'reach')
+          if (protectSection) protectSection.classList.toggle('hidden', objectiveType !== 'protect')
         })
 
         // AI Moves: Add move button
@@ -19913,9 +20324,14 @@ function render() {
           const difficulty = (document.getElementById('puzzle-difficulty') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard'
           const maxMoves = parseInt((document.getElementById('puzzle-max-moves') as HTMLSelectElement)?.value) || 3
           const startingTurn = parseInt((document.getElementById('puzzle-starting-turn') as HTMLInputElement)?.value) || 1
+          const timerSeconds = parseInt((document.getElementById('puzzle-timer') as HTMLInputElement)?.value) || 0
           const objective = (document.getElementById('puzzle-objective') as HTMLInputElement)?.value
-          const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive'
+          const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value as 'capture' | 'score' | 'survive' | 'reach' | 'eliminate_all' | 'protect'
           const targetScore = parseInt((document.getElementById('puzzle-target-score') as HTMLInputElement)?.value) || 10
+          const targetRow = parseInt((document.getElementById('puzzle-target-row') as HTMLInputElement)?.value) || 6
+          const targetCol = parseInt((document.getElementById('puzzle-target-col') as HTMLInputElement)?.value) || 4
+          const protectPiece = (document.getElementById('puzzle-protect-piece') as HTMLSelectElement)?.value || 'base'
+          const protectTurns = parseInt((document.getElementById('puzzle-protect-turns') as HTMLInputElement)?.value) || 3
           const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
           const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
 
@@ -19982,11 +20398,15 @@ function render() {
             difficulty,
             maxMoves,
             startingTurn,
+            timerSeconds: timerSeconds > 0 ? timerSeconds : undefined,
             objective,
             objectiveType,
             targetPieceType,
             targetPosition,
             targetScore: objectiveType === 'score' ? targetScore : undefined,
+            targetSquare: objectiveType === 'reach' ? { row: targetRow, col: targetCol } : undefined,
+            protectPieceType: objectiveType === 'protect' ? protectPiece : undefined,
+            protectTurns: objectiveType === 'protect' ? protectTurns : undefined,
             initialBoard,
             aiMoves,
             rewards: { warBucks, xp }
@@ -20164,6 +20584,86 @@ function render() {
                     renderAiMovesList()
 
                     addDebugLog('success', 'Puzzle Loaded', `${puzzleEditorPieces.length} pieces, ${puzzleEditorAiMoves.length} AI moves`)
+                  })
+                })
+              }
+            }
+          })
+        }
+
+        // Load and display feedback when on feedback tab
+        if (adminTab === 'feedback') {
+          adminGetAllFeedback().then(feedback => {
+            const feedbackList = document.getElementById('admin-feedback-list')
+            if (feedbackList) {
+              if (feedback.length === 0) {
+                feedbackList.innerHTML = `<div class="text-gray-400 text-center py-4">Geen feedback nog.</div>`
+              } else {
+                const typeIcons: Record<string, string> = {
+                  tip: '💡',
+                  feedback: '📢',
+                  bug: '🐛',
+                  feature: '✨'
+                }
+
+                feedbackList.innerHTML = feedback.map(fb => `
+                  <div class="bg-gray-700 p-3 rounded-lg ${fb.approved ? 'border-l-4 border-green-500' : 'border-l-4 border-yellow-500'}">
+                    <div class="flex justify-between items-start">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span>${typeIcons[fb.type] || '💬'}</span>
+                          <span class="text-white font-semibold">${fb.title}</span>
+                          <span class="text-xs bg-gray-600 px-2 py-0.5 rounded">${fb.category}</span>
+                          <span class="text-xs ${fb.approved ? 'text-green-400' : 'text-yellow-400'}">${fb.approved ? '✅ Approved' : '⏳ Pending'}</span>
+                        </div>
+                        <p class="text-gray-300 text-sm mb-2">${fb.content}</p>
+                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                          <span>Van: ${fb.username}</span>
+                          <span>${new Date(fb.createdAt).toLocaleString()}</span>
+                          <span>👍 ${fb.likes}</span>
+                        </div>
+                      </div>
+                      <div class="flex gap-2">
+                        ${!fb.approved ? `
+                          <button class="admin-approve-feedback bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm" data-id="${fb.id}">
+                            ✅
+                          </button>
+                        ` : ''}
+                        <button class="admin-delete-feedback bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-id="${fb.id}">
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')
+
+                // Add approve listeners
+                document.querySelectorAll('.admin-approve-feedback').forEach(btn => {
+                  btn.addEventListener('click', async () => {
+                    const id = (btn as HTMLElement).dataset.id
+                    if (id) {
+                      const success = await adminApproveTip(id)
+                      if (success) {
+                        renderAdminPanel()
+                      } else {
+                        alert('Kon niet goedkeuren.')
+                      }
+                    }
+                  })
+                })
+
+                // Add delete listeners
+                document.querySelectorAll('.admin-delete-feedback').forEach(btn => {
+                  btn.addEventListener('click', async () => {
+                    const id = (btn as HTMLElement).dataset.id
+                    if (id && confirm('Weet je zeker dat je dit wilt verwijderen?')) {
+                      const success = await adminDeleteFeedback(id)
+                      if (success) {
+                        renderAdminPanel()
+                      } else {
+                        alert('Kon niet verwijderen.')
+                      }
+                    }
                   })
                 })
               }
@@ -21315,6 +21815,13 @@ function render() {
   ` : ''
 
   // Puzzle mode header
+  const puzzleTimerDisplay = puzzleTimerSeconds > 0 ? `
+    <div class="bg-orange-900 px-4 py-2 rounded-lg ${puzzleTimerSeconds <= 10 ? 'animate-pulse bg-red-900' : ''}">
+      <span class="text-orange-200 text-sm">⏱️ Time:</span>
+      <span class="text-white font-bold text-xl ml-2">${Math.floor(puzzleTimerSeconds / 60)}:${String(puzzleTimerSeconds % 60).padStart(2, '0')}</span>
+    </div>
+  ` : ''
+
   const puzzleHeaderHtml = puzzleSolving && currentPuzzle ? `
     <div class="fixed top-0 left-0 right-0 bg-gradient-to-r from-orange-600 to-orange-800 p-3 z-40 shadow-lg">
       <div class="max-w-4xl mx-auto flex items-center justify-between">
@@ -21326,10 +21833,14 @@ function render() {
           </div>
         </div>
         <div class="flex items-center gap-4">
+          ${puzzleTimerDisplay}
           <div class="bg-orange-900 px-4 py-2 rounded-lg">
             <span class="text-orange-200 text-sm">Moves Left:</span>
             <span class="text-white font-bold text-xl ml-2">${puzzleMovesLeft}</span>
           </div>
+          <button id="undo-puzzle-btn" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded transition-colors ${puzzleUndoHistory.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${puzzleUndoHistory.length === 0 ? 'disabled' : ''}>
+            ↩️ Undo
+          </button>
           <button id="stop-puzzle-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded transition-colors">
             Stop Solving
           </button>
@@ -21393,6 +21904,9 @@ function render() {
 
   // Add stop puzzle button listener
   document.getElementById('stop-puzzle-btn')?.addEventListener('click', stopPuzzle)
+
+  // Add undo puzzle button listener
+  document.getElementById('undo-puzzle-btn')?.addEventListener('click', undoPuzzleMove)
 
   // Opponent left modal listeners
   document.getElementById('opponent-left-menu')?.addEventListener('click', () => {
