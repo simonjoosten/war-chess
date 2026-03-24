@@ -180,7 +180,8 @@ let chatListening = false
 
 // Puzzle state
 let currentPuzzle: Puzzle | null = null
-let puzzleAttempts = 0
+let puzzleAttempts = 0  // Number of times puzzle was attempted (for rewards)
+let puzzleMovesMade = 0  // Number of moves made in current attempt
 let puzzleMovesLeft = 0
 let puzzleAiMoveIndex = 0
 let puzzleSolving = false
@@ -9436,10 +9437,15 @@ function getPiecePointValue(type: string): number {
 }
 
 // Start a puzzle
-function startPuzzle(puzzle: Puzzle) {
+function startPuzzle(puzzle: Puzzle, isRetry: boolean = false) {
   // Reset puzzle state
   currentPuzzle = puzzle
-  puzzleAttempts = 0
+  if (isRetry) {
+    puzzleAttempts++  // Increment attempt counter on retry
+  } else {
+    puzzleAttempts = 1  // First attempt
+  }
+  puzzleMovesMade = 0  // Reset moves for this attempt
   puzzleMovesLeft = puzzle.maxMoves
   puzzleAiMoveIndex = 0
   puzzleSolving = true
@@ -9467,7 +9473,7 @@ function startPuzzle(puzzle: Puzzle) {
         puzzleFailed = true
         setTimeout(() => {
           if (confirm('⏱️ Time\'s up!\n\nTry again?')) {
-            startPuzzle(currentPuzzle!)
+            startPuzzle(currentPuzzle!, true)  // isRetry = true
           } else {
             stopPuzzle()
           }
@@ -9704,7 +9710,7 @@ function checkPuzzleObjective(): boolean {
 async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition?: { row: number; col: number }) {
   if (!currentPuzzle || !puzzleSolving) return
 
-  puzzleAttempts++
+  puzzleMovesMade++
   puzzleMovesLeft--
 
   // Check if captured the target (for capture objectives)
@@ -9820,7 +9826,7 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
 
       setTimeout(() => {
         if (confirm(`❌ Your ${protectPieceType} was captured!\n\nTry again?`)) {
-          startPuzzle(currentPuzzle!)
+          startPuzzle(currentPuzzle!, true)  // isRetry = true
         } else {
           stopPuzzle()
         }
@@ -9883,7 +9889,7 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
       }
       if (confirm('❌ Out of moves!\n\nTry again?')) {
         // Restart the puzzle
-        startPuzzle(currentPuzzle!)
+        startPuzzle(currentPuzzle!, true)  // isRetry = true
       } else {
         stopPuzzle()
       }
