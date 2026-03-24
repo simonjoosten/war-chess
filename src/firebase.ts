@@ -2742,20 +2742,20 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
       icon: '💥',
       difficulty: 'easy',
       maxMoves: 1,
-      objective: 'Destroy the tank at F6!',
+      objective: 'Destroy the tank at F8!',
       objectiveType: 'capture',
       targetPieceType: 'tank',
-      targetPosition: { row: 6, col: 5 },  // F6
+      targetPosition: { row: 8, col: 5 },  // F8 (niet in tunnel!)
       noBases: true,
       initialBoard: [
-        // Player tank
-        { type: 'tank', position: { row: 4, col: 5 }, team: 'blue' },     // F4
-        // Target tank
-        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },      // F6 - TARGET
-        // Decoration
-        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },   // D5
-        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },   // H5
-        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },   // F7
+        // Player tank - kan 2 omhoog schieten
+        { type: 'tank', position: { row: 5, col: 5 }, team: 'blue' },     // F5
+        // Target tank - 2 boven tunnel (row 7 skip, row 8 target)
+        { type: 'tank', position: { row: 8, col: 5 }, team: 'red' },      // F8 - TARGET
+        // Decoration rond het doel
+        { type: 'soldier', position: { row: 8, col: 3 }, team: 'red' },   // D8
+        { type: 'soldier', position: { row: 8, col: 7 }, team: 'red' },   // H8
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },   // F9
       ],
       aiMoves: [],
       rewards: { warBucks: 40, xp: 20 }
@@ -3049,14 +3049,9 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
     },
   ]
 
-  let count = 0
-  for (const puzzle of samplePuzzles) {
-    // Mark as sample puzzle so it can be deleted with "Reset"
-    const id = await adminCreatePuzzle({ ...puzzle, isSample: true })
-    if (id) count++
-  }
-
-  return count
+  // Sample puzzles uitgeschakeld - maak je eigen puzzles via de editor
+  console.log('[ADMIN] Sample puzzles disabled - use editor to create your own')
+  return 0
 }
 
 // ==================== ADMIN BAN SYSTEM ====================
