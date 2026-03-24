@@ -3503,9 +3503,23 @@ export async function submitFeedback(
   content: string,
   category: FeedbackTip['category']
 ): Promise<string | null> {
-  if (!db || !currentUser || !currentUserData) return null
+  console.log('[FEEDBACK] submitFeedback called', { type, title, category })
+
+  if (!db) {
+    console.error('[FEEDBACK] submitFeedback FAILED: Database not initialized')
+    return null
+  }
+  if (!currentUser) {
+    console.error('[FEEDBACK] submitFeedback FAILED: User not logged in')
+    return null
+  }
+  if (!currentUserData) {
+    console.error('[FEEDBACK] submitFeedback FAILED: No user data')
+    return null
+  }
 
   try {
+    console.log('[FEEDBACK] Creating feedback document...')
     const feedbackRef = doc(collection(db, 'feedback'))
     await setDoc(feedbackRef, {
       userId: currentUser.uid,
@@ -3519,9 +3533,10 @@ export async function submitFeedback(
       createdAt: Date.now(),
       approved: false  // Needs admin approval
     })
+    console.log('[FEEDBACK] submitFeedback SUCCESS:', feedbackRef.id)
     return feedbackRef.id
   } catch (error) {
-    console.error('Error submitting feedback:', error)
+    console.error('[FEEDBACK] submitFeedback ERROR:', error)
     return null
   }
 }
