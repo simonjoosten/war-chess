@@ -184,7 +184,7 @@ interface PuzzleEditorPiece {
 }
 let puzzleEditorPieces: PuzzleEditorPiece[] = []
 let puzzleEditorTargetIdx: number = -1  // Index of target piece in editor
-let puzzleEditorAiMoves: Array<{ fromRow: number; fromCol: number; toRow: number; toCol: number }> = []
+let puzzleEditorAiMoves: Array<{ fromRow: number; fromCol: number; toRow: number; toCol: number; action: 'move' | 'shoot' }> = []
 let editingPuzzleId: string | null = null  // ID van puzzle die we bewerken (null = nieuwe puzzle)
 
 // Active game modes (from admin events)
@@ -7068,7 +7068,7 @@ const LABEL_SIZE = 30
 const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
 type Team = 'yellow' | 'green'
-type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun' | 'suv' | 'hacker' | 'sub' | 'fighter' | 'builder' | 'barricade' | 'artillery' | 'spike'
+type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun' | 'suv' | 'hacker' | 'sub' | 'fighter' | 'builder' | 'barricade' | 'artillery' | 'spike' | 'base' | 'landmine' | 'tunnel'
 
 interface Piece {
   type: PieceType
@@ -9356,6 +9356,7 @@ function executePuzzleAiMove() {
   const aiMove = currentPuzzle.aiMoves[puzzleAiMoveIndex]
   const fromCol = colIndexToLetter(aiMove.from.col)
   const toCol = colIndexToLetter(aiMove.to.col)
+  const action = aiMove.action || 'move'
 
   const aiPiece = pieces.find(p =>
     p.row === aiMove.from.row &&
@@ -9364,20 +9365,50 @@ function executePuzzleAiMove() {
   )
 
   if (aiPiece) {
-    // Check if there's an enemy piece to capture
-    const targetPiece = pieces.find(p =>
-      p.row === aiMove.to.row &&
-      p.col === toCol &&
-      p.team !== 'green'
-    )
+    if (action === 'shoot') {
+      // AI shoots at target position
+      const targetPiece = pieces.find(p =>
+        p.row === aiMove.to.row &&
+        p.col === toCol &&
+        p.team !== 'green'
+      )
 
-    if (targetPiece) {
-      const idx = pieces.indexOf(targetPiece)
-      if (idx > -1) pieces.splice(idx, 1)
+      if (targetPiece) {
+        // Remove the shot piece
+        const idx = pieces.indexOf(targetPiece)
+        if (idx > -1) {
+          capturedPieces.push(targetPiece)
+          pieces.splice(idx, 1)
+        }
+        // Add to move log
+        moveLog.push({
+          piece: aiPiece.type,
+          from: `${fromCol}${aiMove.from.row}`,
+          to: `${toCol}${aiMove.to.row}`,
+          captured: targetPiece.type,
+          team: 'green'
+        })
+      }
+    } else {
+      // Normal move
+      // Check if there's an enemy piece to capture at destination
+      const targetPiece = pieces.find(p =>
+        p.row === aiMove.to.row &&
+        p.col === toCol &&
+        p.team !== 'green'
+      )
+
+      if (targetPiece) {
+        const idx = pieces.indexOf(targetPiece)
+        if (idx > -1) {
+          capturedPieces.push(targetPiece)
+          pieces.splice(idx, 1)
+        }
+      }
+
+      aiPiece.col = toCol
+      aiPiece.row = aiMove.to.row
     }
-
-    aiPiece.col = toCol
-    aiPiece.row = aiMove.to.row
   }
 
   puzzleAiMoveIndex++
@@ -9467,8 +9498,27 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
     }, 500)
   }
 
-  // Check if out of moves (but not if game already won)
+  // Check if out of moves
   if (puzzleMovesLeft <= 0 && !puzzleSolved && !winner) {
+    // For survive objectives: win if you survived all moves
+    if (currentPuzzle.objectiveType === 'survive') {
+      // Check if yellow base still exists (player survived)
+      const yellowBase = pieces.find(p => p.type === 'base' && p.team === 'yellow')
+      if (yellowBase) {
+        puzzleSolved = true
+
+        // Record the solve
+        recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts).then(result => {
+          setTimeout(() => {
+            alert(`🎉 Puzzle Solved!\n\nYou survived!\nYou earned ${result.warBucks} War Bucks!${result.perfect ? '\n⭐ Perfect Solve!' : ''}`)
+            stopPuzzle()
+          }, 500)
+        })
+        return
+      }
+    }
+
+    // Not survive or didn't survive - failed
     puzzleFailed = true
 
     setTimeout(() => {
@@ -19437,6 +19487,10 @@ function render() {
                             <option value="fighter">✈️ Fighter</option>
                             <option value="rocket">🚀 Rocket</option>
                             <option value="barricade">🧱 Barricade</option>
+                            <option value="landmine">💣 Landmine</option>
+                            <option value="tunnel">🕳️ Tunnel</option>
+                            <option value="artillery">🎯 Artillery</option>
+                            <option value="spike">📌 Spike</option>
                           </select>
                           <select id="puzzle-piece-team" class="bg-gray-600 text-white px-2 py-1 rounded text-sm">
                             <option value="blue">🟡 Player</option>
@@ -19794,17 +19848,23 @@ function render() {
 
         // AI Moves: Add move button
         document.getElementById('add-ai-move')?.addEventListener('click', () => {
+          const actionType = prompt('Actie type (move of shoot):')?.toLowerCase()
+          if (actionType !== 'move' && actionType !== 'shoot') {
+            alert('Kies "move" of "shoot"')
+            return
+          }
           const fromRow = prompt('Van rij (1-11):')
           const fromCol = prompt('Van kolom (0-8, waar 0=A):')
-          const toRow = prompt('Naar rij (1-11):')
-          const toCol = prompt('Naar kolom (0-8):')
+          const toRow = prompt(actionType === 'shoot' ? 'Schiet naar rij (1-11):' : 'Naar rij (1-11):')
+          const toCol = prompt(actionType === 'shoot' ? 'Schiet naar kolom (0-8):' : 'Naar kolom (0-8):')
 
           if (fromRow && fromCol && toRow && toCol) {
             puzzleEditorAiMoves.push({
               fromRow: parseInt(fromRow),
               fromCol: parseInt(fromCol),
               toRow: parseInt(toRow),
-              toCol: parseInt(toCol)
+              toCol: parseInt(toCol),
+              action: actionType as 'move' | 'shoot'
             })
             renderAiMovesList()
           }
@@ -19819,7 +19879,7 @@ function render() {
           } else {
             list.innerHTML = puzzleEditorAiMoves.map((move, idx) => `
               <div class="flex justify-between items-center bg-gray-700 p-2 rounded">
-                <span class="text-white">Zet ${idx + 1}: (${move.fromRow},${move.fromCol}) → (${move.toRow},${move.toCol})</span>
+                <span class="text-white">Zet ${idx + 1}: ${move.action === 'shoot' ? '🔫' : '➡️'} (${move.fromRow},${move.fromCol}) ${move.action === 'shoot' ? '💥' : '→'} (${move.toRow},${move.toCol})</span>
                 <button class="remove-ai-move bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-1 rounded" data-idx="${idx}">×</button>
               </div>
             `).join('')
@@ -19899,7 +19959,8 @@ function render() {
           // Convert AI moves
           const aiMoves = puzzleEditorAiMoves.map(m => ({
             from: { row: m.fromRow, col: m.fromCol },
-            to: { row: m.toRow, col: m.toCol }
+            to: { row: m.toRow, col: m.toCol },
+            action: m.action
           }))
 
           addDebugLog('info', 'Puzzle Data', `Name: ${name}, Moves: ${maxMoves}, StartTurn: ${startingTurn}, Pieces: ${puzzleEditorPieces.length}, AI Moves: ${aiMoves.length}`)
@@ -20077,7 +20138,8 @@ function render() {
                       fromRow: m.from.row,
                       fromCol: m.from.col,
                       toRow: m.to.row,
-                      toCol: m.to.col
+                      toCol: m.to.col,
+                      action: (m.action || 'move') as 'move' | 'shoot'
                     }))
 
                     // Update the form title and button text

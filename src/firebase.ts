@@ -2301,7 +2301,7 @@ export interface Puzzle {
   targetScore?: number  // For score objectives
   startingTurn?: number  // Welke beurt de puzzle start (voor rocket/hacker cooldowns)
   initialBoard: Array<{ type: string; position: { row: number; col: number }; team: string }>
-  aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>
+  aiMoves: Array<{ from: { row: number; col: number }; to: { row: number; col: number }; action?: 'move' | 'shoot' }>
   rewards: {
     warBucks: number
     xp: number
