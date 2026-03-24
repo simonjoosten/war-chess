@@ -2683,22 +2683,36 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
   }
 }
 
-// Admin: Delete only sample puzzles (keeps custom puzzles)
+// Admin: Delete sample puzzles by name
 export async function adminDeleteAllPuzzles(): Promise<number> {
   if (!db || !isCurrentUserAdmin()) return 0
+
+  // Namen van sample puzzles die verwijderd moeten worden
+  const sampleNames = [
+    'Find the Sniper', 'Tank Destroyer', 'Helicopter Hunt',
+    'Point Grab', 'High Value Targets', 'Maximum Damage',
+    'Guard the Builder', 'Defend the Tank',
+    'Clean Sweep', 'Total Destruction', 'Annihilation',
+    'Escape Route', 'Infiltration', 'Deep Strike',
+    // Oude sample names
+    'Sniper Shot', 'Tank Blast', 'Helicopter Strike',
+    'Tank Rush', 'Naval Battle', 'Hacker Mission',
+    'Air Superiority', 'Naval Domination', 'Cyber Warfare',
+    'Win a Game'
+  ]
 
   try {
     const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
     let count = 0
     for (const puzzleDoc of puzzlesSnapshot.docs) {
       const data = puzzleDoc.data()
-      // Only delete sample puzzles, keep custom ones
-      if (data.isSample === true) {
+      // Delete if it's a sample puzzle (by name or flag)
+      if (data.isSample === true || sampleNames.includes(data.name)) {
         await deleteDoc(doc(db, 'puzzles', puzzleDoc.id))
         count++
       }
     }
-    console.log(`[ADMIN] Deleted ${count} sample puzzles (custom puzzles kept)`)
+    console.log(`[ADMIN] Deleted ${count} sample puzzles`)
     return count
   } catch (error) {
     console.error('[ADMIN] Error deleting puzzles:', error)
