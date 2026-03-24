@@ -97,6 +97,7 @@ import {
   adminCreateSamplePuzzles,
   adminGetAllPuzzles,
   adminDeletePuzzle,
+  adminTogglePuzzleFeatured,
   // Admin extras
   adminBanUser,
   adminSetWarBucks,
@@ -9593,18 +9594,38 @@ function savePuzzleStateForUndo() {
 
 // Execute AI move in puzzle
 function executePuzzleAiMove() {
-  if (!currentPuzzle || puzzleAiMoveIndex >= currentPuzzle.aiMoves.length) return
+  if (!currentPuzzle || puzzleAiMoveIndex >= currentPuzzle.aiMoves.length) {
+    console.log('[PUZZLE AI] No more AI moves or no puzzle', {
+      hasPuzzle: !!currentPuzzle,
+      aiMoveIndex: puzzleAiMoveIndex,
+      totalMoves: currentPuzzle?.aiMoves?.length || 0
+    })
+    return
+  }
 
   const aiMove = currentPuzzle.aiMoves[puzzleAiMoveIndex]
   const fromCol = colIndexToLetter(aiMove.from.col)
   const toCol = colIndexToLetter(aiMove.to.col)
   const action = aiMove.action || 'move'
 
+  console.log('[PUZZLE AI] Executing move', {
+    moveIndex: puzzleAiMoveIndex,
+    from: { row: aiMove.from.row, col: aiMove.from.col, letter: fromCol },
+    to: { row: aiMove.to.row, col: aiMove.to.col, letter: toCol },
+    action
+  })
+
   const aiPiece = pieces.find(p =>
     p.row === aiMove.from.row &&
     p.col === fromCol &&
     p.team === 'green'
   )
+
+  console.log('[PUZZLE AI] Looking for piece', {
+    lookingFor: { row: aiMove.from.row, col: fromCol, team: 'green' },
+    found: aiPiece ? { type: aiPiece.type, row: aiPiece.row, col: aiPiece.col } : 'NOT FOUND',
+    allGreenPieces: pieces.filter(p => p.team === 'green').map(p => ({ type: p.type, row: p.row, col: p.col }))
+  })
 
   if (aiPiece) {
     if (action === 'shoot') {
@@ -20497,9 +20518,9 @@ function render() {
             return
           }
           const fromRow = prompt('Van rij (1-11):')
-          const fromCol = prompt('Van kolom (0-8, waar 0=A):')
+          const fromCol = prompt('Van kolom (0-10, waar 0=A, 4=E, 10=K):')
           const toRow = prompt(actionType === 'shoot' ? 'Schiet naar rij (1-11):' : 'Naar rij (1-11):')
-          const toCol = prompt(actionType === 'shoot' ? 'Schiet naar kolom (0-8):' : 'Naar kolom (0-8):')
+          const toCol = prompt(actionType === 'shoot' ? 'Schiet naar kolom (0-10):' : 'Naar kolom (0-10):')
 
           if (fromRow && fromCol && toRow && toCol) {
             puzzleEditorAiMoves.push({
@@ -20692,6 +20713,9 @@ function render() {
                       </div>
                     </div>
                     <div class="flex gap-2">
+                      <button class="admin-feature-puzzle ${puzzle.featured ? 'bg-yellow-500' : 'bg-gray-600'} hover:opacity-80 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}" data-featured="${puzzle.featured || false}" title="${puzzle.featured ? 'Remove from featured' : 'Add to featured'}">
+                        ⭐
+                      </button>
                       <button class="admin-test-puzzle bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}" title="Test puzzle">
                         ▶️
                       </button>
@@ -20826,6 +20850,27 @@ function render() {
                     startPuzzle(puzzle)
 
                     addDebugLog('success', 'Test Started', `Puzzle: ${puzzle.name}, Max moves: ${puzzle.maxMoves}`)
+                  })
+                })
+
+                // Add feature toggle listeners
+                document.querySelectorAll('.admin-feature-puzzle').forEach(btn => {
+                  btn.addEventListener('click', async (e) => {
+                    const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
+                    const currentFeatured = (e.currentTarget as HTMLElement).dataset.featured === 'true'
+                    if (!puzzleId) return
+
+                    addDebugLog('info', 'Toggle Featured', `Puzzle ${puzzleId}: ${!currentFeatured}`)
+                    const success = await adminTogglePuzzleFeatured(puzzleId, !currentFeatured)
+                    if (success) {
+                      addDebugLog('success', 'Featured Updated', `Now: ${!currentFeatured}`)
+                      // Clear cache and re-render
+                      dailyPuzzles = []
+                      renderAdminPanel()
+                    } else {
+                      addDebugLog('error', 'Featured Toggle Failed', 'Check admin status')
+                      alert('Failed to update featured status')
+                    }
                   })
                 })
               }

@@ -2315,6 +2315,7 @@ export interface Puzzle {
   timesAttempted: number
   timesSolved: number
   rating: number  // Difficulty rating based on solve rate
+  featured?: boolean  // If true, always included in daily puzzles
 }
 
 // Check if solved puzzles should reset (new day)
@@ -2352,7 +2353,11 @@ export async function getDailyPuzzles(): Promise<Puzzle[]> {
       ...doc.data()
     } as Puzzle))
 
-    // If less than 5 puzzles exist, return all
+    // Separate featured and non-featured puzzles
+    const featuredPuzzles = allPuzzles.filter(p => p.featured)
+    const regularPuzzles = allPuzzles.filter(p => !p.featured)
+
+    // If less than 5 total puzzles exist, return all
     if (allPuzzles.length <= 5) {
       return allPuzzles
     }
@@ -2367,15 +2372,22 @@ export async function getDailyPuzzles(): Promise<Puzzle[]> {
       return x - Math.floor(x)
     }
 
-    // Create shuffled copy using seeded random
-    const shuffled = [...allPuzzles]
+    // Create shuffled copy of regular puzzles using seeded random
+    const shuffled = [...regularPuzzles]
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(seededRandom(seed + i) * (i + 1))
       ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
 
-    // Return first 5 puzzles
-    return shuffled.slice(0, 5)
+    // Start with all featured puzzles, then fill remaining slots with random ones
+    const result = [...featuredPuzzles]
+    const remainingSlots = 5 - result.length
+    if (remainingSlots > 0) {
+      result.push(...shuffled.slice(0, remainingSlots))
+    }
+
+    // Return max 5 puzzles (in case there are more than 5 featured)
+    return result.slice(0, 5)
   } catch (error) {
     console.error('Error getting puzzles:', error)
     return []
@@ -2400,16 +2412,20 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
 
     if (!solved) return { warBucks: 0, perfect: false }
 
-    // Calculate rewards
+    // Get puzzle rewards from the already fetched puzzleDoc
+    const puzzleData = puzzleDoc.exists() ? puzzleDoc.data() as Puzzle : null
+    const baseReward = puzzleData?.rewards?.warBucks || 50
+
+    // Calculate rewards based on attempts
     let warBucks = 0
     const perfect = attempts === 1
 
     if (attempts === 1) {
-      warBucks = 50  // Perfect solve
+      warBucks = baseReward  // Perfect solve - full reward
     } else if (attempts === 2) {
-      warBucks = 30
+      warBucks = Math.floor(baseReward * 0.6)  // 60% for 2nd attempt
     } else {
-      warBucks = 15
+      warBucks = Math.floor(baseReward * 0.3)  // 30% for 3+ attempts
     }
 
     // Update user stats
@@ -2534,6 +2550,30 @@ export async function adminGetAllPuzzles(): Promise<Puzzle[]> {
   } catch (error) {
     console.error('[ADMIN] adminGetAllPuzzles ERROR:', error)
     return []
+  }
+}
+
+// Admin: Toggle puzzle featured status
+export async function adminTogglePuzzleFeatured(puzzleId: string, featured: boolean): Promise<boolean> {
+  console.log('[ADMIN] adminTogglePuzzleFeatured called', { puzzleId, featured })
+
+  if (!db) {
+    console.error('[ADMIN] adminTogglePuzzleFeatured FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminTogglePuzzleFeatured FAILED: User is not admin')
+    return false
+  }
+
+  try {
+    console.log('[ADMIN] adminTogglePuzzleFeatured: Updating puzzle...')
+    await updateDoc(doc(db, 'puzzles', puzzleId), { featured })
+    console.log('[ADMIN] adminTogglePuzzleFeatured SUCCESS')
+    return true
+  } catch (error) {
+    console.error('[ADMIN] adminTogglePuzzleFeatured ERROR:', error)
+    return false
   }
 }
 
