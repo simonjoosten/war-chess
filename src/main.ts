@@ -182,6 +182,7 @@ let puzzleAttempts = 0
 let puzzleMovesLeft = 0
 let puzzleAiMoveIndex = 0
 let puzzleSolving = false
+let puzzleTestMode = false  // Admin test mode - no rewards
 let puzzleFailed = false
 let puzzleSolved = false
 let dailyPuzzles: Puzzle[] = []
@@ -8418,6 +8419,15 @@ async function handlePuzzleWin() {
   puzzleSolved = true
   puzzleFailed = false
 
+  // Check if in test mode (no rewards)
+  if (puzzleTestMode) {
+    setTimeout(() => {
+      alert(`✅ Puzzle Test Passed!\n\nPuzzle "${currentPuzzle?.name}" works correctly.\n(No rewards in test mode)`)
+      stopPuzzle()
+    }, 1500)
+    return
+  }
+
   // Record the solve
   const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts || 1)
 
@@ -9484,7 +9494,11 @@ function stopPuzzle() {
   }
   puzzleTimerSeconds = 0
 
+  // Remember if we were in test mode
+  const wasTestMode = puzzleTestMode
+
   puzzleSolving = false
+  puzzleTestMode = false
   currentPuzzle = null
   puzzleMovesLeft = 0
   puzzleAiMoveIndex = 0
@@ -9493,8 +9507,8 @@ function stopPuzzle() {
   puzzleTurnCount = 0
   puzzleUndoHistory = []
 
-  // Go back to puzzles screen
-  showAuthScreen = 'puzzles'
+  // Go back to admin panel if was testing, otherwise puzzles screen
+  showAuthScreen = wasTestMode ? 'admin' : 'puzzles'
 
   // Reset game state
   pieces.length = 0
@@ -19876,7 +19890,15 @@ function render() {
                 <!-- Puzzles Tab -->
                 <div class="bg-gray-800 p-4 rounded-lg">
                   <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-white">🧩 Puzzles</h2>
+                    <div class="flex items-center gap-4">
+                      <h2 class="text-lg font-bold text-white">🧩 Puzzles</h2>
+                      <div class="flex items-center gap-2">
+                        <span class="text-gray-400 text-sm">Enabled:</span>
+                        <button id="toggle-puzzles-enabled" class="${localStorage.getItem('puzzlesEnabled') !== 'false' ? 'bg-green-600' : 'bg-red-600'} hover:opacity-80 text-white text-sm px-3 py-1 rounded">
+                          ${localStorage.getItem('puzzlesEnabled') !== 'false' ? '✅ ON' : '❌ OFF'}
+                        </button>
+                      </div>
+                    </div>
                     <div class="flex gap-2">
                       <button id="create-sample-puzzles" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">
                         🎮 Sample Puzzles
@@ -20203,6 +20225,13 @@ function render() {
         document.getElementById('admin-debug-btn')?.addEventListener('click', () => { showDebugPanel() })
 
         // Puzzles tab
+        document.getElementById('toggle-puzzles-enabled')?.addEventListener('click', () => {
+          const currentState = localStorage.getItem('puzzlesEnabled') !== 'false'
+          localStorage.setItem('puzzlesEnabled', currentState ? 'false' : 'true')
+          addDebugLog('info', 'Puzzles Toggle', currentState ? 'Disabled' : 'Enabled')
+          renderAdminPanel()
+        })
+
         document.getElementById('create-sample-puzzles')?.addEventListener('click', async () => {
           const count = await adminCreateSamplePuzzles()
           alert(`Created ${count} sample puzzles!`)
@@ -20612,10 +20641,13 @@ function render() {
                       </div>
                     </div>
                     <div class="flex gap-2">
-                      <button class="admin-edit-puzzle bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}">
+                      <button class="admin-test-puzzle bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}" title="Test puzzle">
+                        ▶️
+                      </button>
+                      <button class="admin-edit-puzzle bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}" title="Edit puzzle">
                         ✏️
                       </button>
-                      <button class="admin-delete-puzzle bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}">
+                      <button class="admin-delete-puzzle bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm" data-puzzleid="${puzzle.id}" title="Delete puzzle">
                         🗑️
                       </button>
                     </div>
@@ -20724,6 +20756,25 @@ function render() {
                     renderAiMovesList()
 
                     addDebugLog('success', 'Puzzle Loaded', `${puzzleEditorPieces.length} pieces, ${puzzleEditorAiMoves.length} AI moves`)
+                  })
+                })
+
+                // Add test listeners
+                document.querySelectorAll('.admin-test-puzzle').forEach(btn => {
+                  btn.addEventListener('click', async (e) => {
+                    const puzzleId = (e.currentTarget as HTMLElement).dataset.puzzleid
+                    const puzzle = puzzles.find(p => p.id === puzzleId)
+                    if (!puzzle) return
+
+                    addDebugLog('info', 'Test Puzzle', `Starting test: ${puzzle.name}`)
+
+                    // Set test mode flag before starting
+                    puzzleTestMode = true
+
+                    // Use the existing startPuzzle function
+                    startPuzzle(puzzle)
+
+                    addDebugLog('success', 'Test Started', `Puzzle: ${puzzle.name}, Max moves: ${puzzle.maxMoves}`)
                   })
                 })
               }
@@ -21666,8 +21717,8 @@ function render() {
             🌐 ${t('multiplayerButton')}
           </button>
           <div class="flex gap-2">
-            <button id="puzzles-menu-btn" class="bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
-              🧩 Puzzles
+            <button id="puzzles-menu-btn" class="${localStorage.getItem('puzzlesEnabled') !== 'false' ? 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800' : 'bg-gray-600 cursor-not-allowed opacity-50'} text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation" ${localStorage.getItem('puzzlesEnabled') === 'false' ? 'disabled' : ''}>
+              🧩 Puzzles ${localStorage.getItem('puzzlesEnabled') === 'false' ? '(Uitgeschakeld)' : ''}
             </button>
             <button id="tournaments-menu-btn" class="bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
               🏆 Tournaments
@@ -21719,6 +21770,10 @@ function render() {
       render()
     })
     document.getElementById('puzzles-menu-btn')?.addEventListener('click', () => {
+      if (localStorage.getItem('puzzlesEnabled') === 'false') {
+        alert('Puzzles zijn momenteel uitgeschakeld door een admin.')
+        return
+      }
       showAuthScreen = 'puzzles'
       render()
     })
@@ -22566,10 +22621,15 @@ function hideDebugPanel() {
   debugPanelVisible = false
 }
 
-// F9 key listener
+// F9 key listener (admin only)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'F9') {
     e.preventDefault()
+    const userData = getCurrentUserData()
+    if (!userData?.isAdmin) {
+      // Non-admins can't access debug panel
+      return
+    }
     if (debugPanelVisible) {
       hideDebugPanel()
     } else {
