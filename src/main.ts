@@ -20184,7 +20184,10 @@ function render() {
               ` : ''}
             </div>
 
-            <button id="admin-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">Back</button>
+            <div class="flex gap-2 mt-4">
+              <button id="admin-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">Back</button>
+              <button id="admin-debug-btn" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded transition-colors">🔧 Debug Panel</button>
+            </div>
           </div>
         `
 
@@ -20197,6 +20200,7 @@ function render() {
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
+        document.getElementById('admin-debug-btn')?.addEventListener('click', () => { showDebugPanel() })
 
         // Puzzles tab
         document.getElementById('create-sample-puzzles')?.addEventListener('click', async () => {
@@ -20535,18 +20539,17 @@ function render() {
             difficulty,
             maxMoves,
             startingTurn,
-            timerSeconds: timerSeconds > 0 ? timerSeconds : undefined,
+            timerSeconds: timerSeconds || 0,
             objective,
             objectiveType,
             targetPieceType,
             targetPosition,
-            targetScore: objectiveType === 'score' ? targetScore : undefined,
-            targetSquare: objectiveType === 'reach' ? { row: targetRow, col: targetCol } : undefined,
-            protectPieceType: objectiveType === 'protect' ? protectPiece : undefined,
-            protectTurns: objectiveType === 'protect' ? protectTurns : undefined,
             initialBoard,
             aiMoves,
-            rewards: { warBucks, xp }
+            rewards: { warBucks, xp },
+            ...(objectiveType === 'score' && { targetScore }),
+            ...(objectiveType === 'reach' && { targetSquare: { row: targetRow, col: targetCol } }),
+            ...(objectiveType === 'protect' && { protectPieceType: protectPiece, protectTurns })
           }
 
           if (editingPuzzleId) {
