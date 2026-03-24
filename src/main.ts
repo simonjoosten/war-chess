@@ -22363,6 +22363,91 @@ function showDebugPanel() {
         </div>
       </div>
 
+      <div class="bg-gray-800 rounded-lg p-4 mt-4">
+        <h2 class="text-lg font-bold text-white mb-3">🎮 Quick Actions</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="debug-add-bucks" class="bg-yellow-600 hover:bg-yellow-500 text-white py-2 px-3 rounded text-sm">
+            💰 +100 War Bucks
+          </button>
+          <button id="debug-reset-daily" class="bg-blue-600 hover:bg-blue-500 text-white py-2 px-3 rounded text-sm">
+            🔄 Reset Daily Puzzles
+          </button>
+          <button id="debug-clear-cache" class="bg-purple-600 hover:bg-purple-500 text-white py-2 px-3 rounded text-sm">
+            🗑️ Clear Cache
+          </button>
+          <button id="debug-reload" class="bg-green-600 hover:bg-green-500 text-white py-2 px-3 rounded text-sm">
+            ♻️ Hard Reload
+          </button>
+          <button id="debug-copy-uid" class="bg-gray-600 hover:bg-gray-500 text-white py-2 px-3 rounded text-sm">
+            📋 Copy User ID
+          </button>
+          <button id="debug-test-firebase" class="bg-orange-600 hover:bg-orange-500 text-white py-2 px-3 rounded text-sm">
+            🔥 Test Firebase
+          </button>
+        </div>
+        <div id="debug-action-result" class="mt-2 text-sm"></div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mt-4">
+        <h2 class="text-lg font-bold text-white mb-3">💾 Storage Info</h2>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div class="text-gray-400">LocalStorage Items:</div>
+          <div class="text-white">${Object.keys(localStorage).length}</div>
+          <div class="text-gray-400">SessionStorage Items:</div>
+          <div class="text-white">${Object.keys(sessionStorage).length}</div>
+        </div>
+        <div class="mt-2">
+          <details class="text-sm">
+            <summary class="text-blue-400 cursor-pointer hover:text-blue-300">View LocalStorage Keys</summary>
+            <div class="mt-2 bg-gray-900 p-2 rounded max-h-32 overflow-auto font-mono text-xs text-gray-300">
+              ${Object.keys(localStorage).map(k => `<div>• ${k}</div>`).join('') || '<div class="text-gray-500">Empty</div>'}
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mt-4">
+        <h2 class="text-lg font-bold text-white mb-3">⚙️ Current Settings</h2>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div class="text-gray-400">Language:</div>
+          <div class="text-white">${currentLanguage}</div>
+          <div class="text-gray-400">Sound:</div>
+          <div class="text-white">${soundEnabled ? 'On' : 'Off'}</div>
+          <div class="text-gray-400">Music:</div>
+          <div class="text-white">${musicEnabled ? 'On' : 'Off'}</div>
+          <div class="text-gray-400">Animation Speed:</div>
+          <div class="text-white">${animationSpeed}</div>
+          <div class="text-gray-400">Board Theme:</div>
+          <div class="text-white">${boardTheme}</div>
+          <div class="text-gray-400">Bot Difficulty:</div>
+          <div class="text-white">${botDifficulty}</div>
+        </div>
+      </div>
+
+      <div class="bg-gray-800 rounded-lg p-4 mt-4">
+        <h2 class="text-lg font-bold text-white mb-3">📊 Performance</h2>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div class="text-gray-400">Page Load Time:</div>
+          <div class="text-white">${Math.round(performance.now())}ms since load</div>
+          <div class="text-gray-400">Memory (if available):</div>
+          <div class="text-white">${(performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024) + 'MB' : 'N/A'}</div>
+          <div class="text-gray-400">Screen Size:</div>
+          <div class="text-white">${window.innerWidth}x${window.innerHeight}</div>
+          <div class="text-gray-400">Device Pixel Ratio:</div>
+          <div class="text-white">${window.devicePixelRatio}</div>
+        </div>
+      </div>
+
+      ${userData ? `
+      <div class="bg-gray-800 rounded-lg p-4 mt-4">
+        <h2 class="text-lg font-bold text-white mb-3">📦 Raw User Data</h2>
+        <details class="text-sm">
+          <summary class="text-blue-400 cursor-pointer hover:text-blue-300">Click to expand JSON</summary>
+          <pre class="mt-2 bg-gray-900 p-2 rounded max-h-64 overflow-auto font-mono text-xs text-green-300">${JSON.stringify(userData, null, 2)}</pre>
+        </details>
+      </div>
+      ` : ''}
+
       <div class="mt-4 text-center text-gray-500 text-sm">
         Press F9 again or click Close to hide this panel
       </div>
@@ -22406,6 +22491,70 @@ function showDebugPanel() {
   document.body.appendChild(overlay)
 
   document.getElementById('close-debug')?.addEventListener('click', hideDebugPanel)
+
+  // Quick action buttons
+  document.getElementById('debug-add-bucks')?.addEventListener('click', async () => {
+    const result = document.getElementById('debug-action-result')
+    if (!userData?.isAdmin) {
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Admin only!</span>'
+      return
+    }
+    const user = getCurrentUser()
+    if (user && userData) {
+      const newAmount = (userData.warBucks || 0) + 100
+      const success = await adminSetWarBucks(user.uid, newAmount)
+      if (result) result.innerHTML = success ? '<span class="text-green-400">✅ +100 War Bucks added! (Now: ' + newAmount + ')</span>' : '<span class="text-red-400">❌ Failed</span>'
+    }
+  })
+
+  document.getElementById('debug-reset-daily')?.addEventListener('click', () => {
+    const result = document.getElementById('debug-action-result')
+    localStorage.removeItem('solvedPuzzles')
+    localStorage.removeItem('lastPuzzleDate')
+    dailyPuzzles = []
+    if (result) result.innerHTML = '<span class="text-green-400">✅ Daily puzzles reset! Refresh to see changes.</span>'
+  })
+
+  document.getElementById('debug-clear-cache')?.addEventListener('click', () => {
+    const result = document.getElementById('debug-action-result')
+    const keysToKeep = ['language', 'soundEnabled', 'musicEnabled', 'volume', 'musicVolume', 'sfxVolume']
+    const allKeys = Object.keys(localStorage)
+    let removed = 0
+    allKeys.forEach(key => {
+      if (!keysToKeep.includes(key)) {
+        localStorage.removeItem(key)
+        removed++
+      }
+    })
+    if (result) result.innerHTML = `<span class="text-green-400">✅ Cleared ${removed} cache items (kept settings)</span>`
+  })
+
+  document.getElementById('debug-reload')?.addEventListener('click', () => {
+    location.reload()
+  })
+
+  document.getElementById('debug-copy-uid')?.addEventListener('click', () => {
+    const result = document.getElementById('debug-action-result')
+    const user = getCurrentUser()
+    if (user) {
+      navigator.clipboard.writeText(user.uid)
+      if (result) result.innerHTML = `<span class="text-green-400">✅ Copied: ${user.uid.substring(0, 10)}...</span>`
+    } else {
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Not logged in</span>'
+    }
+  })
+
+  document.getElementById('debug-test-firebase')?.addEventListener('click', async () => {
+    const result = document.getElementById('debug-action-result')
+    if (result) result.innerHTML = '<span class="text-yellow-400">⏳ Testing Firebase connection...</span>'
+    try {
+      const puzzles = await getDailyPuzzles()
+      if (result) result.innerHTML = `<span class="text-green-400">✅ Firebase OK! Found ${puzzles.length} puzzles</span>`
+    } catch (error) {
+      if (result) result.innerHTML = `<span class="text-red-400">❌ Firebase Error: ${error}</span>`
+    }
+  })
+
   debugPanelVisible = true
 }
 
