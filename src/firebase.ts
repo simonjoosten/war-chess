@@ -2465,8 +2465,14 @@ export async function adminCreatePuzzle(puzzle: Omit<Puzzle, 'id' | 'createdAt' 
   try {
     console.log('[ADMIN] adminCreatePuzzle: Creating puzzle document...')
     const puzzleRef = doc(collection(db, 'puzzles'))
+
+    // Filter out undefined values (Firestore doesn't accept them)
+    const cleanPuzzle = Object.fromEntries(
+      Object.entries(puzzle).filter(([_, v]) => v !== undefined)
+    )
+
     await setDoc(puzzleRef, {
-      ...puzzle,
+      ...cleanPuzzle,
       createdAt: Date.now(),
       createdBy: currentUserData.username,
       timesAttempted: 0,
