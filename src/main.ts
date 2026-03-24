@@ -100,6 +100,7 @@ import {
   // Admin extras
   adminBanUser,
   adminSetWarBucks,
+  adminResetPuzzleProgress,
   adminGetChatLogs,
   isUserBanned,
   getBanRemainingMinutes,
@@ -6156,6 +6157,12 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleNotSet: 'Not set',
     puzzleNoAiMoves: 'No AI moves. The enemy does nothing.',
     puzzleCtrlClick: 'CTRL+click on the board',
+    // Puzzle System
+    puzzlesDisabled: '(Disabled)',
+    puzzlesDisabledAlert: 'Puzzles are currently disabled by an admin.',
+    puzzleTestPassed: 'Puzzle Test Passed!',
+    puzzleTestNoRewards: '(No rewards in test mode)',
+    puzzleWorksCorrectly: 'works correctly.',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -6406,6 +6413,12 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleNotSet: 'Niet ingesteld',
     puzzleNoAiMoves: 'Geen AI zetten. De vijand doet niks.',
     puzzleCtrlClick: 'CTRL+klik op het bord',
+    // Puzzle System
+    puzzlesDisabled: '(Uitgeschakeld)',
+    puzzlesDisabledAlert: 'Puzzels zijn momenteel uitgeschakeld door een admin.',
+    puzzleTestPassed: 'Puzzel Test Geslaagd!',
+    puzzleTestNoRewards: '(Geen beloningen in test modus)',
+    puzzleWorksCorrectly: 'werkt correct.',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -6656,6 +6669,12 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleNotSet: 'Nicht gesetzt',
     puzzleNoAiMoves: 'Keine KI-Züge. Der Feind tut nichts.',
     puzzleCtrlClick: 'STRG+Klick auf das Brett',
+    // Puzzle System
+    puzzlesDisabled: '(Deaktiviert)',
+    puzzlesDisabledAlert: 'Rätsel sind derzeit von einem Admin deaktiviert.',
+    puzzleTestPassed: 'Rätsel-Test bestanden!',
+    puzzleTestNoRewards: '(Keine Belohnungen im Testmodus)',
+    puzzleWorksCorrectly: 'funktioniert korrekt.',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -6906,6 +6925,12 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleNotSet: 'Non défini',
     puzzleNoAiMoves: 'Pas de coups IA. L\'ennemi ne fait rien.',
     puzzleCtrlClick: 'CTRL+clic sur le plateau',
+    // Puzzle System
+    puzzlesDisabled: '(Désactivé)',
+    puzzlesDisabledAlert: 'Les puzzles sont actuellement désactivés par un admin.',
+    puzzleTestPassed: 'Test de puzzle réussi!',
+    puzzleTestNoRewards: '(Pas de récompenses en mode test)',
+    puzzleWorksCorrectly: 'fonctionne correctement.',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -7156,6 +7181,12 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleNotSet: 'No establecido',
     puzzleNoAiMoves: 'Sin movimientos de IA. El enemigo no hace nada.',
     puzzleCtrlClick: 'CTRL+clic en el tablero',
+    // Puzzle System
+    puzzlesDisabled: '(Desactivado)',
+    puzzlesDisabledAlert: 'Los puzzles están actualmente desactivados por un admin.',
+    puzzleTestPassed: '¡Prueba de puzzle pasada!',
+    puzzleTestNoRewards: '(Sin recompensas en modo prueba)',
+    puzzleWorksCorrectly: 'funciona correctamente.',
   }
 }
 
@@ -8422,7 +8453,7 @@ async function handlePuzzleWin() {
   // Check if in test mode (no rewards)
   if (puzzleTestMode) {
     setTimeout(() => {
-      alert(`✅ Puzzle Test Passed!\n\nPuzzle "${currentPuzzle?.name}" works correctly.\n(No rewards in test mode)`)
+      alert(`✅ ${t('puzzleTestPassed')}\n\nPuzzle "${currentPuzzle?.name}" ${t('puzzleWorksCorrectly')}\n${t('puzzleTestNoRewards')}`)
       stopPuzzle()
     }, 1500)
     return
@@ -21718,7 +21749,7 @@ function render() {
           </button>
           <div class="flex gap-2">
             <button id="puzzles-menu-btn" class="${localStorage.getItem('puzzlesEnabled') !== 'false' ? 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800' : 'bg-gray-600 cursor-not-allowed opacity-50'} text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation" ${localStorage.getItem('puzzlesEnabled') === 'false' ? 'disabled' : ''}>
-              🧩 Puzzles ${localStorage.getItem('puzzlesEnabled') === 'false' ? '(Uitgeschakeld)' : ''}
+              🧩 Puzzles ${localStorage.getItem('puzzlesEnabled') === 'false' ? t('puzzlesDisabled') : ''}
             </button>
             <button id="tournaments-menu-btn" class="bg-cyan-600 hover:bg-cyan-700 active:bg-cyan-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
               🏆 Tournaments
@@ -21771,7 +21802,7 @@ function render() {
     })
     document.getElementById('puzzles-menu-btn')?.addEventListener('click', () => {
       if (localStorage.getItem('puzzlesEnabled') === 'false') {
-        alert('Puzzles zijn momenteel uitgeschakeld door een admin.')
+        alert(t('puzzlesDisabledAlert'))
         return
       }
       showAuthScreen = 'puzzles'
@@ -22562,12 +22593,23 @@ function showDebugPanel() {
     }
   })
 
-  document.getElementById('debug-reset-daily')?.addEventListener('click', () => {
+  document.getElementById('debug-reset-daily')?.addEventListener('click', async () => {
     const result = document.getElementById('debug-action-result')
-    localStorage.removeItem('solvedPuzzles')
-    localStorage.removeItem('lastPuzzleDate')
-    dailyPuzzles = []
-    if (result) result.innerHTML = '<span class="text-green-400">✅ Daily puzzles reset! Refresh to see changes.</span>'
+    const user = getCurrentUser()
+    if (!user) {
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Not logged in</span>'
+      return
+    }
+
+    // Reset in Firestore
+    const success = await adminResetPuzzleProgress(user.uid)
+    if (success) {
+      // Also clear local cache
+      dailyPuzzles = []
+      if (result) result.innerHTML = '<span class="text-green-400">✅ Puzzle progress reset! Refresh to see changes.</span>'
+    } else {
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Failed to reset (admin only)</span>'
+    }
   })
 
   document.getElementById('debug-clear-cache')?.addEventListener('click', () => {

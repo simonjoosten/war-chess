@@ -2338,7 +2338,7 @@ export async function checkDailyPuzzleReset(): Promise<void> {
   }
 }
 
-// Get daily puzzles
+// Get daily puzzles (5 random puzzles that change each day)
 export async function getDailyPuzzles(): Promise<Puzzle[]> {
   if (!db) return []
 
@@ -2347,13 +2347,35 @@ export async function getDailyPuzzles(): Promise<Puzzle[]> {
 
   try {
     const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
-    const puzzles = puzzlesSnapshot.docs.map(doc => ({
+    const allPuzzles = puzzlesSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     } as Puzzle))
 
-    // Return all puzzles (user can play any)
-    return puzzles
+    // If less than 5 puzzles exist, return all
+    if (allPuzzles.length <= 5) {
+      return allPuzzles
+    }
+
+    // Use today's date as a seed for consistent daily randomization
+    const today = new Date()
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()
+
+    // Seeded random shuffle
+    const seededRandom = (s: number) => {
+      const x = Math.sin(s) * 10000
+      return x - Math.floor(x)
+    }
+
+    // Create shuffled copy using seeded random
+    const shuffled = [...allPuzzles]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom(seed + i) * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+
+    // Return first 5 puzzles
+    return shuffled.slice(0, 5)
   } catch (error) {
     console.error('Error getting puzzles:', error)
     return []
@@ -2831,6 +2853,38 @@ export function isUserBanned(userData: UserData): boolean {
 export function getBanRemainingMinutes(userData: UserData): number {
   if (!userData.bannedUntil || userData.bannedUntil <= Date.now()) return 0
   return Math.ceil((userData.bannedUntil - Date.now()) / 60000)
+}
+
+// Admin: Reset user's daily puzzle progress
+export async function adminResetPuzzleProgress(userId: string): Promise<boolean> {
+  console.log('[ADMIN] adminResetPuzzleProgress called', { userId })
+
+  if (!db) {
+    console.error('[ADMIN] adminResetPuzzleProgress FAILED: Database not initialized')
+    return false
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminResetPuzzleProgress FAILED: User is not admin')
+    return false
+  }
+
+  try {
+    console.log('[ADMIN] adminResetPuzzleProgress: Resetting solvedPuzzleIds')
+    await updateDoc(doc(db, 'users', userId), {
+      'puzzleStats.solvedPuzzleIds': []
+    })
+
+    // Also update local data if it's the current user
+    if (currentUser && currentUser.uid === userId && currentUserData?.puzzleStats) {
+      currentUserData.puzzleStats.solvedPuzzleIds = []
+    }
+
+    console.log('[ADMIN] adminResetPuzzleProgress SUCCESS')
+    return true
+  } catch (error) {
+    console.error('[ADMIN] adminResetPuzzleProgress ERROR:', error)
+    return false
+  }
 }
 
 // Admin: Set user War Bucks directly
