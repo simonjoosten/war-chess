@@ -9266,15 +9266,20 @@ function getPiecePointValue(type: string): number {
     helicopter: 8,
     ship: 12,
     sub: 12,
+    carrier: 20,
     rocket: 25,
     hacker: 30,
     fighter: 40,
     builder: 0,
+    train: 10,
+    suv: 20,
+    machinegun: 25,
     base: 100,
     barricade: 0,
     landmine: 0,
     tunnel: 0,
-    artillery: 0
+    artillery: 0,
+    spike: 0
   }
   return pointValues[type] || 1
 }
@@ -19482,15 +19487,20 @@ function render() {
                             <option value="helicopter">🚁 Heli</option>
                             <option value="ship">🚢 Ship</option>
                             <option value="sub">🦈 Sub</option>
+                            <option value="carrier">🛳️ Carrier</option>
                             <option value="hacker">💻 Hacker</option>
                             <option value="builder">👷 Builder</option>
                             <option value="fighter">✈️ Fighter</option>
                             <option value="rocket">🚀 Rocket</option>
+                            <option value="train">🚂 Train</option>
+                            <option value="suv">🚙 SUV</option>
+                            <option value="machinegun">🔫 Machinegun</option>
                             <option value="barricade">🧱 Barricade</option>
                             <option value="landmine">💣 Landmine</option>
                             <option value="tunnel">🕳️ Tunnel</option>
                             <option value="artillery">🎯 Artillery</option>
                             <option value="spike">📌 Spike</option>
+                            <option value="base">🏠 Base</option>
                           </select>
                           <select id="puzzle-piece-team" class="bg-gray-600 text-white px-2 py-1 rounded text-sm">
                             <option value="blue">🟡 Player</option>
@@ -19747,8 +19757,9 @@ function render() {
 
           const pieceIcons: Record<string, string> = {
             soldier: '🎖️', tank: '🚜', helicopter: '🚁', ship: '🚢', sub: '🦈',
-            hacker: '💻', builder: '👷', fighter: '✈️', rocket: '🚀', barricade: '🧱',
-            landmine: '💣', tunnel: '🕳️', base: '🏠'
+            carrier: '🛳️', hacker: '💻', builder: '👷', fighter: '✈️', rocket: '🚀',
+            train: '🚂', suv: '🚙', machinegun: '🔫', barricade: '🧱',
+            landmine: '💣', tunnel: '🕳️', artillery: '🎯', spike: '📌', base: '🏠'
           }
 
           let html = ''
