@@ -95,6 +95,7 @@ import {
   adminCreatePuzzle,
   adminUpdatePuzzle,
   adminCreateSamplePuzzles,
+  adminDeleteAllPuzzles,
   adminGetAllPuzzles,
   adminDeletePuzzle,
   adminTogglePuzzleFeatured,
@@ -19966,8 +19967,11 @@ function render() {
                       </div>
                     </div>
                     <div class="flex gap-2">
+                      <button id="delete-all-puzzles" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        🗑️ Delete All
+                      </button>
                       <button id="create-sample-puzzles" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-2 px-4 rounded text-sm">
-                        🎮 Sample Puzzles
+                        🎮 Reset & Create New
                       </button>
                       <button id="toggle-create-puzzle" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded text-sm">
                         + New Puzzle
@@ -20306,10 +20310,21 @@ function render() {
           renderAdminPanel()
         })
 
+        document.getElementById('delete-all-puzzles')?.addEventListener('click', async () => {
+          if (confirm('Are you sure you want to delete ALL puzzles?')) {
+            const deleted = await adminDeleteAllPuzzles()
+            alert(`Deleted ${deleted} puzzles!`)
+            renderAdminPanel()
+          }
+        })
+
         document.getElementById('create-sample-puzzles')?.addEventListener('click', async () => {
-          const count = await adminCreateSamplePuzzles()
-          alert(`Created ${count} sample puzzles!`)
-          renderAdminPanel()
+          if (confirm('This will delete all existing puzzles and create new ones. Continue?')) {
+            const deleted = await adminDeleteAllPuzzles()
+            const count = await adminCreateSamplePuzzles()
+            alert(`Deleted ${deleted} old puzzles, created ${count} new puzzles!`)
+            renderAdminPanel()
+          }
         })
 
         document.getElementById('toggle-create-puzzle')?.addEventListener('click', () => {

@@ -2682,170 +2682,366 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
   }
 }
 
+// Admin: Delete all puzzles
+export async function adminDeleteAllPuzzles(): Promise<number> {
+  if (!db || !isCurrentUserAdmin()) return 0
+
+  try {
+    const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
+    let count = 0
+    for (const puzzleDoc of puzzlesSnapshot.docs) {
+      await deleteDoc(doc(db, 'puzzles', puzzleDoc.id))
+      count++
+    }
+    console.log(`[ADMIN] Deleted ${count} puzzles`)
+    return count
+  } catch (error) {
+    console.error('[ADMIN] Error deleting puzzles:', error)
+    return 0
+  }
+}
+
 // Admin: Create sample puzzles
 export async function adminCreateSamplePuzzles(): Promise<number> {
   if (!db || !isCurrentUserAdmin() || !currentUserData) return 0
 
   const samplePuzzles: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>[] = [
-    // === EASY PUZZLES (1 move) ===
+    // ========================================
+    // CAPTURE PUZZLES - Find and destroy target
+    // ========================================
     {
-      name: 'Sniper Shot',
+      name: 'Find the Sniper',
       icon: '🎯',
       difficulty: 'easy',
       maxMoves: 1,
-      objective: 'Shoot the enemy soldier!',
+      objective: 'Shoot the enemy soldier at E7!',
       objectiveType: 'capture',
       targetPieceType: 'soldier',
+      targetPosition: { row: 7, col: 4 },  // E7
+      noBases: true,
       initialBoard: [
-        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        // Player pieces
+        { type: 'soldier', position: { row: 5, col: 4 }, team: 'blue' },  // E5 - can shoot E7
+        // Target (marked with position)
+        { type: 'soldier', position: { row: 7, col: 4 }, team: 'red' },   // E7 - TARGET
+        // Decoration enemies (not the target)
+        { type: 'soldier', position: { row: 7, col: 2 }, team: 'red' },   // C7
+        { type: 'soldier', position: { row: 7, col: 6 }, team: 'red' },   // G7
+        { type: 'soldier', position: { row: 8, col: 4 }, team: 'red' },   // E8
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 40, xp: 20 }
+    },
+    {
+      name: 'Tank Destroyer',
+      icon: '💥',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Destroy the tank at F6!',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      targetPosition: { row: 6, col: 5 },  // F6
+      noBases: true,
+      initialBoard: [
+        // Player tank
+        { type: 'tank', position: { row: 4, col: 5 }, team: 'blue' },     // F4
+        // Target tank
+        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },      // F6 - TARGET
+        // Decoration
+        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },   // D5
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },   // H5
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },   // F7
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 40, xp: 20 }
+    },
+    {
+      name: 'Helicopter Hunt',
+      icon: '🚁',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Find and capture the helicopter at H8!',
+      objectiveType: 'capture',
+      targetPieceType: 'helicopter',
+      targetPosition: { row: 8, col: 7 },  // H8
+      noBases: true,
+      initialBoard: [
+        // Player helicopter
+        { type: 'helicopter', position: { row: 3, col: 3 }, team: 'blue' }, // D3
+        // Target helicopter
+        { type: 'helicopter', position: { row: 8, col: 7 }, team: 'red' },  // H8 - TARGET
+        // Lots of decoration to confuse
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 6 }, team: 'red' },
+        { type: 'tank', position: { row: 4, col: 8 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 60, xp: 35 }
+    },
+
+    // ========================================
+    // SCORE PUZZLES - Get enough points
+    // ========================================
+    {
+      name: 'Point Grab',
+      icon: '⭐',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Score at least 6 points!',
+      objectiveType: 'score',
+      targetScore: 6,
+      noBases: true,
+      initialBoard: [
+        // Player pieces
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },  // E4
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },  // G4
+        // Easy targets (soldiers = 3 points each)
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },   // E6 - 3 pts
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },   // G6 - 3 pts
+        // Decoration
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25 }
+    },
+    {
+      name: 'High Value Targets',
+      icon: '💰',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Score at least 12 points!',
+      objectiveType: 'score',
+      targetScore: 12,
+      noBases: true,
+      initialBoard: [
+        // Player tank
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },     // F3
+        // High value targets
+        { type: 'tank', position: { row: 5, col: 5 }, team: 'red' },      // F5 - 6 pts
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },      // F7 - 6 pts
+        // Decoy low value
+        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },   // 3 pts
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },   // 3 pts
         { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },
       ],
       aiMoves: [],
-      rewards: { warBucks: 50, xp: 25 }
+      rewards: { warBucks: 70, xp: 40 }
     },
     {
-      name: 'Tank Blast',
-      icon: '🚜',
+      name: 'Maximum Damage',
+      icon: '🔥',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Score at least 20 points!',
+      objectiveType: 'score',
+      targetScore: 20,
+      noBases: true,
+      initialBoard: [
+        // Player pieces
+        { type: 'helicopter', position: { row: 2, col: 4 }, team: 'blue' }, // E2
+        { type: 'soldier', position: { row: 3, col: 6 }, team: 'blue' },    // G3
+        // Targets spread out
+        { type: 'tank', position: { row: 6, col: 3 }, team: 'red' },        // D6 - 6 pts
+        { type: 'tank', position: { row: 7, col: 7 }, team: 'red' },        // H7 - 6 pts
+        { type: 'helicopter', position: { row: 5, col: 5 }, team: 'red' },  // F5 - 5 pts
+        { type: 'soldier', position: { row: 8, col: 4 }, team: 'red' },     // E8 - 3 pts
+        { type: 'soldier', position: { row: 4, col: 2 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 60 }
+    },
+
+    // ========================================
+    // PROTECT PUZZLES - Keep piece alive
+    // ========================================
+    {
+      name: 'Guard the Builder',
+      icon: '🛡️',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'Protect your builder for 2 turns!',
+      objectiveType: 'protect',
+      protectPieceType: 'builder',
+      protectTurns: 2,
+      noBases: true,
+      initialBoard: [
+        // Player pieces
+        { type: 'builder', position: { row: 5, col: 5 }, team: 'blue' },   // F5 - PROTECT THIS
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'blue' },   // F4
+        { type: 'soldier', position: { row: 5, col: 4 }, team: 'blue' },   // E5
+        // Attackers
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },    // F7 - will try to attack
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },    // H5
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },
+      ],
+      aiMoves: [
+        { from: { row: 7, col: 5 }, to: { row: 6, col: 5 }, action: 'move' },  // Enemy moves closer
+        { from: { row: 5, col: 7 }, to: { row: 5, col: 6 }, action: 'move' },  // Other enemy moves
+      ],
+      rewards: { warBucks: 75, xp: 45 }
+    },
+    {
+      name: 'Defend the Tank',
+      icon: '🏰',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Keep your tank alive for 3 turns!',
+      objectiveType: 'protect',
+      protectPieceType: 'tank',
+      protectTurns: 3,
+      noBases: true,
+      initialBoard: [
+        // Player pieces
+        { type: 'tank', position: { row: 5, col: 5 }, team: 'blue' },      // F5 - PROTECT THIS
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },   // E4
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },   // G4
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'blue' },   // E6
+        // Many attackers
+        { type: 'tank', position: { row: 8, col: 5 }, team: 'red' },       // F8
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 3, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [
+        { from: { row: 8, col: 5 }, to: { row: 7, col: 5 }, action: 'move' },
+        { from: { row: 7, col: 3 }, to: { row: 6, col: 3 }, action: 'move' },
+        { from: { row: 7, col: 5 }, to: { row: 6, col: 5 }, action: 'move' },
+      ],
+      rewards: { warBucks: 100, xp: 60 }
+    },
+
+    // ========================================
+    // ELIMINATE ALL PUZZLES - Clear the board
+    // ========================================
+    {
+      name: 'Clean Sweep',
+      icon: '🧹',
       difficulty: 'easy',
-      maxMoves: 1,
-      objective: 'Use your tank to crush the enemy!',
-      objectiveType: 'capture',
-      targetPieceType: 'soldier',
+      maxMoves: 2,
+      objective: 'Eliminate all enemies!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
       initialBoard: [
-        { type: 'tank', position: { row: 4, col: 4 }, team: 'blue' },      // Player tank
-        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },    // Target 2 squares away
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+        // Player pieces
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },   // E4
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },   // G4
+        // Enemies to eliminate (just 2)
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },    // E6
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },    // G6
       ],
       aiMoves: [],
       rewards: { warBucks: 50, xp: 25 }
     },
     {
-      name: 'Helicopter Strike',
-      icon: '🚁',
+      name: 'Total Destruction',
+      icon: '💀',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'Destroy all enemy forces!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        // Player tank - can crush multiple
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },      // F3
+        // Enemies in a line
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },    // F5
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },    // F7
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },    // F9
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 70, xp: 40 }
+    },
+    {
+      name: 'Annihilation',
+      icon: '☠️',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Leave no enemies standing!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        // Player pieces
+        { type: 'helicopter', position: { row: 2, col: 5 }, team: 'blue' }, // F2
+        { type: 'soldier', position: { row: 3, col: 3 }, team: 'blue' },    // D3
+        // Enemies spread around
+        { type: 'soldier', position: { row: 5, col: 2 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 4 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 8 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 60 }
+    },
+
+    // ========================================
+    // REACH PUZZLES - Get to target square
+    // ========================================
+    {
+      name: 'Escape Route',
+      icon: '🏃',
       difficulty: 'easy',
-      maxMoves: 1,
-      objective: 'Fly your helicopter to capture the tank!',
-      objectiveType: 'capture',
-      targetPieceType: 'tank',
-      initialBoard: [
-        { type: 'helicopter', position: { row: 3, col: 2 }, team: 'blue' }, // Player helicopter
-        { type: 'tank', position: { row: 7, col: 6 }, team: 'red' },        // Target anywhere - heli can fly!
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-      ],
-      aiMoves: [],
-      rewards: { warBucks: 50, xp: 25 }
-    },
-    // === MEDIUM PUZZLES (2 moves) ===
-    {
-      name: 'Tank Rush',
-      icon: '💣',
-      difficulty: 'medium',
       maxMoves: 2,
-      objective: 'Drive your tank and destroy the helicopter!',
-      objectiveType: 'capture',
-      targetPieceType: 'helicopter',
+      objective: 'Reach the target square at H8!',
+      objectiveType: 'reach',
+      targetSquare: { row: 8, col: 7 },  // H8
+      noBases: true,
       initialBoard: [
-        { type: 'tank', position: { row: 3, col: 2 }, team: 'blue' },       // Player tank
-        { type: 'helicopter', position: { row: 7, col: 4 }, team: 'red' }, // Target
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+        // Player soldier
+        { type: 'soldier', position: { row: 6, col: 5 }, team: 'blue' },   // F6
+        // Blocking enemies
+        { type: 'soldier', position: { row: 7, col: 6 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
       ],
       aiMoves: [],
-      rewards: { warBucks: 75, xp: 40 }
+      rewards: { warBucks: 45, xp: 20 }
     },
     {
-      name: 'Naval Battle',
-      icon: '🚢',
+      name: 'Infiltration',
+      icon: '🥷',
       difficulty: 'medium',
-      maxMoves: 2,
-      objective: 'Sail your ship and sink the enemy sub!',
-      objectiveType: 'capture',
-      targetPieceType: 'sub',
+      maxMoves: 3,
+      objective: 'Sneak your soldier to B10!',
+      objectiveType: 'reach',
+      targetSquare: { row: 10, col: 1 },  // B10
+      noBases: true,
       initialBoard: [
-        { type: 'ship', position: { row: 4, col: 0 }, team: 'blue' },      // Player ship in water
-        { type: 'sub', position: { row: 8, col: 1 }, team: 'red' },        // Enemy sub
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+        // Player soldier
+        { type: 'soldier', position: { row: 7, col: 4 }, team: 'blue' },   // E7
+        // Enemy patrol
+        { type: 'soldier', position: { row: 8, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 2 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 10, col: 4 }, team: 'red' },
       ],
       aiMoves: [],
-      rewards: { warBucks: 75, xp: 40 }
+      rewards: { warBucks: 65, xp: 35 }
     },
     {
-      name: 'Hacker Mission',
-      icon: '💻',
-      difficulty: 'medium',
-      maxMoves: 2,
-      objective: 'Move your hacker and freeze the tank!',
-      objectiveType: 'capture',
-      targetPieceType: 'tank',
-      initialBoard: [
-        { type: 'hacker', position: { row: 3, col: 3 }, team: 'blue' },    // Player hacker
-        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },       // Target
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-      ],
-      aiMoves: [],
-      rewards: { warBucks: 75, xp: 40 }
-    },
-    // Hard puzzles - 3 moves with different piece types
-    {
-      name: 'Air Superiority',
-      icon: '🚁',
+      name: 'Deep Strike',
+      icon: '⚡',
       difficulty: 'hard',
       maxMoves: 3,
-      objective: 'Fly your helicopter and destroy all targets!',
-      objectiveType: 'capture',
-      targetPieceType: 'tank',
+      objective: 'Fly your helicopter to K11!',
+      objectiveType: 'reach',
+      targetSquare: { row: 11, col: 10 },  // K11
+      noBases: true,
       initialBoard: [
-        { type: 'helicopter', position: { row: 2, col: 1 }, team: 'blue' }, // Player helicopter
-        { type: 'tank', position: { row: 7, col: 6 }, team: 'red' },        // Target tank
-        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },     // Extra enemy
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+        // Player helicopter
+        { type: 'helicopter', position: { row: 3, col: 2 }, team: 'blue' }, // C3
+        // Enemy air defense spread out
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 9 }, team: 'red' },
+        { type: 'tank', position: { row: 6, col: 8 }, team: 'red' },
+        { type: 'tank', position: { row: 10, col: 6 }, team: 'red' },
       ],
       aiMoves: [],
-      rewards: { warBucks: 100, xp: 60 }
+      rewards: { warBucks: 90, xp: 55 }
     },
-    {
-      name: 'Naval Domination',
-      icon: '⚓',
-      difficulty: 'hard',
-      maxMoves: 3,
-      objective: 'Navigate your ship through water and sink the sub!',
-      objectiveType: 'capture',
-      targetPieceType: 'sub',
-      initialBoard: [
-        { type: 'ship', position: { row: 3, col: 0 }, team: 'blue' },      // Player ship in water column
-        { type: 'sub', position: { row: 8, col: 2 }, team: 'red' },        // Target sub
-        { type: 'soldier', position: { row: 6, col: 1 }, team: 'red' },    // Enemy guard
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-      ],
-      aiMoves: [],
-      rewards: { warBucks: 100, xp: 60 }
-    },
-    {
-      name: 'Cyber Warfare',
-      icon: '🖥️',
-      difficulty: 'hard',
-      maxMoves: 3,
-      objective: 'Use your hacker to freeze and capture the helicopter!',
-      objectiveType: 'capture',
-      targetPieceType: 'helicopter',
-      initialBoard: [
-        { type: 'hacker', position: { row: 2, col: 4 }, team: 'blue' },    // Player hacker
-        { type: 'helicopter', position: { row: 8, col: 6 }, team: 'red' }, // Target helicopter
-        { type: 'tank', position: { row: 5, col: 2 }, team: 'red' },       // Obstacle tank
-        { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-        { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
-      ],
-      aiMoves: [],
-      rewards: { warBucks: 100, xp: 60 }
-    }
   ]
 
   let count = 0
