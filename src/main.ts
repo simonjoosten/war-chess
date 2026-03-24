@@ -9780,9 +9780,17 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
   }
 
   // Check if all enemies eliminated (for eliminate_all objectives)
+  // Note: bases and builders are excluded from the count (they're not combat pieces)
   if (currentPuzzle.objectiveType === 'eliminate_all') {
-    const greenPieces = pieces.filter(p => p.team === 'green')
-    if (greenPieces.length === 0) {
+    const excludeTypes = ['base', 'builder']  // These don't count for eliminate_all
+    const greenCombatPieces = pieces.filter(p => p.team === 'green' && !excludeTypes.includes(p.type))
+
+    console.log('[PUZZLE] Eliminate All check:', {
+      greenCombatPieces: greenCombatPieces.length,
+      remaining: greenCombatPieces.map(p => ({ type: p.type, row: p.row, col: p.col }))
+    })
+
+    if (greenCombatPieces.length === 0) {
       puzzleSolved = true
 
       const result = await recordPuzzleAttempt(currentPuzzle.id, true, puzzleAttempts)
