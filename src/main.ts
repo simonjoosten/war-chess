@@ -6136,6 +6136,24 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Claimed',
     warPassReward: 'Reward',
     warPassCompleted: 'Completed!',
+    // Tips & Feedback
+    tipsTitle: 'Tips & Feedback',
+    tipsShareTitle: 'Share your tip or feedback!',
+    tipsPlaceholder: 'Your tip or feedback...',
+    tipsSubmit: 'Submit',
+    tipsNoTips: 'No tips in this category yet.',
+    tipsBeFirst: 'Be the first to share a tip!',
+    tipsFillFields: 'Please fill in title and content!',
+    tipsSuccess: 'Thank you! Your feedback will be reviewed by an admin.',
+    tipsError: 'Could not submit feedback. Please try again.',
+    tipsBack: 'Back',
+    tipsAll: 'All',
+    tipsBy: 'By:',
+    // Puzzle Editor
+    puzzleCurrentTarget: 'Current target:',
+    puzzleNotSet: 'Not set',
+    puzzleNoAiMoves: 'No AI moves. The enemy does nothing.',
+    puzzleCtrlClick: 'CTRL+click on the board',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -6368,6 +6386,24 @@ const translations: Record<Language, Record<string, string>> = {
     warPassClaimed: 'Geclaimed',
     warPassReward: 'Beloning',
     warPassCompleted: 'Voltooid!',
+    // Tips & Feedback
+    tipsTitle: 'Tips & Feedback',
+    tipsShareTitle: 'Deel jouw tip of feedback!',
+    tipsPlaceholder: 'Jouw tip of feedback...',
+    tipsSubmit: 'Versturen',
+    tipsNoTips: 'Nog geen tips in deze categorie.',
+    tipsBeFirst: 'Wees de eerste die een tip deelt!',
+    tipsFillFields: 'Vul titel en inhoud in!',
+    tipsSuccess: 'Bedankt! Je feedback wordt bekeken door een admin.',
+    tipsError: 'Kon feedback niet versturen. Probeer opnieuw.',
+    tipsBack: 'Terug',
+    tipsAll: 'Alle',
+    tipsBy: 'Door:',
+    // Puzzle Editor
+    puzzleCurrentTarget: 'Huidige target:',
+    puzzleNotSet: 'Niet ingesteld',
+    puzzleNoAiMoves: 'Geen AI zetten. De vijand doet niks.',
+    puzzleCtrlClick: 'CTRL+klik op het bord',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -19346,17 +19382,15 @@ function render() {
     // Tips & Feedback screen
     if (showAuthScreen === 'tips') {
       const renderTipsScreen = async () => {
-        // Load tips if not loaded yet
-        if (feedbackTips.length === 0) {
-          feedbackTips = await getApprovedTips()
-        }
+        // Always reload tips to get fresh data
+        feedbackTips = await getApprovedTips()
 
         const filteredTips = feedbackCategory === 'all'
           ? feedbackTips
           : feedbackTips.filter(t => t.category === feedbackCategory)
 
         const categoryOptions = [
-          { value: 'all', label: 'Alle' },
+          { value: 'all', label: t('tipsAll') },
           { value: 'gameplay', label: '🎮 Gameplay' },
           { value: 'strategy', label: '🧠 Strategy' },
           { value: 'pieces', label: '♟️ Pieces' },
@@ -19373,32 +19407,32 @@ function render() {
         }
 
         app.innerHTML = `
-          <div class="min-h-screen p-4 sm:p-8">
-            <div class="max-w-4xl mx-auto bg-gray-800 rounded-xl p-6 shadow-xl">
-              <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                💡 Tips & Feedback
+          <div class="min-h-screen p-2 sm:p-4 md:p-8">
+            <div class="max-w-4xl mx-auto bg-gray-800 rounded-xl p-4 sm:p-6 shadow-xl">
+              <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2">
+                💡 ${t('tipsTitle')}
               </h2>
 
               <!-- Category filter -->
-              <div class="flex flex-wrap gap-2 mb-6">
+              <div class="flex flex-wrap gap-2 mb-4 sm:mb-6">
                 ${categoryOptions.map(opt => `
-                  <button class="tips-category-btn px-3 py-1 rounded-full text-sm ${feedbackCategory === opt.value ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" data-category="${opt.value}">
+                  <button class="tips-category-btn px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${feedbackCategory === opt.value ? 'bg-pink-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" data-category="${opt.value}">
                     ${opt.label}
                   </button>
                 `).join('')}
               </div>
 
               <!-- Submit tip form -->
-              <div class="bg-gray-700 rounded-lg p-4 mb-6">
-                <h3 class="text-white font-semibold mb-3">Deel jouw tip of feedback!</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                  <select id="submit-type" class="bg-gray-600 text-white px-3 py-2 rounded">
+              <div class="bg-gray-700 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                <h3 class="text-white font-semibold mb-3 text-sm sm:text-base">${t('tipsShareTitle')}</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3">
+                  <select id="submit-type" class="bg-gray-600 text-white px-3 py-2 rounded text-sm">
                     <option value="tip">💡 Tip</option>
                     <option value="feedback">📢 Feedback</option>
                     <option value="bug">🐛 Bug Report</option>
                     <option value="feature">✨ Feature Request</option>
                   </select>
-                  <select id="submit-category" class="bg-gray-600 text-white px-3 py-2 rounded">
+                  <select id="submit-category" class="bg-gray-600 text-white px-3 py-2 rounded text-sm">
                     <option value="gameplay">🎮 Gameplay</option>
                     <option value="strategy">🧠 Strategy</option>
                     <option value="pieces">♟️ Pieces</option>
@@ -19407,38 +19441,38 @@ function render() {
                     <option value="ui">🖥️ UI</option>
                   </select>
                 </div>
-                <input id="submit-title" type="text" placeholder="Titel" class="w-full bg-gray-600 text-white px-3 py-2 rounded mb-3">
-                <textarea id="submit-content" placeholder="Jouw tip of feedback..." rows="3" class="w-full bg-gray-600 text-white px-3 py-2 rounded mb-3"></textarea>
-                <button id="submit-feedback-btn" class="bg-pink-600 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded transition-colors">
-                  Versturen
+                <input id="submit-title" type="text" placeholder="Title" class="w-full bg-gray-600 text-white px-3 py-2 rounded mb-2 sm:mb-3 text-sm">
+                <textarea id="submit-content" placeholder="${t('tipsPlaceholder')}" rows="3" class="w-full bg-gray-600 text-white px-3 py-2 rounded mb-2 sm:mb-3 text-sm"></textarea>
+                <button id="submit-feedback-btn" class="bg-pink-600 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded transition-colors text-sm sm:text-base w-full sm:w-auto">
+                  ${t('tipsSubmit')}
                 </button>
-                <p class="text-gray-400 text-xs mt-2">Je tip/feedback wordt na goedkeuring door een admin zichtbaar.</p>
+                <p class="text-gray-400 text-xs mt-2">${t('tipsSuccess').split('!')[0]}...</p>
               </div>
 
               <!-- Tips list -->
-              <div class="space-y-4">
+              <div class="space-y-3 sm:space-y-4">
                 ${filteredTips.length === 0 ? `
-                  <div class="text-center py-8">
-                    <span class="text-4xl">📭</span>
-                    <p class="text-gray-400 mt-2">Nog geen tips in deze categorie.</p>
-                    <p class="text-gray-500 text-sm">Wees de eerste die een tip deelt!</p>
+                  <div class="text-center py-6 sm:py-8">
+                    <span class="text-3xl sm:text-4xl">📭</span>
+                    <p class="text-gray-400 mt-2 text-sm sm:text-base">${t('tipsNoTips')}</p>
+                    <p class="text-gray-500 text-xs sm:text-sm">${t('tipsBeFirst')}</p>
                   </div>
                 ` : filteredTips.map(tip => `
                   <div class="bg-gray-700 rounded-lg p-4">
-                    <div class="flex items-start justify-between">
+                    <div class="flex flex-col sm:flex-row items-start justify-between gap-2">
                       <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                          <span class="text-lg">${typeIcons[tip.type] || '💡'}</span>
-                          <h4 class="text-white font-semibold">${tip.title}</h4>
+                        <div class="flex flex-wrap items-center gap-1 sm:gap-2 mb-1">
+                          <span class="text-base sm:text-lg">${typeIcons[tip.type] || '💡'}</span>
+                          <h4 class="text-white font-semibold text-sm sm:text-base">${tip.title}</h4>
                           <span class="text-xs bg-gray-600 px-2 py-0.5 rounded text-gray-300">${categoryOptions.find(c => c.value === tip.category)?.label || tip.category}</span>
                         </div>
-                        <p class="text-gray-300 text-sm mb-2">${tip.content}</p>
-                        <div class="flex items-center gap-4 text-xs text-gray-400">
-                          <span>Door: ${tip.username}</span>
+                        <p class="text-gray-300 text-xs sm:text-sm mb-2">${tip.content}</p>
+                        <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-gray-400">
+                          <span>${t('tipsBy')} ${tip.username}</span>
                           <span>${new Date(tip.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <button class="like-tip-btn flex items-center gap-1 px-3 py-1 rounded ${tip.likedBy.includes(getCurrentUser()?.uid || '') ? 'bg-pink-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}" data-id="${tip.id}">
+                      <button class="like-tip-btn flex items-center gap-1 px-3 py-1 rounded text-sm ${tip.likedBy.includes(getCurrentUser()?.uid || '') ? 'bg-pink-600 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-500'}" data-id="${tip.id}">
                         👍 ${tip.likes}
                       </button>
                     </div>
@@ -19446,8 +19480,8 @@ function render() {
                 `).join('')}
               </div>
 
-              <button id="tips-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-6">
-                Terug
+              <button id="tips-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4 sm:mt-6 w-full sm:w-auto">
+                ${t('tipsBack')}
               </button>
             </div>
           </div>
@@ -19468,18 +19502,18 @@ function render() {
           const content = (document.getElementById('submit-content') as HTMLTextAreaElement)?.value
 
           if (!title || !content) {
-            alert('Vul titel en inhoud in!')
+            alert(t('tipsFillFields'))
             return
           }
 
           const id = await submitFeedback(type, title, content, category)
           if (id) {
-            alert('Bedankt! Je feedback wordt bekeken door een admin.')
+            alert(t('tipsSuccess'))
             // Clear form
             ;(document.getElementById('submit-title') as HTMLInputElement).value = ''
             ;(document.getElementById('submit-content') as HTMLTextAreaElement).value = ''
           } else {
-            alert('Kon feedback niet versturen. Probeer opnieuw.')
+            alert(t('tipsError'))
           }
         })
 
