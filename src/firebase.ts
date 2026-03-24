@@ -2317,6 +2317,7 @@ export interface Puzzle {
   rating: number  // Difficulty rating based on solve rate
   featured?: boolean  // If true, always included in daily puzzles
   noBases?: boolean  // If true, don't auto-spawn bases
+  isSample?: boolean  // If true, this is a sample puzzle (can be deleted with "Reset")
 }
 
 // Check if solved puzzles should reset (new day)
@@ -2682,7 +2683,7 @@ export async function adminUpdatePuzzle(puzzleId: string, puzzleData: {
   }
 }
 
-// Admin: Delete all puzzles
+// Admin: Delete only sample puzzles (keeps custom puzzles)
 export async function adminDeleteAllPuzzles(): Promise<number> {
   if (!db || !isCurrentUserAdmin()) return 0
 
@@ -2690,10 +2691,14 @@ export async function adminDeleteAllPuzzles(): Promise<number> {
     const puzzlesSnapshot = await getDocs(collection(db, 'puzzles'))
     let count = 0
     for (const puzzleDoc of puzzlesSnapshot.docs) {
-      await deleteDoc(doc(db, 'puzzles', puzzleDoc.id))
-      count++
+      const data = puzzleDoc.data()
+      // Only delete sample puzzles, keep custom ones
+      if (data.isSample === true) {
+        await deleteDoc(doc(db, 'puzzles', puzzleDoc.id))
+        count++
+      }
     }
-    console.log(`[ADMIN] Deleted ${count} puzzles`)
+    console.log(`[ADMIN] Deleted ${count} sample puzzles (custom puzzles kept)`)
     return count
   } catch (error) {
     console.error('[ADMIN] Error deleting puzzles:', error)
@@ -3046,7 +3051,8 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
 
   let count = 0
   for (const puzzle of samplePuzzles) {
-    const id = await adminCreatePuzzle(puzzle)
+    // Mark as sample puzzle so it can be deleted with "Reset"
+    const id = await adminCreatePuzzle({ ...puzzle, isSample: true })
     if (id) count++
   }
 

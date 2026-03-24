@@ -20311,18 +20311,18 @@ function render() {
         })
 
         document.getElementById('delete-all-puzzles')?.addEventListener('click', async () => {
-          if (confirm('Are you sure you want to delete ALL puzzles?')) {
+          if (confirm('Delete all SAMPLE puzzles? (Your custom puzzles will be kept)')) {
             const deleted = await adminDeleteAllPuzzles()
-            alert(`Deleted ${deleted} puzzles!`)
+            alert(`Deleted ${deleted} sample puzzles! Custom puzzles are kept.`)
             renderAdminPanel()
           }
         })
 
         document.getElementById('create-sample-puzzles')?.addEventListener('click', async () => {
-          if (confirm('This will delete all existing puzzles and create new ones. Continue?')) {
+          if (confirm('This will delete sample puzzles and create new ones. Your custom puzzles will be kept. Continue?')) {
             const deleted = await adminDeleteAllPuzzles()
             const count = await adminCreateSamplePuzzles()
-            alert(`Deleted ${deleted} old puzzles, created ${count} new puzzles!`)
+            alert(`Deleted ${deleted} sample puzzles, created ${count} new ones! Custom puzzles kept.`)
             renderAdminPanel()
           }
         })
