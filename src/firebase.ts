@@ -2316,6 +2316,7 @@ export interface Puzzle {
   timesSolved: number
   rating: number  // Difficulty rating based on solve rate
   featured?: boolean  // If true, always included in daily puzzles
+  noBases?: boolean  // If true, don't auto-spawn bases
 }
 
 // Check if solved puzzles should reset (new day)

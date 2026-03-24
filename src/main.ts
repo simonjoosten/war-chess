@@ -20009,6 +20009,10 @@ function render() {
                           <input type="number" id="puzzle-timer" min="0" max="300" value="0" class="bg-gray-600 text-white px-3 py-2 rounded w-full">
                         </div>
                       </div>
+                      <div class="flex items-center gap-2">
+                        <input type="checkbox" id="puzzle-no-bases" class="w-4 h-4">
+                        <label for="puzzle-no-bases" class="text-gray-300 text-sm">Geen automatische bases (plaats zelf bases indien nodig)</label>
+                      </div>
                       <input type="text" id="puzzle-objective" placeholder="Objective (e.g. 'Capture the tank')" class="bg-gray-600 text-white px-3 py-2 rounded">
 
                       <!-- Target Score (only for score objectives) -->
@@ -20336,6 +20340,8 @@ function render() {
               if (targetScoreInput) targetScoreInput.value = '10'
               if (warBucksInput) warBucksInput.value = '50'
               if (xpInput) xpInput.value = '25'
+              const noBasesCheckbox = document.getElementById('puzzle-no-bases') as HTMLInputElement
+              if (noBasesCheckbox) noBasesCheckbox.checked = false
 
               // Reset form title and button text
               const formTitle = document.getElementById('puzzle-form-title')
@@ -20584,6 +20590,7 @@ function render() {
           const protectTurns = parseInt((document.getElementById('puzzle-protect-turns') as HTMLInputElement)?.value) || 3
           const warBucks = parseInt((document.getElementById('puzzle-warbucks') as HTMLInputElement)?.value) || 50
           const xp = parseInt((document.getElementById('puzzle-xp') as HTMLInputElement)?.value) || 25
+          const noBases = (document.getElementById('puzzle-no-bases') as HTMLInputElement)?.checked || false
 
           if (!name || !objective) {
             addDebugLog('error', 'Create Puzzle Failed', 'Missing name or objective')
@@ -20628,9 +20635,11 @@ function render() {
               position: { row: p.row, col: p.col },
               team: p.team
             })),
-            // Add bases automatically
-            { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
-            { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+            // Only add bases if not disabled
+            ...(!(document.getElementById('puzzle-no-bases') as HTMLInputElement)?.checked ? [
+              { type: 'base', position: { row: 1, col: 4 }, team: 'blue' },
+              { type: 'base', position: { row: 10, col: 4 }, team: 'red' }
+            ] : [])
           ]
 
           // Convert AI moves
@@ -20655,6 +20664,7 @@ function render() {
             targetPosition,
             initialBoard,
             aiMoves,
+            noBases,
             rewards: { warBucks, xp },
             ...(objectiveType === 'score' && { targetScore }),
             ...(objectiveType === 'reach' && { targetSquare: { row: targetRow, col: targetCol } }),
@@ -20797,6 +20807,8 @@ function render() {
                     if (targetScoreInput) targetScoreInput.value = String(puzzle.targetScore || 10)
                     if (warBucksInput) warBucksInput.value = String(puzzle.rewards.warBucks)
                     if (xpInput) xpInput.value = String(puzzle.rewards.xp)
+                    const noBasesCheckbox = document.getElementById('puzzle-no-bases') as HTMLInputElement
+                    if (noBasesCheckbox) noBasesCheckbox.checked = puzzle.noBases || false
 
                     // Show/hide target score section
                     const scoreSection = document.getElementById('puzzle-score-section')
