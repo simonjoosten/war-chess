@@ -20058,7 +20058,11 @@ function render() {
                         <div id="puzzle-board-editor" class="grid gap-px bg-gray-900 rounded overflow-hidden mx-auto" style="grid-template-columns: repeat(11, minmax(20px, 28px)); width: fit-content;"></div>
                         <div class="text-gray-400 text-xs mt-2 hidden sm:block">PC: Click=place, Shift+click=target 🎯, Ctrl+click=reach 📍</div>
                         <div class="text-gray-400 text-xs sm:hidden">Mobiel: Gebruik knoppen hierboven om modus te kiezen</div>
-                        <div class="text-gray-400 text-xs">Pieces: <span id="puzzle-piece-count">0</span> | Target: <span id="puzzle-target-display" class="text-red-400">None</span></div>
+                        <div class="text-gray-400 text-xs">
+                          Pieces: <span id="puzzle-piece-count">0</span> |
+                          Target 🎯: <span id="puzzle-target-display" class="text-red-400">None</span> |
+                          Reach 📍: <span id="puzzle-reach-display" class="text-yellow-400">None</span>
+                        </div>
                       </div>
 
                       <!-- AI Moves Editor -->
@@ -20368,6 +20372,22 @@ function render() {
             } else {
               targetEl.textContent = 'None (shift+click enemy)'
               targetEl.className = 'text-gray-500'
+            }
+          }
+
+          // Update reach display
+          const reachEl = document.getElementById('puzzle-reach-display')
+          if (reachEl) {
+            const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+            if (reachTargetRow > 0 && reachTargetCol >= 0 && objectiveType === 'reach') {
+              reachEl.textContent = `${columns[reachTargetCol]}${reachTargetRow}`
+              reachEl.className = 'text-yellow-400 font-bold'
+            } else if (objectiveType === 'reach') {
+              reachEl.textContent = 'Not set (ctrl+click)'
+              reachEl.className = 'text-gray-500'
+            } else {
+              reachEl.textContent = 'N/A'
+              reachEl.className = 'text-gray-600'
             }
           }
 
