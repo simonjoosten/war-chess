@@ -19848,10 +19848,12 @@ function render() {
 
                       <!-- Target Square (only for reach objectives) -->
                       <div id="puzzle-reach-section" class="hidden">
-                        <label class="text-gray-300 text-sm">Target Square (row, col):</label>
-                        <div class="grid grid-cols-2 gap-2">
-                          <input type="number" id="puzzle-target-row" placeholder="Row (1-11)" min="1" max="11" class="bg-gray-600 text-white px-3 py-2 rounded" value="6">
-                          <input type="number" id="puzzle-target-col" placeholder="Col (0-8)" min="0" max="8" class="bg-gray-600 text-white px-3 py-2 rounded" value="4">
+                        <label class="text-gray-300 text-sm">📍 Target Square: <span class="text-yellow-400 font-bold">CTRL+klik op het bord</span></label>
+                        <div class="flex items-center gap-2 mt-1">
+                          <span class="text-gray-400">Huidige target:</span>
+                          <span id="reach-target-display" class="text-yellow-400 font-bold">Niet ingesteld</span>
+                          <input type="hidden" id="puzzle-target-row" value="0">
+                          <input type="hidden" id="puzzle-target-col" value="0">
                         </div>
                       </div>
 
@@ -20169,6 +20171,11 @@ function render() {
             landmine: '💣', tunnel: '🕳️', artillery: '🎯', spike: '📌', base: '🏠'
           }
 
+          // Get reach target for visual display
+          const reachTargetRow = parseInt((document.getElementById('puzzle-target-row') as HTMLInputElement)?.value || '0')
+          const reachTargetCol = parseInt((document.getElementById('puzzle-target-col') as HTMLInputElement)?.value || '0')
+          const objectiveType = (document.getElementById('puzzle-objective-type') as HTMLSelectElement)?.value
+
           let html = ''
           for (let rowIdx = 0; rowIdx < 11; rowIdx++) {
             const row = 11 - rowIdx  // Row 11 at top
@@ -20178,8 +20185,9 @@ function render() {
               const pieceIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
               const piece = pieceIdx >= 0 ? puzzleEditorPieces[pieceIdx] : null
               const isTarget = pieceIdx === puzzleEditorTargetIdx
-              const targetBorder = isTarget ? 'ring-2 ring-red-500' : ''
-              const pieceDisplay = piece ? `<span class="${piece.team === 'blue' ? 'text-yellow-400' : 'text-green-400'}">${pieceIcons[piece.type] || '?'}${isTarget ? '🎯' : ''}</span>` : ''
+              const isReachTarget = objectiveType === 'reach' && row === reachTargetRow && col === reachTargetCol
+              const targetBorder = isTarget ? 'ring-2 ring-red-500' : isReachTarget ? 'ring-2 ring-yellow-400' : ''
+              const pieceDisplay = piece ? `<span class="${piece.team === 'blue' ? 'text-yellow-400' : 'text-green-400'}">${pieceIcons[piece.type] || '?'}${isTarget ? '🎯' : ''}</span>` : (isReachTarget ? '📍' : '')
               html += `<div class="puzzle-editor-cell ${bgColor} ${targetBorder} w-6 h-6 flex items-center justify-center cursor-pointer hover:opacity-75 text-xs border border-gray-700" data-row="${row}" data-col="${col}" data-idx="${pieceIdx}">${pieceDisplay}</div>`
             }
           }
@@ -20210,9 +20218,26 @@ function render() {
               const pieceType = (document.getElementById('puzzle-piece-type') as HTMLSelectElement)?.value
               const pieceTeam = (document.getElementById('puzzle-piece-team') as HTMLSelectElement)?.value as 'blue' | 'red'
               const shiftKey = (e as MouseEvent).shiftKey
+              const ctrlKey = (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey
 
               // Check if piece already exists at this position
               const existingIdx = puzzleEditorPieces.findIndex(p => p.row === row && p.col === col)
+
+              // CTRL+click: set reach target square
+              if (ctrlKey) {
+                const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+                const targetRowInput = document.getElementById('puzzle-target-row') as HTMLInputElement
+                const targetColInput = document.getElementById('puzzle-target-col') as HTMLInputElement
+                const targetDisplay = document.getElementById('reach-target-display')
+
+                if (targetRowInput) targetRowInput.value = String(row)
+                if (targetColInput) targetColInput.value = String(col)
+                if (targetDisplay) targetDisplay.textContent = `${columns[col]}${row} (rij ${row}, kolom ${col})`
+
+                addDebugLog('info', 'Reach Target Set', `${columns[col]}${row}`)
+                renderPuzzleBoardEditor()
+                return
+              }
 
               if (shiftKey && existingIdx >= 0) {
                 // Shift+click: set this piece as target (only enemy pieces)
