@@ -1372,6 +1372,8 @@ interface CoachLesson {
   reward: number // War Bucks reward
   steps: CoachStep[]
   piece?: string // Optional piece to show on board
+  requires?: string[] // Lesson IDs that must be completed first
+  isReview?: boolean // True if this is a harder review lesson
 }
 
 interface CoachStep {
@@ -7855,6 +7857,106 @@ function getCoachLessons(): CoachLesson[] {
         { type: 'boardClick', textKey: 'coachFindGeneralStep2', boardPieces: [{ type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'general', team: 'green', col: 'D', row: 2 }, { type: 'tank', team: 'green', col: 'B', row: 2 }, { type: 'tank', team: 'green', col: 'F', row: 2 }], correctSquares: [{ col: 'D', row: 2 }] },
         { type: 'boardClick', textKey: 'coachFindGeneralStep3', boardPieces: [{ type: 'tank', team: 'green', col: 'A', row: 7 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'general', team: 'green', col: 'G', row: 1 }, { type: 'barricade', team: 'green', col: 'F', row: 2 }, { type: 'barricade', team: 'green', col: 'G', row: 2 }], correctSquares: [{ col: 'G', row: 1 }] }
       ]
+    },
+
+    // ============ REVIEW LESSONS (Harder versions, require completing basics first) ============
+    {
+      id: 'reviewSoldier',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachReviewSoldierTitle',
+      descriptionKey: 'coachReviewSoldierDesc',
+      reward: 30,
+      piece: 'soldier',
+      isReview: true,
+      requires: ['soldier', 'soldierMovement'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep1', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'C', row: 4 }, { type: 'soldier', team: 'green', col: 'B', row: 5 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }], correctSquares: [{ col: 'B', row: 5 }, { col: 'D', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep2', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'yellow', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }, { type: 'general', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'D', row: 4 }, { col: 'E', row: 4 }] },
+        { type: 'boardSelect', textKey: 'coachReviewSoldierStep3', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'C', row: 5 }, { col: 'D', row: 5 }, { col: 'E', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep4', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'B', row: 6 }, { type: 'soldier', team: 'yellow', col: 'C', row: 6 }, { type: 'soldier', team: 'green', col: 'A', row: 7 }, { type: 'general', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'A', row: 7 }] }
+      ]
+    },
+    {
+      id: 'reviewTank',
+      category: 'pieces',
+      level: 'masters',
+      titleKey: 'coachReviewTankTitle',
+      descriptionKey: 'coachReviewTankDesc',
+      reward: 40,
+      piece: 'tank',
+      isReview: true,
+      requires: ['tank', 'tankPower'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachReviewTankStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'B', row: 6 }, { col: 'F', row: 2 }] },
+        { type: 'boardClick', textKey: 'coachReviewTankStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'barricade', team: 'green', col: 'D', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 7 }, { type: 'soldier', team: 'green', col: 'G', row: 4 }], correctSquares: [{ col: 'G', row: 4 }] },
+        { type: 'boardSelect', textKey: 'coachReviewTankStep3', boardPieces: [{ type: 'tank', team: 'yellow', col: 'A', row: 1 }, { type: 'barricade', team: 'green', col: 'A', row: 4 }, { type: 'barricade', team: 'green', col: 'D', row: 1 }], requiredSelections: [{ col: 'A', row: 2 }, { col: 'A', row: 3 }, { col: 'B', row: 1 }, { col: 'C', row: 1 }] },
+        { type: 'boardClick', textKey: 'coachReviewTankStep4', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'general', team: 'green', col: 'C', row: 7 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 3 }], correctSquares: [{ col: 'C', row: 5 }] }
+      ]
+    },
+    {
+      id: 'reviewSniper',
+      category: 'pieces',
+      level: 'war_gods',
+      titleKey: 'coachReviewSniperTitle',
+      descriptionKey: 'coachReviewSniperDesc',
+      reward: 50,
+      piece: 'sniper',
+      isReview: true,
+      requires: ['sniper', 'sniperMaster'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachReviewSniperStep1', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'A', row: 1 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'tank', team: 'green', col: 'E', row: 5 }, { type: 'general', team: 'green', col: 'G', row: 7 }], correctSquares: [{ col: 'G', row: 7 }] },
+        { type: 'boardClick', textKey: 'coachReviewSniperStep2', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'G', row: 1 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'general', team: 'green', col: 'A', row: 7 }], correctSquares: [{ col: 'A', row: 7 }] },
+        { type: 'boardSelect', textKey: 'coachReviewSniperStep3', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'F', row: 6 }, { type: 'tank', team: 'green', col: 'B', row: 6 }, { type: 'general', team: 'green', col: 'F', row: 2 }], requiredSelections: [{ col: 'B', row: 2 }, { col: 'F', row: 6 }, { col: 'B', row: 6 }, { col: 'F', row: 2 }] }
+      ]
+    },
+    {
+      id: 'reviewCoords',
+      category: 'basics',
+      level: 'masters',
+      titleKey: 'coachReviewCoordsTitle',
+      descriptionKey: 'coachReviewCoordsDesc',
+      reward: 35,
+      isReview: true,
+      requires: ['coordinates', 'coordsPractice'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachReviewCoordsStep1', showCoordinates: true, correctSquares: [{ col: 'B', row: 6 }] },
+        { type: 'boardClick', textKey: 'coachReviewCoordsStep2', showCoordinates: true, correctSquares: [{ col: 'F', row: 3 }] },
+        { type: 'boardClick', textKey: 'coachReviewCoordsStep3', showCoordinates: true, correctSquares: [{ col: 'E', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachReviewCoordsStep4', showCoordinates: true, correctSquares: [{ col: 'C', row: 2 }] },
+        { type: 'boardSelect', textKey: 'coachReviewCoordsStep5', showCoordinates: true, requiredSelections: [{ col: 'A', row: 1 }, { col: 'G', row: 7 }, { col: 'D', row: 4 }] }
+      ]
+    },
+    {
+      id: 'reviewTactics',
+      category: 'advanced',
+      level: 'war_gods',
+      titleKey: 'coachReviewTacticsTitle',
+      descriptionKey: 'coachReviewTacticsDesc',
+      reward: 60,
+      isReview: true,
+      requires: ['tacticsCapture', 'tacticsProtect', 'findTheGeneral'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachReviewTacticsStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 3 }, { type: 'sniper', team: 'yellow', col: 'F', row: 1 }, { type: 'general', team: 'green', col: 'D', row: 6 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'D', row: 6 }] },
+        { type: 'boardClick', textKey: 'coachReviewTacticsStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'A', row: 4 }, { type: 'soldier', team: 'yellow', col: 'C', row: 2 }, { type: 'general', team: 'green', col: 'G', row: 4 }, { type: 'barricade', team: 'green', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'G', row: 4 }] },
+        { type: 'boardSelect', textKey: 'coachReviewTacticsStep3', boardPieces: [{ type: 'general', team: 'yellow', col: 'D', row: 1 }, { type: 'tank', team: 'green', col: 'D', row: 5 }, { type: 'sniper', team: 'green', col: 'A', row: 4 }], requiredSelections: [{ col: 'C', row: 2 }, { col: 'D', row: 2 }, { col: 'E', row: 2 }] },
+        { type: 'boardClick', textKey: 'coachReviewTacticsStep4', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'A', row: 7 }, { type: 'tank', team: 'yellow', col: 'G', row: 1 }, { type: 'general', team: 'green', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'D', row: 4 }] }
+      ]
+    },
+    {
+      id: 'reviewSpecial',
+      category: 'special',
+      level: 'war_gods',
+      titleKey: 'coachReviewSpecialTitle',
+      descriptionKey: 'coachReviewSpecialDesc',
+      reward: 55,
+      isReview: true,
+      requires: ['helicopter', 'rocket', 'landmine'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachReviewSpecialStep1', boardPieces: [{ type: 'helicopter', team: 'yellow', col: 'B', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 5 }, { type: 'general', team: 'green', col: 'F', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 4 }], correctSquares: [{ col: 'F', row: 6 }] },
+        { type: 'boardSelect', textKey: 'coachReviewSpecialStep2', boardPieces: [{ type: 'rocket', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'tank', team: 'green', col: 'D', row: 3 }], requiredSelections: [{ col: 'C', row: 3 }, { col: 'C', row: 4 }, { col: 'C', row: 5 }, { col: 'D', row: 3 }, { col: 'D', row: 5 }, { col: 'E', row: 3 }, { col: 'E', row: 4 }, { col: 'E', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachReviewSpecialStep3', boardPieces: [{ type: 'landmine', team: 'yellow', col: 'D', row: 3 }, { type: 'landmine', team: 'yellow', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }], correctSquares: [{ col: 'D', row: 3 }, { col: 'E', row: 4 }] }
+      ]
     }
   ]
 }
@@ -7869,8 +7971,37 @@ function getFilteredLessons(category: CoachCategory | null, level: CoachLevel): 
     const lessonLevelIndex = levelOrder.indexOf(lesson.level)
     const levelMatch = lessonLevelIndex <= currentLevelIndex
     const categoryMatch = category === null || lesson.category === category
-    return levelMatch && categoryMatch
+
+    // Check if prerequisites are met
+    const prerequisitesMet = !lesson.requires || lesson.requires.every(reqId => coachCompletedLessons.includes(reqId))
+
+    return levelMatch && categoryMatch && prerequisitesMet
   })
+}
+
+// Check if a lesson is locked (prerequisites not met)
+function isLessonLocked(lesson: CoachLesson): boolean {
+  if (!lesson.requires) return false
+  return !lesson.requires.every(reqId => coachCompletedLessons.includes(reqId))
+}
+
+// Get all lessons including locked ones (for showing lock icons)
+function getAllLessonsForCategory(category: CoachCategory | null, level: CoachLevel): Array<CoachLesson & { locked: boolean }> {
+  const allLessons = getCoachLessons()
+  const levelOrder: CoachLevel[] = ['beginner', 'medium', 'masters', 'war_gods']
+  const currentLevelIndex = levelOrder.indexOf(level)
+
+  return allLessons
+    .filter(lesson => {
+      const lessonLevelIndex = levelOrder.indexOf(lesson.level)
+      const levelMatch = lessonLevelIndex <= currentLevelIndex
+      const categoryMatch = category === null || lesson.category === category
+      return levelMatch && categoryMatch
+    })
+    .map(lesson => ({
+      ...lesson,
+      locked: isLessonLocked(lesson)
+    }))
 }
 
 // Get category display info
@@ -8860,6 +8991,9 @@ const translations: Record<Language, Record<string, string>> = {
     coachReward: 'Reward',
     coachCompleted: 'Completed!',
     coachLessonComplete: 'Lesson Complete!',
+    coachLessonLocked: 'Complete the required lessons first',
+    coachRequires: 'Requires',
+    coachLessonsRequired: 'lessons',
     coachEarned: 'You earned',
     coachClickCorrectSquare: 'Click the correct square on the board',
     coachSelectAllSquares: 'Select all the correct squares',
@@ -9611,6 +9745,53 @@ const translations: Record<Language, Record<string, string>> = {
     coachFindGeneralA1c: 'Capture the enemy General',
     coachFindGeneralStep2: 'Find and click on the enemy General!',
     coachFindGeneralStep3: 'The General is hiding! Can you find it?',
+
+    // Review lessons - Soldier
+    coachReviewSoldierTitle: 'Soldier Review',
+    coachReviewSoldierDesc: 'Advanced soldier tactics - prove your mastery!',
+    coachReviewSoldierStep1: 'Click on ALL enemy soldiers this soldier can capture diagonally.',
+    coachReviewSoldierStep2: 'Both soldiers need to advance. Click the best squares to move them.',
+    coachReviewSoldierStep3: 'Select ALL squares this soldier can move to or attack.',
+    coachReviewSoldierStep4: 'One soldier can capture the enemy! Click the capturing move.',
+
+    // Review lessons - Tank
+    coachReviewTankTitle: 'Tank Review',
+    coachReviewTankDesc: 'Advanced tank tactics - dominate the battlefield!',
+    coachReviewTankStep1: 'Click on ALL pieces this tank can capture.',
+    coachReviewTankStep2: 'The barricade blocks the path. Which piece CAN the tank capture?',
+    coachReviewTankStep3: 'Select ALL squares this tank can actually move to (blocked by barricades).',
+    coachReviewTankStep4: 'Clear the path to the General. Which piece should the tank capture first?',
+
+    // Review lessons - Sniper
+    coachReviewSniperTitle: 'Sniper Review',
+    coachReviewSniperDesc: 'Master sniper targeting - precision is key!',
+    coachReviewSniperStep1: 'Find the highest-value target the sniper can hit!',
+    coachReviewSniperStep2: 'The sniper has a clear diagonal. Find the General!',
+    coachReviewSniperStep3: 'Select ALL enemy pieces this sniper can target.',
+
+    // Review lessons - Coordinates
+    coachReviewCoordsTitle: 'Coordinate Challenge',
+    coachReviewCoordsDesc: 'Speed round - find the squares quickly!',
+    coachReviewCoordsStep1: 'Click on B6!',
+    coachReviewCoordsStep2: 'Click on F3!',
+    coachReviewCoordsStep3: 'Click on E5!',
+    coachReviewCoordsStep4: 'Click on C2!',
+    coachReviewCoordsStep5: 'Select these three squares: A1, G7, and D4',
+
+    // Review lessons - Tactics
+    coachReviewTacticsTitle: 'Tactics Master',
+    coachReviewTacticsDesc: 'Ultimate tactical challenge - combine all your skills!',
+    coachReviewTacticsStep1: 'The sniper has a clear shot! Click the General to win.',
+    coachReviewTacticsStep2: 'Find a way to capture the enemy General with the tank.',
+    coachReviewTacticsStep3: 'Your General is under attack! Select the best squares for defenders.',
+    coachReviewTacticsStep4: 'The General is well protected. Which piece can break through?',
+
+    // Review lessons - Special
+    coachReviewSpecialTitle: 'Special Units Review',
+    coachReviewSpecialDesc: 'Master helicopters, rockets, and landmines!',
+    coachReviewSpecialStep1: 'The helicopter can fly anywhere! Click the best target.',
+    coachReviewSpecialStep2: 'Select ALL squares affected by this rocket explosion.',
+    coachReviewSpecialStep3: 'Which landmines will the enemy trigger? Click them.',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -9941,6 +10122,9 @@ const translations: Record<Language, Record<string, string>> = {
     coachReward: 'Beloning',
     coachCompleted: 'Voltooid!',
     coachLessonComplete: 'Les Voltooid!',
+    coachLessonLocked: 'Voltooi eerst de vereiste lessen',
+    coachRequires: 'Vereist',
+    coachLessonsRequired: 'lessen',
     coachEarned: 'Je hebt verdiend',
     coachClickCorrectSquare: 'Klik op het juiste vak op het bord',
     coachSelectAllSquares: 'Selecteer alle juiste vakken',
@@ -10692,6 +10876,53 @@ const translations: Record<Language, Record<string, string>> = {
     coachFindGeneralA1c: 'De vijandelijke Generaal vangen',
     coachFindGeneralStep2: 'Vind en klik op de vijandelijke Generaal!',
     coachFindGeneralStep3: 'De Generaal verstopt zich! Kun je hem vinden?',
+
+    // Herhalingslessen - Soldaat
+    coachReviewSoldierTitle: 'Soldaat Herhaling',
+    coachReviewSoldierDesc: 'Geavanceerde soldaattactieken - bewijs je meesterschap!',
+    coachReviewSoldierStep1: 'Klik op ALLE vijandelijke soldaten die deze soldaat diagonaal kan vangen.',
+    coachReviewSoldierStep2: 'Beide soldaten moeten oprukken. Klik de beste vakjes om ze te verplaatsen.',
+    coachReviewSoldierStep3: 'Selecteer ALLE vakjes waar deze soldaat naartoe kan of kan aanvallen.',
+    coachReviewSoldierStep4: 'Eén soldaat kan de vijand vangen! Klik de vangende zet.',
+
+    // Herhalingslessen - Tank
+    coachReviewTankTitle: 'Tank Herhaling',
+    coachReviewTankDesc: 'Geavanceerde tanktactieken - domineer het slagveld!',
+    coachReviewTankStep1: 'Klik op ALLE stukken die deze tank kan vangen.',
+    coachReviewTankStep2: 'De barricade blokkeert het pad. Welk stuk KAN de tank vangen?',
+    coachReviewTankStep3: 'Selecteer ALLE vakjes waar deze tank echt naartoe kan (geblokkeerd door barricades).',
+    coachReviewTankStep4: 'Maak het pad naar de Generaal vrij. Welk stuk moet de tank eerst vangen?',
+
+    // Herhalingslessen - Sluipschutter
+    coachReviewSniperTitle: 'Sluipschutter Herhaling',
+    coachReviewSniperDesc: 'Meester sluipschutter targeting - precisie is alles!',
+    coachReviewSniperStep1: 'Vind het meest waardevolle doel dat de sluipschutter kan raken!',
+    coachReviewSniperStep2: 'De sluipschutter heeft een vrije diagonaal. Vind de Generaal!',
+    coachReviewSniperStep3: 'Selecteer ALLE vijandelijke stukken die deze sluipschutter kan richten.',
+
+    // Herhalingslessen - Coördinaten
+    coachReviewCoordsTitle: 'Coördinaten Uitdaging',
+    coachReviewCoordsDesc: 'Snelheidsronde - vind de vakjes snel!',
+    coachReviewCoordsStep1: 'Klik op B6!',
+    coachReviewCoordsStep2: 'Klik op F3!',
+    coachReviewCoordsStep3: 'Klik op E5!',
+    coachReviewCoordsStep4: 'Klik op C2!',
+    coachReviewCoordsStep5: 'Selecteer deze drie vakjes: A1, G7 en D4',
+
+    // Herhalingslessen - Tactieken
+    coachReviewTacticsTitle: 'Tactiek Meester',
+    coachReviewTacticsDesc: 'Ultieme tactische uitdaging - combineer al je vaardigheden!',
+    coachReviewTacticsStep1: 'De sluipschutter heeft vrij schot! Klik de Generaal om te winnen.',
+    coachReviewTacticsStep2: 'Vind een manier om de vijandelijke Generaal te vangen met de tank.',
+    coachReviewTacticsStep3: 'Je Generaal wordt aangevallen! Selecteer de beste vakjes voor verdedigers.',
+    coachReviewTacticsStep4: 'De Generaal is goed beschermd. Welk stuk kan doorbreken?',
+
+    // Herhalingslessen - Speciaal
+    coachReviewSpecialTitle: 'Speciale Eenheden Herhaling',
+    coachReviewSpecialDesc: 'Beheers helikopters, raketten en landmijnen!',
+    coachReviewSpecialStep1: 'De helikopter kan overal vliegen! Klik het beste doel.',
+    coachReviewSpecialStep2: 'Selecteer ALLE vakjes die getroffen worden door deze raketexplosie.',
+    coachReviewSpecialStep3: 'Welke landmijnen zal de vijand activeren? Klik ze.',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -22790,16 +23021,21 @@ function render() {
               <h2 class="text-xl text-gray-300">${t('coachSelectLesson')}</h2>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[600px] w-full">
-              ${filteredLessons.filter(l => l.category === coachCategory).map(lesson => {
+              ${getAllLessonsForCategory(coachCategory, coachLevel).map(lesson => {
                 const isCompleted = coachCompletedLessons.includes(lesson.id)
+                const isLocked = lesson.locked
+                const isReview = lesson.isReview
+                const icon = isLocked ? '🔒' : isCompleted ? '✅' : isReview ? '🔄' : '📖'
                 return `
-                  <button data-lesson="${lesson.id}" class="coach-lesson-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg flex flex-col items-start gap-1 transition-all ${isCompleted ? 'border-2 border-green-500' : ''}">
+                  <button data-lesson="${lesson.id}" class="coach-lesson-btn ${isLocked ? 'bg-gray-800 cursor-not-allowed opacity-60' : 'bg-gray-700 hover:bg-gray-600'} p-4 rounded-lg flex flex-col items-start gap-1 transition-all ${isCompleted ? 'border-2 border-green-500' : ''} ${isReview && !isLocked ? 'border border-purple-500' : ''}">
                     <div class="flex items-center gap-2 w-full">
-                      <span class="text-lg">${isCompleted ? '✅' : '📖'}</span>
-                      <span class="text-white font-bold flex-1 text-left">${t(lesson.titleKey)}</span>
-                      <span class="text-yellow-400 text-sm">💰 ${lesson.reward}</span>
+                      <span class="text-lg">${icon}</span>
+                      <span class="${isLocked ? 'text-gray-500' : 'text-white'} font-bold flex-1 text-left">${t(lesson.titleKey)}</span>
+                      ${isReview ? '<span class="text-purple-400 text-xs px-1 rounded bg-purple-900">Review</span>' : ''}
+                      <span class="${isLocked ? 'text-gray-500' : 'text-yellow-400'} text-sm">💰 ${lesson.reward}</span>
                     </div>
-                    <span class="text-gray-400 text-sm">${t(lesson.descriptionKey)}</span>
+                    <span class="${isLocked ? 'text-gray-600' : 'text-gray-400'} text-sm">${isLocked ? t('coachLessonLocked') : t(lesson.descriptionKey)}</span>
+                    ${isLocked && lesson.requires ? `<span class="text-gray-500 text-xs">${t('coachRequires')}: ${lesson.requires.length} ${t('coachLessonsRequired')}</span>` : ''}
                   </button>
                 `
               }).join('')}
@@ -22843,6 +23079,10 @@ function render() {
           const lessonId = (btn as HTMLButtonElement).dataset.lesson
           const lesson = allLessons.find(l => l.id === lessonId)
           if (lesson) {
+            // Check if lesson is locked
+            if (isLessonLocked(lesson)) {
+              return // Don't allow clicking locked lessons
+            }
             coachSelectedLesson = lesson
             coachStepIndex = 0
             coachSelectedAnswer = -1
