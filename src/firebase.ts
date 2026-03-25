@@ -288,8 +288,13 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'effect_money', name: 'Money Rain', description: 'War Bucks falling effect', price: 300, type: 'effect', icon: '💵', effectType: 'sparkle' },
 
   // NEW: More Music Packs
-  { id: 'music_tropical', name: 'Tropical Vibes', description: 'Chill beach music', price: 200, type: 'music_pack', icon: '🏖️', packId: 'tropical' },
-  { id: 'music_dark', name: 'Dark Orchestra', description: 'Dark cinematic orchestra', price: 275, type: 'music_pack', icon: '🦇', packId: 'dark' },
+  { id: 'music_tropical', name: 'Tropical Vibes', description: 'Chill beach music with steel drums', price: 200, type: 'music_pack', icon: '🏖️', packId: 'tropical' },
+  { id: 'music_dark', name: 'Dark Orchestra', description: 'Ominous strings and brass', price: 275, type: 'music_pack', icon: '🦇', packId: 'dark' },
+  { id: 'music_cyberpunk', name: 'Cyberpunk', description: 'Glitchy synths and heavy bass', price: 250, type: 'music_pack', icon: '🤖', packId: 'cyberpunk' },
+  { id: 'music_western', name: 'Wild West', description: 'Dusty guitars and harmonica', price: 225, type: 'music_pack', icon: '🤠', packId: 'western' },
+  { id: 'music_funk', name: 'Funky Groove', description: 'Slap bass and wah guitar', price: 225, type: 'music_pack', icon: '🕺', packId: 'funk' },
+  { id: 'music_metal', name: 'Heavy Metal', description: 'Crushing riffs and double bass', price: 275, type: 'music_pack', icon: '🤘', packId: 'metal' },
+  { id: 'music_synthwave', name: 'Synthwave', description: '80s synths and arpeggios', price: 250, type: 'music_pack', icon: '🌆', packId: 'synthwave' },
 ]
 
 // War Pass Challenges

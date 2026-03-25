@@ -1824,7 +1824,7 @@ async function startMusic() {
       }
       break
     case 'rock':
-      startRockMusic() // Already unique shop version
+      startRockMusic()
       break
     case 'epic':
       if (isShopMusic) {
@@ -1832,6 +1832,27 @@ async function startMusic() {
       } else {
         startEpicMusic()
       }
+      break
+    case 'tropical':
+      startTropicalMusic()
+      break
+    case 'dark':
+      startDarkOrchestraMusic()
+      break
+    case 'cyberpunk':
+      startCyberpunkMusic()
+      break
+    case 'western':
+      startWesternMusic()
+      break
+    case 'funk':
+      startFunkMusic()
+      break
+    case 'metal':
+      startMetalMusic()
+      break
+    case 'synthwave':
+      startSynthwaveMusic()
       break
     default:
       startEpicMusic()
@@ -5157,6 +5178,1373 @@ function startAmbientShopMusic() {
     measureCount++
     playAmbientBar()
   }, 8000) // Slower tempo for ambient
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TROPICAL MUSIC - Steel drums, marimba, congas, island vibes
+// ═══════════════════════════════════════════════════════════════════════════
+function startTropicalMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // C major / A minor - happy tropical scale
+  const notes: Record<string, number> = {
+    C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+    C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99
+  }
+
+  // Steel drum sound - bright, bell-like
+  function playSteelDrum(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    osc2.type = 'sine'
+    osc2.frequency.value = freq * 2.5 // Harmonic for metallic sound
+
+    filter.type = 'bandpass'
+    filter.frequency.value = freq * 2
+    filter.Q.value = 5
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.12, startTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc2.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+    osc2.stop(startTime + duration + 0.1)
+  }
+
+  // Marimba - warm wood sound
+  function playMarimba(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.005)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.8)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration)
+  }
+
+  // Conga drums - low and high
+  function playConga(high: boolean, startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(high ? 350 : 200, startTime)
+    osc.frequency.exponentialRampToValueAtTime(high ? 150 : 80, startTime + 0.1)
+
+    gain.gain.setValueAtTime(0.3, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + 0.2)
+  }
+
+  // Shaker
+  function playShaker(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const noise = audioContext.createBufferSource()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    noise.buffer = createNoiseBuffer(0.08)
+    filter.type = 'bandpass'
+    filter.frequency.value = 8000
+    filter.Q.value = 1
+
+    gain.gain.setValueAtTime(0.08, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    noise.start(startTime)
+    noise.stop(startTime + 0.1)
+  }
+
+  // Tropical bass
+  function playBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.2, startTime + 0.02)
+    gain.gain.setValueAtTime(0.15, startTime + duration * 0.5)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Melodies - intro, verse, chorus, bridge
+  const introMelody = ['C5', 'E5', 'G5', 'E5', 'C5', 'D5', 'E5', 'G5']
+  const verseMelody = ['C4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4', 'C4']
+  const chorusMelody = ['G4', 'A4', 'C5', 'D5', 'E5', 'D5', 'C5', 'G4']
+  const bridgeMelody = ['A4', 'C5', 'E5', 'A4', 'G4', 'E4', 'G4', 'A4']
+  const bassLine = ['C3', 'C3', 'G3', 'G3', 'A3', 'A3', 'F3', 'G3']
+
+  function playTropicalSection(section: 'intro' | 'verse' | 'chorus' | 'bridge') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    const melody = section === 'intro' ? introMelody :
+                   section === 'chorus' ? chorusMelody :
+                   section === 'bridge' ? bridgeMelody : verseMelody
+
+    // Play melody on steel drums
+    melody.forEach((note, i) => {
+      const time = now + i * 0.25
+      playSteelDrum(notes[note], time, 0.3)
+      if (section === 'chorus' && i % 2 === 0) {
+        playMarimba(notes[note] / 2, time, 0.4) // Add marimba harmony in chorus
+      }
+    })
+
+    // Bass line
+    bassLine.forEach((note, i) => {
+      playBass(notes[note], now + i * 0.25, 0.2)
+    })
+
+    // Conga pattern
+    const congaPattern = section === 'intro' ? [0, 2, 4, 6] : [0, 1.5, 2, 3, 4, 5.5, 6, 7]
+    congaPattern.forEach(beat => {
+      playConga(beat % 2 === 0, now + beat * 0.25)
+    })
+
+    // Shaker on every 8th
+    for (let i = 0; i < 8; i++) {
+      playShaker(now + i * 0.25)
+    }
+  }
+
+  // Start with intro
+  playTropicalSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 16
+    if (section < 2) playTropicalSection('intro')
+    else if (section < 6) playTropicalSection('verse')
+    else if (section < 10) playTropicalSection('chorus')
+    else if (section < 12) playTropicalSection('bridge')
+    else playTropicalSection('verse')
+  }, 2000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DARK ORCHESTRA - Ominous strings, deep brass, choir, timpani
+// ═══════════════════════════════════════════════════════════════════════════
+function startDarkOrchestraMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  // D minor - dark, dramatic
+  const notes: Record<string, number> = {
+    D2: 73.42, A2: 110.00, D3: 146.83, F3: 174.61, A3: 220.00,
+    D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, Bb4: 466.16,
+    C5: 523.25, D5: 587.33, F5: 698.46
+  }
+
+  // Dark strings - tremolo effect
+  function playDarkStrings(freqs: number[], startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    freqs.forEach(freq => {
+      const osc = audioContext!.createOscillator()
+      const osc2 = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const tremolo = audioContext!.createGain()
+      const lfo = audioContext!.createOscillator()
+
+      osc.type = 'sawtooth'
+      osc.frequency.value = freq
+      osc2.type = 'sawtooth'
+      osc2.frequency.value = freq * 1.002
+
+      lfo.type = 'sine'
+      lfo.frequency.value = 6 // Tremolo speed
+
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(0.06, startTime + 0.5)
+      gain.gain.setValueAtTime(0.05, startTime + duration - 0.5)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      lfo.connect(tremolo.gain)
+      tremolo.gain.setValueAtTime(0.5, startTime)
+
+      osc.connect(tremolo)
+      osc2.connect(tremolo)
+      tremolo.connect(gain)
+      gain.connect(musicGainNode!)
+
+      lfo.start(startTime)
+      osc.start(startTime)
+      osc2.start(startTime)
+      lfo.stop(startTime + duration + 0.1)
+      osc.stop(startTime + duration + 0.1)
+      osc2.stop(startTime + duration + 0.1)
+    })
+  }
+
+  // Deep brass - horns
+  function playBrass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sawtooth'
+    osc.frequency.value = freq
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(200, startTime)
+    filter.frequency.linearRampToValueAtTime(1500, startTime + 0.3)
+    filter.frequency.setValueAtTime(1000, startTime + duration - 0.2)
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.1, startTime + 0.15)
+    gain.gain.setValueAtTime(0.08, startTime + duration * 0.7)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Dark choir - "ooh" sound
+  function playChoir(freqs: number[], startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    freqs.forEach(freq => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+
+      osc.type = 'sine'
+      osc.frequency.value = freq
+
+      filter.type = 'bandpass'
+      filter.frequency.value = 500
+      filter.Q.value = 2
+
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(0.04, startTime + 0.8)
+      gain.gain.setValueAtTime(0.03, startTime + duration - 1)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(startTime)
+      osc.stop(startTime + duration + 0.1)
+    })
+  }
+
+  // Timpani - dramatic drums
+  function playTimpani(freq: number, startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(freq, startTime)
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.7, startTime + 0.3)
+
+    gain.gain.setValueAtTime(0.4, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.8)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + 1)
+  }
+
+  // Cymbal crash
+  function playCymbal(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const noise = audioContext.createBufferSource()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    noise.buffer = createNoiseBuffer(2)
+    filter.type = 'highpass'
+    filter.frequency.value = 3000
+
+    gain.gain.setValueAtTime(0.15, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.5)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    noise.start(startTime)
+    noise.stop(startTime + 2)
+  }
+
+  // Chord progressions
+  const introChords = [[notes.D3, notes.A3, notes.D4], [notes.A2, notes.E4, notes.A4]]
+  const verseChords = [[notes.D3, notes.F3, notes.A3], [notes.Bb4, notes.D4, notes.F4], [notes.A3, notes.C5, notes.E4], [notes.D3, notes.A3, notes.D4]]
+  const chorusChords = [[notes.D4, notes.F4, notes.A4], [notes.G4, notes.Bb4, notes.D5], [notes.A3, notes.D4, notes.F4], [notes.D3, notes.A3, notes.F3]]
+  const bridgeChords = [[notes.F3, notes.A3, notes.C5], [notes.E4, notes.G4, notes.Bb4]]
+
+  function playDarkSection(section: 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    const chords = section === 'intro' ? introChords :
+                   section === 'chorus' ? chorusChords :
+                   section === 'bridge' ? bridgeChords : verseChords
+
+    // Dark strings play chords
+    chords.forEach((chord, i) => {
+      playDarkStrings(chord, now + i * 2, 2.5)
+    })
+
+    // Brass accents
+    if (section === 'chorus' || section === 'outro') {
+      playBrass(notes.D3, now, 1.5)
+      playBrass(notes.A3, now + 2, 1.5)
+    }
+
+    // Choir in chorus and bridge
+    if (section === 'chorus') {
+      playChoir([notes.D4, notes.F4, notes.A4], now + 1, 3)
+    }
+    if (section === 'bridge') {
+      playChoir([notes.A3, notes.D4, notes.F4], now, 4)
+    }
+
+    // Timpani hits
+    if (section !== 'intro') {
+      playTimpani(notes.D2, now)
+      if (section === 'chorus') {
+        playTimpani(notes.A2, now + 2)
+        playTimpani(notes.D2, now + 3)
+      }
+    }
+
+    // Cymbal on big moments
+    if (section === 'chorus' && measureCount % 4 === 0) {
+      playCymbal(now)
+    }
+  }
+
+  playDarkSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 20
+    if (section < 2) playDarkSection('intro')
+    else if (section < 8) playDarkSection('verse')
+    else if (section < 14) playDarkSection('chorus')
+    else if (section < 17) playDarkSection('bridge')
+    else playDarkSection('outro')
+  }, 4000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CYBERPUNK MUSIC - Glitchy synths, heavy bass, distorted beats
+// ═══════════════════════════════════════════════════════════════════════════
+function startCyberpunkMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  const notes: Record<string, number> = {
+    E2: 82.41, A2: 110.00, B2: 123.47, E3: 164.81, G3: 196.00,
+    A3: 220.00, B3: 246.94, E4: 329.63, G4: 392.00, A4: 440.00, B4: 493.88
+  }
+
+  // Glitchy synth lead
+  function playGlitchSynth(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const distortion = audioContext.createWaveShaper()
+
+    osc.type = 'square'
+    osc.frequency.value = freq
+    osc2.type = 'sawtooth'
+    osc2.frequency.value = freq * 1.01
+
+    const curve = new Float32Array(256)
+    for (let i = 0; i < 256; i++) {
+      const x = (i / 128) - 1
+      curve[i] = Math.tanh(x * 5)
+    }
+    distortion.curve = curve as Float32Array<ArrayBuffer>
+
+    // Random glitch effect
+    if (Math.random() > 0.7) {
+      osc.frequency.setValueAtTime(freq * 2, startTime + duration * 0.5)
+      osc.frequency.setValueAtTime(freq, startTime + duration * 0.6)
+    }
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.08, startTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(distortion)
+    osc2.connect(distortion)
+    distortion.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc2.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+    osc2.stop(startTime + duration + 0.1)
+  }
+
+  // Heavy sub bass
+  function playSubBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.25, startTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Distorted kick
+  function playDistortedKick(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const distortion = audioContext.createWaveShaper()
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(200, startTime)
+    osc.frequency.exponentialRampToValueAtTime(30, startTime + 0.15)
+
+    const curve = new Float32Array(256)
+    for (let i = 0; i < 256; i++) {
+      const x = (i / 128) - 1
+      curve[i] = Math.tanh(x * 8)
+    }
+    distortion.curve = curve as Float32Array<ArrayBuffer>
+
+    gain.gain.setValueAtTime(0.5, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3)
+
+    osc.connect(distortion)
+    distortion.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + 0.4)
+  }
+
+  // Hi-hat with bit crush effect
+  function playGlitchHat(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const noise = audioContext.createBufferSource()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    noise.buffer = createNoiseBuffer(0.05)
+    filter.type = 'highpass'
+    filter.frequency.value = 10000
+
+    gain.gain.setValueAtTime(0.1, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.03)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    noise.start(startTime)
+    noise.stop(startTime + 0.05)
+  }
+
+  const introRiff = ['E4', 'E4', 'G4', 'A4', 'E4', 'B4', 'A4', 'G4']
+  const mainRiff = ['E3', 'E3', 'G3', 'A3', 'B3', 'A3', 'G3', 'E3']
+  const dropRiff = ['E2', 'E2', 'E2', 'G3', 'E2', 'E2', 'A3', 'B3']
+
+  function playCyberSection(section: 'intro' | 'buildup' | 'drop' | 'break') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    const riff = section === 'intro' ? introRiff : section === 'drop' ? dropRiff : mainRiff
+
+    // Synth melody
+    riff.forEach((note, i) => {
+      if (section !== 'break' || i % 2 === 0) {
+        playGlitchSynth(notes[note], now + i * 0.125, 0.15)
+      }
+    })
+
+    // Sub bass
+    if (section === 'drop') {
+      playSubBass(notes.E2, now, 0.5)
+      playSubBass(notes.E2, now + 0.5, 0.5)
+    }
+
+    // Drums
+    const kickPattern = section === 'drop' ? [0, 2, 4, 5, 6] : [0, 4]
+    kickPattern.forEach(b => playDistortedKick(now + b * 0.125))
+
+    // Hi-hats
+    for (let i = 0; i < 8; i++) {
+      if (section !== 'break' || Math.random() > 0.5) {
+        playGlitchHat(now + i * 0.125)
+      }
+    }
+  }
+
+  playCyberSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 16
+    if (section < 4) playCyberSection('intro')
+    else if (section < 8) playCyberSection('buildup')
+    else if (section < 14) playCyberSection('drop')
+    else playCyberSection('break')
+  }, 1000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WESTERN MUSIC - Acoustic guitar, harmonica, fiddle, dusty vibes
+// ═══════════════════════════════════════════════════════════════════════════
+function startWesternMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  const notes: Record<string, number> = {
+    G2: 98.00, A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
+    A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00
+  }
+
+  // Acoustic guitar strum
+  function playGuitarStrum(chord: number[], startTime: number, down: boolean = true) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    chord.forEach((freq, i) => {
+      const time = startTime + (down ? i : chord.length - 1 - i) * 0.02
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+
+      gain.gain.setValueAtTime(0.001, time)
+      gain.gain.linearRampToValueAtTime(0.08, time + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.8)
+
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(time)
+      osc.stop(time + 1)
+    })
+  }
+
+  // Harmonica
+  function playHarmonica(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const vibrato = audioContext.createOscillator()
+    const vibratoGain = audioContext.createGain()
+
+    osc.type = 'square'
+    osc.frequency.value = freq
+    osc2.type = 'square'
+    osc2.frequency.value = freq * 2
+
+    vibrato.type = 'sine'
+    vibrato.frequency.value = 5
+    vibratoGain.gain.value = 3
+
+    vibrato.connect(vibratoGain)
+    vibratoGain.connect(osc.frequency)
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.06, startTime + 0.1)
+    gain.gain.setValueAtTime(0.05, startTime + duration - 0.1)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    osc2.connect(gain)
+    gain.connect(musicGainNode!)
+
+    vibrato.start(startTime)
+    osc.start(startTime)
+    osc2.start(startTime)
+    vibrato.stop(startTime + duration + 0.1)
+    osc.stop(startTime + duration + 0.1)
+    osc2.stop(startTime + duration + 0.1)
+  }
+
+  // Fiddle
+  function playFiddle(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sawtooth'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.07, startTime + 0.05)
+    gain.gain.setValueAtTime(0.06, startTime + duration - 0.1)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Bass note
+  function playBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.18, startTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  const Gmaj = [notes.G2, notes.B2, notes.D3, notes.G3]
+  const Cmaj = [notes.C3, notes.E3, notes.G3, notes.C4]
+  const Dmaj = [notes.D3, notes.A3, notes.D4]
+  const Emin = [notes.E3, notes.G3, notes.B3, notes.E4]
+
+  const harmonicaMelody = ['G4', 'A4', 'B3', 'D4', 'G4', 'E4', 'D4', 'B3']
+  const fiddleMelody = ['D4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4', 'G3']
+
+  function playWesternSection(section: 'intro' | 'verse' | 'chorus' | 'bridge') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    // Guitar strums
+    if (section === 'intro') {
+      playGuitarStrum(Gmaj, now, true)
+      playGuitarStrum(Gmaj, now + 1.5, false)
+    } else {
+      playGuitarStrum(Gmaj, now, true)
+      playGuitarStrum(Cmaj, now + 1, true)
+      playGuitarStrum(Dmaj, now + 2, true)
+      playGuitarStrum(section === 'chorus' ? Cmaj : Emin, now + 3, true)
+    }
+
+    // Bass
+    playBass(notes.G2, now, 0.8)
+    playBass(notes.C3, now + 1, 0.8)
+    playBass(notes.D3, now + 2, 0.8)
+    playBass(notes.G2, now + 3, 0.8)
+
+    // Harmonica in verse and bridge
+    if (section === 'verse' || section === 'bridge') {
+      harmonicaMelody.forEach((note, i) => {
+        playHarmonica(notes[note], now + i * 0.5, 0.4)
+      })
+    }
+
+    // Fiddle in chorus
+    if (section === 'chorus') {
+      fiddleMelody.forEach((note, i) => {
+        playFiddle(notes[note], now + i * 0.5, 0.45)
+      })
+    }
+  }
+
+  playWesternSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 12
+    if (section < 2) playWesternSection('intro')
+    else if (section < 5) playWesternSection('verse')
+    else if (section < 9) playWesternSection('chorus')
+    else playWesternSection('bridge')
+  }, 4000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FUNK MUSIC - Slap bass, wah guitar, tight drums, groovy
+// ═══════════════════════════════════════════════════════════════════════════
+function startFunkMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  const notes: Record<string, number> = {
+    E2: 82.41, G2: 98.00, A2: 110.00, B2: 123.47,
+    E3: 164.81, G3: 196.00, A3: 220.00, B3: 246.94,
+    E4: 329.63, G4: 392.00, A4: 440.00, B4: 493.88, D5: 587.33
+  }
+
+  // Slap bass
+  function playSlapBass(freq: number, startTime: number, slap: boolean = false) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = slap ? 'square' : 'triangle'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(slap ? 0.25 : 0.18, startTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + (slap ? 0.1 : 0.2))
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + 0.3)
+  }
+
+  // Wah guitar
+  function playWahGuitar(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sawtooth'
+    osc.frequency.value = freq
+
+    filter.type = 'bandpass'
+    filter.Q.value = 8
+    // Wah effect - sweep the filter
+    filter.frequency.setValueAtTime(300, startTime)
+    filter.frequency.linearRampToValueAtTime(2000, startTime + duration * 0.5)
+    filter.frequency.linearRampToValueAtTime(500, startTime + duration)
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.08, startTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Funk drums - tight and groovy
+  function playFunkDrums() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+    const beat = 0.125; // 16th notes
+
+    // Kick pattern - syncopated
+    const kickBeats = [0, 3, 6, 10, 12, 15];
+    kickBeats.forEach((b: number) => {
+      const time = now + b * beat
+      const kick = audioContext!.createOscillator()
+      const kickGain = audioContext!.createGain()
+      kick.type = 'sine'
+      kick.frequency.setValueAtTime(120, time)
+      kick.frequency.exponentialRampToValueAtTime(40, time + 0.1)
+      kickGain.gain.setValueAtTime(0.35, time)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15)
+      kick.connect(kickGain)
+      kickGain.connect(musicGainNode!)
+      kick.start(time)
+      kick.stop(time + 0.2)
+    })
+
+    // Snare - ghost notes and accents
+    const snareBeats = [4, 7, 12, 14];
+    snareBeats.forEach((b: number, i: number) => {
+      const time = now + b * beat
+      const ghost = i === 1 || i === 3
+      const noise = audioContext!.createBufferSource()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+      noise.buffer = createNoiseBuffer(0.1)
+      filter.type = 'highpass'
+      filter.frequency.value = 2000
+      gain.gain.setValueAtTime(ghost ? 0.08 : 0.2, time)
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08)
+      noise.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+      noise.start(time)
+      noise.stop(time + 0.15)
+    })
+
+    // Hi-hat - open and closed
+    for (let b = 0; b < 16; b++) {
+      const time = now + b * beat
+      const open = b % 4 === 2
+      const hihat = audioContext!.createBufferSource()
+      const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
+      hihat.buffer = createNoiseBuffer(open ? 0.15 : 0.04)
+      filter.type = 'highpass'
+      filter.frequency.value = 8000
+      gain.gain.setValueAtTime(0.1, time)
+      gain.gain.exponentialRampToValueAtTime(0.001, time + (open ? 0.12 : 0.03))
+      hihat.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+      hihat.start(time)
+      hihat.stop(time + 0.2)
+    }
+  }
+
+  const bassLine = [
+    { note: 'E2', slap: true }, { note: 'E2', slap: false }, { note: 'G2', slap: true }, { note: 'A2', slap: false },
+    { note: 'E2', slap: true }, { note: 'B2', slap: false }, { note: 'A2', slap: true }, { note: 'G2', slap: false }
+  ]
+
+  const guitarRiff = ['E4', 'G4', 'A4', 'B4', 'A4', 'G4', 'E4', 'D5']
+
+  function playFunkSection(section: 'intro' | 'groove' | 'breakdown') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    // Bass line
+    bassLine.forEach((b, i) => {
+      playSlapBass(notes[b.note], now + i * 0.25, b.slap)
+    })
+
+    // Wah guitar
+    if (section !== 'breakdown') {
+      guitarRiff.forEach((note, i) => {
+        playWahGuitar(notes[note], now + i * 0.25, 0.3)
+      })
+    }
+
+    // Drums
+    playFunkDrums()
+  }
+
+  playFunkSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 8
+    if (section < 2) playFunkSection('intro')
+    else if (section < 6) playFunkSection('groove')
+    else playFunkSection('breakdown')
+  }, 2000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// METAL MUSIC - Heavy distortion, double bass, palm mutes, power chords
+// ═══════════════════════════════════════════════════════════════════════════
+function startMetalMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  const notes: Record<string, number> = {
+    D1: 36.71, E1: 41.20, F1: 43.65, G1: 49.00,
+    D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
+    D3: 146.83, E3: 164.81, F3: 174.61
+  }
+
+  // Heavy distorted guitar
+  function playMetalGuitar(freq: number, startTime: number, duration: number, palm: boolean = false) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    for (let i = 0; i < 4; i++) {
+      const osc = audioContext.createOscillator()
+      const gain = audioContext.createGain()
+      const distortion = audioContext.createWaveShaper()
+      const filter = audioContext.createBiquadFilter()
+
+      osc.type = 'sawtooth'
+      osc.frequency.value = freq * (1 + (i - 1.5) * 0.003)
+
+      const curve = new Float32Array(256)
+      for (let j = 0; j < 256; j++) {
+        const x = (j / 128) - 1
+        curve[j] = Math.tanh(x * 10) // Heavy distortion
+      }
+      distortion.curve = curve as Float32Array<ArrayBuffer>
+
+      filter.type = 'lowpass'
+      filter.frequency.value = palm ? 600 : 3000
+      filter.Q.value = 3
+
+      const vol = palm ? 0.04 : 0.06
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.005)
+      gain.gain.setValueAtTime(vol * 0.8, startTime + duration * 0.5)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      osc.connect(distortion)
+      distortion.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(startTime)
+      osc.stop(startTime + duration + 0.1)
+    }
+  }
+
+  // Double bass drum
+  function playDoubleBass() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+    const beat = 0.0625 // 32nd notes for double bass
+
+    for (let b = 0; b < 32; b += 2) {
+      const time = now + b * beat
+      const kick = audioContext.createOscillator()
+      const kickGain = audioContext.createGain()
+      const click = audioContext.createOscillator()
+      const clickGain = audioContext.createGain()
+
+      kick.type = 'sine'
+      kick.frequency.setValueAtTime(80, time)
+      kick.frequency.exponentialRampToValueAtTime(30, time + 0.08)
+      kickGain.gain.setValueAtTime(0.3, time)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1)
+
+      // Click attack
+      click.type = 'triangle'
+      click.frequency.value = 4000
+      clickGain.gain.setValueAtTime(0.1, time)
+      clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.01)
+
+      kick.connect(kickGain)
+      click.connect(clickGain)
+      kickGain.connect(musicGainNode!)
+      clickGain.connect(musicGainNode!)
+
+      kick.start(time)
+      click.start(time)
+      kick.stop(time + 0.15)
+      click.stop(time + 0.02)
+    }
+  }
+
+  // Snare blast
+  function playBlastSnare() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+
+    for (let b = 0; b < 8; b++) {
+      const time = now + b * 0.25
+      const noise = audioContext.createBufferSource()
+      const gain = audioContext.createGain()
+      const filter = audioContext.createBiquadFilter()
+
+      noise.buffer = createNoiseBuffer(0.08)
+      filter.type = 'highpass'
+      filter.frequency.value = 2500
+
+      gain.gain.setValueAtTime(0.25, time)
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06)
+
+      noise.connect(filter)
+      filter.connect(gain)
+      gain.connect(musicGainNode!)
+
+      noise.start(time)
+      noise.stop(time + 0.1)
+    }
+  }
+
+  // Crash cymbal
+  function playCrash(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const noise = audioContext.createBufferSource()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    noise.buffer = createNoiseBuffer(1.5)
+    filter.type = 'highpass'
+    filter.frequency.value = 5000
+
+    gain.gain.setValueAtTime(0.2, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    noise.start(startTime)
+    noise.stop(startTime + 1.5)
+  }
+
+  const introRiff = [
+    { note: 'D2', dur: 0.2, palm: true }, { note: 'D2', dur: 0.1, palm: true },
+    { note: 'E2', dur: 0.2, palm: true }, { note: 'F2', dur: 0.3, palm: false },
+    { note: 'D2', dur: 0.2, palm: true }, { note: 'D2', dur: 0.1, palm: true },
+    { note: 'G2', dur: 0.2, palm: true }, { note: 'F2', dur: 0.3, palm: false }
+  ]
+
+  const verseRiff = [
+    { note: 'D1', dur: 0.15, palm: true }, { note: 'D1', dur: 0.15, palm: true },
+    { note: 'D1', dur: 0.15, palm: true }, { note: 'E1', dur: 0.15, palm: true },
+    { note: 'F1', dur: 0.4, palm: false }, { note: 'D1', dur: 0.15, palm: true },
+    { note: 'D1', dur: 0.15, palm: true }, { note: 'G1', dur: 0.5, palm: false }
+  ]
+
+  function playMetalSection(section: 'intro' | 'verse' | 'chorus' | 'breakdown') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    const riff = section === 'intro' || section === 'chorus' ? introRiff : verseRiff
+
+    // Guitar riff
+    let time = 0
+    riff.forEach(r => {
+      playMetalGuitar(notes[r.note], now + time, r.dur, r.palm)
+      // Play power chord (add fifth)
+      playMetalGuitar(notes[r.note] * 1.5, now + time, r.dur, r.palm)
+      time += r.dur
+    })
+
+    // Drums
+    if (section === 'breakdown') {
+      // Half-time for breakdown
+      [0, 1].forEach(b => {
+        const kickTime = now + b
+        const kick = audioContext!.createOscillator()
+        const kickGain = audioContext!.createGain()
+        kick.type = 'sine'
+        kick.frequency.setValueAtTime(60, kickTime)
+        kick.frequency.exponentialRampToValueAtTime(25, kickTime + 0.2)
+        kickGain.gain.setValueAtTime(0.4, kickTime)
+        kickGain.gain.exponentialRampToValueAtTime(0.001, kickTime + 0.3)
+        kick.connect(kickGain)
+        kickGain.connect(musicGainNode!)
+        kick.start(kickTime)
+        kick.stop(kickTime + 0.4)
+      })
+    } else {
+      playDoubleBass()
+      playBlastSnare()
+    }
+
+    // Crash on chorus
+    if (section === 'chorus' && measureCount % 2 === 0) {
+      playCrash(now)
+    }
+  }
+
+  playMetalSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 16
+    if (section < 2) playMetalSection('intro')
+    else if (section < 6) playMetalSection('verse')
+    else if (section < 12) playMetalSection('chorus')
+    else playMetalSection('breakdown')
+  }, 2000)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYNTHWAVE MUSIC - 80s synths, arpeggios, gated reverb drums
+// ═══════════════════════════════════════════════════════════════════════════
+function startSynthwaveMusic() {
+  if (!audioContext || !musicGainNode) return
+
+  const notes: Record<string, number> = {
+    A2: 110.00, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
+    A3: 220.00, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
+    A4: 440.00, C5: 523.25, D5: 587.33, E5: 659.25
+  }
+
+  // Synth lead with detuned oscillators
+  function playSynthLead(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc1 = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc1.type = 'sawtooth'
+    osc1.frequency.value = freq
+    osc2.type = 'square'
+    osc2.frequency.value = freq * 1.005
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(800, startTime)
+    filter.frequency.linearRampToValueAtTime(3000, startTime + duration * 0.3)
+    filter.frequency.linearRampToValueAtTime(1500, startTime + duration)
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.08, startTime + 0.02)
+    gain.gain.setValueAtTime(0.06, startTime + duration * 0.7)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc1.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc1.start(startTime)
+    osc2.start(startTime)
+    osc1.stop(startTime + duration + 0.1)
+    osc2.stop(startTime + duration + 0.1)
+  }
+
+  // Pad synth
+  function playPad(freqs: number[], startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    freqs.forEach(freq => {
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.value = freq
+
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.linearRampToValueAtTime(0.04, startTime + 0.5)
+      gain.gain.setValueAtTime(0.03, startTime + duration - 0.5)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(startTime)
+      osc.stop(startTime + duration + 0.1)
+    })
+  }
+
+  // Arpeggiator
+  function playArpeggio(chord: number[], startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    chord.forEach((freq, i) => {
+      const time = startTime + i * 0.125
+      const osc = audioContext!.createOscillator()
+      const gain = audioContext!.createGain()
+
+      osc.type = 'square'
+      osc.frequency.value = freq
+
+      gain.gain.setValueAtTime(0.001, time)
+      gain.gain.linearRampToValueAtTime(0.05, time + 0.01)
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12)
+
+      osc.connect(gain)
+      gain.connect(musicGainNode!)
+
+      osc.start(time)
+      osc.stop(time + 0.15)
+    })
+  }
+
+  // Synth bass
+  function playSynthBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    osc.type = 'sawtooth'
+    osc.frequency.value = freq
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // 80s gated reverb drums
+  function play80sDrums() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+    const now = audioContext.currentTime
+    const beat = 0.25;
+
+    // Kick on 1 and 3
+    const kickBeats = [0, 2];
+    kickBeats.forEach((b: number) => {
+      const time = now + b * beat
+      const kick = audioContext!.createOscillator()
+      const kickGain = audioContext!.createGain()
+      kick.type = 'sine'
+      kick.frequency.setValueAtTime(100, time)
+      kick.frequency.exponentialRampToValueAtTime(40, time + 0.1)
+      kickGain.gain.setValueAtTime(0.4, time)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2)
+      kick.connect(kickGain)
+      kickGain.connect(musicGainNode!)
+      kick.start(time)
+      kick.stop(time + 0.3)
+    })
+
+    // Big gated snare on 2 and 4
+    const snareBeats = [1, 3];
+    snareBeats.forEach((b: number) => {
+      const time = now + b * beat
+      // Snare body
+      const snare = audioContext!.createBufferSource()
+      const snareGain = audioContext!.createGain()
+      snare.buffer = createNoiseBuffer(0.3)
+      snareGain.gain.setValueAtTime(0.3, time)
+      snareGain.gain.setValueAtTime(0.25, time + 0.05)
+      snareGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2)
+      snare.connect(snareGain)
+      snareGain.connect(musicGainNode!)
+      snare.start(time)
+      snare.stop(time + 0.35)
+
+      // Snare tone
+      const tone = audioContext!.createOscillator()
+      const toneGain = audioContext!.createGain()
+      tone.type = 'triangle'
+      tone.frequency.value = 200
+      toneGain.gain.setValueAtTime(0.2, time)
+      toneGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1)
+      tone.connect(toneGain)
+      toneGain.connect(musicGainNode!)
+      tone.start(time)
+      tone.stop(time + 0.15)
+    })
+  }
+
+  const Aminor = [notes.A3, notes.C4, notes.E4]
+  const Fmajor = [notes.F3, notes.A3, notes.C4]
+  const Cmajor = [notes.C4, notes.E4, notes.G4]
+  const Gmajor = [notes.G3, notes.D4, notes.G4]
+
+  const leadMelody = ['A4', 'C5', 'E5', 'D5', 'C5', 'A4', 'G4', 'A4']
+  const introLead = ['E5', 'D5', 'C5', 'A4']
+
+  function playSynthwaveSection(section: 'intro' | 'verse' | 'chorus' | 'outro') {
+    if (!audioContext || !musicEnabled) return
+    const now = audioContext.currentTime
+
+    // Pad chords
+    const chords = section === 'chorus' ? [Cmajor, Gmajor] : [Aminor, Fmajor]
+    chords.forEach((chord, i) => {
+      playPad(chord, now + i * 2, 2.5)
+    })
+
+    // Arpeggios
+    if (section !== 'intro') {
+      playArpeggio([...Aminor, notes.E4, notes.C4, notes.A3], now)
+      playArpeggio([...Fmajor, notes.C4, notes.A3, notes.F3], now + 1)
+    }
+
+    // Lead melody
+    const melody = section === 'intro' ? introLead : leadMelody
+    melody.forEach((note, i) => {
+      const dur = section === 'intro' ? 0.8 : 0.4
+      playSynthLead(notes[note], now + i * (section === 'intro' ? 1 : 0.5), dur)
+    })
+
+    // Bass
+    playSynthBass(notes.A2, now, 0.8)
+    playSynthBass(notes.F3, now + 1, 0.8)
+    playSynthBass(notes.C3, now + 2, 0.8)
+    playSynthBass(notes.G3, now + 3, 0.8)
+
+    // Drums
+    if (section !== 'intro') {
+      play80sDrums()
+      setTimeout(() => { if (musicEnabled) play80sDrums() }, 1000)
+      setTimeout(() => { if (musicEnabled) play80sDrums() }, 2000)
+      setTimeout(() => { if (musicEnabled) play80sDrums() }, 3000)
+    }
+  }
+
+  playSynthwaveSection('intro')
+
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    measureCount++
+
+    const section = measureCount % 16
+    if (section < 2) playSynthwaveSection('intro')
+    else if (section < 6) playSynthwaveSection('verse')
+    else if (section < 12) playSynthwaveSection('chorus')
+    else playSynthwaveSection('outro')
+  }, 4000)
 }
 
 function stopMusic() {
