@@ -19885,10 +19885,27 @@ function render() {
       let adminSearchQuery = ''
       let showCreateEvent = false
       let expandedUserId: string | null = null
+      let adminDataLoaded = false
+      let adminLoadError: string | null = null
+      let cachedUsers: any[] = []
+      let cachedEvents: any[] = []
 
       const renderAdminPanel = async () => {
-        const allUsers = await getAllUsers()
-        const allEvents = await adminGetAllEvents()
+        // Only fetch data if not already loaded or if we need to refresh
+        if (!adminDataLoaded) {
+          try {
+            cachedUsers = await getAllUsers()
+            cachedEvents = await adminGetAllEvents()
+            adminDataLoaded = true
+            adminLoadError = null
+          } catch (error) {
+            adminLoadError = 'Failed to load admin data. Check your connection.'
+            console.error('Admin panel load error:', error)
+          }
+        }
+
+        const allUsers = cachedUsers
+        const allEvents = cachedEvents
         const users = adminSearchQuery
           ? allUsers.filter(u =>
               u.username.toLowerCase().includes(adminSearchQuery.toLowerCase()) ||
@@ -19900,9 +19917,41 @@ function render() {
           ? 'bg-blue-600 text-white'
           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
 
+        // Show error if loading failed
+        if (adminLoadError) {
+          app.innerHTML = `
+            <div class="min-h-screen flex flex-col items-center justify-center p-4 gap-4">
+              <h1 class="text-2xl font-bold text-white">🔧 Admin Panel</h1>
+              <div class="text-red-400 text-center">${adminLoadError}</div>
+              <button id="admin-retry-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded">
+                Retry
+              </button>
+              <button id="admin-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded">
+                Back
+              </button>
+            </div>
+          `
+          document.getElementById('admin-retry-btn')?.addEventListener('click', () => {
+            adminDataLoaded = false
+            adminLoadError = null
+            app.innerHTML = `<div class="min-h-screen flex items-center justify-center"><div class="text-white text-xl">Loading...</div></div>`
+            renderAdminPanel()
+          })
+          document.getElementById('admin-back-btn')?.addEventListener('click', () => {
+            showAuthScreen = 'profile'
+            render()
+          })
+          return
+        }
+
         app.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
-            <h1 class="text-2xl sm:text-4xl font-bold text-white">🔧 Admin Panel</h1>
+            <div class="flex items-center gap-4">
+              <h1 class="text-2xl sm:text-4xl font-bold text-white">🔧 Admin Panel</h1>
+              <button id="admin-refresh-btn" class="bg-gray-600 hover:bg-gray-500 text-white p-2 rounded" title="Refresh data">
+                🔄
+              </button>
+            </div>
 
             <!-- Tabs -->
             <div class="flex flex-wrap gap-2">
@@ -20494,6 +20543,12 @@ function render() {
         document.getElementById('tab-tournaments')?.addEventListener('click', () => { adminTab = 'tournaments'; renderAdminPanel() })
         document.getElementById('tab-feedback')?.addEventListener('click', () => { adminTab = 'feedback'; renderAdminPanel() })
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
+
+        // Refresh button - force reload data
+        document.getElementById('admin-refresh-btn')?.addEventListener('click', () => {
+          adminDataLoaded = false
+          renderAdminPanel()
+        })
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
         document.getElementById('admin-debug-btn')?.addEventListener('click', () => { showDebugPanel() })
