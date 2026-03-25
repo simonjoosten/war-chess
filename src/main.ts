@@ -8007,6 +8007,48 @@ const translations: Record<Language, Record<string, string>> = {
     coachScoreAnswer1: 'Most points after 80 moves',
     coachScoreAnswer2: 'First to 100 points',
     coachScoreAnswer3: 'Capture all pieces',
+    // Game Modes
+    coachGameModesTitle: 'Game Modes',
+    coachGameModesStep1: 'You can play against another player or against the bot.',
+    coachGameModesStep2: 'The bot has 3 difficulty levels: Easy, Medium, and Hard.',
+    coachGameModesStep3: 'You can also play online against other players!',
+    coachGameModesQuestion: 'What game modes are available?',
+    coachGameModesAnswer1: 'Player vs Player and vs Bot',
+    coachGameModesAnswer2: 'Only single player',
+    coachGameModesAnswer3: 'Only online',
+    // Puzzles
+    coachPuzzlesTitle: 'Puzzles',
+    coachPuzzlesStep1: 'Puzzles are challenges where you must find the best moves.',
+    coachPuzzlesStep2: 'You have a limited number of moves to capture pieces or reach a goal.',
+    coachPuzzlesStep3: 'Complete puzzles to earn War Bucks and improve your skills!',
+    coachPuzzlesQuestion: 'What do you get from completing puzzles?',
+    coachPuzzlesAnswer1: 'War Bucks and skill',
+    coachPuzzlesAnswer2: 'Nothing',
+    coachPuzzlesAnswer3: 'Only points',
+    // Special pieces
+    coachShipTitle: 'The Ship',
+    coachShipStep1: 'The Ship can move on water (column F). It is the only piece that can cross water!',
+    coachShipStep2: 'Ships can carry helicopters on their deck.',
+    coachShipQuestion: 'What makes the Ship special?',
+    coachShipAnswer1: 'Moves on water',
+    coachShipAnswer2: 'Can fly',
+    coachShipAnswer3: 'Is invisible',
+    // Rocket
+    coachRocketTitle: 'The Rocket',
+    coachRocketStep1: 'The Rocket is a powerful weapon! It cannot move until turn 45.',
+    coachRocketStep2: 'When launched, it creates a 3x3 explosion that destroys all pieces in the area!',
+    coachRocketQuestion: 'When can the Rocket be used?',
+    coachRocketAnswer1: 'After turn 45',
+    coachRocketAnswer2: 'Immediately',
+    coachRocketAnswer3: 'Never',
+    // Trench
+    coachTrenchTitle: 'The Trench',
+    coachTrenchStep1: 'Only soldiers can enter the trench (the wooden square).',
+    coachTrenchStep2: 'In the trench, soldiers are protected but must leave after 3 turns!',
+    coachTrenchQuestion: 'How long can a soldier stay in the trench?',
+    coachTrenchAnswer1: '3 turns',
+    coachTrenchAnswer2: 'Forever',
+    coachTrenchAnswer3: '1 turn',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -8334,6 +8376,48 @@ const translations: Record<Language, Record<string, string>> = {
     coachScoreAnswer1: 'Meeste punten na 80 zetten',
     coachScoreAnswer2: 'Eerst 100 punten',
     coachScoreAnswer3: 'Alle stukken pakken',
+    // Game Modes
+    coachGameModesTitle: 'Spelmodi',
+    coachGameModesStep1: 'Je kunt spelen tegen een andere speler of tegen de bot.',
+    coachGameModesStep2: 'De bot heeft 3 moeilijkheidsgraden: Makkelijk, Gemiddeld en Moeilijk.',
+    coachGameModesStep3: 'Je kunt ook online tegen andere spelers spelen!',
+    coachGameModesQuestion: 'Welke spelmodi zijn er?',
+    coachGameModesAnswer1: 'Speler vs Speler en vs Bot',
+    coachGameModesAnswer2: 'Alleen singleplayer',
+    coachGameModesAnswer3: 'Alleen online',
+    // Puzzles
+    coachPuzzlesTitle: 'Puzzels',
+    coachPuzzlesStep1: 'Puzzels zijn uitdagingen waar je de beste zetten moet vinden.',
+    coachPuzzlesStep2: 'Je hebt een beperkt aantal zetten om stukken te pakken of een doel te bereiken.',
+    coachPuzzlesStep3: 'Voltooi puzzels om War Bucks te verdienen en je vaardigheden te verbeteren!',
+    coachPuzzlesQuestion: 'Wat krijg je van het voltooien van puzzels?',
+    coachPuzzlesAnswer1: 'War Bucks en vaardigheid',
+    coachPuzzlesAnswer2: 'Niets',
+    coachPuzzlesAnswer3: 'Alleen punten',
+    // Special pieces
+    coachShipTitle: 'Het Schip',
+    coachShipStep1: 'Het Schip kan over water bewegen (kolom F). Het is het enige stuk dat water kan oversteken!',
+    coachShipStep2: 'Schepen kunnen helicopters op hun dek dragen.',
+    coachShipQuestion: 'Wat maakt het Schip speciaal?',
+    coachShipAnswer1: 'Beweegt over water',
+    coachShipAnswer2: 'Kan vliegen',
+    coachShipAnswer3: 'Is onzichtbaar',
+    // Rocket
+    coachRocketTitle: 'De Raket',
+    coachRocketStep1: 'De Raket is een krachtig wapen! Hij kan niet bewegen tot beurt 45.',
+    coachRocketStep2: 'Bij lancering creëert hij een 3x3 explosie die alle stukken in het gebied vernietigt!',
+    coachRocketQuestion: 'Wanneer kan de Raket worden gebruikt?',
+    coachRocketAnswer1: 'Na beurt 45',
+    coachRocketAnswer2: 'Meteen',
+    coachRocketAnswer3: 'Nooit',
+    // Trench
+    coachTrenchTitle: 'De Loopgraaf',
+    coachTrenchStep1: 'Alleen soldaten kunnen de loopgraaf betreden (het houten vak).',
+    coachTrenchStep2: 'In de loopgraaf zijn soldaten beschermd maar moeten na 3 beurten vertrekken!',
+    coachTrenchQuestion: 'Hoe lang kan een soldaat in de loopgraaf blijven?',
+    coachTrenchAnswer1: '3 beurten',
+    coachTrenchAnswer2: 'Voor altijd',
+    coachTrenchAnswer3: '1 beurt',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -8659,6 +8743,45 @@ const translations: Record<Language, Record<string, string>> = {
     coachScoreAnswer1: 'Meiste Punkte nach 80 Zügen',
     coachScoreAnswer2: 'Zuerst 100 Punkte',
     coachScoreAnswer3: 'Alle Figuren schlagen',
+    // Game Modes
+    coachGameModesTitle: 'Spielmodi',
+    coachGameModesStep1: 'Du kannst gegen einen anderen Spieler oder gegen den Bot spielen.',
+    coachGameModesStep2: 'Der Bot hat 3 Schwierigkeitsgrade: Einfach, Mittel und Schwer.',
+    coachGameModesStep3: 'Du kannst auch online gegen andere Spieler spielen!',
+    coachGameModesQuestion: 'Welche Spielmodi gibt es?',
+    coachGameModesAnswer1: 'Spieler vs Spieler und vs Bot',
+    coachGameModesAnswer2: 'Nur Einzelspieler',
+    coachGameModesAnswer3: 'Nur online',
+    // Puzzles
+    coachPuzzlesTitle: 'Rätsel',
+    coachPuzzlesStep1: 'Rätsel sind Herausforderungen, bei denen du die besten Züge finden musst.',
+    coachPuzzlesStep2: 'Du hast begrenzte Züge, um Figuren zu schlagen oder ein Ziel zu erreichen.',
+    coachPuzzlesStep3: 'Löse Rätsel, um War Bucks zu verdienen und deine Fähigkeiten zu verbessern!',
+    coachPuzzlesQuestion: 'Was bekommst du für das Lösen von Rätseln?',
+    coachPuzzlesAnswer1: 'War Bucks und Fähigkeit',
+    coachPuzzlesAnswer2: 'Nichts',
+    coachPuzzlesAnswer3: 'Nur Punkte',
+    coachShipTitle: 'Das Schiff',
+    coachShipStep1: 'Das Schiff kann auf Wasser fahren (Spalte F). Es ist die einzige Figur, die Wasser überqueren kann!',
+    coachShipStep2: 'Schiffe können Hubschrauber auf ihrem Deck tragen.',
+    coachShipQuestion: 'Was macht das Schiff besonders?',
+    coachShipAnswer1: 'Fährt auf Wasser',
+    coachShipAnswer2: 'Kann fliegen',
+    coachShipAnswer3: 'Ist unsichtbar',
+    coachRocketTitle: 'Die Rakete',
+    coachRocketStep1: 'Die Rakete ist eine mächtige Waffe! Sie kann sich bis Zug 45 nicht bewegen.',
+    coachRocketStep2: 'Beim Start erzeugt sie eine 3x3 Explosion, die alle Figuren im Bereich zerstört!',
+    coachRocketQuestion: 'Wann kann die Rakete benutzt werden?',
+    coachRocketAnswer1: 'Nach Zug 45',
+    coachRocketAnswer2: 'Sofort',
+    coachRocketAnswer3: 'Nie',
+    coachTrenchTitle: 'Der Schützengraben',
+    coachTrenchStep1: 'Nur Soldaten können den Schützengraben betreten (das Holzfeld).',
+    coachTrenchStep2: 'Im Graben sind Soldaten geschützt, müssen aber nach 3 Zügen raus!',
+    coachTrenchQuestion: 'Wie lange kann ein Soldat im Graben bleiben?',
+    coachTrenchAnswer1: '3 Züge',
+    coachTrenchAnswer2: 'Für immer',
+    coachTrenchAnswer3: '1 Zug',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -8984,6 +9107,44 @@ const translations: Record<Language, Record<string, string>> = {
     coachScoreAnswer1: 'Plus de points après 80 coups',
     coachScoreAnswer2: 'Premier à 100 points',
     coachScoreAnswer3: 'Capturer toutes les pièces',
+    // Game Modes
+    coachGameModesTitle: 'Modes de jeu',
+    coachGameModesStep1: 'Tu peux jouer contre un autre joueur ou contre le bot.',
+    coachGameModesStep2: 'Le bot a 3 niveaux de difficulté: Facile, Moyen et Difficile.',
+    coachGameModesStep3: 'Tu peux aussi jouer en ligne contre d\'autres joueurs!',
+    coachGameModesQuestion: 'Quels modes de jeu sont disponibles?',
+    coachGameModesAnswer1: 'Joueur vs Joueur et vs Bot',
+    coachGameModesAnswer2: 'Solo uniquement',
+    coachGameModesAnswer3: 'En ligne uniquement',
+    coachPuzzlesTitle: 'Puzzles',
+    coachPuzzlesStep1: 'Les puzzles sont des défis où tu dois trouver les meilleurs coups.',
+    coachPuzzlesStep2: 'Tu as un nombre limité de coups pour capturer des pièces ou atteindre un objectif.',
+    coachPuzzlesStep3: 'Complète des puzzles pour gagner des War Bucks et améliorer tes compétences!',
+    coachPuzzlesQuestion: 'Que gagne-t-on en complétant des puzzles?',
+    coachPuzzlesAnswer1: 'War Bucks et compétence',
+    coachPuzzlesAnswer2: 'Rien',
+    coachPuzzlesAnswer3: 'Seulement des points',
+    coachShipTitle: 'Le Navire',
+    coachShipStep1: 'Le Navire peut se déplacer sur l\'eau (colonne F). C\'est la seule pièce qui peut traverser l\'eau!',
+    coachShipStep2: 'Les navires peuvent transporter des hélicoptères sur leur pont.',
+    coachShipQuestion: 'Qu\'est-ce qui rend le Navire spécial?',
+    coachShipAnswer1: 'Se déplace sur l\'eau',
+    coachShipAnswer2: 'Peut voler',
+    coachShipAnswer3: 'Est invisible',
+    coachRocketTitle: 'La Fusée',
+    coachRocketStep1: 'La Fusée est une arme puissante! Elle ne peut pas bouger avant le tour 45.',
+    coachRocketStep2: 'Au lancement, elle crée une explosion 3x3 qui détruit toutes les pièces dans la zone!',
+    coachRocketQuestion: 'Quand la Fusée peut-elle être utilisée?',
+    coachRocketAnswer1: 'Après le tour 45',
+    coachRocketAnswer2: 'Immédiatement',
+    coachRocketAnswer3: 'Jamais',
+    coachTrenchTitle: 'La Tranchée',
+    coachTrenchStep1: 'Seuls les soldats peuvent entrer dans la tranchée (la case en bois).',
+    coachTrenchStep2: 'Dans la tranchée, les soldats sont protégés mais doivent partir après 3 tours!',
+    coachTrenchQuestion: 'Combien de temps un soldat peut-il rester dans la tranchée?',
+    coachTrenchAnswer1: '3 tours',
+    coachTrenchAnswer2: 'Pour toujours',
+    coachTrenchAnswer3: '1 tour',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -9309,6 +9470,44 @@ const translations: Record<Language, Record<string, string>> = {
     coachScoreAnswer1: 'Más puntos después de 80 movimientos',
     coachScoreAnswer2: 'Primero en 100 puntos',
     coachScoreAnswer3: 'Capturar todas las piezas',
+    // Game Modes
+    coachGameModesTitle: 'Modos de Juego',
+    coachGameModesStep1: 'Puedes jugar contra otro jugador o contra el bot.',
+    coachGameModesStep2: 'El bot tiene 3 niveles de dificultad: Fácil, Medio y Difícil.',
+    coachGameModesStep3: '¡También puedes jugar en línea contra otros jugadores!',
+    coachGameModesQuestion: '¿Qué modos de juego hay?',
+    coachGameModesAnswer1: 'Jugador vs Jugador y vs Bot',
+    coachGameModesAnswer2: 'Solo un jugador',
+    coachGameModesAnswer3: 'Solo en línea',
+    coachPuzzlesTitle: 'Puzzles',
+    coachPuzzlesStep1: 'Los puzzles son desafíos donde debes encontrar los mejores movimientos.',
+    coachPuzzlesStep2: 'Tienes un número limitado de movimientos para capturar piezas o alcanzar un objetivo.',
+    coachPuzzlesStep3: '¡Completa puzzles para ganar War Bucks y mejorar tus habilidades!',
+    coachPuzzlesQuestion: '¿Qué obtienes al completar puzzles?',
+    coachPuzzlesAnswer1: 'War Bucks y habilidad',
+    coachPuzzlesAnswer2: 'Nada',
+    coachPuzzlesAnswer3: 'Solo puntos',
+    coachShipTitle: 'El Barco',
+    coachShipStep1: 'El Barco puede moverse sobre el agua (columna F). ¡Es la única pieza que puede cruzar el agua!',
+    coachShipStep2: 'Los barcos pueden llevar helicópteros en su cubierta.',
+    coachShipQuestion: '¿Qué hace especial al Barco?',
+    coachShipAnswer1: 'Se mueve sobre el agua',
+    coachShipAnswer2: 'Puede volar',
+    coachShipAnswer3: 'Es invisible',
+    coachRocketTitle: 'El Cohete',
+    coachRocketStep1: '¡El Cohete es un arma poderosa! No puede moverse hasta el turno 45.',
+    coachRocketStep2: '¡Al lanzarse, crea una explosión 3x3 que destruye todas las piezas en el área!',
+    coachRocketQuestion: '¿Cuándo se puede usar el Cohete?',
+    coachRocketAnswer1: 'Después del turno 45',
+    coachRocketAnswer2: 'Inmediatamente',
+    coachRocketAnswer3: 'Nunca',
+    coachTrenchTitle: 'La Trinchera',
+    coachTrenchStep1: 'Solo los soldados pueden entrar en la trinchera (la casilla de madera).',
+    coachTrenchStep2: '¡En la trinchera, los soldados están protegidos pero deben salir después de 3 turnos!',
+    coachTrenchQuestion: '¿Cuánto tiempo puede un soldado quedarse en la trinchera?',
+    coachTrenchAnswer1: '3 turnos',
+    coachTrenchAnswer2: 'Para siempre',
+    coachTrenchAnswer3: '1 turno',
   }
 }
 
@@ -19963,6 +20162,7 @@ function render() {
         { key: 'coachLesson1Title', type: 'lesson', piece: 'soldier', steps: ['coachLesson1Step1', 'coachLesson1Step2', 'coachLesson1Step3', 'coachLesson1Step4'], question: 'coachLesson1Question', answers: ['coachLesson1Answer1', 'coachLesson1Answer2', 'coachLesson1Answer3'], correct: 0 },
         { key: 'coachLesson2Title', type: 'lesson', piece: 'tank', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer1', 'coachLesson2Answer2', 'coachLesson2Answer3'], correct: 0 },
         { key: 'coachLesson3Title', type: 'lesson', piece: 'suv', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer1', 'coachLesson3Answer2', 'coachLesson3Answer3'], correct: 0 },
+        { key: 'coachGameModesTitle', type: 'lesson', steps: ['coachGameModesStep1', 'coachGameModesStep2', 'coachGameModesStep3'], question: 'coachGameModesQuestion', answers: ['coachGameModesAnswer1', 'coachGameModesAnswer2', 'coachGameModesAnswer3'], correct: 0 },
         { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer1', 'coachScoreAnswer2', 'coachScoreAnswer3'], correct: 0 },
       ]
 
@@ -19970,7 +20170,8 @@ function render() {
         { key: 'coachWelcome', type: 'intro' },
         { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer2', 'coachLesson4Answer1', 'coachLesson4Answer3'], correct: 1 },
         { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer2', 'coachLesson5Answer3', 'coachLesson5Answer1'], correct: 2 },
-        { key: 'coachLesson1Title', type: 'lesson', piece: 'soldier', steps: ['coachLesson1Step1', 'coachLesson1Step2'], question: 'coachLesson1Question', answers: ['coachLesson1Answer3', 'coachLesson1Answer1', 'coachLesson1Answer2'], correct: 1 },
+        { key: 'coachTrenchTitle', type: 'lesson', piece: 'soldier', steps: ['coachTrenchStep1', 'coachTrenchStep2'], question: 'coachTrenchQuestion', answers: ['coachTrenchAnswer1', 'coachTrenchAnswer2', 'coachTrenchAnswer3'], correct: 0 },
+        { key: 'coachPuzzlesTitle', type: 'lesson', steps: ['coachPuzzlesStep1', 'coachPuzzlesStep2', 'coachPuzzlesStep3'], question: 'coachPuzzlesQuestion', answers: ['coachPuzzlesAnswer2', 'coachPuzzlesAnswer1', 'coachPuzzlesAnswer3'], correct: 1 },
         { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer2', 'coachScoreAnswer1', 'coachScoreAnswer3'], correct: 1 },
       ]
 
@@ -19978,15 +20179,17 @@ function render() {
         { key: 'coachWelcome', type: 'intro' },
         { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer3', 'coachLesson5Answer1', 'coachLesson5Answer2'], correct: 1 },
         { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer3', 'coachLesson4Answer2', 'coachLesson4Answer1'], correct: 2 },
-        { key: 'coachLesson2Title', type: 'lesson', piece: 'tank', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer2', 'coachLesson2Answer1', 'coachLesson2Answer3'], correct: 1 },
-        { key: 'coachLesson3Title', type: 'lesson', piece: 'suv', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer2', 'coachLesson3Answer3', 'coachLesson3Answer1'], correct: 2 },
+        { key: 'coachShipTitle', type: 'lesson', piece: 'ship', steps: ['coachShipStep1', 'coachShipStep2'], question: 'coachShipQuestion', answers: ['coachShipAnswer2', 'coachShipAnswer1', 'coachShipAnswer3'], correct: 1 },
+        { key: 'coachRocketTitle', type: 'lesson', piece: 'rocket', steps: ['coachRocketStep1', 'coachRocketStep2'], question: 'coachRocketQuestion', answers: ['coachRocketAnswer2', 'coachRocketAnswer1', 'coachRocketAnswer3'], correct: 1 },
+        { key: 'coachPuzzlesTitle', type: 'lesson', steps: ['coachPuzzlesStep1', 'coachPuzzlesStep2', 'coachPuzzlesStep3'], question: 'coachPuzzlesQuestion', answers: ['coachPuzzlesAnswer3', 'coachPuzzlesAnswer2', 'coachPuzzlesAnswer1'], correct: 2 },
       ]
 
       const warGodsLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
         { key: 'coachWelcome', type: 'intro' },
         { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer2', 'coachLesson4Answer3', 'coachLesson4Answer1'], correct: 2 },
         { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer2', 'coachLesson5Answer1', 'coachLesson5Answer3'], correct: 1 },
-        { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer3', 'coachScoreAnswer2', 'coachScoreAnswer1'], correct: 2 },
+        { key: 'coachRocketTitle', type: 'lesson', piece: 'rocket', steps: ['coachRocketStep2'], question: 'coachRocketQuestion', answers: ['coachRocketAnswer3', 'coachRocketAnswer2', 'coachRocketAnswer1'], correct: 2 },
+        { key: 'coachShipTitle', type: 'lesson', piece: 'ship', steps: ['coachShipStep1'], question: 'coachShipQuestion', answers: ['coachShipAnswer3', 'coachShipAnswer1', 'coachShipAnswer2'], correct: 1 },
       ]
 
       // Select lessons based on level
@@ -20082,6 +20285,26 @@ function render() {
                 <polygon points="${x + size/2},${y + size/4} ${x + size*0.3},${y + size*0.8} ${x + size*0.7},${y + size*0.8}" fill="#71717a" stroke="#404040" stroke-width="1" />
                 <circle cx="${x + size/2}" cy="${y + size/4 + 4}" r="3" fill="#ef4444" />
               </g>`
+          case 'ship':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <path d="M${x + 4} ${y + size*0.7} L${x + size/2} ${y + size*0.85} L${x + size - 4} ${y + size*0.7} L${x + size - 6} ${y + size*0.5} L${x + 6} ${y + size*0.5} Z" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
+                <rect x="${x + size/3}" y="${y + size*0.35}" width="${size/3}" height="${size*0.2}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" />
+                <rect x="${x + size*0.4}" y="${y + size*0.2}" width="${size*0.2}" height="${size*0.18}" fill="#444" />
+                <rect x="${x + size*0.45}" y="${y + size*0.1}" width="3" height="${size*0.12}" fill="#666" />
+              </g>`
+          case 'rocket':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/4}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <rect x="${x + size/3}" y="${y + size*0.3}" width="${size/3}" height="${size*0.5}" fill="#444" stroke="#222" stroke-width="1.5" rx="3" />
+                <polygon points="${x + size/2},${y + size*0.15} ${x + size/3},${y + size*0.35} ${x + size*0.67},${y + size*0.35}" fill="#ef4444" stroke="#b91c1c" stroke-width="1" />
+                <rect x="${x + size*0.38}" y="${y + size*0.4}" width="${size*0.24}" height="${size*0.15}" fill="#fbbf24" />
+                <polygon points="${x + size/3 - 4},${y + size*0.75} ${x + size/3},${y + size*0.5} ${x + size/3},${y + size*0.8}" fill="#666" />
+                <polygon points="${x + size*0.67 + 4},${y + size*0.75} ${x + size*0.67},${y + size*0.5} ${x + size*0.67},${y + size*0.8}" fill="#666" />
+                <ellipse cx="${x + size/2}" cy="${y + size*0.85}" rx="${size/6}" ry="${size/10}" fill="#f97316" opacity="0.8" />
+              </g>`
           default:
             return `<circle cx="${x + size/2}" cy="${y + size/2}" r="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="2" />`
         }
@@ -20112,6 +20335,8 @@ function render() {
             suv: [{dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}, {dx: 1, dy: 1}, {dx: -2, dy: -2}, {dx: 2, dy: -2}],
             builder: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
             hacker: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
+            ship: [{dx: 0, dy: -1}, {dx: 0, dy: -2}, {dx: 0, dy: 1}, {dx: 0, dy: 2}],
+            rocket: [], // Rocket doesn't move normally
           }
 
           const moves = movePatterns[currentLesson.piece] || []
@@ -20138,6 +20363,32 @@ function render() {
             svg += drawCoachPiece('soldier', 'green', 2 * coachSquareSize + 2, 0 * coachSquareSize + 2, coachSquareSize - 4)
             // Purple highlight for hackable
             svg += `<rect x="${2 * coachSquareSize + 3}" y="${0 * coachSquareSize + 3}" width="${coachSquareSize - 6}" height="${coachSquareSize - 6}" fill="#a855f7" opacity="0.4" rx="4" />`
+          }
+
+          // For ship lesson, show water column
+          if (currentLesson.piece === 'ship') {
+            // Draw water column in the middle
+            for (let row = 0; row < coachBoardSize; row++) {
+              svg += `<rect x="${2 * coachSquareSize}" y="${row * coachSquareSize}" width="${coachSquareSize}" height="${coachSquareSize}" fill="#3b82f6" opacity="0.4" />`
+            }
+            // Redraw piece on top
+            svg += drawCoachPiece('ship', 'yellow', centerX + 2, centerY + 2, coachSquareSize - 4)
+          }
+
+          // For rocket lesson, show explosion area
+          if (currentLesson.piece === 'rocket') {
+            // Show 3x3 explosion area
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const ex = (2 + dx) * coachSquareSize
+                const ey = (2 + dy) * coachSquareSize
+                svg += `<rect x="${ex + 2}" y="${ey + 2}" width="${coachSquareSize - 4}" height="${coachSquareSize - 4}" fill="#ef4444" opacity="0.3" rx="2" />`
+              }
+            }
+            // Redraw rocket on top
+            svg += drawCoachPiece('rocket', 'yellow', centerX + 2, centerY + 2, coachSquareSize - 4)
+            // Add explosion effect text
+            svg += `<text x="${centerX + coachSquareSize/2}" y="${coachSquareSize/2}" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="bold">3x3 BOOM!</text>`
           }
         }
 
