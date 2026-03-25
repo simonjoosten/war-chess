@@ -17127,7 +17127,14 @@ function createBoard(): string {
 
       // Draw the piece behind barricade first (so barricade appears on top)
       if (otherPiece) {
+        // Hide enemy landmines - they're invisible until you step on them!
+        const playerTeam = multiplayerTeam || 'yellow'
+        if (otherPiece.type === 'landmine' && otherPiece.team !== playerTeam) {
+          // Don't draw enemy landmines - they're hidden
+          // (but still exists for collision detection)
+        }
         // Check if this piece is the charging train
+        else
         if (trainHitAnimation && trainHitAnimation.train === otherPiece && trainHitAnimation.phase === 'moving') {
           const progress = (trainHitAnimation as any).progress || 0
           const targetColIndex = columns.indexOf(trainHitAnimation.targetCol)
