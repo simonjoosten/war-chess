@@ -5790,157 +5790,360 @@ function startWesternMusic() {
   if (!audioContext || !musicGainNode) return
 
   const notes: Record<string, number> = {
-    G2: 98.00, A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
-    A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00
+    E2: 82.41, G2: 98.00, A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
+    A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88, D5: 587.33
   }
 
-  // Acoustic guitar strum
+  // Acoustic guitar strum with warmth
   function playGuitarStrum(chord: number[], startTime: number, down: boolean = true) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
     chord.forEach((freq, i) => {
-      const time = startTime + (down ? i : chord.length - 1 - i) * 0.02
+      const time = startTime + (down ? i : chord.length - 1 - i) * 0.025
       const osc = audioContext!.createOscillator()
+      const osc2 = audioContext!.createOscillator()
       const gain = audioContext!.createGain()
+      const filter = audioContext!.createBiquadFilter()
 
       osc.type = 'triangle'
       osc.frequency.value = freq
+      osc2.type = 'sine'
+      osc2.frequency.value = freq * 2
+
+      filter.type = 'lowpass'
+      filter.frequency.value = 2500
+      filter.Q.value = 1
 
       gain.gain.setValueAtTime(0.001, time)
-      gain.gain.linearRampToValueAtTime(0.08, time + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.8)
+      gain.gain.linearRampToValueAtTime(0.07, time + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 1.2)
 
-      osc.connect(gain)
+      osc.connect(filter)
+      osc2.connect(filter)
+      filter.connect(gain)
       gain.connect(musicGainNode!)
 
       osc.start(time)
-      osc.stop(time + 1)
+      osc2.start(time)
+      osc.stop(time + 1.5)
+      osc2.stop(time + 1.5)
     })
   }
 
-  // Harmonica
-  function playHarmonica(freq: number, startTime: number, duration: number) {
+  // Slide guitar - smooth "waaaah" gliding sounds
+  function playSlideGuitar(fromFreq: number, toFreq: number, startTime: number, duration: number) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
     const osc = audioContext.createOscillator()
     const osc2 = audioContext.createOscillator()
     const gain = audioContext.createGain()
-    const vibrato = audioContext.createOscillator()
-    const vibratoGain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
 
-    osc.type = 'square'
-    osc.frequency.value = freq
-    osc2.type = 'square'
-    osc2.frequency.value = freq * 2
+    osc.type = 'triangle'
+    osc2.type = 'sine'
 
-    vibrato.type = 'sine'
-    vibrato.frequency.value = 5
-    vibratoGain.gain.value = 3
+    // Smooth slide between notes
+    osc.frequency.setValueAtTime(fromFreq, startTime)
+    osc.frequency.linearRampToValueAtTime(toFreq, startTime + duration * 0.6)
+    osc.frequency.setValueAtTime(toFreq, startTime + duration)
 
-    vibrato.connect(vibratoGain)
-    vibratoGain.connect(osc.frequency)
+    osc2.frequency.setValueAtTime(fromFreq * 2, startTime)
+    osc2.frequency.linearRampToValueAtTime(toFreq * 2, startTime + duration * 0.6)
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(800, startTime)
+    filter.frequency.linearRampToValueAtTime(2500, startTime + duration * 0.4)
+    filter.frequency.linearRampToValueAtTime(1200, startTime + duration)
+    filter.Q.value = 2
 
     gain.gain.setValueAtTime(0.001, startTime)
-    gain.gain.linearRampToValueAtTime(0.06, startTime + 0.1)
-    gain.gain.setValueAtTime(0.05, startTime + duration - 0.1)
+    gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05)
+    gain.gain.setValueAtTime(0.08, startTime + duration * 0.7)
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-    osc.connect(gain)
-    osc2.connect(gain)
+    osc.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
     gain.connect(musicGainNode!)
 
-    vibrato.start(startTime)
     osc.start(startTime)
     osc2.start(startTime)
-    vibrato.stop(startTime + duration + 0.1)
+    osc.stop(startTime + duration + 0.2)
+    osc2.stop(startTime + duration + 0.2)
+  }
+
+  // Coyote howl - long "wooooh" sound
+  function playCoyoteHowl(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sine'
+    osc2.type = 'triangle'
+
+    // Rising howl: wooooOOOOH
+    osc.frequency.setValueAtTime(200, startTime)
+    osc.frequency.linearRampToValueAtTime(400, startTime + 0.8)
+    osc.frequency.linearRampToValueAtTime(600, startTime + 1.2)
+    osc.frequency.linearRampToValueAtTime(500, startTime + 1.8)
+    osc.frequency.linearRampToValueAtTime(300, startTime + 2.5)
+
+    osc2.frequency.setValueAtTime(205, startTime)
+    osc2.frequency.linearRampToValueAtTime(408, startTime + 0.8)
+    osc2.frequency.linearRampToValueAtTime(612, startTime + 1.2)
+    osc2.frequency.linearRampToValueAtTime(510, startTime + 1.8)
+    osc2.frequency.linearRampToValueAtTime(308, startTime + 2.5)
+
+    filter.type = 'bandpass'
+    filter.frequency.value = 600
+    filter.Q.value = 3
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.06, startTime + 0.3)
+    gain.gain.setValueAtTime(0.08, startTime + 1.2)
+    gain.gain.linearRampToValueAtTime(0.04, startTime + 2)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 2.5)
+
+    osc.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc2.start(startTime)
+    osc.stop(startTime + 3)
+    osc2.stop(startTime + 3)
+  }
+
+  // Harmonica with better wah-wah
+  function playHarmonica(freq: number, startTime: number, duration: number, bend: boolean = false) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'square'
+    osc2.type = 'sawtooth'
+
+    if (bend) {
+      // Bend the note - wah effect
+      osc.frequency.setValueAtTime(freq * 0.95, startTime)
+      osc.frequency.linearRampToValueAtTime(freq, startTime + duration * 0.3)
+      osc.frequency.linearRampToValueAtTime(freq * 1.02, startTime + duration * 0.6)
+      osc.frequency.linearRampToValueAtTime(freq, startTime + duration)
+    } else {
+      osc.frequency.value = freq
+    }
+    osc2.frequency.value = freq * 2.01
+
+    filter.type = 'bandpass'
+    filter.frequency.setValueAtTime(800, startTime)
+    filter.frequency.linearRampToValueAtTime(1500, startTime + duration * 0.5)
+    filter.frequency.linearRampToValueAtTime(900, startTime + duration)
+    filter.Q.value = 4
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.05, startTime + 0.08)
+    gain.gain.setValueAtTime(0.04, startTime + duration - 0.15)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc2.start(startTime)
     osc.stop(startTime + duration + 0.1)
     osc2.stop(startTime + duration + 0.1)
   }
 
-  // Fiddle
+  // Fiddle with vibrato
   function playFiddle(freq: number, startTime: number, duration: number) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
     const osc = audioContext.createOscillator()
+    const vibrato = audioContext.createOscillator()
+    const vibratoGain = audioContext.createGain()
     const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
 
     osc.type = 'sawtooth'
     osc.frequency.value = freq
 
+    vibrato.type = 'sine'
+    vibrato.frequency.value = 5.5
+    vibratoGain.gain.value = 4
+
+    vibrato.connect(vibratoGain)
+    vibratoGain.connect(osc.frequency)
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 3000
+    filter.Q.value = 1
+
     gain.gain.setValueAtTime(0.001, startTime)
-    gain.gain.linearRampToValueAtTime(0.07, startTime + 0.05)
-    gain.gain.setValueAtTime(0.06, startTime + duration - 0.1)
+    gain.gain.linearRampToValueAtTime(0.06, startTime + 0.04)
+    gain.gain.setValueAtTime(0.05, startTime + duration - 0.12)
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-    osc.connect(gain)
+    osc.connect(filter)
+    filter.connect(gain)
     gain.connect(musicGainNode!)
 
+    vibrato.start(startTime)
     osc.start(startTime)
+    vibrato.stop(startTime + duration + 0.1)
     osc.stop(startTime + duration + 0.1)
   }
 
-  // Bass note
+  // Upright bass - warm and round
   function playBass(freq: number, startTime: number, duration: number) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
     const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
     const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
 
     osc.type = 'sine'
     osc.frequency.value = freq
+    osc2.type = 'triangle'
+    osc2.frequency.value = freq
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 400
+    filter.Q.value = 1
 
     gain.gain.setValueAtTime(0.001, startTime)
-    gain.gain.linearRampToValueAtTime(0.18, startTime + 0.02)
+    gain.gain.linearRampToValueAtTime(0.15, startTime + 0.03)
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-    osc.connect(gain)
+    osc.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
     gain.connect(musicGainNode!)
 
     osc.start(startTime)
+    osc2.start(startTime)
     osc.stop(startTime + duration + 0.1)
+    osc2.stop(startTime + duration + 0.1)
   }
 
-  const Gmaj = [notes.G2, notes.B2, notes.D3, notes.G3]
-  const Cmaj = [notes.C3, notes.E3, notes.G3, notes.C4]
-  const Dmaj = [notes.D3, notes.A3, notes.D4]
-  const Emin = [notes.E3, notes.G3, notes.B3, notes.E4]
+  // Soft western drums - brush style
+  function playWesternDrums(startTime: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
 
-  const harmonicaMelody = ['G4', 'A4', 'B3', 'D4', 'G4', 'E4', 'D4', 'B3']
-  const fiddleMelody = ['D4', 'E4', 'G4', 'A4', 'G4', 'E4', 'D4', 'G3']
+    // Soft kick
+    const kick = audioContext.createOscillator()
+    const kickGain = audioContext.createGain()
+    kick.type = 'sine'
+    kick.frequency.setValueAtTime(80, startTime)
+    kick.frequency.exponentialRampToValueAtTime(40, startTime + 0.15)
+    kickGain.gain.setValueAtTime(0.2, startTime)
+    kickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2)
+    kick.connect(kickGain)
+    kickGain.connect(musicGainNode!)
+    kick.start(startTime)
+    kick.stop(startTime + 0.3)
 
-  function playWesternSection(section: 'intro' | 'verse' | 'chorus' | 'bridge') {
+    // Brush swish
+    const swishTimes = [0.5, 1.5, 2.5, 3.5]
+    swishTimes.forEach(t => {
+      const noise = audioContext!.createBufferSource()
+      const noiseGain = audioContext!.createGain()
+      const noiseFilter = audioContext!.createBiquadFilter()
+      noise.buffer = createNoiseBuffer(0.15)
+      noiseFilter.type = 'bandpass'
+      noiseFilter.frequency.value = 3000
+      noiseFilter.Q.value = 0.5
+      noiseGain.gain.setValueAtTime(0.08, startTime + t)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + t + 0.12)
+      noise.connect(noiseFilter)
+      noiseFilter.connect(noiseGain)
+      noiseGain.connect(musicGainNode!)
+      noise.start(startTime + t)
+      noise.stop(startTime + t + 0.2)
+    })
+  }
+
+  const Gmaj = [notes.G2, notes.B2, notes.D3, notes.G3, notes.B3]
+  const Cmaj = [notes.C3, notes.E3, notes.G3, notes.C4, notes.E4]
+  const Dmaj = [notes.D3, notes.A3, notes.D4, notes.A3]
+  const Emin = [notes.E2, notes.G3, notes.B3, notes.E4]
+  const Amin = [notes.A2, notes.C3, notes.E3, notes.A3]
+
+  function playWesternSection(section: 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro') {
     if (!audioContext || !musicEnabled) return
     const now = audioContext.currentTime
 
-    // Guitar strums
+    // Bass line
+    playBass(notes.G2, now, 0.9)
+    playBass(notes.C3, now + 1, 0.9)
+    playBass(notes.D3, now + 2, 0.9)
+    playBass(section === 'chorus' ? notes.E2 : notes.G2, now + 3, 0.9)
+
+    // Drums
+    playWesternDrums(now)
+
     if (section === 'intro') {
-      playGuitarStrum(Gmaj, now, true)
-      playGuitarStrum(Gmaj, now + 1.5, false)
-    } else {
+      // Atmospheric intro with slide guitar
+      playSlideGuitar(notes.G3, notes.D4, now, 1.5)
+      playSlideGuitar(notes.B3, notes.G4, now + 1.8, 1.2)
+      // Add howl in background
+      if (measureCount % 4 === 0) {
+        playCoyoteHowl(now + 0.5)
+      }
+    } else if (section === 'verse') {
+      // Guitar strums
       playGuitarStrum(Gmaj, now, true)
       playGuitarStrum(Cmaj, now + 1, true)
-      playGuitarStrum(Dmaj, now + 2, true)
-      playGuitarStrum(section === 'chorus' ? Cmaj : Emin, now + 3, true)
-    }
+      playGuitarStrum(Dmaj, now + 2, false)
+      playGuitarStrum(Gmaj, now + 3, true)
 
-    // Bass
-    playBass(notes.G2, now, 0.8)
-    playBass(notes.C3, now + 1, 0.8)
-    playBass(notes.D3, now + 2, 0.8)
-    playBass(notes.G2, now + 3, 0.8)
-
-    // Harmonica in verse and bridge
-    if (section === 'verse' || section === 'bridge') {
-      harmonicaMelody.forEach((note, i) => {
-        playHarmonica(notes[note], now + i * 0.5, 0.4)
+      // Harmonica melody with bends
+      const melodyNotes = ['G4', 'A4', 'B4', 'D5', 'B4', 'A4', 'G4']
+      melodyNotes.forEach((note, i) => {
+        playHarmonica(notes[note], now + 0.5 + i * 0.4, 0.35, i % 2 === 1)
       })
-    }
+    } else if (section === 'chorus') {
+      // Full strums
+      playGuitarStrum(Gmaj, now, true)
+      playGuitarStrum(Emin, now + 1, true)
+      playGuitarStrum(Cmaj, now + 2, true)
+      playGuitarStrum(Dmaj, now + 3, false)
 
-    // Fiddle in chorus
-    if (section === 'chorus') {
-      fiddleMelody.forEach((note, i) => {
-        playFiddle(notes[note], now + i * 0.5, 0.45)
+      // Fiddle melody
+      const fiddleNotes = ['D4', 'G4', 'B4', 'D5', 'B4', 'G4', 'D4', 'E4']
+      fiddleNotes.forEach((note, i) => {
+        playFiddle(notes[note], now + i * 0.45, 0.4)
       })
+
+      // Slide guitar fills
+      playSlideGuitar(notes.G4, notes.B4, now + 2, 0.8)
+    } else if (section === 'bridge') {
+      // Quieter, more atmospheric
+      playGuitarStrum(Amin, now, true)
+      playGuitarStrum(Emin, now + 2, false)
+
+      // Long slide notes - "waaaah woh woh"
+      playSlideGuitar(notes.E4, notes.A4, now, 1.8)
+      playSlideGuitar(notes.A4, notes.E4, now + 2, 1.8)
+
+      // Add howl
+      if (measureCount % 3 === 0) {
+        playCoyoteHowl(now + 1)
+      }
+    } else if (section === 'outro') {
+      // Fade out with slides and howl
+      playSlideGuitar(notes.G3, notes.G4, now, 2.5)
+      playSlideGuitar(notes.D4, notes.G3, now + 2.5, 2)
+      playCoyoteHowl(now)
     }
   }
 
@@ -5950,11 +6153,12 @@ function startWesternMusic() {
     if (!musicEnabled) { stopMusic(); return }
     measureCount++
 
-    const section = measureCount % 12
+    const section = measureCount % 16
     if (section < 2) playWesternSection('intro')
-    else if (section < 5) playWesternSection('verse')
-    else if (section < 9) playWesternSection('chorus')
-    else playWesternSection('bridge')
+    else if (section < 6) playWesternSection('verse')
+    else if (section < 10) playWesternSection('chorus')
+    else if (section < 14) playWesternSection('bridge')
+    else playWesternSection('outro')
   }, 4000)
 }
 
@@ -6131,206 +6335,342 @@ function startMetalMusic() {
   if (!audioContext || !musicGainNode) return
 
   const notes: Record<string, number> = {
-    D1: 36.71, E1: 41.20, F1: 43.65, G1: 49.00,
-    D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00, A2: 110.00, B2: 123.47,
-    D3: 146.83, E3: 164.81, F3: 174.61
+    E1: 41.20, G1: 49.00, A1: 55.00, B1: 61.74,
+    E2: 82.41, G2: 98.00, A2: 110.00, B2: 123.47, D2: 73.42,
+    E3: 164.81, G3: 196.00, A3: 220.00, B3: 246.94, D3: 146.83, D4: 293.66
   }
 
-  // Heavy distorted guitar
-  function playMetalGuitar(freq: number, startTime: number, duration: number, palm: boolean = false) {
+  // Rock guitar - warm overdrive, less harsh
+  function playRockGuitar(freq: number, startTime: number, duration: number, muted: boolean = false) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
-    for (let i = 0; i < 4; i++) {
+    // Dual oscillators for thickness
+    for (let i = 0; i < 2; i++) {
       const osc = audioContext.createOscillator()
+      const osc2 = audioContext.createOscillator()
       const gain = audioContext.createGain()
-      const distortion = audioContext.createWaveShaper()
       const filter = audioContext.createBiquadFilter()
+      const highCut = audioContext.createBiquadFilter()
 
+      // Slightly detuned for chorus effect
       osc.type = 'sawtooth'
-      osc.frequency.value = freq * (1 + (i - 1.5) * 0.003)
+      osc.frequency.value = freq * (1 + (i - 0.5) * 0.004)
+      osc2.type = 'square'
+      osc2.frequency.value = freq * (1 + (i - 0.5) * 0.006)
 
-      const curve = new Float32Array(256)
-      for (let j = 0; j < 256; j++) {
-        const x = (j / 128) - 1
-        curve[j] = Math.tanh(x * 10) // Heavy distortion
-      }
-      distortion.curve = curve as Float32Array<ArrayBuffer>
+      // Warm low-mid boost
+      filter.type = 'peaking'
+      filter.frequency.value = muted ? 300 : 800
+      filter.Q.value = 2
+      filter.gain.value = 6
 
-      filter.type = 'lowpass'
-      filter.frequency.value = palm ? 600 : 3000
-      filter.Q.value = 3
+      // Roll off harsh highs
+      highCut.type = 'lowpass'
+      highCut.frequency.value = muted ? 1200 : 4000
+      highCut.Q.value = 0.7
 
-      const vol = palm ? 0.04 : 0.06
+      const vol = muted ? 0.06 : 0.08
       gain.gain.setValueAtTime(0.001, startTime)
-      gain.gain.linearRampToValueAtTime(vol, startTime + 0.005)
-      gain.gain.setValueAtTime(vol * 0.8, startTime + duration * 0.5)
+      gain.gain.linearRampToValueAtTime(vol, startTime + 0.008)
+      gain.gain.setValueAtTime(vol * 0.85, startTime + duration * 0.6)
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-      osc.connect(distortion)
-      distortion.connect(filter)
-      filter.connect(gain)
+      osc.connect(filter)
+      osc2.connect(filter)
+      filter.connect(highCut)
+      highCut.connect(gain)
       gain.connect(musicGainNode!)
 
       osc.start(startTime)
+      osc2.start(startTime)
       osc.stop(startTime + duration + 0.1)
+      osc2.stop(startTime + duration + 0.1)
     }
   }
 
-  // Double bass drum
-  function playDoubleBass() {
+  // Lead guitar for solos - smoother sustain
+  function playLeadGuitar(freq: number, startTime: number, duration: number, bend: boolean = false) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
-    const now = audioContext.currentTime
-    const beat = 0.0625 // 32nd notes for double bass
 
-    for (let b = 0; b < 32; b += 2) {
-      const time = now + b * beat
-      const kick = audioContext.createOscillator()
-      const kickGain = audioContext.createGain()
-      const click = audioContext.createOscillator()
-      const clickGain = audioContext.createGain()
+    const osc = audioContext.createOscillator()
+    const vibrato = audioContext.createOscillator()
+    const vibratoGain = audioContext.createGain()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sawtooth'
+
+    if (bend) {
+      osc.frequency.setValueAtTime(freq, startTime)
+      osc.frequency.linearRampToValueAtTime(freq * 1.06, startTime + duration * 0.4)
+      osc.frequency.setValueAtTime(freq * 1.06, startTime + duration * 0.7)
+      osc.frequency.linearRampToValueAtTime(freq, startTime + duration)
+    } else {
+      osc.frequency.value = freq
+    }
+
+    // Add vibrato after attack
+    vibrato.type = 'sine'
+    vibrato.frequency.value = 5.5
+    vibratoGain.gain.setValueAtTime(0, startTime)
+    vibratoGain.gain.linearRampToValueAtTime(5, startTime + duration * 0.3)
+
+    vibrato.connect(vibratoGain)
+    vibratoGain.connect(osc.frequency)
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 3500
+    filter.Q.value = 1
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.1, startTime + 0.02)
+    gain.gain.setValueAtTime(0.08, startTime + duration * 0.7)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    vibrato.start(startTime)
+    osc.start(startTime)
+    vibrato.stop(startTime + duration + 0.1)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  // Rock bass - punchy and clear
+  function playRockBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+    const filter = audioContext.createBiquadFilter()
+
+    osc.type = 'sawtooth'
+    osc.frequency.value = freq
+    osc2.type = 'sine'
+    osc2.frequency.value = freq
+
+    filter.type = 'lowpass'
+    filter.frequency.value = 800
+    filter.Q.value = 2
+
+    gain.gain.setValueAtTime(0.001, startTime)
+    gain.gain.linearRampToValueAtTime(0.18, startTime + 0.015)
+    gain.gain.setValueAtTime(0.14, startTime + duration * 0.5)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
+    gain.connect(musicGainNode!)
+
+    osc.start(startTime)
+    osc2.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+    osc2.stop(startTime + duration + 0.1)
+  }
+
+  // Rock drums - solid groove, not blast beats
+  function playRockDrums(startTime: number, heavy: boolean = false) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const beat = 0.25; // Quarter notes base
+
+    // Kick on 1 and 3 (with pickup on heavy sections)
+    const kickPattern = heavy ? [0, 0.75, 1, 1.75, 2, 2.5, 3, 3.5] : [0, 1, 2, 3]
+    kickPattern.forEach(b => {
+      const time = startTime + b * beat
+      const kick = audioContext!.createOscillator()
+      const kickGain = audioContext!.createGain()
 
       kick.type = 'sine'
-      kick.frequency.setValueAtTime(80, time)
-      kick.frequency.exponentialRampToValueAtTime(30, time + 0.08)
-      kickGain.gain.setValueAtTime(0.3, time)
-      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1)
+      kick.frequency.setValueAtTime(100, time)
+      kick.frequency.exponentialRampToValueAtTime(45, time + 0.1)
 
-      // Click attack
-      click.type = 'triangle'
-      click.frequency.value = 4000
-      clickGain.gain.setValueAtTime(0.1, time)
-      clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.01)
+      kickGain.gain.setValueAtTime(0.35, time)
+      kickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15)
 
       kick.connect(kickGain)
-      click.connect(clickGain)
       kickGain.connect(musicGainNode!)
-      clickGain.connect(musicGainNode!)
-
       kick.start(time)
-      click.start(time)
-      kick.stop(time + 0.15)
-      click.stop(time + 0.02)
-    }
-  }
+      kick.stop(time + 0.2)
+    })
 
-  // Snare blast
-  function playBlastSnare() {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
-    const now = audioContext.currentTime
+    // Snare on 2 and 4
+    const snarePattern = [1, 3]
+    snarePattern.forEach(b => {
+      const time = startTime + b * beat
+      const noise = audioContext!.createBufferSource()
+      const snareGain = audioContext!.createGain()
+      const snareFilter = audioContext!.createBiquadFilter()
+      const snareTone = audioContext!.createOscillator()
+      const toneGain = audioContext!.createGain()
 
-    for (let b = 0; b < 8; b++) {
-      const time = now + b * 0.25
-      const noise = audioContext.createBufferSource()
-      const gain = audioContext.createGain()
-      const filter = audioContext.createBiquadFilter()
+      noise.buffer = createNoiseBuffer(0.12)
+      snareFilter.type = 'bandpass'
+      snareFilter.frequency.value = 3000
+      snareFilter.Q.value = 1
 
-      noise.buffer = createNoiseBuffer(0.08)
-      filter.type = 'highpass'
-      filter.frequency.value = 2500
+      snareGain.gain.setValueAtTime(0.25, time)
+      snareGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1)
 
-      gain.gain.setValueAtTime(0.25, time)
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06)
+      snareTone.type = 'triangle'
+      snareTone.frequency.value = 180
+      toneGain.gain.setValueAtTime(0.15, time)
+      toneGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08)
 
-      noise.connect(filter)
-      filter.connect(gain)
-      gain.connect(musicGainNode!)
+      noise.connect(snareFilter)
+      snareFilter.connect(snareGain)
+      snareGain.connect(musicGainNode!)
+      snareTone.connect(toneGain)
+      toneGain.connect(musicGainNode!)
 
       noise.start(time)
-      noise.stop(time + 0.1)
+      snareTone.start(time)
+      noise.stop(time + 0.15)
+      snareTone.stop(time + 0.1)
+    })
+
+    // Hi-hat 8th notes
+    for (let b = 0; b < 8; b++) {
+      const time = startTime + b * beat * 0.5
+      const open = b === 2 || b === 6
+      const noise = audioContext!.createBufferSource()
+      const hhGain = audioContext!.createGain()
+      const hhFilter = audioContext!.createBiquadFilter()
+
+      noise.buffer = createNoiseBuffer(open ? 0.2 : 0.05)
+      hhFilter.type = 'highpass'
+      hhFilter.frequency.value = 7000
+
+      hhGain.gain.setValueAtTime(open ? 0.12 : 0.08, time)
+      hhGain.gain.exponentialRampToValueAtTime(0.001, time + (open ? 0.15 : 0.04))
+
+      noise.connect(hhFilter)
+      hhFilter.connect(hhGain)
+      hhGain.connect(musicGainNode!)
+
+      noise.start(time)
+      noise.stop(time + 0.25)
     }
   }
 
-  // Crash cymbal
+  // Crash cymbal - cleaner
   function playCrash(startTime: number) {
     if (!audioContext || !musicEnabled || !musicGainNode) return
 
     const noise = audioContext.createBufferSource()
     const gain = audioContext.createGain()
     const filter = audioContext.createBiquadFilter()
+    const lowCut = audioContext.createBiquadFilter()
 
-    noise.buffer = createNoiseBuffer(1.5)
+    noise.buffer = createNoiseBuffer(1.2)
     filter.type = 'highpass'
-    filter.frequency.value = 5000
+    filter.frequency.value = 4000
+    lowCut.type = 'lowpass'
+    lowCut.frequency.value = 12000
 
-    gain.gain.setValueAtTime(0.2, startTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1)
+    gain.gain.setValueAtTime(0.18, startTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.9)
 
     noise.connect(filter)
-    filter.connect(gain)
+    filter.connect(lowCut)
+    lowCut.connect(gain)
     gain.connect(musicGainNode!)
 
     noise.start(startTime)
-    noise.stop(startTime + 1.5)
+    noise.stop(startTime + 1.3)
   }
 
+  // Classic rock riffs
   const introRiff = [
-    { note: 'D2', dur: 0.2, palm: true }, { note: 'D2', dur: 0.1, palm: true },
-    { note: 'E2', dur: 0.2, palm: true }, { note: 'F2', dur: 0.3, palm: false },
-    { note: 'D2', dur: 0.2, palm: true }, { note: 'D2', dur: 0.1, palm: true },
-    { note: 'G2', dur: 0.2, palm: true }, { note: 'F2', dur: 0.3, palm: false }
+    { note: 'E2', dur: 0.3, muted: false }, { note: 'E2', dur: 0.15, muted: true },
+    { note: 'G2', dur: 0.15, muted: true }, { note: 'A2', dur: 0.4, muted: false },
+    { note: 'E2', dur: 0.3, muted: false }, { note: 'D2', dur: 0.2, muted: false },
+    { note: 'E2', dur: 0.5, muted: false }
   ]
 
   const verseRiff = [
-    { note: 'D1', dur: 0.15, palm: true }, { note: 'D1', dur: 0.15, palm: true },
-    { note: 'D1', dur: 0.15, palm: true }, { note: 'E1', dur: 0.15, palm: true },
-    { note: 'F1', dur: 0.4, palm: false }, { note: 'D1', dur: 0.15, palm: true },
-    { note: 'D1', dur: 0.15, palm: true }, { note: 'G1', dur: 0.5, palm: false }
+    { note: 'E1', dur: 0.2, muted: true }, { note: 'E1', dur: 0.2, muted: true },
+    { note: 'G1', dur: 0.2, muted: true }, { note: 'A1', dur: 0.4, muted: false },
+    { note: 'E1', dur: 0.2, muted: true }, { note: 'E1', dur: 0.2, muted: true },
+    { note: 'B1', dur: 0.3, muted: false }, { note: 'A1', dur: 0.3, muted: false }
   ]
 
-  function playMetalSection(section: 'intro' | 'verse' | 'chorus' | 'breakdown') {
+  const chorusRiff = [
+    { note: 'A2', dur: 0.4, muted: false }, { note: 'G2', dur: 0.4, muted: false },
+    { note: 'E2', dur: 0.4, muted: false }, { note: 'D2', dur: 0.4, muted: false },
+    { note: 'A2', dur: 0.2, muted: false }, { note: 'B2', dur: 0.2, muted: false }
+  ]
+
+  // Lead guitar licks
+  const leadLick1 = [
+    { note: 'E3', dur: 0.2, bend: false }, { note: 'G3', dur: 0.2, bend: false },
+    { note: 'A3', dur: 0.3, bend: true }, { note: 'B3', dur: 0.4, bend: false },
+    { note: 'A3', dur: 0.2, bend: false }, { note: 'G3', dur: 0.3, bend: false }
+  ]
+
+  const leadLick2 = [
+    { note: 'B3', dur: 0.15, bend: false }, { note: 'D4', dur: 0.15, bend: false },
+    { note: 'E3', dur: 0.2, bend: true }, { note: 'B3', dur: 0.5, bend: false }
+  ]
+
+  function playRockSection(section: 'intro' | 'verse' | 'chorus' | 'bridge' | 'solo') {
     if (!audioContext || !musicEnabled) return
     const now = audioContext.currentTime
 
-    const riff = section === 'intro' || section === 'chorus' ? introRiff : verseRiff
+    const riff = section === 'intro' ? introRiff : section === 'chorus' || section === 'solo' ? chorusRiff : verseRiff
 
-    // Guitar riff
+    // Guitar riff with power chords
     let time = 0
     riff.forEach(r => {
-      playMetalGuitar(notes[r.note], now + time, r.dur, r.palm)
-      // Play power chord (add fifth)
-      playMetalGuitar(notes[r.note] * 1.5, now + time, r.dur, r.palm)
+      playRockGuitar(notes[r.note], now + time, r.dur, r.muted)
+      // Power chord fifth
+      playRockGuitar(notes[r.note] * 1.498, now + time, r.dur, r.muted)
       time += r.dur
     })
 
+    // Bass follows root
+    let bassTime = 0
+    riff.forEach(r => {
+      const bassNote = r.note.replace(/[23]/, '1')
+      const bassFreq = notes[bassNote] || notes[r.note] / 2
+      playRockBass(bassFreq, now + bassTime, r.dur * 0.9)
+      bassTime += r.dur
+    })
+
     // Drums
-    if (section === 'breakdown') {
-      // Half-time for breakdown
-      [0, 1].forEach(b => {
-        const kickTime = now + b
-        const kick = audioContext!.createOscillator()
-        const kickGain = audioContext!.createGain()
-        kick.type = 'sine'
-        kick.frequency.setValueAtTime(60, kickTime)
-        kick.frequency.exponentialRampToValueAtTime(25, kickTime + 0.2)
-        kickGain.gain.setValueAtTime(0.4, kickTime)
-        kickGain.gain.exponentialRampToValueAtTime(0.001, kickTime + 0.3)
-        kick.connect(kickGain)
-        kickGain.connect(musicGainNode!)
-        kick.start(kickTime)
-        kick.stop(kickTime + 0.4)
+    playRockDrums(now, section === 'chorus' || section === 'solo')
+
+    // Lead guitar in solo sections
+    if (section === 'solo') {
+      const lick = measureCount % 2 === 0 ? leadLick1 : leadLick2
+      let leadTime = 0.5
+      lick.forEach(l => {
+        playLeadGuitar(notes[l.note], now + leadTime, l.dur, l.bend)
+        leadTime += l.dur
       })
-    } else {
-      playDoubleBass()
-      playBlastSnare()
     }
 
-    // Crash on chorus
-    if (section === 'chorus' && measureCount % 2 === 0) {
+    // Crash on transitions
+    if ((section === 'chorus' || section === 'solo') && measureCount % 4 === 0) {
       playCrash(now)
     }
   }
 
-  playMetalSection('intro')
+  playRockSection('intro')
 
   musicInterval = window.setInterval(() => {
     if (!musicEnabled) { stopMusic(); return }
     measureCount++
 
-    const section = measureCount % 16
-    if (section < 2) playMetalSection('intro')
-    else if (section < 6) playMetalSection('verse')
-    else if (section < 12) playMetalSection('chorus')
-    else playMetalSection('breakdown')
+    const section = measureCount % 20
+    if (section < 2) playRockSection('intro')
+    else if (section < 6) playRockSection('verse')
+    else if (section < 12) playRockSection('chorus')
+    else if (section < 16) playRockSection('solo')
+    else playRockSection('bridge')
   }, 2000)
 }
 
@@ -19617,21 +19957,110 @@ function render() {
   if (gameState === 'start') {
     // Coach screen
     if (showCoach) {
-      const lessons = [
+      // Different lessons per level
+      const beginnerLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
         { key: 'coachWelcome', type: 'intro' },
-        { key: 'coachLesson1Title', type: 'lesson', steps: ['coachLesson1Step1', 'coachLesson1Step2', 'coachLesson1Step3', 'coachLesson1Step4'], question: 'coachLesson1Question', answers: ['coachLesson1Answer1', 'coachLesson1Answer2', 'coachLesson1Answer3'], correct: 0 },
-        { key: 'coachLesson2Title', type: 'lesson', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer1', 'coachLesson2Answer2', 'coachLesson2Answer3'], correct: 0 },
-        { key: 'coachLesson3Title', type: 'lesson', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer1', 'coachLesson3Answer2', 'coachLesson3Answer3'], correct: 0 },
-        { key: 'coachLesson4Title', type: 'lesson', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer1', 'coachLesson4Answer2', 'coachLesson4Answer3'], correct: 0 },
-        { key: 'coachLesson5Title', type: 'lesson', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer1', 'coachLesson5Answer2', 'coachLesson5Answer3'], correct: 0 },
+        { key: 'coachLesson1Title', type: 'lesson', piece: 'soldier', steps: ['coachLesson1Step1', 'coachLesson1Step2', 'coachLesson1Step3', 'coachLesson1Step4'], question: 'coachLesson1Question', answers: ['coachLesson1Answer1', 'coachLesson1Answer2', 'coachLesson1Answer3'], correct: 0 },
+        { key: 'coachLesson2Title', type: 'lesson', piece: 'tank', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer1', 'coachLesson2Answer2', 'coachLesson2Answer3'], correct: 0 },
+        { key: 'coachLesson3Title', type: 'lesson', piece: 'suv', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer1', 'coachLesson3Answer2', 'coachLesson3Answer3'], correct: 0 },
         { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer1', 'coachScoreAnswer2', 'coachScoreAnswer3'], correct: 0 },
       ]
+
+      const mediumLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
+        { key: 'coachWelcome', type: 'intro' },
+        { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer2', 'coachLesson4Answer1', 'coachLesson4Answer3'], correct: 1 },
+        { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer2', 'coachLesson5Answer3', 'coachLesson5Answer1'], correct: 2 },
+        { key: 'coachLesson1Title', type: 'lesson', piece: 'soldier', steps: ['coachLesson1Step1', 'coachLesson1Step2'], question: 'coachLesson1Question', answers: ['coachLesson1Answer3', 'coachLesson1Answer1', 'coachLesson1Answer2'], correct: 1 },
+        { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer2', 'coachScoreAnswer1', 'coachScoreAnswer3'], correct: 1 },
+      ]
+
+      const mastersLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
+        { key: 'coachWelcome', type: 'intro' },
+        { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer3', 'coachLesson5Answer1', 'coachLesson5Answer2'], correct: 1 },
+        { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer3', 'coachLesson4Answer2', 'coachLesson4Answer1'], correct: 2 },
+        { key: 'coachLesson2Title', type: 'lesson', piece: 'tank', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer2', 'coachLesson2Answer1', 'coachLesson2Answer3'], correct: 1 },
+        { key: 'coachLesson3Title', type: 'lesson', piece: 'suv', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer2', 'coachLesson3Answer3', 'coachLesson3Answer1'], correct: 2 },
+      ]
+
+      const warGodsLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
+        { key: 'coachWelcome', type: 'intro' },
+        { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer2', 'coachLesson4Answer3', 'coachLesson4Answer1'], correct: 2 },
+        { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer2', 'coachLesson5Answer1', 'coachLesson5Answer3'], correct: 1 },
+        { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer3', 'coachScoreAnswer2', 'coachScoreAnswer1'], correct: 2 },
+      ]
+
+      // Select lessons based on level
+      const lessonsMap: Record<CoachLevel, typeof beginnerLessons> = {
+        beginner: beginnerLessons,
+        medium: mediumLessons,
+        masters: mastersLessons,
+        war_gods: warGodsLessons
+      }
+      const lessons = lessonsMap[coachLevel]
       const currentLesson = lessons[coachLessonIndex]
       const isIntro = currentLesson.type === 'intro'
       const isQuestion = coachShowQuestion && currentLesson.type === 'lesson'
 
+      // Create mini board for coach with the current piece
+      const coachBoardSize = 5
+      const coachSquareSize = 50
+      function createCoachBoard(): string {
+        let svg = `<svg width="${coachBoardSize * coachSquareSize}" height="${coachBoardSize * coachSquareSize}" class="rounded-lg overflow-hidden">`
+
+        // Draw squares
+        for (let row = 0; row < coachBoardSize; row++) {
+          for (let col = 0; col < coachBoardSize; col++) {
+            const isLight = (row + col) % 2 === 0
+            const x = col * coachSquareSize
+            const y = row * coachSquareSize
+            svg += `<rect x="${x}" y="${y}" width="${coachSquareSize}" height="${coachSquareSize}" fill="${isLight ? '#9ca3af' : '#6b7280'}" />`
+          }
+        }
+
+        // Draw the current lesson's piece in the center
+        if (currentLesson.piece) {
+          const centerX = 2 * coachSquareSize
+          const centerY = 2 * coachSquareSize
+          const pieceSize = coachSquareSize - 8
+
+          // Draw piece background
+          svg += `<circle cx="${centerX + coachSquareSize/2}" cy="${centerY + coachSquareSize/2}" r="${pieceSize/2}" fill="#fbbf24" stroke="#b45309" stroke-width="2" />`
+
+          // Draw piece icon
+          const iconMap: Record<string, string> = {
+            soldier: '⚔️',
+            tank: '🛡️',
+            suv: '🚙',
+            builder: '🔧',
+            hacker: '💻',
+          }
+          svg += `<text x="${centerX + coachSquareSize/2}" y="${centerY + coachSquareSize/2 + 8}" text-anchor="middle" font-size="24">${iconMap[currentLesson.piece] || '❓'}</text>`
+
+          // Show valid moves for this piece
+          const movePatterns: Record<string, Array<{dx: number, dy: number}>> = {
+            soldier: [{dx: 0, dy: -1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
+            tank: [{dx: 0, dy: -1}, {dx: 0, dy: -2}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
+            suv: [{dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}, {dx: 1, dy: 1}, {dx: -2, dy: -2}, {dx: 2, dy: -2}],
+            builder: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
+            hacker: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
+          }
+
+          const moves = movePatterns[currentLesson.piece] || []
+          moves.forEach(m => {
+            const mx = (2 + m.dx) * coachSquareSize
+            const my = (2 + m.dy) * coachSquareSize
+            if (mx >= 0 && mx < coachBoardSize * coachSquareSize && my >= 0 && my < coachBoardSize * coachSquareSize) {
+              svg += `<rect x="${mx + 4}" y="${my + 4}" width="${coachSquareSize - 8}" height="${coachSquareSize - 8}" fill="#22c55e" opacity="0.5" rx="4" />`
+            }
+          })
+        }
+
+        svg += '</svg>'
+        return svg
+      }
+
       app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-6 overflow-y-auto">
           <h1 class="text-2xl sm:text-4xl font-bold text-white">🎓 ${t('coachTitle')}</h1>
 
           <!-- Level Selection -->
@@ -19661,33 +20090,44 @@ function render() {
             </div>
           </div>
 
-          <!-- Lesson Content -->
-          <div class="bg-indigo-900 p-6 rounded-lg flex flex-col gap-4 min-w-[300px] max-w-[600px] w-full">
-            <h2 class="text-xl font-bold text-yellow-300">
-              ${isIntro ? '👋' : `📚 Lesson ${coachLessonIndex}:`} ${t(currentLesson.key)}
-            </h2>
-
-            ${isIntro ? `
-              <p class="text-white text-lg">${t('coachWelcome')}</p>
-              <p class="text-gray-300">${t('coachClickSquare')}</p>
-            ` : isQuestion ? `
-              <p class="text-white text-lg font-semibold">${t(currentLesson.question || '')}</p>
-              <div class="flex flex-col gap-2">
-                ${(currentLesson.answers || []).map((ans: string, i: number) => `
-                  <button data-answer="${i}" class="coach-answer-btn py-3 px-4 rounded text-left ${coachSelectedAnswer === i ? (i === currentLesson.correct ? 'bg-green-600' : 'bg-red-600') : 'bg-gray-700 hover:bg-gray-600'} text-white transition-colors">
-                    ${String.fromCharCode(65 + i)}. ${t(ans)}
-                  </button>
-                `).join('')}
+          <!-- Lesson Content with Board -->
+          <div class="flex flex-col md:flex-row gap-4 items-center">
+            <!-- Mini Board -->
+            ${currentLesson.piece ? `
+              <div class="bg-gray-900 p-3 rounded-lg">
+                <p class="text-gray-400 text-sm mb-2 text-center">🟢 = Valid moves</p>
+                ${createCoachBoard()}
               </div>
-              ${coachFeedbackMessage ? `
-                <p class="text-lg font-bold ${coachSelectedAnswer === currentLesson.correct ? 'text-green-400' : 'text-red-400'}">
-                  ${coachFeedbackMessage}
-                </p>
-              ` : ''}
-            ` : `
-              <p class="text-white text-lg">${t((currentLesson.steps || [])[coachStepIndex] || '')}</p>
-              <p class="text-gray-400 text-sm">Step ${coachStepIndex + 1} / ${(currentLesson.steps || []).length}</p>
-            `}
+            ` : ''}
+
+            <!-- Lesson Text -->
+            <div class="bg-indigo-900 p-6 rounded-lg flex flex-col gap-4 min-w-[280px] max-w-[400px] w-full">
+              <h2 class="text-xl font-bold text-yellow-300">
+                ${isIntro ? '👋' : `📚 Lesson ${coachLessonIndex}:`} ${t(currentLesson.key)}
+              </h2>
+
+              ${isIntro ? `
+                <p class="text-white text-lg">${t('coachWelcome')}</p>
+                <p class="text-gray-300">${t('coachClickSquare')}</p>
+              ` : isQuestion ? `
+                <p class="text-white text-lg font-semibold">${t(currentLesson.question || '')}</p>
+                <div class="flex flex-col gap-2">
+                  ${(currentLesson.answers || []).map((ans: string, i: number) => `
+                    <button data-answer="${i}" class="coach-answer-btn py-3 px-4 rounded text-left ${coachSelectedAnswer === i ? (i === currentLesson.correct ? 'bg-green-600' : 'bg-red-600') : 'bg-gray-700 hover:bg-gray-600'} text-white transition-colors">
+                      ${String.fromCharCode(65 + i)}. ${t(ans)}
+                    </button>
+                  `).join('')}
+                </div>
+                ${coachFeedbackMessage ? `
+                  <p class="text-lg font-bold ${coachSelectedAnswer === currentLesson.correct ? 'text-green-400' : 'text-red-400'}">
+                    ${coachFeedbackMessage}
+                  </p>
+                ` : ''}
+              ` : `
+                <p class="text-white text-lg">${t((currentLesson.steps || [])[coachStepIndex] || '')}</p>
+                <p class="text-gray-400 text-sm">Step ${coachStepIndex + 1} / ${(currentLesson.steps || []).length}</p>
+              `}
+            </div>
           </div>
 
           <!-- Navigation -->
