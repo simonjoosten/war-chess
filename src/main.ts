@@ -7212,7 +7212,7 @@ const LABEL_SIZE = 30
 const columns = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
 type Team = 'yellow' | 'green'
-type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun' | 'suv' | 'hacker' | 'sub' | 'fighter' | 'builder' | 'barricade' | 'artillery' | 'spike' | 'base' | 'landmine' | 'tunnel'
+type PieceType = 'train' | 'soldier' | 'tank' | 'ship' | 'carrier' | 'helicopter' | 'rocket' | 'machinegun' | 'suv' | 'hacker' | 'sub' | 'fighter' | 'builder' | 'barricade' | 'artillery' | 'spike' | 'base' | 'landmine' | 'tunnel' | 'bridge'
 
 interface Piece {
   type: PieceType
@@ -8609,7 +8609,7 @@ function getValidLandingSpots(targetCol: string, targetRow: number): { col: stri
       const col = columns[colIndex]
 
       // Cannot land on water (row 6, except bridge)
-      if (row === 6 && col !== 'F') continue
+      if (row === 6 && !hasBridge(col, row)) continue
 
       // Cannot land on other pieces
       const pieceAtSpot = getPieceAt(col, row)
@@ -8648,15 +8648,18 @@ function getValidMovesForBuilder(piece: Piece): { col: string; row: number; canC
     const col = columns[colIndex]
 
     // Cannot go on water (row 6, except bridge)
-    if (row === 6 && col !== 'F') continue
+    if (row === 6 && !hasBridge(col, row)) continue
 
     const pieceAtTarget = getPieceAtAboveGround(col, row)
 
     // Builder cannot capture normally - just check for empty squares or move behind friendly barricade
     // Can move onto squares with tunnel soldiers (they're underground)
+    // Can step on enemy landmines (which will trigger explosion)
     if (!pieceAtTarget) {
       moves.push({ col, row, canCapture: false })
     } else if (canMoveBehindBarricade(piece, col, row)) {
+      moves.push({ col, row, canCapture: false })
+    } else if (pieceAtTarget.type === 'landmine' && pieceAtTarget.team !== piece.team) {
       moves.push({ col, row, canCapture: false })
     }
   }
@@ -8711,7 +8714,7 @@ function getValidPlacementSpots(builder: Piece): { col: string; row: number }[] 
       const col = columns[colIndex]
 
       // Cannot place on water (row 6, except bridge)
-      if (row === 6 && col !== 'F') continue
+      if (row === 6 && !hasBridge(col, row)) continue
 
       // Cannot place on other pieces
       const pieceAtSpot = getPieceAt(col, row)
@@ -8875,7 +8878,7 @@ function fireArtillery(artillery: Piece) {
       if (distance > ARTILLERY_TARGET_RANGE) continue
 
       // Skip water
-      if (row === 6 && col !== 'F') continue
+      if (row === 6 && !hasBridge(col, row)) continue
 
       const piece = getPieceAt(col, row)
       validTargets.push({ col, row, piece: piece || undefined })
@@ -9430,6 +9433,7 @@ function getPiecePointValue(type: string): number {
     base: 100,
     barricade: 0,
     landmine: 0,
+    bridge: 0,
     tunnel: 0,
     artillery: 0,
     spike: 0
@@ -10063,6 +10067,15 @@ function isTrenchSquare(col: string, row: number): boolean {
   return col === 'F' && (row === 3 || row === 9)
 }
 
+// Check if a square has a bridge (fixed bridge at F6 or placed bridge piece)
+function hasBridge(col: string, row: number): boolean {
+  // Fixed bridge at F6
+  if (col === 'F' && row === 6) return true
+  // Check for placed bridge pieces
+  const bridgePiece = pieces.find(p => p.type === 'bridge' && p.col === col && p.row === row)
+  return !!bridgePiece
+}
+
 function getValidMovesForSoldier(piece: Piece): { col: string; row: number; canCapture: boolean }[] {
   const moves: { col: string; row: number; canCapture: boolean }[] = []
   const pieceColIndex = columns.indexOf(piece.col)
@@ -10112,12 +10125,16 @@ function getValidMovesForSoldier(piece: Piece): { col: string; row: number; canC
     const pieceAtTarget = getPieceAtAboveGround(col, row)
 
     // Cannot move onto water (row 6, except bridge at F6)
-    if (row === 6 && col !== 'F') continue
+    if (row === 6 && !hasBridge(col, row)) continue
 
     // Soldiers cannot capture by moving, but can move behind friendly barricade
     // Can move onto squares with tunnel soldiers (they're underground)
+    // Can step on enemy landmines (which will trigger explosion)
     if (pieceAtTarget) {
       if (canMoveBehindBarricade(piece, col, row)) {
+        moves.push({ col, row, canCapture: false })
+      } else if (pieceAtTarget.type === 'landmine' && pieceAtTarget.team !== piece.team) {
+        // Can step on enemy landmine (will explode)
         moves.push({ col, row, canCapture: false })
       }
       continue
@@ -10218,7 +10235,7 @@ function getValidMovesForTank(piece: Piece): { col: string; row: number; canCapt
       const col = columns[colIndex]
 
       // Cannot go on water (row 6, except bridge at F6)
-      if (row === 6 && col !== 'F') break
+      if (row === 6 && !hasBridge(col, row)) break
 
       // Check if path is blocked (for distance 2, check the middle square)
       if (distance === 2) {
@@ -10237,8 +10254,11 @@ function getValidMovesForTank(piece: Piece): { col: string; row: number; canCapt
 
       // Tanks cannot capture by moving (they shoot), but can move behind friendly barricade
       // Can move onto squares with tunnel soldiers (they're underground)
+      // Can step on enemy landmines (which will trigger explosion)
       if (pieceAtTarget) {
         if (canMoveBehindBarricade(piece, col, row)) {
+          moves.push({ col, row, canCapture: false })
+        } else if (pieceAtTarget.type === 'landmine' && pieceAtTarget.team !== piece.team) {
           moves.push({ col, row, canCapture: false })
         }
         break
@@ -10283,7 +10303,7 @@ function getValidMovesForSuv(piece: Piece): { col: string; row: number; canCaptu
       const col = columns[colIndex]
 
       // Cannot go on water (row 6, except bridge at F6)
-      if (row === 6 && col !== 'F') break
+      if (row === 6 && !hasBridge(col, row)) break
 
       // Check if path is blocked (for distance 2, check the middle square)
       if (distance === 2) {
@@ -10326,7 +10346,7 @@ function getValidMovesForSuv(piece: Piece): { col: string; row: number; canCaptu
       const col = columns[colIndex]
 
       // Cannot go on water (row 6, except bridge at F6)
-      if (row === 6 && col !== 'F') break
+      if (row === 6 && !hasBridge(col, row)) break
 
       // Check if path is blocked (for distance 2, check the middle square)
       if (distance === 2) {
@@ -10345,8 +10365,11 @@ function getValidMovesForSuv(piece: Piece): { col: string; row: number; canCaptu
 
       // Cannot capture diagonally, but can move behind friendly barricade
       // Can move onto squares with tunnel soldiers (they're underground)
+      // Can step on enemy landmines (which will trigger explosion)
       if (pieceAtTarget) {
         if (canMoveBehindBarricade(piece, col, row)) {
+          moves.push({ col, row, canCapture: false })
+        } else if (pieceAtTarget.type === 'landmine' && pieceAtTarget.team !== piece.team) {
           moves.push({ col, row, canCapture: false })
         }
         break
@@ -10483,7 +10506,13 @@ function getValidMovesForShip(piece: Piece): { col: string; row: number; canCapt
       const pieceAtTarget = getPieceAt(col, row)
 
       // Ships cannot capture by moving (they shoot)
-      if (pieceAtTarget) break
+      // But can step on enemy landmines (which will trigger explosion)
+      if (pieceAtTarget) {
+        if (pieceAtTarget.type === 'landmine' && pieceAtTarget.team !== piece.team) {
+          moves.push({ col, row, canCapture: false })
+        }
+        break
+      }
 
       moves.push({ col, row, canCapture: false })
     }
@@ -16249,6 +16278,75 @@ function drawPiece(piece: Piece, x: number, y: number): string {
     `
   }
 
+  if (piece.type === 'landmine') {
+    // Landmine design - hidden explosive
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Buried mine body -->
+        <ellipse cx="${x + 25}" cy="${y + 38}" rx="16" ry="8" fill="#4a4a4a" stroke="#2d2d2d" stroke-width="1.5" />
+        <ellipse cx="${x + 25}" cy="${y + 36}" rx="14" ry="6" fill="#5a5a5a" />
+        <!-- Pressure plate -->
+        <ellipse cx="${x + 25}" cy="${y + 32}" rx="10" ry="4" fill="#ef4444" stroke="#b91c1c" stroke-width="1" />
+        <!-- Warning symbol -->
+        <text x="${x + 25}" y="${y + 35}" text-anchor="middle" font-size="10" fill="#fef08a">💣</text>
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 10}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
+      </g>
+    `
+  }
+
+  if (piece.type === 'tunnel') {
+    // Tunnel entrance design
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Tunnel hole -->
+        <ellipse cx="${x + 25}" cy="${y + 35}" rx="18" ry="10" fill="#1a1a1a" />
+        <ellipse cx="${x + 25}" cy="${y + 33}" rx="15" ry="8" fill="#0a0a0a" />
+        <!-- Tunnel frame -->
+        <path d="M${x + 7} ${y + 35} Q${x + 7} ${y + 20} ${x + 25} ${y + 18} Q${x + 43} ${y + 20} ${x + 43} ${y + 35}" fill="none" stroke="#5c4033" stroke-width="4" />
+        <!-- Support beams -->
+        <rect x="${x + 8}" y="${y + 20}" width="4" height="18" fill="#8b7355" />
+        <rect x="${x + 38}" y="${y + 20}" width="4" height="18" fill="#8b7355" />
+        <!-- Darkness inside -->
+        <text x="${x + 25}" y="${y + 38}" text-anchor="middle" font-size="14" fill="#333">🕳️</text>
+        <!-- Team indicator -->
+        <circle cx="${x + 25}" cy="${y + 8}" r="3" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" />
+        ${colorblindSymbol}
+      </g>
+    `
+  }
+
+  if (piece.type === 'bridge') {
+    // Bridge design - wooden planks over water
+    const woodColor = '#8b7355'
+    const woodDark = '#5c4033'
+    return `
+      <g class="cursor-pointer" data-piece="${piece.type}" data-team="${piece.team}" data-col="${piece.col}" data-row="${piece.row}">
+        <!-- Water underneath (subtle) -->
+        <rect x="${x + 2}" y="${y + 40}" width="46" height="8" fill="#3b82f6" opacity="0.3" rx="2" />
+        <!-- Bridge supports -->
+        <rect x="${x + 6}" y="${y + 25}" width="4" height="22" fill="${woodDark}" />
+        <rect x="${x + 40}" y="${y + 25}" width="4" height="22" fill="${woodDark}" />
+        <!-- Bridge planks -->
+        <rect x="${x + 4}" y="${y + 20}" width="42" height="6" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <rect x="${x + 4}" y="${y + 27}" width="42" height="6" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <rect x="${x + 4}" y="${y + 34}" width="42" height="6" fill="${woodColor}" stroke="${woodDark}" stroke-width="1" />
+        <!-- Wood grain -->
+        <line x1="${x + 8}" y1="${y + 23}" x2="${x + 42}" y2="${y + 23}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
+        <line x1="${x + 8}" y1="${y + 30}" x2="${x + 42}" y2="${y + 30}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
+        <line x1="${x + 8}" y1="${y + 37}" x2="${x + 42}" y2="${y + 37}" stroke="${woodDark}" stroke-width="0.5" opacity="0.5" />
+        <!-- Railings -->
+        <rect x="${x + 4}" y="${y + 12}" width="2" height="10" fill="${woodDark}" />
+        <rect x="${x + 44}" y="${y + 12}" width="2" height="10" fill="${woodDark}" />
+        <line x1="${x + 5}" y1="${y + 14}" x2="${x + 45}" y2="${y + 14}" stroke="${woodDark}" stroke-width="2" />
+        <!-- Bridge icon -->
+        <text x="${x + 25}" y="${y + 10}" text-anchor="middle" font-size="10">🌉</text>
+        ${colorblindSymbol}
+      </g>
+    `
+  }
+
   return ''
 }
 
@@ -17039,10 +17137,20 @@ function createBoard(): string {
             svg += `<rect x="${x + 2}" y="${y + 2}" width="${SQUARE_SIZE - 4}" height="${SQUARE_SIZE - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
           }
           // Draw piece slightly back/smaller when behind barricade
+          // Don't apply skin effects to decoration pieces (landmine, tunnel, bridge)
+          const noSkinTypes = ['landmine', 'tunnel', 'bridge']
           if (barricade) {
-            svg += applySkinStyle(drawPiece(otherPiece, x, y - 8), x, y - 8, otherPiece.team) // Draw piece shifted up (behind barricade)
+            if (noSkinTypes.includes(otherPiece.type)) {
+              svg += drawPiece(otherPiece, x, y - 8)
+            } else {
+              svg += applySkinStyle(drawPiece(otherPiece, x, y - 8), x, y - 8, otherPiece.team) // Draw piece shifted up (behind barricade)
+            }
           } else {
-            svg += applySkinStyle(drawPiece(otherPiece, x, y), x, y, otherPiece.team)
+            if (noSkinTypes.includes(otherPiece.type)) {
+              svg += drawPiece(otherPiece, x, y)
+            } else {
+              svg += applySkinStyle(drawPiece(otherPiece, x, y), x, y, otherPiece.team)
+            }
           }
         }
       }
@@ -20142,6 +20250,7 @@ function render() {
                             <option value="machinegun">🔫 Machinegun</option>
                             <option value="barricade">🧱 Barricade</option>
                             <option value="landmine">💣 Landmine</option>
+                            <option value="bridge">🌉 Bridge</option>
                             <option value="tunnel">🕳️ Tunnel</option>
                             <option value="artillery">🎯 Artillery</option>
                             <option value="spike">📌 Spike</option>
@@ -20451,7 +20560,7 @@ function render() {
             soldier: '🎖️', tank: '🚜', helicopter: '🚁', ship: '🚢', sub: '🦈',
             carrier: '🛳️', hacker: '💻', builder: '👷', fighter: '✈️', rocket: '🚀',
             train: '🚂', suv: '🚙', machinegun: '🔫', barricade: '🧱',
-            landmine: '💣', tunnel: '🕳️', artillery: '🎯', spike: '📌', base: '🏠'
+            landmine: '💣', bridge: '🌉', tunnel: '🕳️', artillery: '🎯', spike: '📌', base: '🏠'
           }
 
           // Get reach target for visual display
