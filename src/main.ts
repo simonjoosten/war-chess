@@ -1356,6 +1356,22 @@ type Language = 'en' | 'nl' | 'de' | 'fr' | 'es'
 let currentLanguage: Language = 'en'
 let showSettings = false
 let showManual = false
+let showCoach = false
+
+// Coach system
+type CoachLevel = 'beginner' | 'medium' | 'masters' | 'war_gods'
+let coachLevel: CoachLevel = 'beginner'
+let coachLessonIndex = 0
+let coachStepIndex = 0
+let coachHighlightSquares: { col: string, row: number, color: string }[] = []
+let coachWaitingForAction = false
+let coachExpectedAction: { type: string, col?: string, row?: number } | null = null
+let coachShowQuestion = false
+let coachQuestionOptions: string[] = []
+let coachCorrectAnswer = 0
+let coachSelectedAnswer = -1
+let coachFeedbackMessage = ''
+let coachVoiceEnabled = true
 
 // Timer settings (chess clock style)
 let timerEnabled = false
@@ -6674,6 +6690,32 @@ function getSfxGain(): GainNode | null {
   return sfxGainNode
 }
 
+// Coach speech synthesis
+function speakCoachFeedback(text: string) {
+  if (!coachVoiceEnabled) return
+  if (!('speechSynthesis' in window)) return
+
+  // Cancel any ongoing speech
+  window.speechSynthesis.cancel()
+
+  const utterance = new SpeechSynthesisUtterance(text)
+
+  // Set language based on current language
+  const langMap: Record<Language, string> = {
+    en: 'en-US',
+    nl: 'nl-NL',
+    de: 'de-DE',
+    fr: 'fr-FR',
+    es: 'es-ES'
+  }
+  utterance.lang = langMap[currentLanguage] || 'en-US'
+  utterance.rate = 0.9
+  utterance.pitch = 1.0
+  utterance.volume = masterVolume
+
+  window.speechSynthesis.speak(utterance)
+}
+
 async function playSound(type: SoundType) {
   if (!soundEnabled) return
 
@@ -7554,6 +7596,77 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleTestPassed: 'Puzzle Test Passed!',
     puzzleTestNoRewards: '(No rewards in test mode)',
     puzzleWorksCorrectly: 'works correctly.',
+    // Coach
+    coachTitle: 'Coach',
+    coachButton: 'Coach',
+    coachLevelBeginner: 'Beginner',
+    coachLevelMedium: 'Medium',
+    coachLevelMasters: 'Masters',
+    coachLevelWarGods: 'War Gods',
+    coachSelectLevel: 'Select your skill level',
+    coachStartLesson: 'Start Lesson',
+    coachNextStep: 'Next',
+    coachPrevStep: 'Previous',
+    coachTryAgain: 'Try Again',
+    coachCorrect: 'Correct!',
+    coachIncorrect: 'Not quite. Try again!',
+    coachWellDone: 'Well done!',
+    coachGreatJob: 'Great job!',
+    coachKeepGoing: 'Keep going!',
+    coachAlmostThere: 'Almost there!',
+    coachVoice: 'Voice',
+    coachClickSquare: 'Click on the highlighted square',
+    coachClickPiece: 'Click on the highlighted piece',
+    coachSelectMove: 'Select where to move',
+    // Beginner lessons
+    coachWelcome: 'Welcome to War Chess! I am your coach.',
+    coachLesson1Title: 'The Soldier',
+    coachLesson1Step1: 'This is a Soldier. Soldiers can move one square forward, left, or right.',
+    coachLesson1Step2: 'Soldiers can also shoot one square forward to eliminate enemies.',
+    coachLesson1Step3: 'Click on the soldier to select it.',
+    coachLesson1Step4: 'Now click on a highlighted square to move.',
+    coachLesson1Question: 'How many squares can a soldier move?',
+    coachLesson1Answer1: '1 square',
+    coachLesson1Answer2: '2 squares',
+    coachLesson1Answer3: '3 squares',
+    coachLesson2Title: 'The Tank',
+    coachLesson2Step1: 'This is a Tank. Tanks can move multiple squares in any direction.',
+    coachLesson2Step2: 'Tanks are powerful but slow to turn.',
+    coachLesson2Question: 'What makes the Tank special?',
+    coachLesson2Answer1: 'Moves multiple squares',
+    coachLesson2Answer2: 'Can fly',
+    coachLesson2Answer3: 'Is invisible',
+    coachLesson3Title: 'The SUV',
+    coachLesson3Step1: 'This is an SUV. It moves diagonally like a bishop.',
+    coachLesson3Step2: 'The SUV is fast but can only move diagonally.',
+    coachLesson3Question: 'How does the SUV move?',
+    coachLesson3Answer1: 'Diagonally',
+    coachLesson3Answer2: 'Straight lines',
+    coachLesson3Answer3: 'L-shape',
+    coachLesson4Title: 'The Engineer',
+    coachLesson4Step1: 'This is the Engineer. It is one of the most important pieces!',
+    coachLesson4Step2: 'The Engineer can build barricades, artillery, and spikes.',
+    coachLesson4Step3: 'If you capture the enemy Engineer, you win the game instantly!',
+    coachLesson4Question: 'What happens if you capture the Engineer?',
+    coachLesson4Answer1: 'You win instantly',
+    coachLesson4Answer2: 'You get 5 points',
+    coachLesson4Answer3: 'Nothing special',
+    coachLesson5Title: 'The Hacker',
+    coachLesson5Step1: 'This is the Hacker. After 10 moves, it can hack enemy pieces!',
+    coachLesson5Step2: 'Hacking lets you freeze, push forward, or push backward an enemy piece.',
+    coachLesson5Question: 'When can the Hacker start hacking?',
+    coachLesson5Answer1: 'After 10 moves',
+    coachLesson5Answer2: 'Immediately',
+    coachLesson5Answer3: 'After 5 moves',
+    // Scoring
+    coachScoreTitle: 'Scoring',
+    coachScoreStep1: 'You earn points by capturing enemy pieces.',
+    coachScoreStep2: 'Each piece has a different point value.',
+    coachScoreStep3: 'After 80 moves each, the player with the most points wins!',
+    coachScoreQuestion: 'How do you win by points?',
+    coachScoreAnswer1: 'Most points after 80 moves',
+    coachScoreAnswer2: 'First to 100 points',
+    coachScoreAnswer3: 'Capture all pieces',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -7810,6 +7923,77 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleTestPassed: 'Puzzel Test Geslaagd!',
     puzzleTestNoRewards: '(Geen beloningen in test modus)',
     puzzleWorksCorrectly: 'werkt correct.',
+    // Coach
+    coachTitle: 'Coach',
+    coachButton: 'Coach',
+    coachLevelBeginner: 'Beginner',
+    coachLevelMedium: 'Gemiddeld',
+    coachLevelMasters: 'Masters',
+    coachLevelWarGods: 'Oorlogsgoden',
+    coachSelectLevel: 'Kies je niveau',
+    coachStartLesson: 'Start Les',
+    coachNextStep: 'Volgende',
+    coachPrevStep: 'Vorige',
+    coachTryAgain: 'Probeer Opnieuw',
+    coachCorrect: 'Goed zo!',
+    coachIncorrect: 'Niet helemaal. Probeer opnieuw!',
+    coachWellDone: 'Goed gedaan!',
+    coachGreatJob: 'Uitstekend!',
+    coachKeepGoing: 'Ga zo door!',
+    coachAlmostThere: 'Je bent er bijna!',
+    coachVoice: 'Stem',
+    coachClickSquare: 'Klik op het gemarkeerde vak',
+    coachClickPiece: 'Klik op het gemarkeerde stuk',
+    coachSelectMove: 'Selecteer waar je heen wilt',
+    // Beginner lessons
+    coachWelcome: 'Welkom bij Oorlog Schaak! Ik ben je coach.',
+    coachLesson1Title: 'De Soldaat',
+    coachLesson1Step1: 'Dit is een Soldaat. Soldaten kunnen één vak vooruit, links of rechts bewegen.',
+    coachLesson1Step2: 'Soldaten kunnen ook één vak vooruit schieten om vijanden uit te schakelen.',
+    coachLesson1Step3: 'Klik op de soldaat om hem te selecteren.',
+    coachLesson1Step4: 'Klik nu op een gemarkeerd vak om te bewegen.',
+    coachLesson1Question: 'Hoeveel vakken kan een soldaat bewegen?',
+    coachLesson1Answer1: '1 vak',
+    coachLesson1Answer2: '2 vakken',
+    coachLesson1Answer3: '3 vakken',
+    coachLesson2Title: 'De Tank',
+    coachLesson2Step1: 'Dit is een Tank. Tanks kunnen meerdere vakken in elke richting bewegen.',
+    coachLesson2Step2: 'Tanks zijn krachtig maar langzaam om te draaien.',
+    coachLesson2Question: 'Wat maakt de Tank speciaal?',
+    coachLesson2Answer1: 'Beweegt meerdere vakken',
+    coachLesson2Answer2: 'Kan vliegen',
+    coachLesson2Answer3: 'Is onzichtbaar',
+    coachLesson3Title: 'De SUV',
+    coachLesson3Step1: 'Dit is een SUV. Hij beweegt diagonaal zoals een loper.',
+    coachLesson3Step2: 'De SUV is snel maar kan alleen diagonaal bewegen.',
+    coachLesson3Question: 'Hoe beweegt de SUV?',
+    coachLesson3Answer1: 'Diagonaal',
+    coachLesson3Answer2: 'Rechte lijnen',
+    coachLesson3Answer3: 'L-vorm',
+    coachLesson4Title: 'De Ingenieur',
+    coachLesson4Step1: 'Dit is de Ingenieur. Het is een van de belangrijkste stukken!',
+    coachLesson4Step2: 'De Ingenieur kan barricades, geschut en spikes bouwen.',
+    coachLesson4Step3: 'Als je de vijandelijke Ingenieur pakt, win je meteen!',
+    coachLesson4Question: 'Wat gebeurt er als je de Ingenieur pakt?',
+    coachLesson4Answer1: 'Je wint meteen',
+    coachLesson4Answer2: 'Je krijgt 5 punten',
+    coachLesson4Answer3: 'Niets speciaals',
+    coachLesson5Title: 'De Hacker',
+    coachLesson5Step1: 'Dit is de Hacker. Na 10 zetten kan hij vijandelijke stukken hacken!',
+    coachLesson5Step2: 'Hacken laat je een vijandelijk stuk bevriezen, vooruit of achteruit duwen.',
+    coachLesson5Question: 'Wanneer kan de Hacker beginnen met hacken?',
+    coachLesson5Answer1: 'Na 10 zetten',
+    coachLesson5Answer2: 'Meteen',
+    coachLesson5Answer3: 'Na 5 zetten',
+    // Scoring
+    coachScoreTitle: 'Scoren',
+    coachScoreStep1: 'Je verdient punten door vijandelijke stukken te pakken.',
+    coachScoreStep2: 'Elk stuk heeft een andere puntwaarde.',
+    coachScoreStep3: 'Na 80 zetten elk wint de speler met de meeste punten!',
+    coachScoreQuestion: 'Hoe win je op punten?',
+    coachScoreAnswer1: 'Meeste punten na 80 zetten',
+    coachScoreAnswer2: 'Eerst 100 punten',
+    coachScoreAnswer3: 'Alle stukken pakken',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -8066,6 +8250,75 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleTestPassed: 'Rätsel-Test bestanden!',
     puzzleTestNoRewards: '(Keine Belohnungen im Testmodus)',
     puzzleWorksCorrectly: 'funktioniert korrekt.',
+    // Coach
+    coachTitle: 'Trainer',
+    coachButton: 'Trainer',
+    coachLevelBeginner: 'Anfänger',
+    coachLevelMedium: 'Mittel',
+    coachLevelMasters: 'Meister',
+    coachLevelWarGods: 'Kriegsgötter',
+    coachSelectLevel: 'Wähle dein Level',
+    coachStartLesson: 'Lektion Starten',
+    coachNextStep: 'Weiter',
+    coachPrevStep: 'Zurück',
+    coachTryAgain: 'Nochmal',
+    coachCorrect: 'Richtig!',
+    coachIncorrect: 'Nicht ganz. Versuch es nochmal!',
+    coachWellDone: 'Gut gemacht!',
+    coachGreatJob: 'Ausgezeichnet!',
+    coachKeepGoing: 'Weiter so!',
+    coachAlmostThere: 'Fast geschafft!',
+    coachVoice: 'Stimme',
+    coachClickSquare: 'Klicke auf das markierte Feld',
+    coachClickPiece: 'Klicke auf die markierte Figur',
+    coachSelectMove: 'Wähle wohin du ziehen möchtest',
+    coachWelcome: 'Willkommen bei Kriegsschach! Ich bin dein Trainer.',
+    coachLesson1Title: 'Der Soldat',
+    coachLesson1Step1: 'Das ist ein Soldat. Soldaten können ein Feld vorwärts, links oder rechts ziehen.',
+    coachLesson1Step2: 'Soldaten können auch ein Feld vorwärts schießen um Feinde auszuschalten.',
+    coachLesson1Step3: 'Klicke auf den Soldaten um ihn auszuwählen.',
+    coachLesson1Step4: 'Klicke jetzt auf ein markiertes Feld um zu ziehen.',
+    coachLesson1Question: 'Wie viele Felder kann ein Soldat ziehen?',
+    coachLesson1Answer1: '1 Feld',
+    coachLesson1Answer2: '2 Felder',
+    coachLesson1Answer3: '3 Felder',
+    coachLesson2Title: 'Der Panzer',
+    coachLesson2Step1: 'Das ist ein Panzer. Panzer können mehrere Felder in jede Richtung ziehen.',
+    coachLesson2Step2: 'Panzer sind mächtig aber langsam beim Drehen.',
+    coachLesson2Question: 'Was macht den Panzer besonders?',
+    coachLesson2Answer1: 'Zieht mehrere Felder',
+    coachLesson2Answer2: 'Kann fliegen',
+    coachLesson2Answer3: 'Ist unsichtbar',
+    coachLesson3Title: 'Der SUV',
+    coachLesson3Step1: 'Das ist ein SUV. Er zieht diagonal wie ein Läufer.',
+    coachLesson3Step2: 'Der SUV ist schnell aber kann nur diagonal ziehen.',
+    coachLesson3Question: 'Wie zieht der SUV?',
+    coachLesson3Answer1: 'Diagonal',
+    coachLesson3Answer2: 'Gerade Linien',
+    coachLesson3Answer3: 'L-Form',
+    coachLesson4Title: 'Der Ingenieur',
+    coachLesson4Step1: 'Das ist der Ingenieur. Er ist eine der wichtigsten Figuren!',
+    coachLesson4Step2: 'Der Ingenieur kann Barrikaden, Geschütze und Spikes bauen.',
+    coachLesson4Step3: 'Wenn du den feindlichen Ingenieur schlägst, gewinnst du sofort!',
+    coachLesson4Question: 'Was passiert wenn du den Ingenieur schlägst?',
+    coachLesson4Answer1: 'Du gewinnst sofort',
+    coachLesson4Answer2: 'Du bekommst 5 Punkte',
+    coachLesson4Answer3: 'Nichts Besonderes',
+    coachLesson5Title: 'Der Hacker',
+    coachLesson5Step1: 'Das ist der Hacker. Nach 10 Zügen kann er feindliche Figuren hacken!',
+    coachLesson5Step2: 'Hacken lässt dich eine feindliche Figur einfrieren, vorwärts oder rückwärts schieben.',
+    coachLesson5Question: 'Wann kann der Hacker anfangen zu hacken?',
+    coachLesson5Answer1: 'Nach 10 Zügen',
+    coachLesson5Answer2: 'Sofort',
+    coachLesson5Answer3: 'Nach 5 Zügen',
+    coachScoreTitle: 'Punkte',
+    coachScoreStep1: 'Du verdienst Punkte indem du feindliche Figuren schlägst.',
+    coachScoreStep2: 'Jede Figur hat einen anderen Punktwert.',
+    coachScoreStep3: 'Nach 80 Zügen pro Spieler gewinnt der mit den meisten Punkten!',
+    coachScoreQuestion: 'Wie gewinnst du durch Punkte?',
+    coachScoreAnswer1: 'Meiste Punkte nach 80 Zügen',
+    coachScoreAnswer2: 'Zuerst 100 Punkte',
+    coachScoreAnswer3: 'Alle Figuren schlagen',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -8322,6 +8575,75 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleTestPassed: 'Test de puzzle réussi!',
     puzzleTestNoRewards: '(Pas de récompenses en mode test)',
     puzzleWorksCorrectly: 'fonctionne correctement.',
+    // Coach
+    coachTitle: 'Coach',
+    coachButton: 'Coach',
+    coachLevelBeginner: 'Débutant',
+    coachLevelMedium: 'Moyen',
+    coachLevelMasters: 'Maîtres',
+    coachLevelWarGods: 'Dieux de Guerre',
+    coachSelectLevel: 'Sélectionnez votre niveau',
+    coachStartLesson: 'Commencer la leçon',
+    coachNextStep: 'Suivant',
+    coachPrevStep: 'Précédent',
+    coachTryAgain: 'Réessayer',
+    coachCorrect: 'Correct!',
+    coachIncorrect: 'Pas tout à fait. Réessayez!',
+    coachWellDone: 'Bien joué!',
+    coachGreatJob: 'Excellent!',
+    coachKeepGoing: 'Continuez!',
+    coachAlmostThere: 'Presque!',
+    coachVoice: 'Voix',
+    coachClickSquare: 'Cliquez sur la case surlignée',
+    coachClickPiece: 'Cliquez sur la pièce surlignée',
+    coachSelectMove: 'Sélectionnez où déplacer',
+    coachWelcome: 'Bienvenue aux Échecs de Guerre! Je suis votre coach.',
+    coachLesson1Title: 'Le Soldat',
+    coachLesson1Step1: 'Voici un Soldat. Les soldats peuvent se déplacer d\'une case vers l\'avant, gauche ou droite.',
+    coachLesson1Step2: 'Les soldats peuvent aussi tirer une case devant pour éliminer les ennemis.',
+    coachLesson1Step3: 'Cliquez sur le soldat pour le sélectionner.',
+    coachLesson1Step4: 'Maintenant cliquez sur une case surlignée pour bouger.',
+    coachLesson1Question: 'Combien de cases un soldat peut-il se déplacer?',
+    coachLesson1Answer1: '1 case',
+    coachLesson1Answer2: '2 cases',
+    coachLesson1Answer3: '3 cases',
+    coachLesson2Title: 'Le Tank',
+    coachLesson2Step1: 'Voici un Tank. Les tanks peuvent se déplacer de plusieurs cases dans toutes les directions.',
+    coachLesson2Step2: 'Les tanks sont puissants mais lents à tourner.',
+    coachLesson2Question: 'Qu\'est-ce qui rend le Tank spécial?',
+    coachLesson2Answer1: 'Se déplace de plusieurs cases',
+    coachLesson2Answer2: 'Peut voler',
+    coachLesson2Answer3: 'Est invisible',
+    coachLesson3Title: 'Le SUV',
+    coachLesson3Step1: 'Voici un SUV. Il se déplace en diagonale comme un fou.',
+    coachLesson3Step2: 'Le SUV est rapide mais ne peut se déplacer qu\'en diagonale.',
+    coachLesson3Question: 'Comment le SUV se déplace-t-il?',
+    coachLesson3Answer1: 'En diagonale',
+    coachLesson3Answer2: 'En lignes droites',
+    coachLesson3Answer3: 'En forme de L',
+    coachLesson4Title: 'L\'Ingénieur',
+    coachLesson4Step1: 'Voici l\'Ingénieur. C\'est l\'une des pièces les plus importantes!',
+    coachLesson4Step2: 'L\'Ingénieur peut construire des barricades, de l\'artillerie et des pièges.',
+    coachLesson4Step3: 'Si vous capturez l\'Ingénieur ennemi, vous gagnez instantanément!',
+    coachLesson4Question: 'Que se passe-t-il si vous capturez l\'Ingénieur?',
+    coachLesson4Answer1: 'Vous gagnez instantanément',
+    coachLesson4Answer2: 'Vous gagnez 5 points',
+    coachLesson4Answer3: 'Rien de spécial',
+    coachLesson5Title: 'Le Hacker',
+    coachLesson5Step1: 'Voici le Hacker. Après 10 coups, il peut pirater les pièces ennemies!',
+    coachLesson5Step2: 'Le piratage vous permet de geler, pousser en avant ou en arrière une pièce ennemie.',
+    coachLesson5Question: 'Quand le Hacker peut-il commencer à pirater?',
+    coachLesson5Answer1: 'Après 10 coups',
+    coachLesson5Answer2: 'Immédiatement',
+    coachLesson5Answer3: 'Après 5 coups',
+    coachScoreTitle: 'Score',
+    coachScoreStep1: 'Vous gagnez des points en capturant des pièces ennemies.',
+    coachScoreStep2: 'Chaque pièce a une valeur différente.',
+    coachScoreStep3: 'Après 80 coups chacun, le joueur avec le plus de points gagne!',
+    coachScoreQuestion: 'Comment gagner par les points?',
+    coachScoreAnswer1: 'Plus de points après 80 coups',
+    coachScoreAnswer2: 'Premier à 100 points',
+    coachScoreAnswer3: 'Capturer toutes les pièces',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -8578,6 +8900,75 @@ const translations: Record<Language, Record<string, string>> = {
     puzzleTestPassed: '¡Prueba de puzzle pasada!',
     puzzleTestNoRewards: '(Sin recompensas en modo prueba)',
     puzzleWorksCorrectly: 'funciona correctamente.',
+    // Coach
+    coachTitle: 'Entrenador',
+    coachButton: 'Entrenador',
+    coachLevelBeginner: 'Principiante',
+    coachLevelMedium: 'Medio',
+    coachLevelMasters: 'Maestros',
+    coachLevelWarGods: 'Dioses de Guerra',
+    coachSelectLevel: 'Selecciona tu nivel',
+    coachStartLesson: 'Comenzar Lección',
+    coachNextStep: 'Siguiente',
+    coachPrevStep: 'Anterior',
+    coachTryAgain: 'Intentar de nuevo',
+    coachCorrect: '¡Correcto!',
+    coachIncorrect: 'No del todo. ¡Inténtalo de nuevo!',
+    coachWellDone: '¡Bien hecho!',
+    coachGreatJob: '¡Excelente!',
+    coachKeepGoing: '¡Sigue así!',
+    coachAlmostThere: '¡Casi!',
+    coachVoice: 'Voz',
+    coachClickSquare: 'Haz clic en la casilla resaltada',
+    coachClickPiece: 'Haz clic en la pieza resaltada',
+    coachSelectMove: 'Selecciona adónde mover',
+    coachWelcome: '¡Bienvenido a Ajedrez de Guerra! Soy tu entrenador.',
+    coachLesson1Title: 'El Soldado',
+    coachLesson1Step1: 'Este es un Soldado. Los soldados pueden moverse una casilla adelante, izquierda o derecha.',
+    coachLesson1Step2: 'Los soldados también pueden disparar una casilla adelante para eliminar enemigos.',
+    coachLesson1Step3: 'Haz clic en el soldado para seleccionarlo.',
+    coachLesson1Step4: 'Ahora haz clic en una casilla resaltada para mover.',
+    coachLesson1Question: '¿Cuántas casillas puede moverse un soldado?',
+    coachLesson1Answer1: '1 casilla',
+    coachLesson1Answer2: '2 casillas',
+    coachLesson1Answer3: '3 casillas',
+    coachLesson2Title: 'El Tanque',
+    coachLesson2Step1: 'Este es un Tanque. Los tanques pueden moverse varias casillas en cualquier dirección.',
+    coachLesson2Step2: 'Los tanques son poderosos pero lentos para girar.',
+    coachLesson2Question: '¿Qué hace especial al Tanque?',
+    coachLesson2Answer1: 'Se mueve varias casillas',
+    coachLesson2Answer2: 'Puede volar',
+    coachLesson2Answer3: 'Es invisible',
+    coachLesson3Title: 'El SUV',
+    coachLesson3Step1: 'Este es un SUV. Se mueve en diagonal como un alfil.',
+    coachLesson3Step2: 'El SUV es rápido pero solo puede moverse en diagonal.',
+    coachLesson3Question: '¿Cómo se mueve el SUV?',
+    coachLesson3Answer1: 'En diagonal',
+    coachLesson3Answer2: 'En líneas rectas',
+    coachLesson3Answer3: 'En forma de L',
+    coachLesson4Title: 'El Ingeniero',
+    coachLesson4Step1: '¡Este es el Ingeniero. Es una de las piezas más importantes!',
+    coachLesson4Step2: 'El Ingeniero puede construir barricadas, artillería y pinchos.',
+    coachLesson4Step3: '¡Si capturas al Ingeniero enemigo, ganas instantáneamente!',
+    coachLesson4Question: '¿Qué pasa si capturas al Ingeniero?',
+    coachLesson4Answer1: 'Ganas instantáneamente',
+    coachLesson4Answer2: 'Obtienes 5 puntos',
+    coachLesson4Answer3: 'Nada especial',
+    coachLesson5Title: 'El Hacker',
+    coachLesson5Step1: '¡Este es el Hacker. Después de 10 movimientos, puede hackear piezas enemigas!',
+    coachLesson5Step2: 'Hackear te permite congelar, empujar adelante o atrás una pieza enemiga.',
+    coachLesson5Question: '¿Cuándo puede el Hacker empezar a hackear?',
+    coachLesson5Answer1: 'Después de 10 movimientos',
+    coachLesson5Answer2: 'Inmediatamente',
+    coachLesson5Answer3: 'Después de 5 movimientos',
+    coachScoreTitle: 'Puntuación',
+    coachScoreStep1: 'Ganas puntos capturando piezas enemigas.',
+    coachScoreStep2: 'Cada pieza tiene un valor diferente.',
+    coachScoreStep3: '¡Después de 80 movimientos cada uno, gana el jugador con más puntos!',
+    coachScoreQuestion: '¿Cómo ganas por puntos?',
+    coachScoreAnswer1: 'Más puntos después de 80 movimientos',
+    coachScoreAnswer2: 'Primero en 100 puntos',
+    coachScoreAnswer3: 'Capturar todas las piezas',
   }
 }
 
@@ -19224,6 +19615,196 @@ function render() {
   }
 
   if (gameState === 'start') {
+    // Coach screen
+    if (showCoach) {
+      const lessons = [
+        { key: 'coachWelcome', type: 'intro' },
+        { key: 'coachLesson1Title', type: 'lesson', steps: ['coachLesson1Step1', 'coachLesson1Step2', 'coachLesson1Step3', 'coachLesson1Step4'], question: 'coachLesson1Question', answers: ['coachLesson1Answer1', 'coachLesson1Answer2', 'coachLesson1Answer3'], correct: 0 },
+        { key: 'coachLesson2Title', type: 'lesson', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer1', 'coachLesson2Answer2', 'coachLesson2Answer3'], correct: 0 },
+        { key: 'coachLesson3Title', type: 'lesson', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer1', 'coachLesson3Answer2', 'coachLesson3Answer3'], correct: 0 },
+        { key: 'coachLesson4Title', type: 'lesson', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer1', 'coachLesson4Answer2', 'coachLesson4Answer3'], correct: 0 },
+        { key: 'coachLesson5Title', type: 'lesson', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer1', 'coachLesson5Answer2', 'coachLesson5Answer3'], correct: 0 },
+        { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer1', 'coachScoreAnswer2', 'coachScoreAnswer3'], correct: 0 },
+      ]
+      const currentLesson = lessons[coachLessonIndex]
+      const isIntro = currentLesson.type === 'intro'
+      const isQuestion = coachShowQuestion && currentLesson.type === 'lesson'
+
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-8">
+          <h1 class="text-2xl sm:text-4xl font-bold text-white">🎓 ${t('coachTitle')}</h1>
+
+          <!-- Level Selection -->
+          <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-4 min-w-[300px] max-w-[500px]">
+            <label class="text-white font-bold">${t('coachSelectLevel')}</label>
+            <div class="flex flex-wrap gap-2">
+              <button data-level="beginner" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'beginner' ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
+                🌱 ${t('coachLevelBeginner')}
+              </button>
+              <button data-level="medium" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'medium' ? 'bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
+                ⚔️ ${t('coachLevelMedium')}
+              </button>
+              <button data-level="masters" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'masters' ? 'bg-orange-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
+                🏅 ${t('coachLevelMasters')}
+              </button>
+              <button data-level="war_gods" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'war_gods' ? 'bg-red-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
+                ⚡ ${t('coachLevelWarGods')}
+              </button>
+            </div>
+
+            <!-- Voice toggle -->
+            <div class="flex items-center gap-3 border-t border-gray-700 pt-3">
+              <span class="text-white">${t('coachVoice')}:</span>
+              <button id="coach-voice-btn" class="py-1 px-3 rounded ${coachVoiceEnabled ? 'bg-blue-600' : 'bg-gray-600'} text-white transition-colors">
+                ${coachVoiceEnabled ? t('on') : t('off')}
+              </button>
+            </div>
+          </div>
+
+          <!-- Lesson Content -->
+          <div class="bg-indigo-900 p-6 rounded-lg flex flex-col gap-4 min-w-[300px] max-w-[600px] w-full">
+            <h2 class="text-xl font-bold text-yellow-300">
+              ${isIntro ? '👋' : `📚 Lesson ${coachLessonIndex}:`} ${t(currentLesson.key)}
+            </h2>
+
+            ${isIntro ? `
+              <p class="text-white text-lg">${t('coachWelcome')}</p>
+              <p class="text-gray-300">${t('coachClickSquare')}</p>
+            ` : isQuestion ? `
+              <p class="text-white text-lg font-semibold">${t(currentLesson.question || '')}</p>
+              <div class="flex flex-col gap-2">
+                ${(currentLesson.answers || []).map((ans: string, i: number) => `
+                  <button data-answer="${i}" class="coach-answer-btn py-3 px-4 rounded text-left ${coachSelectedAnswer === i ? (i === currentLesson.correct ? 'bg-green-600' : 'bg-red-600') : 'bg-gray-700 hover:bg-gray-600'} text-white transition-colors">
+                    ${String.fromCharCode(65 + i)}. ${t(ans)}
+                  </button>
+                `).join('')}
+              </div>
+              ${coachFeedbackMessage ? `
+                <p class="text-lg font-bold ${coachSelectedAnswer === currentLesson.correct ? 'text-green-400' : 'text-red-400'}">
+                  ${coachFeedbackMessage}
+                </p>
+              ` : ''}
+            ` : `
+              <p class="text-white text-lg">${t((currentLesson.steps || [])[coachStepIndex] || '')}</p>
+              <p class="text-gray-400 text-sm">Step ${coachStepIndex + 1} / ${(currentLesson.steps || []).length}</p>
+            `}
+          </div>
+
+          <!-- Navigation -->
+          <div class="flex gap-3">
+            ${coachLessonIndex > 0 || coachStepIndex > 0 ? `
+              <button id="coach-prev-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                ⬅️ ${t('coachPrevStep')}
+              </button>
+            ` : ''}
+            ${!isQuestion || coachSelectedAnswer === currentLesson.correct ? `
+              <button id="coach-next-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                ${t('coachNextStep')} ➡️
+              </button>
+            ` : ''}
+            <button id="coach-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors">
+              ${t('backButton')}
+            </button>
+          </div>
+        </div>
+      `
+
+      // Event listeners
+      document.querySelectorAll('.coach-level-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          coachLevel = (btn as HTMLButtonElement).dataset.level as CoachLevel
+          coachLessonIndex = 0
+          coachStepIndex = 0
+          coachShowQuestion = false
+          coachSelectedAnswer = -1
+          coachFeedbackMessage = ''
+          render()
+        })
+      })
+
+      document.getElementById('coach-voice-btn')?.addEventListener('click', () => {
+        coachVoiceEnabled = !coachVoiceEnabled
+        render()
+      })
+
+      document.querySelectorAll('.coach-answer-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const answerIndex = parseInt((btn as HTMLButtonElement).dataset.answer || '0')
+          coachSelectedAnswer = answerIndex
+          const lesson = lessons[coachLessonIndex]
+          if (answerIndex === lesson.correct) {
+            coachFeedbackMessage = t('coachCorrect') + ' ' + t('coachGreatJob')
+            if (coachVoiceEnabled) speakCoachFeedback(t('coachCorrect'))
+          } else {
+            coachFeedbackMessage = t('coachIncorrect')
+            if (coachVoiceEnabled) speakCoachFeedback(t('coachIncorrect'))
+          }
+          render()
+        })
+      })
+
+      document.getElementById('coach-prev-btn')?.addEventListener('click', () => {
+        if (coachShowQuestion) {
+          coachShowQuestion = false
+          coachSelectedAnswer = -1
+          coachFeedbackMessage = ''
+        } else if (coachStepIndex > 0) {
+          coachStepIndex--
+        } else if (coachLessonIndex > 0) {
+          coachLessonIndex--
+          const prevLesson = lessons[coachLessonIndex]
+          if (prevLesson.type === 'lesson') {
+            coachStepIndex = (prevLesson.steps || []).length - 1
+          }
+        }
+        render()
+      })
+
+      document.getElementById('coach-next-btn')?.addEventListener('click', () => {
+        const lesson = lessons[coachLessonIndex]
+        if (lesson.type === 'intro') {
+          coachLessonIndex++
+          coachStepIndex = 0
+        } else if (coachShowQuestion) {
+          // Move to next lesson
+          coachLessonIndex++
+          coachStepIndex = 0
+          coachShowQuestion = false
+          coachSelectedAnswer = -1
+          coachFeedbackMessage = ''
+          if (coachLessonIndex >= lessons.length) {
+            coachLessonIndex = 0
+          }
+        } else {
+          // Move to next step or question
+          if (coachStepIndex < (lesson.steps || []).length - 1) {
+            coachStepIndex++
+          } else {
+            coachShowQuestion = true
+          }
+        }
+        // Speak the new content
+        if (coachVoiceEnabled && coachLessonIndex < lessons.length) {
+          const newLesson = lessons[coachLessonIndex]
+          if (newLesson.type === 'intro') {
+            speakCoachFeedback(t('coachWelcome'))
+          } else if (coachShowQuestion) {
+            speakCoachFeedback(t(newLesson.question || ''))
+          } else {
+            speakCoachFeedback(t((newLesson.steps || [])[coachStepIndex] || ''))
+          }
+        }
+        render()
+      })
+
+      document.getElementById('coach-back-btn')?.addEventListener('click', () => {
+        showCoach = false
+        render()
+      })
+
+      return
+    }
+
     if (showSettings) {
       // Settings screen
       app.innerHTML = `
@@ -23508,9 +24089,14 @@ function render() {
             </button>
           </div>
           ` : ''}
-          <button id="settings-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
-            ⚙️ ${t('settingsButton')}
-          </button>
+          <div class="flex gap-2">
+            <button id="coach-btn" class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
+              🎓 ${t('coachButton')}
+            </button>
+            <button id="settings-btn" class="bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
+              ⚙️ ${t('settingsButton')}
+            </button>
+          </div>
         </div>
         <div class="flex items-start gap-4 sm:gap-8 opacity-50">
           <div class="flex-shrink-0" id="board-container">
@@ -23542,6 +24128,12 @@ function render() {
     })
     document.getElementById('settings-btn')?.addEventListener('click', () => {
       showSettings = true
+      render()
+    })
+    document.getElementById('coach-btn')?.addEventListener('click', () => {
+      showCoach = true
+      coachLessonIndex = 0
+      coachStepIndex = 0
       render()
     })
     document.getElementById('profile-btn')?.addEventListener('click', () => {
