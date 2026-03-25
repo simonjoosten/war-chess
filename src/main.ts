@@ -11161,6 +11161,68 @@ function movePiece(col: string, row: number) {
       return
     }
 
+    // Special case: stepping on enemy landmine - BOTH pieces explode!
+    if (pieceAtTarget.type === 'landmine' && pieceAtTarget.team !== selectedPiece.team) {
+      // Save puzzle state for undo if in puzzle mode
+      if (puzzleSolving) {
+        savePuzzleStateForUndo()
+      }
+
+      // Show explosion
+      explosionAt = { col, row }
+      playSound('explosion')
+
+      // Track for puzzle mode (landmine counts as captured for eliminate_all)
+      lastCapturedPieceType = pieceAtTarget.type
+      lastCapturedPosition = { row: pieceAtTarget.row, col: columns.indexOf(pieceAtTarget.col) }
+
+      // Remove the landmine
+      const landmineIndex = pieces.indexOf(pieceAtTarget)
+      pieces.splice(landmineIndex, 1)
+
+      // Remove the stepping piece
+      const stepperIndex = pieces.indexOf(selectedPiece)
+      pieces.splice(stepperIndex, 1)
+
+      message = `💥 Stepped on landmine! Both pieces destroyed!`
+
+      // Spawn explosion particles
+      const colIndex = columns.indexOf(col)
+      const pixelX = 30 + colIndex * 50 + 25
+      const pixelY = (11 - row) * 50 + 25
+      spawnEffectParticles(pixelX, pixelY, 30)
+
+      // Log the move
+      moveLog.push({
+        from: `${selectedPiece.col}${selectedPiece.row}`,
+        to: `${col}${row}`,
+        piece: selectedPiece.type,
+        team: selectedPiece.team,
+        captured: 'landmine_explosion'
+      })
+
+      // Increment turn count
+      if (selectedPiece.team === 'yellow') yellowTurnCount++
+      else greenTurnCount++
+
+      // Switch turns
+      switchTurn()
+
+      // Clear selection
+      selectedPiece = null
+      validMoves = []
+
+      render()
+
+      // Clear explosion after delay
+      setTimeout(() => {
+        explosionAt = null
+        render()
+      }, 500 * getSpeedMultiplier())
+
+      return
+    }
+
     if (pieceAtTarget.team === selectedPiece.team) {
       message = t('teamPieceBlocking')
       render()
