@@ -20001,9 +20001,92 @@ function render() {
       const isIntro = currentLesson.type === 'intro'
       const isQuestion = coachShowQuestion && currentLesson.type === 'lesson'
 
-      // Create mini board for coach with the current piece
+      // Create mini board for coach with REAL piece graphics
       const coachBoardSize = 5
       const coachSquareSize = 50
+
+      // Draw a simple but recognizable piece SVG
+      function drawCoachPiece(pieceType: string, team: 'yellow' | 'green', x: number, y: number, size: number): string {
+        const teamColor = team === 'yellow' ? '#fbbf24' : '#22c55e'
+        const strokeColor = team === 'yellow' ? '#b45309' : '#15803d'
+        const darkColor = team === 'yellow' ? '#d97706' : '#16a34a'
+
+        switch (pieceType) {
+          case 'soldier':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
+                <circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
+                <rect x="${x + size/3}" y="${y + size/5}" width="${size/3}" height="${size/8}" fill="#444" />
+                <line x1="${x + size*0.3}" y1="${y + size*0.6}" x2="${x + size*0.15}" y2="${y + size*0.4}" stroke="#666" stroke-width="3" />
+              </g>`
+          case 'tank':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <rect x="${x + 4}" y="${y + size/2}" width="${size - 8}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1.5" rx="3" />
+                <rect x="${x + size/4}" y="${y + size/3}" width="${size/2}" height="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
+                <rect x="${x + size/2 - 2}" y="${y + size/6}" width="4" height="${size/4}" fill="#444" />
+                <circle cx="${x + 8}" cy="${y + size*0.75}" r="4" fill="#333" />
+                <circle cx="${x + size - 8}" cy="${y + size*0.75}" r="4" fill="#333" />
+              </g>`
+          case 'suv':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <rect x="${x + 6}" y="${y + size/2}" width="${size - 12}" height="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" />
+                <rect x="${x + 10}" y="${y + size/3}" width="${size - 20}" height="${size/4}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="3" />
+                <rect x="${x + 12}" y="${y + size/3 + 2}" width="${size/4 - 4}" height="${size/6}" fill="#87ceeb" />
+                <circle cx="${x + 10}" cy="${y + size*0.78}" r="4" fill="#222" />
+                <circle cx="${x + size - 10}" cy="${y + size*0.78}" r="4" fill="#222" />
+              </g>`
+          case 'builder':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
+                <circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
+                <rect x="${x + size/3}" y="${y + size/6}" width="${size/3}" height="${size/10}" fill="#f59e0b" rx="2" />
+                <rect x="${x + size*0.6}" y="${y + size*0.35}" width="${size/5}" height="${size/4}" fill="#71717a" />
+                <rect x="${x + size*0.65}" y="${y + size*0.55}" width="${size/10}" height="${size/6}" fill="#f59e0b" />
+              </g>`
+          case 'hacker':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
+                <circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
+                <rect x="${x + size/3}" y="${y + size/5}" width="${size/3}" height="${size/8}" fill="#1e1e1e" rx="1" />
+                <rect x="${x + size*0.2}" y="${y + size*0.5}" width="${size*0.35}" height="${size*0.25}" fill="#1e1e1e" rx="2" />
+                <rect x="${x + size*0.23}" y="${y + size*0.53}" width="${size*0.29}" height="${size*0.15}" fill="#22c55e" rx="1" />
+              </g>`
+          case 'barricade':
+            return `
+              <g>
+                <rect x="${x + 4}" y="${y + size/3}" width="${size - 8}" height="${size/2}" fill="#8b7355" stroke="#5c4033" stroke-width="2" />
+                <line x1="${x + 6}" y1="${y + size/3 + 4}" x2="${x + size - 6}" y2="${y + size/3 + 4}" stroke="#5c4033" stroke-width="1" />
+                <line x1="${x + 6}" y1="${y + size*0.6}" x2="${x + size - 6}" y2="${y + size*0.6}" stroke="#5c4033" stroke-width="1" />
+              </g>`
+          case 'artillery':
+            return `
+              <g>
+                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
+                <circle cx="${x + size/2}" cy="${y + size*0.65}" r="${size/4}" fill="#444" stroke="#222" stroke-width="2" />
+                <rect x="${x + size/2 - 3}" y="${y + size/4}" width="6" height="${size/3}" fill="#333" />
+                <circle cx="${x + size/2}" cy="${y + size/4}" r="4" fill="#ef4444" />
+              </g>`
+          case 'spike':
+            return `
+              <g>
+                <polygon points="${x + size/2},${y + size/4} ${x + size*0.3},${y + size*0.8} ${x + size*0.7},${y + size*0.8}" fill="#71717a" stroke="#404040" stroke-width="1" />
+                <circle cx="${x + size/2}" cy="${y + size/4 + 4}" r="3" fill="#ef4444" />
+              </g>`
+          default:
+            return `<circle cx="${x + size/2}" cy="${y + size/2}" r="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="2" />`
+        }
+      }
+
       function createCoachBoard(): string {
         let svg = `<svg width="${coachBoardSize * coachSquareSize}" height="${coachBoardSize * coachSquareSize}" class="rounded-lg overflow-hidden">`
 
@@ -20017,29 +20100,15 @@ function render() {
           }
         }
 
-        // Draw the current lesson's piece in the center
+        // Draw the current lesson's piece in the center with REAL graphics
         if (currentLesson.piece) {
           const centerX = 2 * coachSquareSize
           const centerY = 2 * coachSquareSize
-          const pieceSize = coachSquareSize - 8
-
-          // Draw piece background
-          svg += `<circle cx="${centerX + coachSquareSize/2}" cy="${centerY + coachSquareSize/2}" r="${pieceSize/2}" fill="#fbbf24" stroke="#b45309" stroke-width="2" />`
-
-          // Draw piece icon
-          const iconMap: Record<string, string> = {
-            soldier: '⚔️',
-            tank: '🛡️',
-            suv: '🚙',
-            builder: '🔧',
-            hacker: '💻',
-          }
-          svg += `<text x="${centerX + coachSquareSize/2}" y="${centerY + coachSquareSize/2 + 8}" text-anchor="middle" font-size="24">${iconMap[currentLesson.piece] || '❓'}</text>`
 
           // Show valid moves for this piece
-          const movePatterns: Record<string, Array<{dx: number, dy: number}>> = {
+          const movePatterns: Record<string, Array<{dx: number, dy: number, type?: string}>> = {
             soldier: [{dx: 0, dy: -1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
-            tank: [{dx: 0, dy: -1}, {dx: 0, dy: -2}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
+            tank: [{dx: 0, dy: -1}, {dx: 0, dy: -2}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}, {dx: -1, dy: -1}, {dx: 1, dy: -1}],
             suv: [{dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}, {dx: 1, dy: 1}, {dx: -2, dy: -2}, {dx: 2, dy: -2}],
             builder: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
             hacker: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
@@ -20050,9 +20119,26 @@ function render() {
             const mx = (2 + m.dx) * coachSquareSize
             const my = (2 + m.dy) * coachSquareSize
             if (mx >= 0 && mx < coachBoardSize * coachSquareSize && my >= 0 && my < coachBoardSize * coachSquareSize) {
-              svg += `<rect x="${mx + 4}" y="${my + 4}" width="${coachSquareSize - 8}" height="${coachSquareSize - 8}" fill="#22c55e" opacity="0.5" rx="4" />`
+              svg += `<rect x="${mx + 3}" y="${my + 3}" width="${coachSquareSize - 6}" height="${coachSquareSize - 6}" fill="#22c55e" opacity="0.4" rx="4" />`
             }
           })
+
+          // Draw the piece using real graphics
+          svg += drawCoachPiece(currentLesson.piece, 'yellow', centerX + 2, centerY + 2, coachSquareSize - 4)
+
+          // For builder lesson, show what can be built
+          if (currentLesson.piece === 'builder') {
+            svg += drawCoachPiece('barricade', 'yellow', 0 * coachSquareSize + 2, 1 * coachSquareSize + 2, coachSquareSize - 4)
+            svg += drawCoachPiece('artillery', 'yellow', 4 * coachSquareSize + 2, 1 * coachSquareSize + 2, coachSquareSize - 4)
+            svg += drawCoachPiece('spike', 'yellow', 2 * coachSquareSize + 2, 0 * coachSquareSize + 2, coachSquareSize - 4)
+          }
+
+          // For hacker lesson, show enemy piece to hack
+          if (currentLesson.piece === 'hacker') {
+            svg += drawCoachPiece('soldier', 'green', 2 * coachSquareSize + 2, 0 * coachSquareSize + 2, coachSquareSize - 4)
+            // Purple highlight for hackable
+            svg += `<rect x="${2 * coachSquareSize + 3}" y="${0 * coachSquareSize + 3}" width="${coachSquareSize - 6}" height="${coachSquareSize - 6}" fill="#a855f7" opacity="0.4" rx="4" />`
+          }
         }
 
         svg += '</svg>'
