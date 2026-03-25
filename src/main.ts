@@ -1358,20 +1358,57 @@ let showSettings = false
 let showManual = false
 let showCoach = false
 
-// Coach system
+// Coach system - Enhanced with multiple question types, real board, and rewards
 type CoachLevel = 'beginner' | 'medium' | 'masters' | 'war_gods'
+type CoachQuestionType = 'multipleChoice' | 'boardClick' | 'boardSelect' | 'settingsTask' | 'navigationTask'
+type CoachCategory = 'basics' | 'pieces' | 'special' | 'advanced' | 'navigation' | 'settings'
+
+interface CoachLesson {
+  id: string
+  category: CoachCategory
+  level: CoachLevel
+  titleKey: string
+  descriptionKey: string
+  reward: number // War Bucks reward
+  steps: CoachStep[]
+  piece?: string // Optional piece to show on board
+}
+
+interface CoachStep {
+  type: CoachQuestionType
+  textKey: string
+  // For multiple choice
+  question?: string
+  answers?: string[]
+  correct?: number
+  // For board click - which square(s) are correct
+  correctSquares?: Array<{ col: string, row: number }>
+  highlightSquares?: Array<{ col: string, row: number, color: string }>
+  // For board select - multiple squares to select
+  requiredSelections?: Array<{ col: string, row: number }>
+  // For settings task
+  settingName?: string
+  settingValue?: boolean | string | number
+  // For navigation task
+  targetScreen?: string // e.g., 'puzzles', 'shop', 'events'
+  // Show pieces on board for this step
+  boardPieces?: Array<{ type: string, team: 'yellow' | 'green', col: string, row: number }>
+  showMoveHighlights?: boolean
+  showCoordinates?: boolean
+}
+
 let coachLevel: CoachLevel = 'beginner'
-let coachLessonIndex = 0
+let coachCategory: CoachCategory | null = null // null = show menu
+let coachSelectedLesson: CoachLesson | null = null
 let coachStepIndex = 0
-let coachHighlightSquares: { col: string, row: number, color: string }[] = []
-let coachWaitingForAction = false
-let coachExpectedAction: { type: string, col?: string, row?: number } | null = null
-let coachShowQuestion = false
-let coachQuestionOptions: string[] = []
-let coachCorrectAnswer = 0
 let coachSelectedAnswer = -1
 let coachFeedbackMessage = ''
 let coachVoiceEnabled = true
+let coachSelectedSquares: Array<{ col: string, row: number }> = []
+let coachCompletedLessons: string[] = [] // Lesson IDs that have been completed
+let coachShowLessonComplete = false
+let coachBoardSize = 7 // Smaller board for coach (7x7)
+let coachBoardSquareSize = 50
 
 // Timer settings (chess clock style)
 let timerEnabled = false
@@ -7056,6 +7093,441 @@ function speakCoachFeedback(text: string) {
   window.speechSynthesis.speak(utterance)
 }
 
+// Load completed coach lessons from localStorage
+function loadCoachProgress() {
+  try {
+    const saved = localStorage.getItem('warChessCoachProgress')
+    if (saved) {
+      coachCompletedLessons = JSON.parse(saved)
+    }
+  } catch (e) {
+    console.log('Could not load coach progress')
+  }
+}
+
+// Save completed coach lessons to localStorage
+function saveCoachProgress() {
+  try {
+    localStorage.setItem('warChessCoachProgress', JSON.stringify(coachCompletedLessons))
+  } catch (e) {
+    console.log('Could not save coach progress')
+  }
+}
+
+// All coach lessons organized by category and level
+function getCoachLessons(): CoachLesson[] {
+  return [
+    // ============ BASICS CATEGORY ============
+    {
+      id: 'welcome',
+      category: 'basics',
+      level: 'beginner',
+      titleKey: 'coachWelcomeTitle',
+      descriptionKey: 'coachWelcomeDesc',
+      reward: 10,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachWelcomeStep1', question: 'coachWelcomeQ1', answers: ['coachWelcomeA1a', 'coachWelcomeA1b', 'coachWelcomeA1c'], correct: 0 }
+      ]
+    },
+    {
+      id: 'boardBasics',
+      category: 'basics',
+      level: 'beginner',
+      titleKey: 'coachBoardTitle',
+      descriptionKey: 'coachBoardDesc',
+      reward: 15,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachBoardStep1', question: 'coachBoardQ1', answers: ['coachBoardA1a', 'coachBoardA1b', 'coachBoardA1c'], correct: 1 },
+        { type: 'boardClick', textKey: 'coachBoardStep2', correctSquares: [{ col: 'D', row: 4 }], highlightSquares: [{ col: 'D', row: 4, color: '#22c55e' }], showCoordinates: true }
+      ]
+    },
+    {
+      id: 'coordinates',
+      category: 'basics',
+      level: 'medium',
+      titleKey: 'coachCoordsTitle',
+      descriptionKey: 'coachCoordsDesc',
+      reward: 25,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachCoordsStep1', showCoordinates: true, question: 'coachCoordsQ1', answers: ['coachCoordsA1a', 'coachCoordsA1b', 'coachCoordsA1c'], correct: 2 },
+        { type: 'boardClick', textKey: 'coachCoordsStep2', correctSquares: [{ col: 'E', row: 5 }], showCoordinates: true },
+        { type: 'boardClick', textKey: 'coachCoordsStep3', correctSquares: [{ col: 'B', row: 3 }], showCoordinates: true },
+        { type: 'boardClick', textKey: 'coachCoordsStep4', correctSquares: [{ col: 'G', row: 7 }], showCoordinates: true }
+      ]
+    },
+    {
+      id: 'winning',
+      category: 'basics',
+      level: 'beginner',
+      titleKey: 'coachWinTitle',
+      descriptionKey: 'coachWinDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachWinStep1', question: 'coachWinQ1', answers: ['coachWinA1a', 'coachWinA1b', 'coachWinA1c'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachWinStep2', question: 'coachWinQ2', answers: ['coachWinA2a', 'coachWinA2b', 'coachWinA2c'], correct: 1 }
+      ]
+    },
+    {
+      id: 'scoring',
+      category: 'basics',
+      level: 'beginner',
+      titleKey: 'coachScoreTitle',
+      descriptionKey: 'coachScoreDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachScoreStep1', question: 'coachScoreQ1', answers: ['coachScoreA1a', 'coachScoreA1b', 'coachScoreA1c'], correct: 2 },
+        { type: 'multipleChoice', textKey: 'coachScoreStep2', question: 'coachScoreQ2', answers: ['coachScoreA2a', 'coachScoreA2b', 'coachScoreA2c'], correct: 0 }
+      ]
+    },
+
+    // ============ PIECES CATEGORY ============
+    {
+      id: 'soldier',
+      category: 'pieces',
+      level: 'beginner',
+      titleKey: 'coachSoldierTitle',
+      descriptionKey: 'coachSoldierDesc',
+      reward: 15,
+      piece: 'soldier',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachSoldierStep1', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }], showMoveHighlights: true, question: 'coachSoldierQ1', answers: ['coachSoldierA1a', 'coachSoldierA1b', 'coachSoldierA1c'], correct: 0 },
+        { type: 'boardClick', textKey: 'coachSoldierStep2', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }], highlightSquares: [{ col: 'D', row: 5, color: '#22c55e' }, { col: 'C', row: 4, color: '#22c55e' }, { col: 'E', row: 4, color: '#22c55e' }], correctSquares: [{ col: 'D', row: 5 }, { col: 'C', row: 4 }, { col: 'E', row: 4 }] },
+        { type: 'multipleChoice', textKey: 'coachSoldierStep3', question: 'coachSoldierQ2', answers: ['coachSoldierA2a', 'coachSoldierA2b', 'coachSoldierA2c'], correct: 1 }
+      ]
+    },
+    {
+      id: 'tank',
+      category: 'pieces',
+      level: 'beginner',
+      titleKey: 'coachTankTitle',
+      descriptionKey: 'coachTankDesc',
+      reward: 15,
+      piece: 'tank',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachTankStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }], showMoveHighlights: true, question: 'coachTankQ1', answers: ['coachTankA1a', 'coachTankA1b', 'coachTankA1c'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachTankStep2', question: 'coachTankQ2', answers: ['coachTankA2a', 'coachTankA2b', 'coachTankA2c'], correct: 2 }
+      ]
+    },
+    {
+      id: 'suv',
+      category: 'pieces',
+      level: 'beginner',
+      titleKey: 'coachSUVTitle',
+      descriptionKey: 'coachSUVDesc',
+      reward: 15,
+      piece: 'suv',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachSUVStep1', boardPieces: [{ type: 'suv', team: 'yellow', col: 'D', row: 4 }], showMoveHighlights: true, question: 'coachSUVQ1', answers: ['coachSUVA1a', 'coachSUVA1b', 'coachSUVA1c'], correct: 0 },
+        { type: 'boardSelect', textKey: 'coachSUVStep2', boardPieces: [{ type: 'suv', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'C', row: 5 }, { col: 'E', row: 5 }, { col: 'C', row: 3 }, { col: 'E', row: 3 }] }
+      ]
+    },
+    {
+      id: 'builder',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachBuilderTitle',
+      descriptionKey: 'coachBuilderDesc',
+      reward: 25,
+      piece: 'builder',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachBuilderStep1', boardPieces: [{ type: 'builder', team: 'yellow', col: 'D', row: 4 }], question: 'coachBuilderQ1', answers: ['coachBuilderA1a', 'coachBuilderA1b', 'coachBuilderA1c'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachBuilderStep2', boardPieces: [{ type: 'builder', team: 'yellow', col: 'D', row: 4 }, { type: 'barricade', team: 'yellow', col: 'D', row: 5 }, { type: 'artillery', team: 'yellow', col: 'E', row: 4 }, { type: 'spike', team: 'yellow', col: 'C', row: 4 }], question: 'coachBuilderQ2', answers: ['coachBuilderA2a', 'coachBuilderA2b', 'coachBuilderA2c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachBuilderStep3', question: 'coachBuilderQ3', answers: ['coachBuilderA3a', 'coachBuilderA3b', 'coachBuilderA3c'], correct: 0 }
+      ]
+    },
+    {
+      id: 'hacker',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachHackerTitle',
+      descriptionKey: 'coachHackerDesc',
+      reward: 25,
+      piece: 'hacker',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachHackerStep1', boardPieces: [{ type: 'hacker', team: 'yellow', col: 'D', row: 4 }], question: 'coachHackerQ1', answers: ['coachHackerA1a', 'coachHackerA1b', 'coachHackerA1c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachHackerStep2', boardPieces: [{ type: 'hacker', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'D', row: 6 }], highlightSquares: [{ col: 'D', row: 6, color: '#a855f7' }], question: 'coachHackerQ2', answers: ['coachHackerA2a', 'coachHackerA2b', 'coachHackerA2c'], correct: 2 }
+      ]
+    },
+    {
+      id: 'artillery',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachArtilleryTitle',
+      descriptionKey: 'coachArtilleryDesc',
+      reward: 20,
+      piece: 'artillery',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachArtilleryStep1', boardPieces: [{ type: 'artillery', team: 'yellow', col: 'D', row: 4 }], question: 'coachArtilleryQ1', answers: ['coachArtilleryA1a', 'coachArtilleryA1b', 'coachArtilleryA1c'], correct: 0 },
+        { type: 'boardClick', textKey: 'coachArtilleryStep2', boardPieces: [{ type: 'artillery', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'D', row: 7 }], highlightSquares: [{ col: 'D', row: 7, color: '#ef4444' }], correctSquares: [{ col: 'D', row: 7 }] }
+      ]
+    },
+
+    // ============ SPECIAL CATEGORY ============
+    {
+      id: 'ship',
+      category: 'special',
+      level: 'masters',
+      titleKey: 'coachShipTitle',
+      descriptionKey: 'coachShipDesc',
+      reward: 30,
+      piece: 'ship',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachShipStep1', boardPieces: [{ type: 'ship', team: 'yellow', col: 'D', row: 4 }], question: 'coachShipQ1', answers: ['coachShipA1a', 'coachShipA1b', 'coachShipA1c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachShipStep2', question: 'coachShipQ2', answers: ['coachShipA2a', 'coachShipA2b', 'coachShipA2c'], correct: 0 }
+      ]
+    },
+    {
+      id: 'rocket',
+      category: 'special',
+      level: 'masters',
+      titleKey: 'coachRocketTitle',
+      descriptionKey: 'coachRocketDesc',
+      reward: 30,
+      piece: 'rocket',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachRocketStep1', boardPieces: [{ type: 'rocket', team: 'yellow', col: 'D', row: 4 }], question: 'coachRocketQ1', answers: ['coachRocketA1a', 'coachRocketA1b', 'coachRocketA1c'], correct: 2 },
+        { type: 'boardSelect', textKey: 'coachRocketStep2', boardPieces: [{ type: 'rocket', team: 'yellow', col: 'D', row: 4 }], highlightSquares: [{ col: 'C', row: 3, color: '#ef4444' }, { col: 'D', row: 3, color: '#ef4444' }, { col: 'E', row: 3, color: '#ef4444' }, { col: 'C', row: 4, color: '#ef4444' }, { col: 'D', row: 4, color: '#ef4444' }, { col: 'E', row: 4, color: '#ef4444' }, { col: 'C', row: 5, color: '#ef4444' }, { col: 'D', row: 5, color: '#ef4444' }, { col: 'E', row: 5, color: '#ef4444' }], requiredSelections: [{ col: 'C', row: 3 }, { col: 'D', row: 3 }, { col: 'E', row: 3 }, { col: 'C', row: 4 }, { col: 'E', row: 4 }, { col: 'C', row: 5 }, { col: 'D', row: 5 }, { col: 'E', row: 5 }] }
+      ]
+    },
+    {
+      id: 'helicopter',
+      category: 'special',
+      level: 'masters',
+      titleKey: 'coachHeliTitle',
+      descriptionKey: 'coachHeliDesc',
+      reward: 30,
+      piece: 'helicopter',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachHeliStep1', boardPieces: [{ type: 'helicopter', team: 'yellow', col: 'D', row: 4 }], question: 'coachHeliQ1', answers: ['coachHeliA1a', 'coachHeliA1b', 'coachHeliA1c'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachHeliStep2', question: 'coachHeliQ2', answers: ['coachHeliA2a', 'coachHeliA2b', 'coachHeliA2c'], correct: 1 }
+      ]
+    },
+    {
+      id: 'train',
+      category: 'special',
+      level: 'masters',
+      titleKey: 'coachTrainTitle',
+      descriptionKey: 'coachTrainDesc',
+      reward: 25,
+      piece: 'train',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachTrainStep1', question: 'coachTrainQ1', answers: ['coachTrainA1a', 'coachTrainA1b', 'coachTrainA1c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachTrainStep2', question: 'coachTrainQ2', answers: ['coachTrainA2a', 'coachTrainA2b', 'coachTrainA2c'], correct: 0 }
+      ]
+    },
+    {
+      id: 'trench',
+      category: 'special',
+      level: 'medium',
+      titleKey: 'coachTrenchTitle',
+      descriptionKey: 'coachTrenchDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachTrenchStep1', question: 'coachTrenchQ1', answers: ['coachTrenchA1a', 'coachTrenchA1b', 'coachTrenchA1c'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachTrenchStep2', question: 'coachTrenchQ2', answers: ['coachTrenchA2a', 'coachTrenchA2b', 'coachTrenchA2c'], correct: 2 }
+      ]
+    },
+    {
+      id: 'landmine',
+      category: 'special',
+      level: 'masters',
+      titleKey: 'coachLandmineTitle',
+      descriptionKey: 'coachLandmineDesc',
+      reward: 25,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachLandmineStep1', question: 'coachLandmineQ1', answers: ['coachLandmineA1a', 'coachLandmineA1b', 'coachLandmineA1c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachLandmineStep2', question: 'coachLandmineQ2', answers: ['coachLandmineA2a', 'coachLandmineA2b', 'coachLandmineA2c'], correct: 0 }
+      ]
+    },
+
+    // ============ ADVANCED CATEGORY ============
+    {
+      id: 'gameModes',
+      category: 'advanced',
+      level: 'beginner',
+      titleKey: 'coachModesTitle',
+      descriptionKey: 'coachModesDesc',
+      reward: 15,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachModesStep1', question: 'coachModesQ1', answers: ['coachModesA1a', 'coachModesA1b', 'coachModesA1c'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachModesStep2', question: 'coachModesQ2', answers: ['coachModesA2a', 'coachModesA2b', 'coachModesA2c'], correct: 2 }
+      ]
+    },
+    {
+      id: 'botPlay',
+      category: 'advanced',
+      level: 'beginner',
+      titleKey: 'coachBotTitle',
+      descriptionKey: 'coachBotDesc',
+      reward: 15,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachBotStep1', question: 'coachBotQ1', answers: ['coachBotA1a', 'coachBotA1b', 'coachBotA1c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachBotStep2', question: 'coachBotQ2', answers: ['coachBotA2a', 'coachBotA2b', 'coachBotA2c'], correct: 0 }
+      ]
+    },
+    {
+      id: 'timer',
+      category: 'advanced',
+      level: 'medium',
+      titleKey: 'coachTimerTitle',
+      descriptionKey: 'coachTimerDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachTimerStep1', question: 'coachTimerQ1', answers: ['coachTimerA1a', 'coachTimerA1b', 'coachTimerA1c'], correct: 0 },
+        { type: 'settingsTask', textKey: 'coachTimerStep2', settingName: 'timer', settingValue: true }
+      ]
+    },
+    {
+      id: 'strategy',
+      category: 'advanced',
+      level: 'war_gods',
+      titleKey: 'coachStrategyTitle',
+      descriptionKey: 'coachStrategyDesc',
+      reward: 50,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachStrategyStep1', question: 'coachStrategyQ1', answers: ['coachStrategyA1a', 'coachStrategyA1b', 'coachStrategyA1c'], correct: 2 },
+        { type: 'multipleChoice', textKey: 'coachStrategyStep2', question: 'coachStrategyQ2', answers: ['coachStrategyA2a', 'coachStrategyA2b', 'coachStrategyA2c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachStrategyStep3', question: 'coachStrategyQ3', answers: ['coachStrategyA3a', 'coachStrategyA3b', 'coachStrategyA3c'], correct: 0 }
+      ]
+    },
+
+    // ============ NAVIGATION CATEGORY ============
+    {
+      id: 'navPuzzles',
+      category: 'navigation',
+      level: 'beginner',
+      titleKey: 'coachNavPuzzlesTitle',
+      descriptionKey: 'coachNavPuzzlesDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachNavPuzzlesStep1', question: 'coachNavPuzzlesQ1', answers: ['coachNavPuzzlesA1a', 'coachNavPuzzlesA1b', 'coachNavPuzzlesA1c'], correct: 0 },
+        { type: 'navigationTask', textKey: 'coachNavPuzzlesStep2', targetScreen: 'puzzles' }
+      ]
+    },
+    {
+      id: 'navShop',
+      category: 'navigation',
+      level: 'beginner',
+      titleKey: 'coachNavShopTitle',
+      descriptionKey: 'coachNavShopDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachNavShopStep1', question: 'coachNavShopQ1', answers: ['coachNavShopA1a', 'coachNavShopA1b', 'coachNavShopA1c'], correct: 1 },
+        { type: 'navigationTask', textKey: 'coachNavShopStep2', targetScreen: 'shop' }
+      ]
+    },
+    {
+      id: 'navEvents',
+      category: 'navigation',
+      level: 'medium',
+      titleKey: 'coachNavEventsTitle',
+      descriptionKey: 'coachNavEventsDesc',
+      reward: 25,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachNavEventsStep1', question: 'coachNavEventsQ1', answers: ['coachNavEventsA1a', 'coachNavEventsA1b', 'coachNavEventsA1c'], correct: 0 },
+        { type: 'navigationTask', textKey: 'coachNavEventsStep2', targetScreen: 'events' }
+      ]
+    },
+    {
+      id: 'navWarPass',
+      category: 'navigation',
+      level: 'medium',
+      titleKey: 'coachNavWarPassTitle',
+      descriptionKey: 'coachNavWarPassDesc',
+      reward: 25,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachNavWarPassStep1', question: 'coachNavWarPassQ1', answers: ['coachNavWarPassA1a', 'coachNavWarPassA1b', 'coachNavWarPassA1c'], correct: 2 },
+        { type: 'navigationTask', textKey: 'coachNavWarPassStep2', targetScreen: 'warpass' }
+      ]
+    },
+
+    // ============ SETTINGS CATEGORY ============
+    {
+      id: 'settingsColorblind',
+      category: 'settings',
+      level: 'beginner',
+      titleKey: 'coachColorblindTitle',
+      descriptionKey: 'coachColorblindDesc',
+      reward: 15,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachColorblindStep1', question: 'coachColorblindQ1', answers: ['coachColorblindA1a', 'coachColorblindA1b', 'coachColorblindA1c'], correct: 1 },
+        { type: 'settingsTask', textKey: 'coachColorblindStep2', settingName: 'colorblind', settingValue: true }
+      ]
+    },
+    {
+      id: 'settingsSound',
+      category: 'settings',
+      level: 'beginner',
+      titleKey: 'coachSoundTitle',
+      descriptionKey: 'coachSoundDesc',
+      reward: 15,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachSoundStep1', question: 'coachSoundQ1', answers: ['coachSoundA1a', 'coachSoundA1b', 'coachSoundA1c'], correct: 0 },
+        { type: 'settingsTask', textKey: 'coachSoundStep2', settingName: 'music', settingValue: true }
+      ]
+    },
+    {
+      id: 'settingsTheme',
+      category: 'settings',
+      level: 'medium',
+      titleKey: 'coachThemeTitle',
+      descriptionKey: 'coachThemeDesc',
+      reward: 20,
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachThemeStep1', question: 'coachThemeQ1', answers: ['coachThemeA1a', 'coachThemeA1b', 'coachThemeA1c'], correct: 2 },
+        { type: 'settingsTask', textKey: 'coachThemeStep2', settingName: 'theme', settingValue: 'dark' }
+      ]
+    }
+  ]
+}
+
+// Get lessons filtered by category and level
+function getFilteredLessons(category: CoachCategory | null, level: CoachLevel): CoachLesson[] {
+  const allLessons = getCoachLessons()
+  const levelOrder: CoachLevel[] = ['beginner', 'medium', 'masters', 'war_gods']
+  const currentLevelIndex = levelOrder.indexOf(level)
+
+  return allLessons.filter(lesson => {
+    const lessonLevelIndex = levelOrder.indexOf(lesson.level)
+    const levelMatch = lessonLevelIndex <= currentLevelIndex
+    const categoryMatch = category === null || lesson.category === category
+    return levelMatch && categoryMatch
+  })
+}
+
+// Get category display info
+function getCategoryInfo(category: CoachCategory): { icon: string, colorClass: string } {
+  switch (category) {
+    case 'basics': return { icon: '📚', colorClass: 'bg-blue-600' }
+    case 'pieces': return { icon: '♟️', colorClass: 'bg-green-600' }
+    case 'special': return { icon: '⭐', colorClass: 'bg-purple-600' }
+    case 'advanced': return { icon: '🎯', colorClass: 'bg-orange-600' }
+    case 'navigation': return { icon: '🧭', colorClass: 'bg-cyan-600' }
+    case 'settings': return { icon: '⚙️', colorClass: 'bg-gray-600' }
+  }
+}
+
+// Handle completing a coach lesson
+async function completeCoachLesson(lesson: CoachLesson) {
+  if (!coachCompletedLessons.includes(lesson.id)) {
+    coachCompletedLessons.push(lesson.id)
+    saveCoachProgress()
+
+    // Give War Bucks reward if logged in
+    const currentUser = getCurrentUserData()
+    if (currentUser) {
+      const newWarBucks = (currentUser.warBucks || 0) + lesson.reward
+      // Update in Firebase if available
+      try {
+        await saveUserData({ warBucks: newWarBucks })
+      } catch (e) {
+        console.log('Could not save War Bucks reward')
+      }
+    }
+  }
+  coachShowLessonComplete = true
+}
+
 async function playSound(type: SoundType) {
   if (!soundEnabled) return
 
@@ -7998,57 +8470,332 @@ const translations: Record<Language, Record<string, string>> = {
     coachLesson5Answer1: 'After 10 moves',
     coachLesson5Answer2: 'Immediately',
     coachLesson5Answer3: 'After 5 moves',
+    // New Coach System
+    coachCategoryBasics: 'Basics',
+    coachCategoryPieces: 'Pieces',
+    coachCategorySpecial: 'Special',
+    coachCategoryAdvanced: 'Advanced',
+    coachCategoryNavigation: 'Navigation',
+    coachCategorySettings: 'Settings',
+    coachSelectCategory: 'Select a category',
+    coachSelectLesson: 'Select a lesson',
+    coachReward: 'Reward',
+    coachCompleted: 'Completed!',
+    coachLessonComplete: 'Lesson Complete!',
+    coachEarned: 'You earned',
+    coachClickCorrectSquare: 'Click the correct square on the board',
+    coachSelectAllSquares: 'Select all the correct squares',
+    coachDoSettingsTask: 'Complete the settings task below',
+    coachGoToScreen: 'Navigate to the screen mentioned',
+    coachTaskComplete: 'Task completed!',
+    coachBackToMenu: 'Back to menu',
+    coachContinue: 'Continue',
+    // Welcome lesson
+    coachWelcomeTitle: 'Welcome!',
+    coachWelcomeDesc: 'Learn the basics of War Chess',
+    coachWelcomeStep1: 'Welcome to War Chess! This game combines chess strategy with modern warfare.',
+    coachWelcomeQ1: 'Are you ready to learn War Chess?',
+    coachWelcomeA1a: 'Yes, let\'s go!',
+    coachWelcomeA1b: 'Maybe later',
+    coachWelcomeA1c: 'I already know',
+    // Board basics
+    coachBoardTitle: 'The Board',
+    coachBoardDesc: 'Learn about the game board',
+    coachBoardStep1: 'The War Chess board is 11x11 squares with special terrain: water, bridges, trenches, and more.',
+    coachBoardQ1: 'How big is the War Chess board?',
+    coachBoardA1a: '8x8 squares',
+    coachBoardA1b: '11x11 squares',
+    coachBoardA1c: '10x10 squares',
+    coachBoardStep2: 'Click on square D4 to practice!',
+    // Coordinates
+    coachCoordsTitle: 'Coordinates',
+    coachCoordsDesc: 'Learn to read board coordinates',
+    coachCoordsStep1: 'Each square has coordinates: a letter (A-K) for the column and a number (1-11) for the row.',
+    coachCoordsQ1: 'What are the coordinates of the bottom-left corner?',
+    coachCoordsA1a: 'K11',
+    coachCoordsA1b: 'A11',
+    coachCoordsA1c: 'A1',
+    coachCoordsStep2: 'Click on E5',
+    coachCoordsStep3: 'Click on B3',
+    coachCoordsStep4: 'Click on G7',
+    // Winning
+    coachWinTitle: 'How to Win',
+    coachWinDesc: 'Learn the ways to win',
+    coachWinStep1: 'You can win by capturing the enemy Engineer (builder) - this is an instant win!',
+    coachWinQ1: 'What happens when you capture the Engineer?',
+    coachWinA1a: 'Instant win',
+    coachWinA1b: 'You get 10 points',
+    coachWinA1c: 'Nothing special',
+    coachWinStep2: 'You can also win by having the most points after 80 moves each.',
+    coachWinQ2: 'After how many moves does the game end?',
+    coachWinA2a: '100 moves each',
+    coachWinA2b: '80 moves each',
+    coachWinA2c: '50 moves each',
     // Scoring
-    coachScoreTitle: 'Scoring',
-    coachScoreStep1: 'You earn points by capturing enemy pieces.',
-    coachScoreStep2: 'Each piece has a different point value.',
-    coachScoreStep3: 'After 80 moves each, the player with the most points wins!',
-    coachScoreQuestion: 'How do you win by points?',
-    coachScoreAnswer1: 'Most points after 80 moves',
-    coachScoreAnswer2: 'First to 100 points',
-    coachScoreAnswer3: 'Capture all pieces',
-    // Game Modes
-    coachGameModesTitle: 'Game Modes',
-    coachGameModesStep1: 'You can play against another player or against the bot.',
-    coachGameModesStep2: 'The bot has 3 difficulty levels: Easy, Medium, and Hard.',
-    coachGameModesStep3: 'You can also play online against other players!',
-    coachGameModesQuestion: 'What game modes are available?',
-    coachGameModesAnswer1: 'Player vs Player and vs Bot',
-    coachGameModesAnswer2: 'Only single player',
-    coachGameModesAnswer3: 'Only online',
-    // Puzzles
-    coachPuzzlesTitle: 'Puzzles',
-    coachPuzzlesStep1: 'Puzzles are challenges where you must find the best moves.',
-    coachPuzzlesStep2: 'You have a limited number of moves to capture pieces or reach a goal.',
-    coachPuzzlesStep3: 'Complete puzzles to earn War Bucks and improve your skills!',
-    coachPuzzlesQuestion: 'What do you get from completing puzzles?',
-    coachPuzzlesAnswer1: 'War Bucks and skill',
-    coachPuzzlesAnswer2: 'Nothing',
-    coachPuzzlesAnswer3: 'Only points',
-    // Special pieces
+    coachScoreDesc: 'Learn about points',
+    coachScoreStep1: 'Each piece has a point value. Capture enemy pieces to earn points!',
+    coachScoreQ1: 'How do you earn points?',
+    coachScoreA1a: 'By moving pieces',
+    coachScoreA1b: 'By waiting',
+    coachScoreA1c: 'By capturing enemies',
+    coachScoreStep2: 'The player with the most points after 80 moves wins!',
+    coachScoreQ2: 'Who wins if the game goes to 80 moves?',
+    coachScoreA2a: 'Player with most points',
+    coachScoreA2b: 'Yellow always wins',
+    coachScoreA2c: 'It\'s a draw',
+    // Soldier
+    coachSoldierTitle: 'The Soldier',
+    coachSoldierDesc: 'Learn about the Soldier piece',
+    coachSoldierStep1: 'The Soldier moves 1 square forward, left, or right. It can also shoot 1 square forward.',
+    coachSoldierQ1: 'How many squares can a Soldier move?',
+    coachSoldierA1a: '1 square',
+    coachSoldierA1b: '2 squares',
+    coachSoldierA1c: '3 squares',
+    coachSoldierStep2: 'Click on a square where the Soldier can move (green highlights).',
+    coachSoldierStep3: 'Soldiers are your main infantry - use them wisely!',
+    coachSoldierQ2: 'What can a Soldier do besides move?',
+    coachSoldierA2a: 'Build structures',
+    coachSoldierA2b: 'Shoot forward',
+    coachSoldierA2c: 'Fly',
+    // Tank
+    coachTankTitle: 'The Tank',
+    coachTankDesc: 'Learn about the Tank piece',
+    coachTankStep1: 'The Tank can move multiple squares in any straight direction (like a rook in chess).',
+    coachTankQ1: 'How does the Tank move?',
+    coachTankA1a: 'Multiple squares straight',
+    coachTankA1b: 'Only diagonally',
+    coachTankA1c: 'Only 1 square',
+    coachTankStep2: 'Tanks are powerful but can be trapped in corners!',
+    coachTankQ2: 'What is a Tank\'s weakness?',
+    coachTankA2a: 'Very fast',
+    coachTankA2b: 'Too strong',
+    coachTankA2c: 'Can be cornered',
+    // SUV
+    coachSUVTitle: 'The SUV',
+    coachSUVDesc: 'Learn about the SUV piece',
+    coachSUVStep1: 'The SUV moves diagonally like a bishop in chess. It\'s fast but limited to diagonals.',
+    coachSUVQ1: 'How does the SUV move?',
+    coachSUVA1a: 'Diagonally',
+    coachSUVA1b: 'Straight lines',
+    coachSUVA1c: 'L-shape',
+    coachSUVStep2: 'Select all 4 diagonal squares where the SUV can move.',
+    // Builder
+    coachBuilderTitle: 'The Engineer',
+    coachBuilderDesc: 'Learn about the most important piece',
+    coachBuilderStep1: 'The Engineer (Builder) is the MOST important piece! Capture it and you win instantly!',
+    coachBuilderQ1: 'What happens if your Engineer is captured?',
+    coachBuilderA1a: 'You lose instantly',
+    coachBuilderA1b: 'You lose 10 points',
+    coachBuilderA1c: 'Nothing happens',
+    coachBuilderStep2: 'The Engineer can build: Barricades, Artillery, and Spikes.',
+    coachBuilderQ2: 'What can the Engineer build?',
+    coachBuilderA2a: 'Only barricades',
+    coachBuilderA2b: 'Barricades, Artillery, Spikes',
+    coachBuilderA2c: 'Tanks and SUVs',
+    coachBuilderStep3: 'Protect your Engineer at all costs!',
+    coachBuilderQ3: 'Why is the Engineer so important?',
+    coachBuilderA3a: 'Capturing it wins the game',
+    coachBuilderA3b: 'It moves fast',
+    coachBuilderA3c: 'It can fly',
+    // Hacker
+    coachHackerTitle: 'The Hacker',
+    coachHackerDesc: 'Learn about hacking enemies',
+    coachHackerStep1: 'The Hacker can "hack" enemy pieces after turn 10. Hacking lets you control enemies!',
+    coachHackerQ1: 'When can the Hacker start hacking?',
+    coachHackerA1a: 'Turn 1',
+    coachHackerA1b: 'After turn 10',
+    coachHackerA1c: 'Never',
+    coachHackerStep2: 'Hacking lets you: Freeze enemies, push them forward, or push them backward.',
+    coachHackerQ2: 'What can hacking do to enemies?',
+    coachHackerA2a: 'Only destroy them',
+    coachHackerA2b: 'Make them join your team',
+    coachHackerA2c: 'Freeze or push them',
+    // Artillery
+    coachArtilleryTitle: 'Artillery',
+    coachArtilleryDesc: 'Learn about Artillery',
+    coachArtilleryStep1: 'Artillery can shoot enemies from far away without moving!',
+    coachArtilleryQ1: 'What can Artillery do?',
+    coachArtilleryA1a: 'Shoot from distance',
+    coachArtilleryA1b: 'Move fast',
+    coachArtilleryA1c: 'Build structures',
+    coachArtilleryStep2: 'Click on the enemy the Artillery can hit (red highlight).',
+    // Ship
     coachShipTitle: 'The Ship',
-    coachShipStep1: 'The Ship can move on water (column F). It is the only piece that can cross water!',
-    coachShipStep2: 'Ships can carry helicopters on their deck.',
-    coachShipQuestion: 'What makes the Ship special?',
-    coachShipAnswer1: 'Moves on water',
-    coachShipAnswer2: 'Can fly',
-    coachShipAnswer3: 'Is invisible',
+    coachShipDesc: 'Learn about water combat',
+    coachShipStep1: 'The Ship is the ONLY piece that can cross water! It moves on the water column.',
+    coachShipQ1: 'What makes the Ship special?',
+    coachShipA1a: 'It can fly',
+    coachShipA1b: 'It crosses water',
+    coachShipA1c: 'It\'s invisible',
+    coachShipStep2: 'Ships can also carry helicopters!',
+    coachShipQ2: 'What can Ships carry?',
+    coachShipA2a: 'Helicopters',
+    coachShipA2b: 'Tanks',
+    coachShipA2c: 'Soldiers',
     // Rocket
     coachRocketTitle: 'The Rocket',
-    coachRocketStep1: 'The Rocket is a powerful weapon! It cannot move until turn 45.',
-    coachRocketStep2: 'When launched, it creates a 3x3 explosion that destroys all pieces in the area!',
-    coachRocketQuestion: 'When can the Rocket be used?',
-    coachRocketAnswer1: 'After turn 45',
-    coachRocketAnswer2: 'Immediately',
-    coachRocketAnswer3: 'Never',
-    // Trench
-    coachTrenchTitle: 'The Trench',
-    coachTrenchStep1: 'Only soldiers can enter the trench (the wooden square).',
-    coachTrenchStep2: 'In the trench, soldiers are protected but must leave after 3 turns!',
-    coachTrenchQuestion: 'How long can a soldier stay in the trench?',
-    coachTrenchAnswer1: '3 turns',
-    coachTrenchAnswer2: 'Forever',
-    coachTrenchAnswer3: '1 turn',
+    coachRocketDesc: 'Learn about massive destruction',
+    coachRocketStep1: 'The Rocket creates a 3x3 explosion! But it can only be used after turn 45.',
+    coachRocketQ1: 'When can you use the Rocket?',
+    coachRocketA1a: 'Turn 1',
+    coachRocketA1b: 'Turn 20',
+    coachRocketA1c: 'After turn 45',
+    coachRocketStep2: 'The Rocket destroys EVERYTHING in a 3x3 area (8 squares around it). Select those 8 squares.',
+    // Helicopter
+    coachHeliTitle: 'The Helicopter',
+    coachHeliDesc: 'Learn about air units',
+    coachHeliStep1: 'Helicopters can fly over pieces and terrain! They launch from helipads (H squares).',
+    coachHeliQ1: 'Where do Helicopters launch from?',
+    coachHeliA1a: 'Helipad (H) squares',
+    coachHeliA1b: 'Any square',
+    coachHeliA1c: 'Water only',
+    coachHeliStep2: 'Helicopters are fast but fragile. Use them for surprise attacks!',
+    coachHeliQ2: 'What is the Helicopter good for?',
+    coachHeliA2a: 'Defense only',
+    coachHeliA2b: 'Surprise attacks',
+    coachHeliA2c: 'Building structures',
+    // Train
+    coachTrainTitle: 'The Train',
+    coachTrainDesc: 'Learn about rail transport',
+    coachTrainStep1: 'The Train moves along the rail tracks at the corners of the board.',
+    coachTrainQ1: 'Where does the Train move?',
+    coachTrainA1a: 'Anywhere on the board',
+    coachTrainA1b: 'On rail tracks',
+    coachTrainA1c: 'On water',
+    coachTrainStep2: 'Trains can transport pieces quickly across the board!',
+    coachTrainQ2: 'What is the Train used for?',
+    coachTrainA2a: 'Transporting pieces',
+    coachTrainA2b: 'Attacking enemies',
+    coachTrainA2c: 'Building structures',
+    // Landmine
+    coachLandmineTitle: 'Landmines',
+    coachLandmineDesc: 'Learn about hidden dangers',
+    coachLandmineStep1: 'Landmines are hidden traps! They explode when an enemy steps on them.',
+    coachLandmineQ1: 'What do Landmines do?',
+    coachLandmineA1a: 'Heal your pieces',
+    coachLandmineA1b: 'Explode when stepped on',
+    coachLandmineA1c: 'Block movement',
+    coachLandmineStep2: 'You can see your own landmines, but enemy landmines are invisible!',
+    coachLandmineQ2: 'Can you see enemy landmines?',
+    coachLandmineA2a: 'No, they\'re hidden',
+    coachLandmineA2b: 'Yes, always visible',
+    coachLandmineA2c: 'Only with Hacker',
+    // Game Modes
+    coachModesTitle: 'Game Modes',
+    coachModesDesc: 'Learn about different ways to play',
+    coachModesStep1: 'You can play against another player locally, against the bot, or online!',
+    coachModesQ1: 'What game modes are available?',
+    coachModesA1a: 'Local, Bot, Online',
+    coachModesA1b: 'Only single player',
+    coachModesA1c: 'Only online',
+    coachModesStep2: 'The bot has 3 difficulties: Easy, Medium, and Hard.',
+    coachModesQ2: 'How many bot difficulty levels are there?',
+    coachModesA2a: '1',
+    coachModesA2b: '2',
+    coachModesA2c: '3',
+    // Bot
+    coachBotTitle: 'Playing vs Bot',
+    coachBotDesc: 'Learn about the AI opponent',
+    coachBotStep1: 'The bot learns from its games and gets smarter over time!',
+    coachBotQ1: 'Does the bot learn?',
+    coachBotA1a: 'No, it\'s fixed',
+    coachBotA1b: 'Yes, it learns',
+    coachBotA1c: 'Only on Hard mode',
+    coachBotStep2: 'Start with Easy mode and work your way up!',
+    coachBotQ2: 'What difficulty should beginners start with?',
+    coachBotA2a: 'Easy',
+    coachBotA2b: 'Medium',
+    coachBotA2c: 'Hard',
+    // Timer
+    coachTimerTitle: 'Chess Clock',
+    coachTimerDesc: 'Learn about timed games',
+    coachTimerStep1: 'You can enable a chess clock for timed games. Running out of time costs points!',
+    coachTimerQ1: 'What happens if you run out of time?',
+    coachTimerA1a: 'You lose points',
+    coachTimerA1b: 'You win',
+    coachTimerA1c: 'Nothing',
+    coachTimerStep2: 'Go to Settings and enable the timer to try it out!',
+    // Strategy
+    coachStrategyTitle: 'Advanced Strategy',
+    coachStrategyDesc: 'Master the art of war',
+    coachStrategyStep1: 'Control the center of the board to dominate the game!',
+    coachStrategyQ1: 'What\'s the most important area to control?',
+    coachStrategyA1a: 'The corners',
+    coachStrategyA1b: 'The edges',
+    coachStrategyA1c: 'The center',
+    coachStrategyStep2: 'Always protect your Engineer - losing it means losing the game!',
+    coachStrategyQ2: 'What\'s the priority in War Chess?',
+    coachStrategyA2a: 'Capture all pieces',
+    coachStrategyA2b: 'Protect Engineer',
+    coachStrategyA2c: 'Build many structures',
+    coachStrategyStep3: 'Use combined attacks - multiple pieces attacking together is powerful!',
+    coachStrategyQ3: 'What makes attacks more effective?',
+    coachStrategyA3a: 'Combined attacks',
+    coachStrategyA3b: 'Single piece attacks',
+    coachStrategyA3c: 'Waiting',
+    // Navigation - Puzzles
+    coachNavPuzzlesTitle: 'Finding Puzzles',
+    coachNavPuzzlesDesc: 'Learn to access puzzles',
+    coachNavPuzzlesStep1: 'Puzzles help you practice tactics! You can find them in the main menu.',
+    coachNavPuzzlesQ1: 'What do puzzles help with?',
+    coachNavPuzzlesA1a: 'Practice tactics',
+    coachNavPuzzlesA1b: 'Changing settings',
+    coachNavPuzzlesA1c: 'Nothing',
+    coachNavPuzzlesStep2: 'Click "Puzzles" in the main menu to see all available puzzles.',
+    // Navigation - Shop
+    coachNavShopTitle: 'The Shop',
+    coachNavShopDesc: 'Learn about buying items',
+    coachNavShopStep1: 'In the Shop you can buy themes, skins, and effects with War Bucks!',
+    coachNavShopQ1: 'What can you buy in the Shop?',
+    coachNavShopA1a: 'Nothing',
+    coachNavShopA1b: 'Themes, skins, effects',
+    coachNavShopA1c: 'Only themes',
+    coachNavShopStep2: 'Click "Shop" in the main menu to browse items.',
+    // Navigation - Events
+    coachNavEventsTitle: 'Events',
+    coachNavEventsDesc: 'Learn about special events',
+    coachNavEventsStep1: 'Events give you free rewards! Check them regularly to not miss out.',
+    coachNavEventsQ1: 'What do Events give you?',
+    coachNavEventsA1a: 'Free rewards',
+    coachNavEventsA1b: 'Nothing',
+    coachNavEventsA1c: 'Only information',
+    coachNavEventsStep2: 'Click "Events" to see active events and claim rewards.',
+    // Navigation - War Pass
+    coachNavWarPassTitle: 'War Pass',
+    coachNavWarPassDesc: 'Learn about challenges',
+    coachNavWarPassStep1: 'The War Pass has daily challenges. Complete them for extra rewards!',
+    coachNavWarPassQ1: 'What is the War Pass?',
+    coachNavWarPassA1a: 'A paid subscription',
+    coachNavWarPassA1b: 'A single item',
+    coachNavWarPassA1c: 'Daily challenges',
+    coachNavWarPassStep2: 'Check the War Pass to see your current challenges.',
+    // Settings - Colorblind
+    coachColorblindTitle: 'Colorblind Mode',
+    coachColorblindDesc: 'Learn about accessibility',
+    coachColorblindStep1: 'Colorblind mode changes colors to make them easier to distinguish.',
+    coachColorblindQ1: 'What does Colorblind Mode do?',
+    coachColorblindA1a: 'Makes game faster',
+    coachColorblindA1b: 'Changes colors',
+    coachColorblindA1c: 'Adds sound',
+    coachColorblindStep2: 'Enable Colorblind Mode in Settings to see the difference.',
+    // Settings - Sound
+    coachSoundTitle: 'Sound Settings',
+    coachSoundDesc: 'Learn about audio options',
+    coachSoundStep1: 'You can enable music and sound effects in Settings.',
+    coachSoundQ1: 'Where are sound options?',
+    coachSoundA1a: 'In Settings',
+    coachSoundA1b: 'In the Shop',
+    coachSoundA1c: 'In Events',
+    coachSoundStep2: 'Enable music in Settings to hear background music.',
+    // Settings - Theme
+    coachThemeTitle: 'Board Themes',
+    coachThemeDesc: 'Learn about visual customization',
+    coachThemeStep1: 'You can change the board theme to Classic, Dark, Light, or Wood.',
+    coachThemeQ1: 'What themes are available?',
+    coachThemeA1a: 'Only Classic',
+    coachThemeA1b: 'Only Dark',
+    coachThemeA1c: 'Classic, Dark, Light, Wood',
+    coachThemeStep2: 'Change the board theme to Dark in Settings.',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -8367,57 +9114,332 @@ const translations: Record<Language, Record<string, string>> = {
     coachLesson5Answer1: 'Na 10 zetten',
     coachLesson5Answer2: 'Meteen',
     coachLesson5Answer3: 'Na 5 zetten',
+    // New Coach System
+    coachCategoryBasics: 'Basis',
+    coachCategoryPieces: 'Stukken',
+    coachCategorySpecial: 'Speciaal',
+    coachCategoryAdvanced: 'Geavanceerd',
+    coachCategoryNavigation: 'Navigatie',
+    coachCategorySettings: 'Instellingen',
+    coachSelectCategory: 'Kies een categorie',
+    coachSelectLesson: 'Kies een les',
+    coachReward: 'Beloning',
+    coachCompleted: 'Voltooid!',
+    coachLessonComplete: 'Les Voltooid!',
+    coachEarned: 'Je hebt verdiend',
+    coachClickCorrectSquare: 'Klik op het juiste vak op het bord',
+    coachSelectAllSquares: 'Selecteer alle juiste vakken',
+    coachDoSettingsTask: 'Voltooi de instellingstaak hieronder',
+    coachGoToScreen: 'Navigeer naar het genoemde scherm',
+    coachTaskComplete: 'Taak voltooid!',
+    coachBackToMenu: 'Terug naar menu',
+    coachContinue: 'Doorgaan',
+    // Welcome lesson
+    coachWelcomeTitle: 'Welkom!',
+    coachWelcomeDesc: 'Leer de basis van Oorlog Schaak',
+    coachWelcomeStep1: 'Welkom bij Oorlog Schaak! Dit spel combineert schaakstrategie met moderne oorlogsvoering.',
+    coachWelcomeQ1: 'Ben je klaar om Oorlog Schaak te leren?',
+    coachWelcomeA1a: 'Ja, laten we gaan!',
+    coachWelcomeA1b: 'Misschien later',
+    coachWelcomeA1c: 'Ik weet het al',
+    // Board basics
+    coachBoardTitle: 'Het Bord',
+    coachBoardDesc: 'Leer over het speelbord',
+    coachBoardStep1: 'Het Oorlog Schaak bord is 11x11 vakken met speciaal terrein: water, bruggen, loopgraven, en meer.',
+    coachBoardQ1: 'Hoe groot is het Oorlog Schaak bord?',
+    coachBoardA1a: '8x8 vakken',
+    coachBoardA1b: '11x11 vakken',
+    coachBoardA1c: '10x10 vakken',
+    coachBoardStep2: 'Klik op vak D4 om te oefenen!',
+    // Coordinates
+    coachCoordsTitle: 'Coördinaten',
+    coachCoordsDesc: 'Leer bordcoördinaten lezen',
+    coachCoordsStep1: 'Elk vak heeft coördinaten: een letter (A-K) voor de kolom en een nummer (1-11) voor de rij.',
+    coachCoordsQ1: 'Wat zijn de coördinaten van de linkeronderhoek?',
+    coachCoordsA1a: 'K11',
+    coachCoordsA1b: 'A11',
+    coachCoordsA1c: 'A1',
+    coachCoordsStep2: 'Klik op E5',
+    coachCoordsStep3: 'Klik op B3',
+    coachCoordsStep4: 'Klik op G7',
+    // Winning
+    coachWinTitle: 'Hoe Win Je',
+    coachWinDesc: 'Leer de manieren om te winnen',
+    coachWinStep1: 'Je kunt winnen door de vijandige Engineer (bouwer) te pakken - dit is een directe overwinning!',
+    coachWinQ1: 'Wat gebeurt er als je de Engineer pakt?',
+    coachWinA1a: 'Directe winst',
+    coachWinA1b: 'Je krijgt 10 punten',
+    coachWinA1c: 'Niets speciaals',
+    coachWinStep2: 'Je kunt ook winnen door de meeste punten te hebben na 80 zetten elk.',
+    coachWinQ2: 'Na hoeveel zetten eindigt het spel?',
+    coachWinA2a: '100 zetten elk',
+    coachWinA2b: '80 zetten elk',
+    coachWinA2c: '50 zetten elk',
     // Scoring
-    coachScoreTitle: 'Scoren',
-    coachScoreStep1: 'Je verdient punten door vijandelijke stukken te pakken.',
-    coachScoreStep2: 'Elk stuk heeft een andere puntwaarde.',
-    coachScoreStep3: 'Na 80 zetten elk wint de speler met de meeste punten!',
-    coachScoreQuestion: 'Hoe win je op punten?',
-    coachScoreAnswer1: 'Meeste punten na 80 zetten',
-    coachScoreAnswer2: 'Eerst 100 punten',
-    coachScoreAnswer3: 'Alle stukken pakken',
-    // Game Modes
-    coachGameModesTitle: 'Spelmodi',
-    coachGameModesStep1: 'Je kunt spelen tegen een andere speler of tegen de bot.',
-    coachGameModesStep2: 'De bot heeft 3 moeilijkheidsgraden: Makkelijk, Gemiddeld en Moeilijk.',
-    coachGameModesStep3: 'Je kunt ook online tegen andere spelers spelen!',
-    coachGameModesQuestion: 'Welke spelmodi zijn er?',
-    coachGameModesAnswer1: 'Speler vs Speler en vs Bot',
-    coachGameModesAnswer2: 'Alleen singleplayer',
-    coachGameModesAnswer3: 'Alleen online',
-    // Puzzles
-    coachPuzzlesTitle: 'Puzzels',
-    coachPuzzlesStep1: 'Puzzels zijn uitdagingen waar je de beste zetten moet vinden.',
-    coachPuzzlesStep2: 'Je hebt een beperkt aantal zetten om stukken te pakken of een doel te bereiken.',
-    coachPuzzlesStep3: 'Voltooi puzzels om War Bucks te verdienen en je vaardigheden te verbeteren!',
-    coachPuzzlesQuestion: 'Wat krijg je van het voltooien van puzzels?',
-    coachPuzzlesAnswer1: 'War Bucks en vaardigheid',
-    coachPuzzlesAnswer2: 'Niets',
-    coachPuzzlesAnswer3: 'Alleen punten',
-    // Special pieces
+    coachScoreDesc: 'Leer over punten',
+    coachScoreStep1: 'Elk stuk heeft een puntwaarde. Pak vijandige stukken om punten te verdienen!',
+    coachScoreQ1: 'Hoe verdien je punten?',
+    coachScoreA1a: 'Door stukken te verplaatsen',
+    coachScoreA1b: 'Door te wachten',
+    coachScoreA1c: 'Door vijanden te pakken',
+    coachScoreStep2: 'De speler met de meeste punten na 80 zetten wint!',
+    coachScoreQ2: 'Wie wint als het spel naar 80 zetten gaat?',
+    coachScoreA2a: 'Speler met meeste punten',
+    coachScoreA2b: 'Geel wint altijd',
+    coachScoreA2c: 'Het is gelijk',
+    // Soldier
+    coachSoldierTitle: 'De Soldaat',
+    coachSoldierDesc: 'Leer over het Soldaat stuk',
+    coachSoldierStep1: 'De Soldaat verplaatst 1 vak vooruit, links, of rechts. Hij kan ook 1 vak vooruit schieten.',
+    coachSoldierQ1: 'Hoeveel vakken kan een Soldaat verplaatsen?',
+    coachSoldierA1a: '1 vak',
+    coachSoldierA1b: '2 vakken',
+    coachSoldierA1c: '3 vakken',
+    coachSoldierStep2: 'Klik op een vak waar de Soldaat naartoe kan (groene highlights).',
+    coachSoldierStep3: 'Soldaten zijn je belangrijkste infanterie - gebruik ze verstandig!',
+    coachSoldierQ2: 'Wat kan een Soldaat naast bewegen doen?',
+    coachSoldierA2a: 'Structuren bouwen',
+    coachSoldierA2b: 'Naar voren schieten',
+    coachSoldierA2c: 'Vliegen',
+    // Tank
+    coachTankTitle: 'De Tank',
+    coachTankDesc: 'Leer over het Tank stuk',
+    coachTankStep1: 'De Tank kan meerdere vakken in elke rechte richting bewegen (als een toren in schaak).',
+    coachTankQ1: 'Hoe beweegt de Tank?',
+    coachTankA1a: 'Meerdere vakken recht',
+    coachTankA1b: 'Alleen diagonaal',
+    coachTankA1c: 'Alleen 1 vak',
+    coachTankStep2: 'Tanks zijn krachtig maar kunnen in hoeken vastzitten!',
+    coachTankQ2: 'Wat is de zwakte van een Tank?',
+    coachTankA2a: 'Erg snel',
+    coachTankA2b: 'Te sterk',
+    coachTankA2c: 'Kan ingesloten worden',
+    // SUV
+    coachSUVTitle: 'De SUV',
+    coachSUVDesc: 'Leer over het SUV stuk',
+    coachSUVStep1: 'De SUV beweegt diagonaal als een loper in schaak. Hij is snel maar beperkt tot diagonalen.',
+    coachSUVQ1: 'Hoe beweegt de SUV?',
+    coachSUVA1a: 'Diagonaal',
+    coachSUVA1b: 'Rechte lijnen',
+    coachSUVA1c: 'L-vorm',
+    coachSUVStep2: 'Selecteer alle 4 diagonale vakken waar de SUV naartoe kan.',
+    // Builder
+    coachBuilderTitle: 'De Engineer',
+    coachBuilderDesc: 'Leer over het belangrijkste stuk',
+    coachBuilderStep1: 'De Engineer (Bouwer) is het BELANGRIJKSTE stuk! Pak hem en je wint direct!',
+    coachBuilderQ1: 'Wat gebeurt er als jouw Engineer gepakt wordt?',
+    coachBuilderA1a: 'Je verliest direct',
+    coachBuilderA1b: 'Je verliest 10 punten',
+    coachBuilderA1c: 'Er gebeurt niets',
+    coachBuilderStep2: 'De Engineer kan bouwen: Barricades, Geschut, en Spikes.',
+    coachBuilderQ2: 'Wat kan de Engineer bouwen?',
+    coachBuilderA2a: 'Alleen barricades',
+    coachBuilderA2b: 'Barricades, Geschut, Spikes',
+    coachBuilderA2c: 'Tanks en SUVs',
+    coachBuilderStep3: 'Bescherm je Engineer ten koste van alles!',
+    coachBuilderQ3: 'Waarom is de Engineer zo belangrijk?',
+    coachBuilderA3a: 'Hem pakken wint het spel',
+    coachBuilderA3b: 'Hij beweegt snel',
+    coachBuilderA3c: 'Hij kan vliegen',
+    // Hacker
+    coachHackerTitle: 'De Hacker',
+    coachHackerDesc: 'Leer over het hacken van vijanden',
+    coachHackerStep1: 'De Hacker kan vijandige stukken "hacken" na beurt 10. Hacken laat je vijanden controleren!',
+    coachHackerQ1: 'Wanneer kan de Hacker beginnen met hacken?',
+    coachHackerA1a: 'Beurt 1',
+    coachHackerA1b: 'Na beurt 10',
+    coachHackerA1c: 'Nooit',
+    coachHackerStep2: 'Hacken laat je: Vijanden bevriezen, naar voren duwen, of naar achteren duwen.',
+    coachHackerQ2: 'Wat kan hacken met vijanden doen?',
+    coachHackerA2a: 'Alleen vernietigen',
+    coachHackerA2b: 'Ze laten toetreden tot je team',
+    coachHackerA2c: 'Bevriezen of duwen',
+    // Artillery
+    coachArtilleryTitle: 'Geschut',
+    coachArtilleryDesc: 'Leer over Geschut',
+    coachArtilleryStep1: 'Geschut kan vijanden van ver weg beschieten zonder te bewegen!',
+    coachArtilleryQ1: 'Wat kan Geschut doen?',
+    coachArtilleryA1a: 'Schieten van afstand',
+    coachArtilleryA1b: 'Snel bewegen',
+    coachArtilleryA1c: 'Structuren bouwen',
+    coachArtilleryStep2: 'Klik op de vijand die het Geschut kan raken (rode highlight).',
+    // Ship
     coachShipTitle: 'Het Schip',
-    coachShipStep1: 'Het Schip kan over water bewegen (kolom F). Het is het enige stuk dat water kan oversteken!',
-    coachShipStep2: 'Schepen kunnen helicopters op hun dek dragen.',
-    coachShipQuestion: 'Wat maakt het Schip speciaal?',
-    coachShipAnswer1: 'Beweegt over water',
-    coachShipAnswer2: 'Kan vliegen',
-    coachShipAnswer3: 'Is onzichtbaar',
+    coachShipDesc: 'Leer over watergevechten',
+    coachShipStep1: 'Het Schip is het ENIGE stuk dat water kan oversteken! Het beweegt op de waterkolom.',
+    coachShipQ1: 'Wat maakt het Schip speciaal?',
+    coachShipA1a: 'Het kan vliegen',
+    coachShipA1b: 'Het steekt water over',
+    coachShipA1c: 'Het is onzichtbaar',
+    coachShipStep2: 'Schepen kunnen ook helikopters vervoeren!',
+    coachShipQ2: 'Wat kunnen Schepen vervoeren?',
+    coachShipA2a: 'Helikopters',
+    coachShipA2b: 'Tanks',
+    coachShipA2c: 'Soldaten',
     // Rocket
     coachRocketTitle: 'De Raket',
-    coachRocketStep1: 'De Raket is een krachtig wapen! Hij kan niet bewegen tot beurt 45.',
-    coachRocketStep2: 'Bij lancering creëert hij een 3x3 explosie die alle stukken in het gebied vernietigt!',
-    coachRocketQuestion: 'Wanneer kan de Raket worden gebruikt?',
-    coachRocketAnswer1: 'Na beurt 45',
-    coachRocketAnswer2: 'Meteen',
-    coachRocketAnswer3: 'Nooit',
-    // Trench
-    coachTrenchTitle: 'De Loopgraaf',
-    coachTrenchStep1: 'Alleen soldaten kunnen de loopgraaf betreden (het houten vak).',
-    coachTrenchStep2: 'In de loopgraaf zijn soldaten beschermd maar moeten na 3 beurten vertrekken!',
-    coachTrenchQuestion: 'Hoe lang kan een soldaat in de loopgraaf blijven?',
-    coachTrenchAnswer1: '3 beurten',
-    coachTrenchAnswer2: 'Voor altijd',
-    coachTrenchAnswer3: '1 beurt',
+    coachRocketDesc: 'Leer over massale vernietiging',
+    coachRocketStep1: 'De Raket creëert een 3x3 explosie! Maar hij kan pas na beurt 45 gebruikt worden.',
+    coachRocketQ1: 'Wanneer kun je de Raket gebruiken?',
+    coachRocketA1a: 'Beurt 1',
+    coachRocketA1b: 'Beurt 20',
+    coachRocketA1c: 'Na beurt 45',
+    coachRocketStep2: 'De Raket vernietigt ALLES in een 3x3 gebied (8 vakken eromheen). Selecteer die 8 vakken.',
+    // Helicopter
+    coachHeliTitle: 'De Helikopter',
+    coachHeliDesc: 'Leer over luchteenheden',
+    coachHeliStep1: 'Helikopters kunnen over stukken en terrein vliegen! Ze lanceren vanaf heliplatforms (H vakken).',
+    coachHeliQ1: 'Waar lanceren Helikopters vandaan?',
+    coachHeliA1a: 'Heliplatform (H) vakken',
+    coachHeliA1b: 'Elk vak',
+    coachHeliA1c: 'Alleen water',
+    coachHeliStep2: 'Helikopters zijn snel maar kwetsbaar. Gebruik ze voor verrassingsaanvallen!',
+    coachHeliQ2: 'Waar is de Helikopter goed voor?',
+    coachHeliA2a: 'Alleen verdediging',
+    coachHeliA2b: 'Verrassingsaanvallen',
+    coachHeliA2c: 'Structuren bouwen',
+    // Train
+    coachTrainTitle: 'De Trein',
+    coachTrainDesc: 'Leer over railtransport',
+    coachTrainStep1: 'De Trein beweegt langs de spoorwegen in de hoeken van het bord.',
+    coachTrainQ1: 'Waar beweegt de Trein?',
+    coachTrainA1a: 'Overal op het bord',
+    coachTrainA1b: 'Op spoorwegen',
+    coachTrainA1c: 'Op water',
+    coachTrainStep2: 'Treinen kunnen stukken snel over het bord transporteren!',
+    coachTrainQ2: 'Waarvoor wordt de Trein gebruikt?',
+    coachTrainA2a: 'Stukken transporteren',
+    coachTrainA2b: 'Vijanden aanvallen',
+    coachTrainA2c: 'Structuren bouwen',
+    // Landmine
+    coachLandmineTitle: 'Landmijnen',
+    coachLandmineDesc: 'Leer over verborgen gevaren',
+    coachLandmineStep1: 'Landmijnen zijn verborgen vallen! Ze ontploffen als een vijand erop stapt.',
+    coachLandmineQ1: 'Wat doen Landmijnen?',
+    coachLandmineA1a: 'Je stukken helen',
+    coachLandmineA1b: 'Ontploffen als erop gestapt wordt',
+    coachLandmineA1c: 'Beweging blokkeren',
+    coachLandmineStep2: 'Je kunt je eigen landmijnen zien, maar vijandige landmijnen zijn onzichtbaar!',
+    coachLandmineQ2: 'Kun je vijandige landmijnen zien?',
+    coachLandmineA2a: 'Nee, ze zijn verborgen',
+    coachLandmineA2b: 'Ja, altijd zichtbaar',
+    coachLandmineA2c: 'Alleen met Hacker',
+    // Game Modes
+    coachModesTitle: 'Spelmodi',
+    coachModesDesc: 'Leer over verschillende manieren om te spelen',
+    coachModesStep1: 'Je kunt lokaal tegen een andere speler spelen, tegen de bot, of online!',
+    coachModesQ1: 'Welke spelmodi zijn beschikbaar?',
+    coachModesA1a: 'Lokaal, Bot, Online',
+    coachModesA1b: 'Alleen singleplayer',
+    coachModesA1c: 'Alleen online',
+    coachModesStep2: 'De bot heeft 3 moeilijkheidsniveaus: Makkelijk, Gemiddeld, en Moeilijk.',
+    coachModesQ2: 'Hoeveel bot moeilijkheidsniveaus zijn er?',
+    coachModesA2a: '1',
+    coachModesA2b: '2',
+    coachModesA2c: '3',
+    // Bot
+    coachBotTitle: 'Spelen vs Bot',
+    coachBotDesc: 'Leer over de AI tegenstander',
+    coachBotStep1: 'De bot leert van zijn spellen en wordt slimmer na verloop van tijd!',
+    coachBotQ1: 'Leert de bot?',
+    coachBotA1a: 'Nee, hij is vast',
+    coachBotA1b: 'Ja, hij leert',
+    coachBotA1c: 'Alleen op Moeilijk',
+    coachBotStep2: 'Begin met Makkelijk en werk je een weg omhoog!',
+    coachBotQ2: 'Met welke moeilijkheid moeten beginners starten?',
+    coachBotA2a: 'Makkelijk',
+    coachBotA2b: 'Gemiddeld',
+    coachBotA2c: 'Moeilijk',
+    // Timer
+    coachTimerTitle: 'Schaakklok',
+    coachTimerDesc: 'Leer over getimede spellen',
+    coachTimerStep1: 'Je kunt een schaakklok inschakelen voor getimede spellen. Tijd opraken kost punten!',
+    coachTimerQ1: 'Wat gebeurt er als je tijd opraakt?',
+    coachTimerA1a: 'Je verliest punten',
+    coachTimerA1b: 'Je wint',
+    coachTimerA1c: 'Niets',
+    coachTimerStep2: 'Ga naar Instellingen en schakel de timer in om het uit te proberen!',
+    // Strategy
+    coachStrategyTitle: 'Geavanceerde Strategie',
+    coachStrategyDesc: 'Beheers de kunst van oorlog',
+    coachStrategyStep1: 'Controleer het midden van het bord om het spel te domineren!',
+    coachStrategyQ1: 'Wat is het belangrijkste gebied om te controleren?',
+    coachStrategyA1a: 'De hoeken',
+    coachStrategyA1b: 'De randen',
+    coachStrategyA1c: 'Het midden',
+    coachStrategyStep2: 'Bescherm altijd je Engineer - hem verliezen betekent het spel verliezen!',
+    coachStrategyQ2: 'Wat is de prioriteit in Oorlog Schaak?',
+    coachStrategyA2a: 'Alle stukken pakken',
+    coachStrategyA2b: 'Engineer beschermen',
+    coachStrategyA2c: 'Veel structuren bouwen',
+    coachStrategyStep3: 'Gebruik gecombineerde aanvallen - meerdere stukken samen aanvallen is krachtig!',
+    coachStrategyQ3: 'Wat maakt aanvallen effectiever?',
+    coachStrategyA3a: 'Gecombineerde aanvallen',
+    coachStrategyA3b: 'Enkele stuk aanvallen',
+    coachStrategyA3c: 'Wachten',
+    // Navigation - Puzzles
+    coachNavPuzzlesTitle: 'Puzzels Vinden',
+    coachNavPuzzlesDesc: 'Leer puzzels te bereiken',
+    coachNavPuzzlesStep1: 'Puzzels helpen je tactiek te oefenen! Je vindt ze in het hoofdmenu.',
+    coachNavPuzzlesQ1: 'Waar helpen puzzels mee?',
+    coachNavPuzzlesA1a: 'Tactiek oefenen',
+    coachNavPuzzlesA1b: 'Instellingen veranderen',
+    coachNavPuzzlesA1c: 'Niets',
+    coachNavPuzzlesStep2: 'Klik op "Puzzels" in het hoofdmenu om alle beschikbare puzzels te zien.',
+    // Navigation - Shop
+    coachNavShopTitle: 'De Winkel',
+    coachNavShopDesc: 'Leer over items kopen',
+    coachNavShopStep1: 'In de Winkel kun je themas, skins, en effecten kopen met War Bucks!',
+    coachNavShopQ1: 'Wat kun je kopen in de Winkel?',
+    coachNavShopA1a: 'Niets',
+    coachNavShopA1b: 'Themas, skins, effecten',
+    coachNavShopA1c: 'Alleen themas',
+    coachNavShopStep2: 'Klik op "Winkel" in het hoofdmenu om items te bekijken.',
+    // Navigation - Events
+    coachNavEventsTitle: 'Evenementen',
+    coachNavEventsDesc: 'Leer over speciale evenementen',
+    coachNavEventsStep1: 'Evenementen geven je gratis beloningen! Check ze regelmatig om niets te missen.',
+    coachNavEventsQ1: 'Wat geven Evenementen je?',
+    coachNavEventsA1a: 'Gratis beloningen',
+    coachNavEventsA1b: 'Niets',
+    coachNavEventsA1c: 'Alleen informatie',
+    coachNavEventsStep2: 'Klik op "Evenementen" om actieve evenementen te zien en beloningen te claimen.',
+    // Navigation - War Pass
+    coachNavWarPassTitle: 'War Pass',
+    coachNavWarPassDesc: 'Leer over uitdagingen',
+    coachNavWarPassStep1: 'De War Pass heeft dagelijkse uitdagingen. Voltooi ze voor extra beloningen!',
+    coachNavWarPassQ1: 'Wat is de War Pass?',
+    coachNavWarPassA1a: 'Een betaald abonnement',
+    coachNavWarPassA1b: 'Een enkel item',
+    coachNavWarPassA1c: 'Dagelijkse uitdagingen',
+    coachNavWarPassStep2: 'Check de War Pass om je huidige uitdagingen te zien.',
+    // Settings - Colorblind
+    coachColorblindTitle: 'Kleurenblind Modus',
+    coachColorblindDesc: 'Leer over toegankelijkheid',
+    coachColorblindStep1: 'Kleurenblind modus verandert kleuren om ze makkelijker te onderscheiden.',
+    coachColorblindQ1: 'Wat doet Kleurenblind Modus?',
+    coachColorblindA1a: 'Maakt spel sneller',
+    coachColorblindA1b: 'Verandert kleuren',
+    coachColorblindA1c: 'Voegt geluid toe',
+    coachColorblindStep2: 'Schakel Kleurenblind Modus in bij Instellingen om het verschil te zien.',
+    // Settings - Sound
+    coachSoundTitle: 'Geluidsinstellingen',
+    coachSoundDesc: 'Leer over audio-opties',
+    coachSoundStep1: 'Je kunt muziek en geluidseffecten inschakelen bij Instellingen.',
+    coachSoundQ1: 'Waar zijn geluidsopties?',
+    coachSoundA1a: 'In Instellingen',
+    coachSoundA1b: 'In de Winkel',
+    coachSoundA1c: 'Bij Evenementen',
+    coachSoundStep2: 'Schakel muziek in bij Instellingen om achtergrondmuziek te horen.',
+    // Settings - Theme
+    coachThemeTitle: 'Bordthemas',
+    coachThemeDesc: 'Leer over visuele aanpassing',
+    coachThemeStep1: 'Je kunt het bordthema veranderen naar Klassiek, Donker, Licht, of Hout.',
+    coachThemeQ1: 'Welke themas zijn beschikbaar?',
+    coachThemeA1a: 'Alleen Klassiek',
+    coachThemeA1b: 'Alleen Donker',
+    coachThemeA1c: 'Klassiek, Donker, Licht, Hout',
+    coachThemeStep2: 'Verander het bordthema naar Donker bij Instellingen.',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -20156,270 +21178,335 @@ function render() {
   if (gameState === 'start') {
     // Coach screen
     if (showCoach) {
-      // Different lessons per level
-      const beginnerLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
-        { key: 'coachWelcome', type: 'intro' },
-        { key: 'coachLesson1Title', type: 'lesson', piece: 'soldier', steps: ['coachLesson1Step1', 'coachLesson1Step2', 'coachLesson1Step3', 'coachLesson1Step4'], question: 'coachLesson1Question', answers: ['coachLesson1Answer1', 'coachLesson1Answer2', 'coachLesson1Answer3'], correct: 0 },
-        { key: 'coachLesson2Title', type: 'lesson', piece: 'tank', steps: ['coachLesson2Step1', 'coachLesson2Step2'], question: 'coachLesson2Question', answers: ['coachLesson2Answer1', 'coachLesson2Answer2', 'coachLesson2Answer3'], correct: 0 },
-        { key: 'coachLesson3Title', type: 'lesson', piece: 'suv', steps: ['coachLesson3Step1', 'coachLesson3Step2'], question: 'coachLesson3Question', answers: ['coachLesson3Answer1', 'coachLesson3Answer2', 'coachLesson3Answer3'], correct: 0 },
-        { key: 'coachGameModesTitle', type: 'lesson', steps: ['coachGameModesStep1', 'coachGameModesStep2', 'coachGameModesStep3'], question: 'coachGameModesQuestion', answers: ['coachGameModesAnswer1', 'coachGameModesAnswer2', 'coachGameModesAnswer3'], correct: 0 },
-        { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer1', 'coachScoreAnswer2', 'coachScoreAnswer3'], correct: 0 },
-      ]
+      // Load coach progress
+      loadCoachProgress()
+      const allLessons = getCoachLessons()
+      const filteredLessons = getFilteredLessons(coachCategory, coachLevel)
+      const categories: CoachCategory[] = ['basics', 'pieces', 'special', 'advanced', 'navigation', 'settings']
 
-      const mediumLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
-        { key: 'coachWelcome', type: 'intro' },
-        { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer2', 'coachLesson4Answer1', 'coachLesson4Answer3'], correct: 1 },
-        { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer2', 'coachLesson5Answer3', 'coachLesson5Answer1'], correct: 2 },
-        { key: 'coachTrenchTitle', type: 'lesson', piece: 'soldier', steps: ['coachTrenchStep1', 'coachTrenchStep2'], question: 'coachTrenchQuestion', answers: ['coachTrenchAnswer1', 'coachTrenchAnswer2', 'coachTrenchAnswer3'], correct: 0 },
-        { key: 'coachPuzzlesTitle', type: 'lesson', steps: ['coachPuzzlesStep1', 'coachPuzzlesStep2', 'coachPuzzlesStep3'], question: 'coachPuzzlesQuestion', answers: ['coachPuzzlesAnswer2', 'coachPuzzlesAnswer1', 'coachPuzzlesAnswer3'], correct: 1 },
-        { key: 'coachScoreTitle', type: 'lesson', steps: ['coachScoreStep1', 'coachScoreStep2', 'coachScoreStep3'], question: 'coachScoreQuestion', answers: ['coachScoreAnswer2', 'coachScoreAnswer1', 'coachScoreAnswer3'], correct: 1 },
-      ]
-
-      const mastersLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
-        { key: 'coachWelcome', type: 'intro' },
-        { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step1', 'coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer3', 'coachLesson5Answer1', 'coachLesson5Answer2'], correct: 1 },
-        { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step1', 'coachLesson4Step2', 'coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer3', 'coachLesson4Answer2', 'coachLesson4Answer1'], correct: 2 },
-        { key: 'coachShipTitle', type: 'lesson', piece: 'ship', steps: ['coachShipStep1', 'coachShipStep2'], question: 'coachShipQuestion', answers: ['coachShipAnswer2', 'coachShipAnswer1', 'coachShipAnswer3'], correct: 1 },
-        { key: 'coachRocketTitle', type: 'lesson', piece: 'rocket', steps: ['coachRocketStep1', 'coachRocketStep2'], question: 'coachRocketQuestion', answers: ['coachRocketAnswer2', 'coachRocketAnswer1', 'coachRocketAnswer3'], correct: 1 },
-        { key: 'coachPuzzlesTitle', type: 'lesson', steps: ['coachPuzzlesStep1', 'coachPuzzlesStep2', 'coachPuzzlesStep3'], question: 'coachPuzzlesQuestion', answers: ['coachPuzzlesAnswer3', 'coachPuzzlesAnswer2', 'coachPuzzlesAnswer1'], correct: 2 },
-      ]
-
-      const warGodsLessons: Array<{key: string, type: string, piece?: string, steps?: string[], question?: string, answers?: string[], correct?: number}> = [
-        { key: 'coachWelcome', type: 'intro' },
-        { key: 'coachLesson4Title', type: 'lesson', piece: 'builder', steps: ['coachLesson4Step3'], question: 'coachLesson4Question', answers: ['coachLesson4Answer2', 'coachLesson4Answer3', 'coachLesson4Answer1'], correct: 2 },
-        { key: 'coachLesson5Title', type: 'lesson', piece: 'hacker', steps: ['coachLesson5Step2'], question: 'coachLesson5Question', answers: ['coachLesson5Answer2', 'coachLesson5Answer1', 'coachLesson5Answer3'], correct: 1 },
-        { key: 'coachRocketTitle', type: 'lesson', piece: 'rocket', steps: ['coachRocketStep2'], question: 'coachRocketQuestion', answers: ['coachRocketAnswer3', 'coachRocketAnswer2', 'coachRocketAnswer1'], correct: 2 },
-        { key: 'coachShipTitle', type: 'lesson', piece: 'ship', steps: ['coachShipStep1'], question: 'coachShipQuestion', answers: ['coachShipAnswer3', 'coachShipAnswer1', 'coachShipAnswer2'], correct: 1 },
-      ]
-
-      // Select lessons based on level
-      const lessonsMap: Record<CoachLevel, typeof beginnerLessons> = {
-        beginner: beginnerLessons,
-        medium: mediumLessons,
-        masters: mastersLessons,
-        war_gods: warGodsLessons
-      }
-      const lessons = lessonsMap[coachLevel]
-      const currentLesson = lessons[coachLessonIndex]
-      const isIntro = currentLesson.type === 'intro'
-      const isQuestion = coachShowQuestion && currentLesson.type === 'lesson'
-
-      // Create mini board for coach with REAL piece graphics
-      const coachBoardSize = 5
-      const coachSquareSize = 50
-
-      // Draw a simple but recognizable piece SVG
-      function drawCoachPiece(pieceType: string, team: 'yellow' | 'green', x: number, y: number, size: number): string {
+      // Helper to draw pieces on coach board
+      function drawCoachPieceSVG(pieceType: string, team: 'yellow' | 'green', x: number, y: number, size: number): string {
         const teamColor = team === 'yellow' ? '#fbbf24' : '#22c55e'
         const strokeColor = team === 'yellow' ? '#b45309' : '#15803d'
         const darkColor = team === 'yellow' ? '#d97706' : '#16a34a'
 
-        switch (pieceType) {
-          case 'soldier':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
-                <circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
-                <rect x="${x + size/3}" y="${y + size/5}" width="${size/3}" height="${size/8}" fill="#444" />
-                <line x1="${x + size*0.3}" y1="${y + size*0.6}" x2="${x + size*0.15}" y2="${y + size*0.4}" stroke="#666" stroke-width="3" />
-              </g>`
-          case 'tank':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <rect x="${x + 4}" y="${y + size/2}" width="${size - 8}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1.5" rx="3" />
-                <rect x="${x + size/4}" y="${y + size/3}" width="${size/2}" height="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
-                <rect x="${x + size/2 - 2}" y="${y + size/6}" width="4" height="${size/4}" fill="#444" />
-                <circle cx="${x + 8}" cy="${y + size*0.75}" r="4" fill="#333" />
-                <circle cx="${x + size - 8}" cy="${y + size*0.75}" r="4" fill="#333" />
-              </g>`
-          case 'suv':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <rect x="${x + 6}" y="${y + size/2}" width="${size - 12}" height="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" />
-                <rect x="${x + 10}" y="${y + size/3}" width="${size - 20}" height="${size/4}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="3" />
-                <rect x="${x + 12}" y="${y + size/3 + 2}" width="${size/4 - 4}" height="${size/6}" fill="#87ceeb" />
-                <circle cx="${x + 10}" cy="${y + size*0.78}" r="4" fill="#222" />
-                <circle cx="${x + size - 10}" cy="${y + size*0.78}" r="4" fill="#222" />
-              </g>`
-          case 'builder':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
-                <circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
-                <rect x="${x + size/3}" y="${y + size/6}" width="${size/3}" height="${size/10}" fill="#f59e0b" rx="2" />
-                <rect x="${x + size*0.6}" y="${y + size*0.35}" width="${size/5}" height="${size/4}" fill="#71717a" />
-                <rect x="${x + size*0.65}" y="${y + size*0.55}" width="${size/10}" height="${size/6}" fill="#f59e0b" />
-              </g>`
-          case 'hacker':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" />
-                <circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
-                <rect x="${x + size/3}" y="${y + size/5}" width="${size/3}" height="${size/8}" fill="#1e1e1e" rx="1" />
-                <rect x="${x + size*0.2}" y="${y + size*0.5}" width="${size*0.35}" height="${size*0.25}" fill="#1e1e1e" rx="2" />
-                <rect x="${x + size*0.23}" y="${y + size*0.53}" width="${size*0.29}" height="${size*0.15}" fill="#22c55e" rx="1" />
-              </g>`
-          case 'barricade':
-            return `
-              <g>
-                <rect x="${x + 4}" y="${y + size/3}" width="${size - 8}" height="${size/2}" fill="#8b7355" stroke="#5c4033" stroke-width="2" />
-                <line x1="${x + 6}" y1="${y + size/3 + 4}" x2="${x + size - 6}" y2="${y + size/3 + 4}" stroke="#5c4033" stroke-width="1" />
-                <line x1="${x + 6}" y1="${y + size*0.6}" x2="${x + size - 6}" y2="${y + size*0.6}" stroke="#5c4033" stroke-width="1" />
-              </g>`
-          case 'artillery':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <circle cx="${x + size/2}" cy="${y + size*0.65}" r="${size/4}" fill="#444" stroke="#222" stroke-width="2" />
-                <rect x="${x + size/2 - 3}" y="${y + size/4}" width="6" height="${size/3}" fill="#333" />
-                <circle cx="${x + size/2}" cy="${y + size/4}" r="4" fill="#ef4444" />
-              </g>`
-          case 'spike':
-            return `
-              <g>
-                <polygon points="${x + size/2},${y + size/4} ${x + size*0.3},${y + size*0.8} ${x + size*0.7},${y + size*0.8}" fill="#71717a" stroke="#404040" stroke-width="1" />
-                <circle cx="${x + size/2}" cy="${y + size/4 + 4}" r="3" fill="#ef4444" />
-              </g>`
-          case 'ship':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <path d="M${x + 4} ${y + size*0.7} L${x + size/2} ${y + size*0.85} L${x + size - 4} ${y + size*0.7} L${x + size - 6} ${y + size*0.5} L${x + 6} ${y + size*0.5} Z" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" />
-                <rect x="${x + size/3}" y="${y + size*0.35}" width="${size/3}" height="${size*0.2}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" />
-                <rect x="${x + size*0.4}" y="${y + size*0.2}" width="${size*0.2}" height="${size*0.18}" fill="#444" />
-                <rect x="${x + size*0.45}" y="${y + size*0.1}" width="3" height="${size*0.12}" fill="#666" />
-              </g>`
-          case 'rocket':
-            return `
-              <g>
-                <ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/4}" ry="3" fill="rgba(0,0,0,0.3)" />
-                <rect x="${x + size/3}" y="${y + size*0.3}" width="${size/3}" height="${size*0.5}" fill="#444" stroke="#222" stroke-width="1.5" rx="3" />
-                <polygon points="${x + size/2},${y + size*0.15} ${x + size/3},${y + size*0.35} ${x + size*0.67},${y + size*0.35}" fill="#ef4444" stroke="#b91c1c" stroke-width="1" />
-                <rect x="${x + size*0.38}" y="${y + size*0.4}" width="${size*0.24}" height="${size*0.15}" fill="#fbbf24" />
-                <polygon points="${x + size/3 - 4},${y + size*0.75} ${x + size/3},${y + size*0.5} ${x + size/3},${y + size*0.8}" fill="#666" />
-                <polygon points="${x + size*0.67 + 4},${y + size*0.75} ${x + size*0.67},${y + size*0.5} ${x + size*0.67},${y + size*0.8}" fill="#666" />
-                <ellipse cx="${x + size/2}" cy="${y + size*0.85}" rx="${size/6}" ry="${size/10}" fill="#f97316" opacity="0.8" />
-              </g>`
-          default:
-            return `<circle cx="${x + size/2}" cy="${y + size/2}" r="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="2" />`
+        const shapes: Record<string, string> = {
+          soldier: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" /><circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" /><rect x="${x + size/3}" y="${y + size/5}" width="${size/3}" height="${size/8}" fill="#444" /></g>`,
+          tank: `<g><ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + 4}" y="${y + size/2}" width="${size - 8}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1.5" rx="3" /><rect x="${x + size/4}" y="${y + size/3}" width="${size/2}" height="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1" rx="2" /><rect x="${x + size/2 - 2}" y="${y + size/6}" width="4" height="${size/4}" fill="#444" /></g>`,
+          suv: `<g><ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + 6}" y="${y + size/2}" width="${size - 12}" height="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" /><rect x="${x + 10}" y="${y + size/3}" width="${size - 20}" height="${size/4}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="3" /></g>`,
+          builder: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" /><circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" /><rect x="${x + size/3}" y="${y + size/6}" width="${size/3}" height="${size/10}" fill="#f59e0b" rx="2" /></g>`,
+          hacker: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + size/4}" y="${y + size/2}" width="${size/2}" height="${size/3}" fill="${darkColor}" stroke="${strokeColor}" stroke-width="1" rx="2" /><circle cx="${x + size/2}" cy="${y + size/3}" r="${size/4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" /><rect x="${x + size*0.2}" y="${y + size*0.5}" width="${size*0.35}" height="${size*0.25}" fill="#1e1e1e" rx="2" /><rect x="${x + size*0.23}" y="${y + size*0.53}" width="${size*0.29}" height="${size*0.15}" fill="#22c55e" rx="1" /></g>`,
+          barricade: `<g><rect x="${x + 4}" y="${y + size/3}" width="${size - 8}" height="${size/2}" fill="#8b7355" stroke="#5c4033" stroke-width="2" /></g>`,
+          artillery: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" /><circle cx="${x + size/2}" cy="${y + size*0.65}" r="${size/4}" fill="#444" stroke="#222" stroke-width="2" /><rect x="${x + size/2 - 3}" y="${y + size/4}" width="6" height="${size/3}" fill="#333" /><circle cx="${x + size/2}" cy="${y + size/4}" r="4" fill="#ef4444" /></g>`,
+          spike: `<g><polygon points="${x + size/2},${y + size/4} ${x + size*0.3},${y + size*0.8} ${x + size*0.7},${y + size*0.8}" fill="#71717a" stroke="#404040" stroke-width="1" /><circle cx="${x + size/2}" cy="${y + size/4 + 4}" r="3" fill="#ef4444" /></g>`,
+          ship: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" /><path d="M${x + 4} ${y + size*0.7} L${x + size/2} ${y + size*0.85} L${x + size - 4} ${y + size*0.7} L${x + size - 6} ${y + size*0.5} L${x + 6} ${y + size*0.5} Z" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" /></g>`,
+          rocket: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/4}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + size/3}" y="${y + size*0.3}" width="${size/3}" height="${size*0.5}" fill="#444" stroke="#222" stroke-width="1.5" rx="3" /><polygon points="${x + size/2},${y + size*0.15} ${x + size/3},${y + size*0.35} ${x + size*0.67},${y + size*0.35}" fill="#ef4444" stroke="#b91c1c" stroke-width="1" /></g>`,
+          helicopter: `<g><ellipse cx="${x + size/2}" cy="${y + size - 4}" rx="${size/3}" ry="3" fill="rgba(0,0,0,0.3)" /><ellipse cx="${x + size/2}" cy="${y + size*0.55}" rx="${size/3}" ry="${size/5}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" /><line x1="${x + 5}" y1="${y + size*0.3}" x2="${x + size - 5}" y2="${y + size*0.3}" stroke="#444" stroke-width="2" /><rect x="${x + size/2 - 2}" y="${y + size*0.25}" width="4" height="${size*0.3}" fill="#666" /></g>`,
+          train: `<g><ellipse cx="${x + size/2}" cy="${y + size - 3}" rx="${size/2.5}" ry="3" fill="rgba(0,0,0,0.3)" /><rect x="${x + 6}" y="${y + size*0.35}" width="${size - 12}" height="${size*0.4}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="1.5" rx="3" /><circle cx="${x + 12}" cy="${y + size*0.7}" r="4" fill="#333" /><circle cx="${x + size - 12}" cy="${y + size*0.7}" r="4" fill="#333" /></g>`,
         }
+        return shapes[pieceType] || `<circle cx="${x + size/2}" cy="${y + size/2}" r="${size/3}" fill="${teamColor}" stroke="${strokeColor}" stroke-width="2" />`
       }
 
-      function createCoachBoard(): string {
-        let svg = `<svg width="${coachBoardSize * coachSquareSize}" height="${coachBoardSize * coachSquareSize}" class="rounded-lg overflow-hidden">`
+      // Create interactive board for lessons
+      function createCoachInteractiveBoard(step: CoachStep): string {
+        const boardSize = coachBoardSize
+        const sqSize = coachBoardSquareSize
+        const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].slice(0, boardSize)
+
+        let svg = `<svg width="${boardSize * sqSize + (step.showCoordinates ? 20 : 0)}" height="${boardSize * sqSize + (step.showCoordinates ? 20 : 0)}" class="rounded-lg overflow-hidden">`
+
+        const offsetX = step.showCoordinates ? 20 : 0
+        const offsetY = 0
 
         // Draw squares
-        for (let row = 0; row < coachBoardSize; row++) {
-          for (let col = 0; col < coachBoardSize; col++) {
+        for (let row = 0; row < boardSize; row++) {
+          for (let col = 0; col < boardSize; col++) {
             const isLight = (row + col) % 2 === 0
-            const x = col * coachSquareSize
-            const y = row * coachSquareSize
-            svg += `<rect x="${x}" y="${y}" width="${coachSquareSize}" height="${coachSquareSize}" fill="${isLight ? '#9ca3af' : '#6b7280'}" />`
+            const x = offsetX + col * sqSize
+            const y = offsetY + row * sqSize
+            const colLetter = cols[col]
+            const rowNum = boardSize - row
+
+            // Check if this square is highlighted
+            const highlight = step.highlightSquares?.find(h => h.col === colLetter && h.row === rowNum)
+
+            svg += `<rect x="${x}" y="${y}" width="${sqSize}" height="${sqSize}" fill="${isLight ? '#9ca3af' : '#6b7280'}" data-col="${colLetter}" data-row="${rowNum}" class="coach-square cursor-pointer hover:brightness-110" />`
+
+            if (highlight) {
+              svg += `<rect x="${x + 3}" y="${y + 3}" width="${sqSize - 6}" height="${sqSize - 6}" fill="${highlight.color}" opacity="0.4" rx="4" class="pointer-events-none" />`
+            }
+
+            // Check if selected
+            const isSelected = coachSelectedSquares.some(s => s.col === colLetter && s.row === rowNum)
+            if (isSelected) {
+              svg += `<rect x="${x + 2}" y="${y + 2}" width="${sqSize - 4}" height="${sqSize - 4}" fill="none" stroke="#3b82f6" stroke-width="3" rx="4" class="pointer-events-none" />`
+            }
           }
         }
 
-        // Draw the current lesson's piece in the center with REAL graphics
-        if (currentLesson.piece) {
-          const centerX = 2 * coachSquareSize
-          const centerY = 2 * coachSquareSize
-
-          // Show valid moves for this piece
-          const movePatterns: Record<string, Array<{dx: number, dy: number, type?: string}>> = {
-            soldier: [{dx: 0, dy: -1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
-            tank: [{dx: 0, dy: -1}, {dx: 0, dy: -2}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}, {dx: -1, dy: -1}, {dx: 1, dy: -1}],
-            suv: [{dx: -1, dy: -1}, {dx: 1, dy: -1}, {dx: -1, dy: 1}, {dx: 1, dy: 1}, {dx: -2, dy: -2}, {dx: 2, dy: -2}],
-            builder: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
-            hacker: [{dx: 0, dy: -1}, {dx: 0, dy: 1}, {dx: -1, dy: 0}, {dx: 1, dy: 0}],
-            ship: [{dx: 0, dy: -1}, {dx: 0, dy: -2}, {dx: 0, dy: 1}, {dx: 0, dy: 2}],
-            rocket: [], // Rocket doesn't move normally
+        // Draw coordinates if enabled
+        if (step.showCoordinates) {
+          for (let col = 0; col < boardSize; col++) {
+            svg += `<text x="${offsetX + col * sqSize + sqSize/2}" y="${boardSize * sqSize + 15}" text-anchor="middle" font-size="12" fill="#9ca3af">${cols[col]}</text>`
           }
+          for (let row = 0; row < boardSize; row++) {
+            svg += `<text x="10" y="${row * sqSize + sqSize/2 + 4}" text-anchor="middle" font-size="12" fill="#9ca3af">${boardSize - row}</text>`
+          }
+        }
 
-          const moves = movePatterns[currentLesson.piece] || []
-          moves.forEach(m => {
-            const mx = (2 + m.dx) * coachSquareSize
-            const my = (2 + m.dy) * coachSquareSize
-            if (mx >= 0 && mx < coachBoardSize * coachSquareSize && my >= 0 && my < coachBoardSize * coachSquareSize) {
-              svg += `<rect x="${mx + 3}" y="${my + 3}" width="${coachSquareSize - 6}" height="${coachSquareSize - 6}" fill="#22c55e" opacity="0.4" rx="4" />`
+        // Draw pieces from step
+        if (step.boardPieces) {
+          step.boardPieces.forEach(p => {
+            const colIndex = cols.indexOf(p.col)
+            const rowIndex = boardSize - p.row
+            if (colIndex >= 0 && rowIndex >= 0 && rowIndex < boardSize) {
+              const x = offsetX + colIndex * sqSize
+              const y = offsetY + rowIndex * sqSize
+              svg += drawCoachPieceSVG(p.type, p.team, x + 3, y + 3, sqSize - 6)
             }
           })
-
-          // Draw the piece using real graphics
-          svg += drawCoachPiece(currentLesson.piece, 'yellow', centerX + 2, centerY + 2, coachSquareSize - 4)
-
-          // For builder lesson, show what can be built
-          if (currentLesson.piece === 'builder') {
-            svg += drawCoachPiece('barricade', 'yellow', 0 * coachSquareSize + 2, 1 * coachSquareSize + 2, coachSquareSize - 4)
-            svg += drawCoachPiece('artillery', 'yellow', 4 * coachSquareSize + 2, 1 * coachSquareSize + 2, coachSquareSize - 4)
-            svg += drawCoachPiece('spike', 'yellow', 2 * coachSquareSize + 2, 0 * coachSquareSize + 2, coachSquareSize - 4)
-          }
-
-          // For hacker lesson, show enemy piece to hack
-          if (currentLesson.piece === 'hacker') {
-            svg += drawCoachPiece('soldier', 'green', 2 * coachSquareSize + 2, 0 * coachSquareSize + 2, coachSquareSize - 4)
-            // Purple highlight for hackable
-            svg += `<rect x="${2 * coachSquareSize + 3}" y="${0 * coachSquareSize + 3}" width="${coachSquareSize - 6}" height="${coachSquareSize - 6}" fill="#a855f7" opacity="0.4" rx="4" />`
-          }
-
-          // For ship lesson, show water column
-          if (currentLesson.piece === 'ship') {
-            // Draw water column in the middle
-            for (let row = 0; row < coachBoardSize; row++) {
-              svg += `<rect x="${2 * coachSquareSize}" y="${row * coachSquareSize}" width="${coachSquareSize}" height="${coachSquareSize}" fill="#3b82f6" opacity="0.4" />`
-            }
-            // Redraw piece on top
-            svg += drawCoachPiece('ship', 'yellow', centerX + 2, centerY + 2, coachSquareSize - 4)
-          }
-
-          // For rocket lesson, show explosion area
-          if (currentLesson.piece === 'rocket') {
-            // Show 3x3 explosion area
-            for (let dy = -1; dy <= 1; dy++) {
-              for (let dx = -1; dx <= 1; dx++) {
-                const ex = (2 + dx) * coachSquareSize
-                const ey = (2 + dy) * coachSquareSize
-                svg += `<rect x="${ex + 2}" y="${ey + 2}" width="${coachSquareSize - 4}" height="${coachSquareSize - 4}" fill="#ef4444" opacity="0.3" rx="2" />`
-              }
-            }
-            // Redraw rocket on top
-            svg += drawCoachPiece('rocket', 'yellow', centerX + 2, centerY + 2, coachSquareSize - 4)
-            // Add explosion effect text
-            svg += `<text x="${centerX + coachSquareSize/2}" y="${coachSquareSize/2}" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="bold">3x3 BOOM!</text>`
-          }
         }
 
         svg += '</svg>'
         return svg
       }
 
+      // Lesson completion screen
+      if (coachShowLessonComplete && coachSelectedLesson) {
+        const lesson = coachSelectedLesson
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-6">
+            <div class="bg-green-900 p-8 rounded-xl flex flex-col items-center gap-4 max-w-md">
+              <div class="text-6xl">🎉</div>
+              <h1 class="text-3xl font-bold text-white">${t('coachLessonComplete')}</h1>
+              <h2 class="text-xl text-yellow-300">${t(lesson.titleKey)}</h2>
+              <div class="flex items-center gap-2 text-2xl">
+                <span class="text-white">${t('coachEarned')}</span>
+                <span class="text-yellow-400 font-bold">💰 ${lesson.reward}</span>
+              </div>
+              <button id="coach-menu-btn" class="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                ${t('coachBackToMenu')}
+              </button>
+            </div>
+          </div>
+        `
+        document.getElementById('coach-menu-btn')?.addEventListener('click', () => {
+          coachShowLessonComplete = false
+          coachSelectedLesson = null
+          coachStepIndex = 0
+          coachSelectedAnswer = -1
+          coachFeedbackMessage = ''
+          coachSelectedSquares = []
+          render()
+        })
+        return
+      }
+
+      // In a lesson
+      if (coachSelectedLesson) {
+        const lesson = coachSelectedLesson
+        const step = lesson.steps[coachStepIndex]
+        const isLastStep = coachStepIndex === lesson.steps.length - 1
+
+        // Check if step is completed
+        let stepComplete = false
+        if (step.type === 'multipleChoice' && coachSelectedAnswer === step.correct) {
+          stepComplete = true
+        } else if (step.type === 'boardClick' && step.correctSquares) {
+          stepComplete = coachSelectedSquares.some(s =>
+            step.correctSquares!.some(cs => cs.col === s.col && cs.row === s.row)
+          )
+        } else if (step.type === 'boardSelect' && step.requiredSelections) {
+          stepComplete = step.requiredSelections.every(req =>
+            coachSelectedSquares.some(s => s.col === req.col && s.row === req.row)
+          )
+        } else if (step.type === 'settingsTask') {
+          // Check if setting matches
+          if (step.settingName === 'colorblind') stepComplete = colorBlindMode === step.settingValue
+          else if (step.settingName === 'music') stepComplete = musicEnabled === step.settingValue
+          else if (step.settingName === 'timer') stepComplete = timerEnabled === step.settingValue
+          else if (step.settingName === 'theme') stepComplete = boardTheme === step.settingValue
+        } else if (step.type === 'navigationTask') {
+          // Navigation tasks complete when acknowledged
+          stepComplete = coachFeedbackMessage === 'nav_complete'
+        }
+
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 overflow-y-auto">
+            <h1 class="text-2xl sm:text-3xl font-bold text-white">🎓 ${t(lesson.titleKey)}</h1>
+            <p class="text-gray-400">Step ${coachStepIndex + 1} / ${lesson.steps.length}</p>
+
+            <div class="flex flex-col lg:flex-row gap-6 items-center max-w-4xl">
+              <!-- Board (if applicable) -->
+              ${(step.boardPieces || step.correctSquares || step.requiredSelections || step.highlightSquares) ? `
+                <div class="bg-gray-900 p-4 rounded-lg">
+                  ${createCoachInteractiveBoard(step)}
+                </div>
+              ` : ''}
+
+              <!-- Lesson content -->
+              <div class="bg-indigo-900 p-6 rounded-lg flex flex-col gap-4 min-w-[300px] max-w-[450px]">
+                <p class="text-white text-lg">${t(step.textKey)}</p>
+
+                ${step.type === 'multipleChoice' && step.question ? `
+                  <p class="text-yellow-300 font-semibold">${t(step.question)}</p>
+                  <div class="flex flex-col gap-2">
+                    ${(step.answers || []).map((ans, i) => `
+                      <button data-answer="${i}" class="coach-answer-btn py-3 px-4 rounded text-left ${coachSelectedAnswer === i ? (i === step.correct ? 'bg-green-600' : 'bg-red-600') : 'bg-gray-700 hover:bg-gray-600'} text-white transition-colors">
+                        ${String.fromCharCode(65 + i)}. ${t(ans)}
+                      </button>
+                    `).join('')}
+                  </div>
+                  ${coachFeedbackMessage && coachFeedbackMessage !== 'nav_complete' ? `
+                    <p class="text-lg font-bold ${coachSelectedAnswer === step.correct ? 'text-green-400' : 'text-red-400'}">${coachFeedbackMessage}</p>
+                  ` : ''}
+                ` : ''}
+
+                ${step.type === 'boardClick' ? `
+                  <p class="text-cyan-300">${t('coachClickCorrectSquare')}</p>
+                  ${stepComplete ? `<p class="text-green-400 font-bold">${t('coachTaskComplete')}</p>` : ''}
+                ` : ''}
+
+                ${step.type === 'boardSelect' ? `
+                  <p class="text-cyan-300">${t('coachSelectAllSquares')}</p>
+                  <p class="text-gray-400 text-sm">Selected: ${coachSelectedSquares.length} / ${step.requiredSelections?.length || 0}</p>
+                  ${stepComplete ? `<p class="text-green-400 font-bold">${t('coachTaskComplete')}</p>` : ''}
+                ` : ''}
+
+                ${step.type === 'settingsTask' ? `
+                  <p class="text-cyan-300">${t('coachDoSettingsTask')}</p>
+                  <div class="flex gap-2 flex-wrap">
+                    ${step.settingName === 'colorblind' ? `
+                      <button id="coach-setting-btn" class="py-2 px-4 rounded ${colorBlindMode ? 'bg-green-600' : 'bg-gray-600'} text-white">Colorblind: ${colorBlindMode ? 'ON' : 'OFF'}</button>
+                    ` : ''}
+                    ${step.settingName === 'music' ? `
+                      <button id="coach-setting-btn" class="py-2 px-4 rounded ${musicEnabled ? 'bg-green-600' : 'bg-gray-600'} text-white">Music: ${musicEnabled ? 'ON' : 'OFF'}</button>
+                    ` : ''}
+                    ${step.settingName === 'timer' ? `
+                      <button id="coach-setting-btn" class="py-2 px-4 rounded ${timerEnabled ? 'bg-green-600' : 'bg-gray-600'} text-white">Timer: ${timerEnabled ? 'ON' : 'OFF'}</button>
+                    ` : ''}
+                    ${step.settingName === 'theme' ? `
+                      <button id="coach-setting-btn" class="py-2 px-4 rounded ${boardTheme === 'dark' ? 'bg-green-600' : 'bg-gray-600'} text-white">Theme: ${boardTheme}</button>
+                    ` : ''}
+                  </div>
+                  ${stepComplete ? `<p class="text-green-400 font-bold">${t('coachTaskComplete')}</p>` : ''}
+                ` : ''}
+
+                ${step.type === 'navigationTask' ? `
+                  <p class="text-cyan-300">${t('coachGoToScreen')}</p>
+                  <button id="coach-nav-btn" class="py-2 px-4 rounded bg-blue-600 hover:bg-blue-500 text-white">
+                    Go to ${step.targetScreen}
+                  </button>
+                  ${stepComplete ? `<p class="text-green-400 font-bold">${t('coachTaskComplete')}</p>` : ''}
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex gap-3 mt-4">
+              <button id="coach-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                ${t('backButton')}
+              </button>
+              ${stepComplete ? `
+                <button id="coach-next-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                  ${isLastStep ? '🎉 ' + t('coachCompleted') : t('coachContinue') + ' ➡️'}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `
+
+        // Event listeners for lesson
+        document.querySelectorAll('.coach-answer-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const answerIndex = parseInt((btn as HTMLButtonElement).dataset.answer || '0')
+            coachSelectedAnswer = answerIndex
+            if (answerIndex === step.correct) {
+              coachFeedbackMessage = t('coachCorrect') + ' ' + t('coachGreatJob')
+              if (coachVoiceEnabled) speakCoachFeedback(t('coachCorrect'))
+            } else {
+              coachFeedbackMessage = t('coachIncorrect')
+              if (coachVoiceEnabled) speakCoachFeedback(t('coachIncorrect'))
+            }
+            render()
+          })
+        })
+
+        document.querySelectorAll('.coach-square').forEach(sq => {
+          sq.addEventListener('click', () => {
+            const col = (sq as SVGElement).dataset.col || ''
+            const row = parseInt((sq as SVGElement).dataset.row || '0')
+            if (step.type === 'boardClick') {
+              coachSelectedSquares = [{ col, row }]
+            } else if (step.type === 'boardSelect') {
+              const exists = coachSelectedSquares.findIndex(s => s.col === col && s.row === row)
+              if (exists >= 0) {
+                coachSelectedSquares.splice(exists, 1)
+              } else {
+                coachSelectedSquares.push({ col, row })
+              }
+            }
+            render()
+          })
+        })
+
+        document.getElementById('coach-setting-btn')?.addEventListener('click', () => {
+          if (step.settingName === 'colorblind') colorBlindMode = !colorBlindMode
+          else if (step.settingName === 'music') musicEnabled = !musicEnabled
+          else if (step.settingName === 'timer') timerEnabled = !timerEnabled
+          else if (step.settingName === 'theme') boardTheme = boardTheme === 'dark' ? 'classic' : 'dark'
+          render()
+        })
+
+        document.getElementById('coach-nav-btn')?.addEventListener('click', () => {
+          coachFeedbackMessage = 'nav_complete'
+          render()
+        })
+
+        document.getElementById('coach-next-btn')?.addEventListener('click', async () => {
+          if (isLastStep) {
+            await completeCoachLesson(lesson)
+            render()
+          } else {
+            coachStepIndex++
+            coachSelectedAnswer = -1
+            coachFeedbackMessage = ''
+            coachSelectedSquares = []
+            render()
+          }
+        })
+
+        document.getElementById('coach-back-btn')?.addEventListener('click', () => {
+          if (coachStepIndex > 0) {
+            coachStepIndex--
+            coachSelectedAnswer = -1
+            coachFeedbackMessage = ''
+            coachSelectedSquares = []
+          } else {
+            coachSelectedLesson = null
+            coachStepIndex = 0
+          }
+          render()
+        })
+
+        return
+      }
+
+      // Category selection or lesson list
       app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 sm:gap-6 overflow-y-auto">
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 gap-4 overflow-y-auto">
           <h1 class="text-2xl sm:text-4xl font-bold text-white">🎓 ${t('coachTitle')}</h1>
 
           <!-- Level Selection -->
-          <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-4 min-w-[300px] max-w-[500px]">
-            <label class="text-white font-bold">${t('coachSelectLevel')}</label>
-            <div class="flex flex-wrap gap-2">
-              <button data-level="beginner" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'beginner' ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
-                🌱 ${t('coachLevelBeginner')}
-              </button>
-              <button data-level="medium" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'medium' ? 'bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
-                ⚔️ ${t('coachLevelMedium')}
-              </button>
-              <button data-level="masters" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'masters' ? 'bg-orange-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
-                🏅 ${t('coachLevelMasters')}
-              </button>
-              <button data-level="war_gods" class="coach-level-btn py-2 px-4 rounded ${coachLevel === 'war_gods' ? 'bg-red-600' : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
-                ⚡ ${t('coachLevelWarGods')}
-              </button>
+          <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-4 max-w-[600px] w-full">
+            <div class="flex flex-wrap gap-2 justify-center">
+              ${(['beginner', 'medium', 'masters', 'war_gods'] as CoachLevel[]).map(lvl => `
+                <button data-level="${lvl}" class="coach-level-btn py-2 px-4 rounded ${coachLevel === lvl ? (lvl === 'beginner' ? 'bg-green-600' : lvl === 'medium' ? 'bg-yellow-600' : lvl === 'masters' ? 'bg-orange-600' : 'bg-red-600') : 'bg-gray-600 hover:bg-gray-500'} text-white transition-colors">
+                  ${lvl === 'beginner' ? '🌱' : lvl === 'medium' ? '⚔️' : lvl === 'masters' ? '🏅' : '⚡'} ${t('coachLevel' + lvl.charAt(0).toUpperCase() + lvl.slice(1).replace('_', ''))}
+                </button>
+              `).join('')}
             </div>
-
-            <!-- Voice toggle -->
-            <div class="flex items-center gap-3 border-t border-gray-700 pt-3">
+            <div class="flex items-center gap-3 border-t border-gray-700 pt-3 justify-center">
               <span class="text-white">${t('coachVoice')}:</span>
               <button id="coach-voice-btn" class="py-1 px-3 rounded ${coachVoiceEnabled ? 'bg-blue-600' : 'bg-gray-600'} text-white transition-colors">
                 ${coachVoiceEnabled ? t('on') : t('off')}
@@ -20427,62 +21514,49 @@ function render() {
             </div>
           </div>
 
-          <!-- Lesson Content with Board -->
-          <div class="flex flex-col md:flex-row gap-4 items-center">
-            <!-- Mini Board -->
-            ${currentLesson.piece ? `
-              <div class="bg-gray-900 p-3 rounded-lg">
-                <p class="text-gray-400 text-sm mb-2 text-center">🟢 = Valid moves</p>
-                ${createCoachBoard()}
-              </div>
-            ` : ''}
-
-            <!-- Lesson Text -->
-            <div class="bg-indigo-900 p-6 rounded-lg flex flex-col gap-4 min-w-[280px] max-w-[400px] w-full">
-              <h2 class="text-xl font-bold text-yellow-300">
-                ${isIntro ? '👋' : `📚 Lesson ${coachLessonIndex}:`} ${t(currentLesson.key)}
-              </h2>
-
-              ${isIntro ? `
-                <p class="text-white text-lg">${t('coachWelcome')}</p>
-                <p class="text-gray-300">${t('coachClickSquare')}</p>
-              ` : isQuestion ? `
-                <p class="text-white text-lg font-semibold">${t(currentLesson.question || '')}</p>
-                <div class="flex flex-col gap-2">
-                  ${(currentLesson.answers || []).map((ans: string, i: number) => `
-                    <button data-answer="${i}" class="coach-answer-btn py-3 px-4 rounded text-left ${coachSelectedAnswer === i ? (i === currentLesson.correct ? 'bg-green-600' : 'bg-red-600') : 'bg-gray-700 hover:bg-gray-600'} text-white transition-colors">
-                      ${String.fromCharCode(65 + i)}. ${t(ans)}
-                    </button>
-                  `).join('')}
-                </div>
-                ${coachFeedbackMessage ? `
-                  <p class="text-lg font-bold ${coachSelectedAnswer === currentLesson.correct ? 'text-green-400' : 'text-red-400'}">
-                    ${coachFeedbackMessage}
-                  </p>
-                ` : ''}
-              ` : `
-                <p class="text-white text-lg">${t((currentLesson.steps || [])[coachStepIndex] || '')}</p>
-                <p class="text-gray-400 text-sm">Step ${coachStepIndex + 1} / ${(currentLesson.steps || []).length}</p>
-              `}
+          ${coachCategory === null ? `
+            <!-- Category Selection -->
+            <h2 class="text-xl text-gray-300">${t('coachSelectCategory')}</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-[600px]">
+              ${categories.map(cat => {
+                const info = getCategoryInfo(cat)
+                const catLessons = getFilteredLessons(cat, coachLevel)
+                const completed = catLessons.filter(l => coachCompletedLessons.includes(l.id)).length
+                return `
+                  <button data-category="${cat}" class="coach-cat-btn ${info.colorClass} hover:brightness-110 p-4 rounded-lg flex flex-col items-center gap-2 transition-all">
+                    <span class="text-3xl">${info.icon}</span>
+                    <span class="text-white font-bold">${t('coachCategory' + cat.charAt(0).toUpperCase() + cat.slice(1))}</span>
+                    <span class="text-white/70 text-sm">${completed}/${catLessons.length}</span>
+                  </button>
+                `
+              }).join('')}
             </div>
-          </div>
+          ` : `
+            <!-- Lesson List -->
+            <div class="flex items-center gap-4">
+              <button id="coach-back-cat-btn" class="text-gray-400 hover:text-white">← Back</button>
+              <h2 class="text-xl text-gray-300">${t('coachSelectLesson')}</h2>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[600px] w-full">
+              ${filteredLessons.filter(l => l.category === coachCategory).map(lesson => {
+                const isCompleted = coachCompletedLessons.includes(lesson.id)
+                return `
+                  <button data-lesson="${lesson.id}" class="coach-lesson-btn bg-gray-700 hover:bg-gray-600 p-4 rounded-lg flex flex-col items-start gap-1 transition-all ${isCompleted ? 'border-2 border-green-500' : ''}">
+                    <div class="flex items-center gap-2 w-full">
+                      <span class="text-lg">${isCompleted ? '✅' : '📖'}</span>
+                      <span class="text-white font-bold flex-1 text-left">${t(lesson.titleKey)}</span>
+                      <span class="text-yellow-400 text-sm">💰 ${lesson.reward}</span>
+                    </div>
+                    <span class="text-gray-400 text-sm">${t(lesson.descriptionKey)}</span>
+                  </button>
+                `
+              }).join('')}
+            </div>
+          `}
 
-          <!-- Navigation -->
-          <div class="flex gap-3">
-            ${coachLessonIndex > 0 || coachStepIndex > 0 ? `
-              <button id="coach-prev-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors">
-                ⬅️ ${t('coachPrevStep')}
-              </button>
-            ` : ''}
-            ${!isQuestion || coachSelectedAnswer === currentLesson.correct ? `
-              <button id="coach-next-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded transition-colors">
-                ${t('coachNextStep')} ➡️
-              </button>
-            ` : ''}
-            <button id="coach-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition-colors">
-              ${t('backButton')}
-            </button>
-          </div>
+          <button id="coach-exit-btn" class="mt-4 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">
+            ${t('backButton')}
+          </button>
         </div>
       `
 
@@ -20490,11 +21564,7 @@ function render() {
       document.querySelectorAll('.coach-level-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           coachLevel = (btn as HTMLButtonElement).dataset.level as CoachLevel
-          coachLessonIndex = 0
-          coachStepIndex = 0
-          coachShowQuestion = false
-          coachSelectedAnswer = -1
-          coachFeedbackMessage = ''
+          coachCategory = null
           render()
         })
       })
@@ -20504,78 +21574,37 @@ function render() {
         render()
       })
 
-      document.querySelectorAll('.coach-answer-btn').forEach(btn => {
+      document.querySelectorAll('.coach-cat-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          const answerIndex = parseInt((btn as HTMLButtonElement).dataset.answer || '0')
-          coachSelectedAnswer = answerIndex
-          const lesson = lessons[coachLessonIndex]
-          if (answerIndex === lesson.correct) {
-            coachFeedbackMessage = t('coachCorrect') + ' ' + t('coachGreatJob')
-            if (coachVoiceEnabled) speakCoachFeedback(t('coachCorrect'))
-          } else {
-            coachFeedbackMessage = t('coachIncorrect')
-            if (coachVoiceEnabled) speakCoachFeedback(t('coachIncorrect'))
-          }
+          coachCategory = (btn as HTMLButtonElement).dataset.category as CoachCategory
           render()
         })
       })
 
-      document.getElementById('coach-prev-btn')?.addEventListener('click', () => {
-        if (coachShowQuestion) {
-          coachShowQuestion = false
-          coachSelectedAnswer = -1
-          coachFeedbackMessage = ''
-        } else if (coachStepIndex > 0) {
-          coachStepIndex--
-        } else if (coachLessonIndex > 0) {
-          coachLessonIndex--
-          const prevLesson = lessons[coachLessonIndex]
-          if (prevLesson.type === 'lesson') {
-            coachStepIndex = (prevLesson.steps || []).length - 1
-          }
-        }
+      document.getElementById('coach-back-cat-btn')?.addEventListener('click', () => {
+        coachCategory = null
         render()
       })
 
-      document.getElementById('coach-next-btn')?.addEventListener('click', () => {
-        const lesson = lessons[coachLessonIndex]
-        if (lesson.type === 'intro') {
-          coachLessonIndex++
-          coachStepIndex = 0
-        } else if (coachShowQuestion) {
-          // Move to next lesson
-          coachLessonIndex++
-          coachStepIndex = 0
-          coachShowQuestion = false
-          coachSelectedAnswer = -1
-          coachFeedbackMessage = ''
-          if (coachLessonIndex >= lessons.length) {
-            coachLessonIndex = 0
+      document.querySelectorAll('.coach-lesson-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const lessonId = (btn as HTMLButtonElement).dataset.lesson
+          const lesson = allLessons.find(l => l.id === lessonId)
+          if (lesson) {
+            coachSelectedLesson = lesson
+            coachStepIndex = 0
+            coachSelectedAnswer = -1
+            coachFeedbackMessage = ''
+            coachSelectedSquares = []
+            render()
           }
-        } else {
-          // Move to next step or question
-          if (coachStepIndex < (lesson.steps || []).length - 1) {
-            coachStepIndex++
-          } else {
-            coachShowQuestion = true
-          }
-        }
-        // Speak the new content
-        if (coachVoiceEnabled && coachLessonIndex < lessons.length) {
-          const newLesson = lessons[coachLessonIndex]
-          if (newLesson.type === 'intro') {
-            speakCoachFeedback(t('coachWelcome'))
-          } else if (coachShowQuestion) {
-            speakCoachFeedback(t(newLesson.question || ''))
-          } else {
-            speakCoachFeedback(t((newLesson.steps || [])[coachStepIndex] || ''))
-          }
-        }
-        render()
+        })
       })
 
-      document.getElementById('coach-back-btn')?.addEventListener('click', () => {
+      document.getElementById('coach-exit-btn')?.addEventListener('click', () => {
         showCoach = false
+        coachCategory = null
+        coachSelectedLesson = null
         render()
       })
 
@@ -24909,7 +25938,8 @@ function render() {
     })
     document.getElementById('coach-btn')?.addEventListener('click', () => {
       showCoach = true
-      coachLessonIndex = 0
+      coachCategory = null
+      coachSelectedLesson = null
       coachStepIndex = 0
       render()
     })
