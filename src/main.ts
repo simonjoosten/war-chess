@@ -9718,6 +9718,23 @@ async function onPuzzleMoveComplete(capturedPieceType?: string, capturedPosition
   puzzleMovesMade++
   puzzleMovesLeft--
 
+  // Check if all player pieces are gone (fail condition)
+  const decorationTypes = ['landmine', 'tunnel', 'bridge', 'barricade', 'base', 'spike', 'artillery']
+  const yellowCombatPieces = pieces.filter(p => p.team === 'yellow' && !decorationTypes.includes(p.type))
+
+  if (yellowCombatPieces.length === 0) {
+    puzzleFailed = true
+
+    setTimeout(() => {
+      if (confirm('❌ All your pieces are gone!\n\nTry again?')) {
+        startPuzzle(currentPuzzle!, true)  // isRetry = true
+      } else {
+        stopPuzzle()
+      }
+    }, 500)
+    return
+  }
+
   // Check if captured the target (for capture objectives)
   if (currentPuzzle.objectiveType === 'capture' && capturedPieceType) {
     // Check if we have a specific target position
@@ -17739,6 +17756,14 @@ function createChatPanel(): string {
 
 function render() {
   const app = document.querySelector<HTMLDivElement>('#app')!
+
+  // Stop puzzle timer if we're not actually solving a puzzle anymore
+  // This handles cases where user navigates away without clicking stop
+  if (puzzleTimerInterval && !puzzleSolving) {
+    clearInterval(puzzleTimerInterval)
+    puzzleTimerInterval = null
+    puzzleTimerSeconds = 0
+  }
 
   // Apply accessibility classes
   app.classList.toggle('large-ui', largeUIMode)
