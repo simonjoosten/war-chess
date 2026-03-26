@@ -1409,8 +1409,8 @@ let coachVoiceEnabled = true
 let coachSelectedSquares: Array<{ col: string, row: number }> = []
 let coachCompletedLessons: string[] = [] // Lesson IDs that have been completed
 let coachShowLessonComplete = false
-let coachBoardSize = 7 // Smaller board for coach (7x7)
-let coachBoardSquareSize = 50
+let coachBoardSize = 11 // Real board size (11x11) - same as actual game
+let coachBoardSquareSize = 35 // Smaller squares to fit 11x11
 
 // Timer settings (chess clock style)
 let timerEnabled = false
@@ -7520,18 +7520,6 @@ function getCoachLessons(): CoachLesson[] {
       ]
     },
     {
-      id: 'bush',
-      category: 'special',
-      level: 'medium',
-      titleKey: 'coachBushTitle',
-      descriptionKey: 'coachBushDesc',
-      reward: 20,
-      steps: [
-        { type: 'multipleChoice', textKey: 'coachBushStep1', question: 'coachBushQ1', answers: ['coachBushA1a', 'coachBushA1b', 'coachBushA1c'], correct: 1 },
-        { type: 'multipleChoice', textKey: 'coachBushStep2', question: 'coachBushQ2', answers: ['coachBushA2a', 'coachBushA2b', 'coachBushA2c'], correct: 0 }
-      ]
-    },
-    {
       id: 'helipad',
       category: 'special',
       level: 'masters',
@@ -7786,8 +7774,8 @@ function getCoachLessons(): CoachLesson[] {
       reward: 35,
       steps: [
         { type: 'multipleChoice', textKey: 'coachTacticsCaptureStep1', question: 'coachTacticsCaptureQ1', answers: ['coachTacticsCaptureA1a', 'coachTacticsCaptureA1b', 'coachTacticsCaptureA1c'], correct: 0 },
-        { type: 'boardClick', textKey: 'coachTacticsCaptureStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'general', team: 'green', col: 'D', row: 7 }], highlightSquares: [{ col: 'E', row: 3, color: '#ef4444' }], correctSquares: [{ col: 'E', row: 3 }] },
-        { type: 'boardClick', textKey: 'coachTacticsCaptureStep3', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'F', row: 6 }, { type: 'general', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'D', row: 4 }, { col: 'F', row: 6 }] }
+        { type: 'boardClick', textKey: 'coachTacticsCaptureStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'builder', team: 'green', col: 'D', row: 7 }], highlightSquares: [{ col: 'E', row: 3, color: '#ef4444' }], correctSquares: [{ col: 'E', row: 3 }] },
+        { type: 'boardClick', textKey: 'coachTacticsCaptureStep3', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'F', row: 6 }, { type: 'builder', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'D', row: 4 }, { col: 'F', row: 6 }] }
       ]
     },
     {
@@ -7799,22 +7787,8 @@ function getCoachLessons(): CoachLesson[] {
       reward: 40,
       steps: [
         { type: 'multipleChoice', textKey: 'coachTacticsProtectStep1', question: 'coachTacticsProtectQ1', answers: ['coachTacticsProtectA1a', 'coachTacticsProtectA1b', 'coachTacticsProtectA1c'], correct: 1 },
-        { type: 'boardSelect', textKey: 'coachTacticsProtectStep2', boardPieces: [{ type: 'general', team: 'yellow', col: 'D', row: 1 }, { type: 'tank', team: 'green', col: 'D', row: 5 }], requiredSelections: [{ col: 'D', row: 2 }, { col: 'C', row: 2 }, { col: 'E', row: 2 }] },
-        { type: 'multipleChoice', textKey: 'coachTacticsProtectStep3', boardPieces: [{ type: 'general', team: 'yellow', col: 'D', row: 1 }, { type: 'barricade', team: 'yellow', col: 'D', row: 2 }, { type: 'soldier', team: 'yellow', col: 'C', row: 2 }, { type: 'soldier', team: 'yellow', col: 'E', row: 2 }], question: 'coachTacticsProtectQ3', answers: ['coachTacticsProtectA3a', 'coachTacticsProtectA3b', 'coachTacticsProtectA3c'], correct: 2 }
-      ]
-    },
-    {
-      id: 'sniperMaster',
-      category: 'pieces',
-      level: 'war_gods',
-      titleKey: 'coachSniperMasterTitle',
-      descriptionKey: 'coachSniperMasterDesc',
-      reward: 45,
-      piece: 'sniper',
-      steps: [
-        { type: 'multipleChoice', textKey: 'coachSniperMasterStep1', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'B', row: 2 }], showMoveHighlights: true, question: 'coachSniperMasterQ1', answers: ['coachSniperMasterA1a', 'coachSniperMasterA1b', 'coachSniperMasterA1c'], correct: 2 },
-        { type: 'boardClick', textKey: 'coachSniperMasterStep2', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'A', row: 1 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'general', team: 'green', col: 'G', row: 7 }], correctSquares: [{ col: 'G', row: 7 }] },
-        { type: 'boardSelect', textKey: 'coachSniperMasterStep3', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'A', row: 1 }, { col: 'A', row: 7 }, { col: 'G', row: 1 }, { col: 'G', row: 7 }, { col: 'B', row: 2 }, { col: 'B', row: 6 }, { col: 'F', row: 2 }, { col: 'F', row: 6 }, { col: 'C', row: 3 }, { col: 'C', row: 5 }, { col: 'E', row: 3 }, { col: 'E', row: 5 }] }
+        { type: 'boardSelect', textKey: 'coachTacticsProtectStep2', boardPieces: [{ type: 'builder', team: 'yellow', col: 'D', row: 1 }, { type: 'tank', team: 'green', col: 'D', row: 5 }], requiredSelections: [{ col: 'D', row: 2 }, { col: 'C', row: 2 }, { col: 'E', row: 2 }] },
+        { type: 'multipleChoice', textKey: 'coachTacticsProtectStep3', boardPieces: [{ type: 'builder', team: 'yellow', col: 'D', row: 1 }, { type: 'barricade', team: 'yellow', col: 'D', row: 2 }, { type: 'soldier', team: 'yellow', col: 'C', row: 2 }, { type: 'soldier', team: 'yellow', col: 'E', row: 2 }], question: 'coachTacticsProtectQ3', answers: ['coachTacticsProtectA3a', 'coachTacticsProtectA3b', 'coachTacticsProtectA3c'], correct: 2 }
       ]
     },
     {
@@ -7854,8 +7828,8 @@ function getCoachLessons(): CoachLesson[] {
       reward: 30,
       steps: [
         { type: 'multipleChoice', textKey: 'coachFindGeneralStep1', question: 'coachFindGeneralQ1', answers: ['coachFindGeneralA1a', 'coachFindGeneralA1b', 'coachFindGeneralA1c'], correct: 2 },
-        { type: 'boardClick', textKey: 'coachFindGeneralStep2', boardPieces: [{ type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'general', team: 'green', col: 'D', row: 2 }, { type: 'tank', team: 'green', col: 'B', row: 2 }, { type: 'tank', team: 'green', col: 'F', row: 2 }], correctSquares: [{ col: 'D', row: 2 }] },
-        { type: 'boardClick', textKey: 'coachFindGeneralStep3', boardPieces: [{ type: 'tank', team: 'green', col: 'A', row: 7 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'general', team: 'green', col: 'G', row: 1 }, { type: 'barricade', team: 'green', col: 'F', row: 2 }, { type: 'barricade', team: 'green', col: 'G', row: 2 }], correctSquares: [{ col: 'G', row: 1 }] }
+        { type: 'boardClick', textKey: 'coachFindGeneralStep2', boardPieces: [{ type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'builder', team: 'green', col: 'D', row: 2 }, { type: 'tank', team: 'green', col: 'B', row: 2 }, { type: 'tank', team: 'green', col: 'F', row: 2 }], correctSquares: [{ col: 'D', row: 2 }] },
+        { type: 'boardClick', textKey: 'coachFindGeneralStep3', boardPieces: [{ type: 'tank', team: 'green', col: 'A', row: 7 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'builder', team: 'green', col: 'G', row: 1 }, { type: 'barricade', team: 'green', col: 'F', row: 2 }, { type: 'barricade', team: 'green', col: 'G', row: 2 }], correctSquares: [{ col: 'G', row: 1 }] }
       ]
     },
 
@@ -7872,9 +7846,9 @@ function getCoachLessons(): CoachLesson[] {
       requires: ['soldier', 'soldierMovement'],
       steps: [
         { type: 'boardClick', textKey: 'coachReviewSoldierStep1', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'C', row: 4 }, { type: 'soldier', team: 'green', col: 'B', row: 5 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }], correctSquares: [{ col: 'B', row: 5 }, { col: 'D', row: 5 }] },
-        { type: 'boardClick', textKey: 'coachReviewSoldierStep2', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'yellow', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }, { type: 'general', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'D', row: 4 }, { col: 'E', row: 4 }] },
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep2', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'yellow', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }, { type: 'builder', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'D', row: 4 }, { col: 'E', row: 4 }] },
         { type: 'boardSelect', textKey: 'coachReviewSoldierStep3', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'C', row: 5 }, { col: 'D', row: 5 }, { col: 'E', row: 5 }] },
-        { type: 'boardClick', textKey: 'coachReviewSoldierStep4', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'B', row: 6 }, { type: 'soldier', team: 'yellow', col: 'C', row: 6 }, { type: 'soldier', team: 'green', col: 'A', row: 7 }, { type: 'general', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'A', row: 7 }] }
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep4', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'B', row: 6 }, { type: 'soldier', team: 'yellow', col: 'C', row: 6 }, { type: 'soldier', team: 'green', col: 'A', row: 7 }, { type: 'builder', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'A', row: 7 }] }
       ]
     },
     {
@@ -7891,23 +7865,7 @@ function getCoachLessons(): CoachLesson[] {
         { type: 'boardClick', textKey: 'coachReviewTankStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'B', row: 6 }, { col: 'F', row: 2 }] },
         { type: 'boardClick', textKey: 'coachReviewTankStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'barricade', team: 'green', col: 'D', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 7 }, { type: 'soldier', team: 'green', col: 'G', row: 4 }], correctSquares: [{ col: 'G', row: 4 }] },
         { type: 'boardSelect', textKey: 'coachReviewTankStep3', boardPieces: [{ type: 'tank', team: 'yellow', col: 'A', row: 1 }, { type: 'barricade', team: 'green', col: 'A', row: 4 }, { type: 'barricade', team: 'green', col: 'D', row: 1 }], requiredSelections: [{ col: 'A', row: 2 }, { col: 'A', row: 3 }, { col: 'B', row: 1 }, { col: 'C', row: 1 }] },
-        { type: 'boardClick', textKey: 'coachReviewTankStep4', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'general', team: 'green', col: 'C', row: 7 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 3 }], correctSquares: [{ col: 'C', row: 5 }] }
-      ]
-    },
-    {
-      id: 'reviewSniper',
-      category: 'pieces',
-      level: 'war_gods',
-      titleKey: 'coachReviewSniperTitle',
-      descriptionKey: 'coachReviewSniperDesc',
-      reward: 50,
-      piece: 'sniper',
-      isReview: true,
-      requires: ['sniper', 'sniperMaster'],
-      steps: [
-        { type: 'boardClick', textKey: 'coachReviewSniperStep1', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'A', row: 1 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'tank', team: 'green', col: 'E', row: 5 }, { type: 'general', team: 'green', col: 'G', row: 7 }], correctSquares: [{ col: 'G', row: 7 }] },
-        { type: 'boardClick', textKey: 'coachReviewSniperStep2', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'G', row: 1 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'general', team: 'green', col: 'A', row: 7 }], correctSquares: [{ col: 'A', row: 7 }] },
-        { type: 'boardSelect', textKey: 'coachReviewSniperStep3', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'F', row: 6 }, { type: 'tank', team: 'green', col: 'B', row: 6 }, { type: 'general', team: 'green', col: 'F', row: 2 }], requiredSelections: [{ col: 'B', row: 2 }, { col: 'F', row: 6 }, { col: 'B', row: 6 }, { col: 'F', row: 2 }] }
+        { type: 'boardClick', textKey: 'coachReviewTankStep4', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'builder', team: 'green', col: 'C', row: 7 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 3 }], correctSquares: [{ col: 'C', row: 5 }] }
       ]
     },
     {
@@ -7937,10 +7895,10 @@ function getCoachLessons(): CoachLesson[] {
       isReview: true,
       requires: ['tacticsCapture', 'tacticsProtect', 'findTheGeneral'],
       steps: [
-        { type: 'boardClick', textKey: 'coachReviewTacticsStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 3 }, { type: 'sniper', team: 'yellow', col: 'F', row: 1 }, { type: 'general', team: 'green', col: 'D', row: 6 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'D', row: 6 }] },
-        { type: 'boardClick', textKey: 'coachReviewTacticsStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'A', row: 4 }, { type: 'soldier', team: 'yellow', col: 'C', row: 2 }, { type: 'general', team: 'green', col: 'G', row: 4 }, { type: 'barricade', team: 'green', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'G', row: 4 }] },
-        { type: 'boardSelect', textKey: 'coachReviewTacticsStep3', boardPieces: [{ type: 'general', team: 'yellow', col: 'D', row: 1 }, { type: 'tank', team: 'green', col: 'D', row: 5 }, { type: 'sniper', team: 'green', col: 'A', row: 4 }], requiredSelections: [{ col: 'C', row: 2 }, { col: 'D', row: 2 }, { col: 'E', row: 2 }] },
-        { type: 'boardClick', textKey: 'coachReviewTacticsStep4', boardPieces: [{ type: 'sniper', team: 'yellow', col: 'A', row: 7 }, { type: 'tank', team: 'yellow', col: 'G', row: 1 }, { type: 'general', team: 'green', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'D', row: 4 }] }
+        { type: 'boardClick', textKey: 'coachReviewTacticsStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 3 }, { type: 'machinegun', team: 'yellow', col: 'F', row: 1 }, { type: 'builder', team: 'green', col: 'D', row: 6 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'D', row: 6 }] },
+        { type: 'boardClick', textKey: 'coachReviewTacticsStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'A', row: 4 }, { type: 'soldier', team: 'yellow', col: 'C', row: 2 }, { type: 'builder', team: 'green', col: 'G', row: 4 }, { type: 'barricade', team: 'green', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'G', row: 4 }] },
+        { type: 'boardSelect', textKey: 'coachReviewTacticsStep3', boardPieces: [{ type: 'builder', team: 'yellow', col: 'D', row: 1 }, { type: 'tank', team: 'green', col: 'D', row: 5 }, { type: 'machinegun', team: 'green', col: 'A', row: 4 }], requiredSelections: [{ col: 'C', row: 2 }, { col: 'D', row: 2 }, { col: 'E', row: 2 }] },
+        { type: 'boardClick', textKey: 'coachReviewTacticsStep4', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'A', row: 7 }, { type: 'tank', team: 'yellow', col: 'G', row: 1 }, { type: 'builder', team: 'green', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'D', row: 4 }] }
       ]
     },
     {
@@ -7953,7 +7911,7 @@ function getCoachLessons(): CoachLesson[] {
       isReview: true,
       requires: ['helicopter', 'rocket', 'landmine'],
       steps: [
-        { type: 'boardClick', textKey: 'coachReviewSpecialStep1', boardPieces: [{ type: 'helicopter', team: 'yellow', col: 'B', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 5 }, { type: 'general', team: 'green', col: 'F', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 4 }], correctSquares: [{ col: 'F', row: 6 }] },
+        { type: 'boardClick', textKey: 'coachReviewSpecialStep1', boardPieces: [{ type: 'helicopter', team: 'yellow', col: 'B', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 5 }, { type: 'builder', team: 'green', col: 'F', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 4 }], correctSquares: [{ col: 'F', row: 6 }] },
         { type: 'boardSelect', textKey: 'coachReviewSpecialStep2', boardPieces: [{ type: 'rocket', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'tank', team: 'green', col: 'D', row: 3 }], requiredSelections: [{ col: 'C', row: 3 }, { col: 'C', row: 4 }, { col: 'C', row: 5 }, { col: 'D', row: 3 }, { col: 'D', row: 5 }, { col: 'E', row: 3 }, { col: 'E', row: 4 }, { col: 'E', row: 5 }] },
         { type: 'boardClick', textKey: 'coachReviewSpecialStep3', boardPieces: [{ type: 'landmine', team: 'yellow', col: 'D', row: 3 }, { type: 'landmine', team: 'yellow', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }], correctSquares: [{ col: 'D', row: 3 }, { col: 'E', row: 4 }] }
       ]
