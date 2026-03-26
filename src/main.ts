@@ -7226,7 +7226,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'builder',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachBuilderTitle',
       descriptionKey: 'coachBuilderDesc',
       reward: 25,
@@ -7240,7 +7240,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'hacker',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachHackerTitle',
       descriptionKey: 'coachHackerDesc',
       reward: 25,
@@ -7253,7 +7253,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'artillery',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachArtilleryTitle',
       descriptionKey: 'coachArtilleryDesc',
       reward: 20,
@@ -7268,7 +7268,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'ship',
       category: 'special',
-      level: 'masters',
+      level: 'beginner',
       titleKey: 'coachShipTitle',
       descriptionKey: 'coachShipDesc',
       reward: 30,
@@ -7281,7 +7281,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'rocket',
       category: 'special',
-      level: 'masters',
+      level: 'beginner',
       titleKey: 'coachRocketTitle',
       descriptionKey: 'coachRocketDesc',
       reward: 30,
@@ -7294,7 +7294,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'helicopter',
       category: 'special',
-      level: 'masters',
+      level: 'beginner',
       titleKey: 'coachHeliTitle',
       descriptionKey: 'coachHeliDesc',
       reward: 30,
@@ -7307,7 +7307,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'train',
       category: 'special',
-      level: 'masters',
+      level: 'beginner',
       titleKey: 'coachTrainTitle',
       descriptionKey: 'coachTrainDesc',
       reward: 25,
@@ -7320,7 +7320,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'trench',
       category: 'special',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachTrenchTitle',
       descriptionKey: 'coachTrenchDesc',
       reward: 20,
@@ -7332,7 +7332,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'landmine',
       category: 'special',
-      level: 'masters',
+      level: 'beginner',
       titleKey: 'coachLandmineTitle',
       descriptionKey: 'coachLandmineDesc',
       reward: 25,
@@ -7534,7 +7534,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'barricade',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachBarricadeTitle',
       descriptionKey: 'coachBarricadeDesc',
       reward: 20,
@@ -7547,7 +7547,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'spike',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachSpikeTitle',
       descriptionKey: 'coachSpikeDesc',
       reward: 20,
@@ -7808,7 +7808,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'tankPower',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachTankPowerTitle',
       descriptionKey: 'coachTankPowerDesc',
       reward: 25,
@@ -7920,7 +7920,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'machinegun',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachMachinegunTitle',
       descriptionKey: 'coachMachinegunDesc',
       reward: 25,
@@ -7934,7 +7934,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'carrier',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachCarrierTitle',
       descriptionKey: 'coachCarrierDesc',
       reward: 25,
@@ -7948,7 +7948,7 @@ function getCoachLessons(): CoachLesson[] {
     {
       id: 'sub',
       category: 'pieces',
-      level: 'medium',
+      level: 'beginner',
       titleKey: 'coachSubTitle',
       descriptionKey: 'coachSubDesc',
       reward: 25,
@@ -23532,8 +23532,10 @@ function render() {
           // Check if setting matches
           if (step.settingName === 'colorblind') stepComplete = colorBlindMode === step.settingValue
           else if (step.settingName === 'music') stepComplete = musicEnabled === step.settingValue
+          else if (step.settingName === 'sound') stepComplete = soundEnabled === step.settingValue
           else if (step.settingName === 'timer') stepComplete = timerEnabled === step.settingValue
           else if (step.settingName === 'theme') stepComplete = boardTheme === step.settingValue
+          else if (step.settingName === 'coordinates') stepComplete = showCoordinates === step.settingValue
         } else if (step.type === 'navigationTask') {
           // Navigation tasks complete when acknowledged
           stepComplete = coachFeedbackMessage === 'nav_complete'
@@ -23590,11 +23592,17 @@ function render() {
                     ${step.settingName === 'music' ? `
                       <button id="coach-setting-btn" class="py-2 px-4 rounded ${musicEnabled ? 'bg-green-600' : 'bg-gray-600'} text-white">Music: ${musicEnabled ? 'ON' : 'OFF'}</button>
                     ` : ''}
+                    ${step.settingName === 'sound' ? `
+                      <button id="coach-setting-btn" class="py-2 px-4 rounded ${soundEnabled ? 'bg-green-600' : 'bg-gray-600'} text-white">Sound: ${soundEnabled ? 'ON' : 'OFF'}</button>
+                    ` : ''}
                     ${step.settingName === 'timer' ? `
                       <button id="coach-setting-btn" class="py-2 px-4 rounded ${timerEnabled ? 'bg-green-600' : 'bg-gray-600'} text-white">Timer: ${timerEnabled ? 'ON' : 'OFF'}</button>
                     ` : ''}
                     ${step.settingName === 'theme' ? `
                       <button id="coach-setting-btn" class="py-2 px-4 rounded ${boardTheme === 'dark' ? 'bg-green-600' : 'bg-gray-600'} text-white">Theme: ${boardTheme}</button>
+                    ` : ''}
+                    ${step.settingName === 'coordinates' ? `
+                      <button id="coach-setting-btn" class="py-2 px-4 rounded ${showCoordinates ? 'bg-green-600' : 'bg-gray-600'} text-white">Coordinates: ${showCoordinates ? 'ON' : 'OFF'}</button>
                     ` : ''}
                   </div>
                   ${stepComplete ? `<p class="text-green-400 font-bold">${t('coachTaskComplete')}</p>` : ''}
@@ -23663,6 +23671,8 @@ function render() {
           else if (step.settingName === 'music') musicEnabled = !musicEnabled
           else if (step.settingName === 'timer') timerEnabled = !timerEnabled
           else if (step.settingName === 'theme') boardTheme = boardTheme === 'dark' ? 'classic' : 'dark'
+          else if (step.settingName === 'sound') soundEnabled = !soundEnabled
+          else if (step.settingName === 'coordinates') showCoordinates = !showCoordinates
           render()
         })
 
