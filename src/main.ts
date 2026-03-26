@@ -7915,6 +7915,162 @@ function getCoachLessons(): CoachLesson[] {
         { type: 'boardSelect', textKey: 'coachReviewSpecialStep2', boardPieces: [{ type: 'rocket', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'tank', team: 'green', col: 'D', row: 3 }], requiredSelections: [{ col: 'C', row: 3 }, { col: 'C', row: 4 }, { col: 'C', row: 5 }, { col: 'D', row: 3 }, { col: 'D', row: 5 }, { col: 'E', row: 3 }, { col: 'E', row: 4 }, { col: 'E', row: 5 }] },
         { type: 'boardClick', textKey: 'coachReviewSpecialStep3', boardPieces: [{ type: 'landmine', team: 'yellow', col: 'D', row: 3 }, { type: 'landmine', team: 'yellow', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }], correctSquares: [{ col: 'D', row: 3 }, { col: 'E', row: 4 }] }
       ]
+    },
+    // Missing piece lessons
+    {
+      id: 'machinegun',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachMachinegunTitle',
+      descriptionKey: 'coachMachinegunDesc',
+      reward: 25,
+      piece: 'machinegun',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachMachinegunStep1', question: 'coachMachinegunStep1', answers: ['coachMachinegunOpt1', 'coachMachinegunOpt2', 'coachMachinegunOpt3'], correct: 1 },
+        { type: 'boardSelect', textKey: 'coachMachinegunStep2', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'D', row: 6 }, { col: 'E', row: 6 }, { col: 'F', row: 6 }, { col: 'D', row: 4 }, { col: 'E', row: 4 }, { col: 'F', row: 4 }, { col: 'D', row: 5 }, { col: 'F', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachMachinegunStep3', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 2 }, { type: 'tank', team: 'green', col: 'F', row: 5 }], correctSquares: [{ col: 'E', row: 4 }, { col: 'C', row: 2 }] }
+      ]
+    },
+    {
+      id: 'carrier',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachCarrierTitle',
+      descriptionKey: 'coachCarrierDesc',
+      reward: 25,
+      piece: 'carrier',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachCarrierStep1', question: 'coachCarrierStep1', answers: ['coachCarrierOpt1', 'coachCarrierOpt2', 'coachCarrierOpt3'], correct: 0 },
+        { type: 'boardSelect', textKey: 'coachCarrierStep2', boardPieces: [{ type: 'carrier', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'E', row: 6 }, { col: 'E', row: 7 }, { col: 'E', row: 8 }, { col: 'E', row: 4 }, { col: 'E', row: 3 }, { col: 'E', row: 2 }, { col: 'F', row: 5 }, { col: 'G', row: 5 }, { col: 'H', row: 5 }, { col: 'D', row: 5 }, { col: 'C', row: 5 }, { col: 'B', row: 5 }] },
+        { type: 'multipleChoice', textKey: 'coachCarrierStep3', question: 'coachCarrierStep3', answers: ['coachCarrierOpt3a', 'coachCarrierOpt3b', 'coachCarrierOpt3c'], correct: 1 }
+      ]
+    },
+    {
+      id: 'sub',
+      category: 'pieces',
+      level: 'medium',
+      titleKey: 'coachSubTitle',
+      descriptionKey: 'coachSubDesc',
+      reward: 25,
+      piece: 'sub',
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachSubStep1', question: 'coachSubStep1', answers: ['coachSubOpt1', 'coachSubOpt2', 'coachSubOpt3'], correct: 2 },
+        { type: 'boardSelect', textKey: 'coachSubStep2', boardPieces: [{ type: 'sub', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'E', row: 6 }, { col: 'E', row: 7 }, { col: 'E', row: 8 }, { col: 'E', row: 4 }, { col: 'E', row: 3 }, { col: 'E', row: 2 }, { col: 'F', row: 5 }, { col: 'G', row: 5 }, { col: 'H', row: 5 }, { col: 'D', row: 5 }, { col: 'C', row: 5 }, { col: 'B', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachSubStep3', boardPieces: [{ type: 'sub', team: 'yellow', col: 'D', row: 4 }, { type: 'ship', team: 'green', col: 'D', row: 7 }, { type: 'carrier', team: 'green', col: 'G', row: 4 }], correctSquares: [{ col: 'D', row: 7 }, { col: 'G', row: 4 }] }
+      ]
+    },
+    // Category Exams
+    {
+      id: 'examBasics',
+      category: 'basics',
+      level: 'medium',
+      titleKey: 'coachExamBasicsTitle',
+      descriptionKey: 'coachExamBasicsDesc',
+      reward: 75,
+      requires: ['welcome', 'boardIntro', 'coordinates', 'coordsPractice', 'firstMoves'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachExamBasicsStep1', showCoordinates: true, correctSquares: [{ col: 'G', row: 4 }] },
+        { type: 'boardClick', textKey: 'coachExamBasicsStep2', showCoordinates: true, correctSquares: [{ col: 'C', row: 8 }] },
+        { type: 'boardClick', textKey: 'coachExamBasicsStep3', showCoordinates: true, correctSquares: [{ col: 'K', row: 1 }] },
+        { type: 'multipleChoice', textKey: 'coachExamBasicsStep4', question: 'coachExamBasicsStep4', answers: ['coachExamBasicsOpt1', 'coachExamBasicsOpt2', 'coachExamBasicsOpt3'], correct: 2 },
+        { type: 'boardClick', textKey: 'coachExamBasicsStep5', boardPieces: [{ type: 'builder', team: 'green', col: 'F', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 3 }], correctSquares: [{ col: 'F', row: 6 }] }
+      ]
+    },
+    {
+      id: 'examPieces',
+      category: 'pieces',
+      level: 'masters',
+      titleKey: 'coachExamPiecesTitle',
+      descriptionKey: 'coachExamPiecesDesc',
+      reward: 100,
+      requires: ['soldier', 'tank', 'suv', 'helicopter', 'rocket', 'machinegun', 'carrier', 'sub'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachExamPiecesStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 7 }, { type: 'builder', team: 'green', col: 'H', row: 3 }], correctSquares: [{ col: 'H', row: 3 }] },
+        { type: 'boardSelect', textKey: 'coachExamPiecesStep2', boardPieces: [{ type: 'helicopter', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'D', row: 6 }, { col: 'E', row: 6 }, { col: 'F', row: 6 }, { col: 'D', row: 4 }, { col: 'E', row: 4 }, { col: 'F', row: 4 }, { col: 'D', row: 5 }, { col: 'F', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachExamPiecesStep3', boardPieces: [{ type: 'sub', team: 'yellow', col: 'C', row: 5 }, { type: 'ship', team: 'green', col: 'C', row: 9 }, { type: 'tank', team: 'green', col: 'G', row: 5 }], correctSquares: [{ col: 'C', row: 9 }] },
+        { type: 'boardSelect', textKey: 'coachExamPiecesStep4', boardPieces: [{ type: 'rocket', team: 'yellow', col: 'F', row: 6 }], requiredSelections: [{ col: 'E', row: 5 }, { col: 'E', row: 6 }, { col: 'E', row: 7 }, { col: 'F', row: 5 }, { col: 'F', row: 7 }, { col: 'G', row: 5 }, { col: 'G', row: 6 }, { col: 'G', row: 7 }] },
+        { type: 'multipleChoice', textKey: 'coachExamPiecesStep5', question: 'coachExamPiecesStep5', answers: ['coachExamPiecesOpt1', 'coachExamPiecesOpt2', 'coachExamPiecesOpt3'], correct: 0 }
+      ]
+    },
+    {
+      id: 'examSpecial',
+      category: 'special',
+      level: 'masters',
+      titleKey: 'coachExamSpecialTitle',
+      descriptionKey: 'coachExamSpecialDesc',
+      reward: 80,
+      requires: ['hacker', 'barricade', 'spike', 'artillery', 'landmine'],
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachExamSpecialStep1', question: 'coachExamSpecialStep1', answers: ['coachExamSpecialOpt1', 'coachExamSpecialOpt2', 'coachExamSpecialOpt3'], correct: 1 },
+        { type: 'boardClick', textKey: 'coachExamSpecialStep2', boardPieces: [{ type: 'hacker', team: 'yellow', col: 'D', row: 4 }, { type: 'tank', team: 'green', col: 'E', row: 5 }, { type: 'helicopter', team: 'green', col: 'C', row: 3 }], correctSquares: [{ col: 'E', row: 5 }, { col: 'C', row: 3 }] },
+        { type: 'multipleChoice', textKey: 'coachExamSpecialStep3', question: 'coachExamSpecialStep3', answers: ['coachExamSpecialOpt3a', 'coachExamSpecialOpt3b', 'coachExamSpecialOpt3c'], correct: 2 },
+        { type: 'boardClick', textKey: 'coachExamSpecialStep4', boardPieces: [{ type: 'artillery', team: 'yellow', col: 'E', row: 2 }, { type: 'soldier', team: 'green', col: 'E', row: 6 }, { type: 'tank', team: 'green', col: 'E', row: 8 }], correctSquares: [{ col: 'E', row: 6 }, { col: 'E', row: 8 }] }
+      ]
+    },
+    {
+      id: 'examAdvanced',
+      category: 'advanced',
+      level: 'war_gods',
+      titleKey: 'coachExamAdvancedTitle',
+      descriptionKey: 'coachExamAdvancedDesc',
+      reward: 150,
+      requires: ['tacticsCapture', 'tacticsProtect', 'findTheGeneral'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachExamAdvancedStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'helicopter', team: 'yellow', col: 'H', row: 7 }, { type: 'builder', team: 'green', col: 'F', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 4 }, { type: 'soldier', team: 'green', col: 'G', row: 4 }], correctSquares: [{ col: 'F', row: 5 }] },
+        { type: 'boardSelect', textKey: 'coachExamAdvancedStep2', boardPieces: [{ type: 'builder', team: 'yellow', col: 'E', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 6 }], requiredSelections: [{ col: 'D', row: 3 }, { col: 'E', row: 3 }, { col: 'F', row: 3 }] },
+        { type: 'boardClick', textKey: 'coachExamAdvancedStep3', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'B', row: 8 }, { type: 'rocket', team: 'yellow', col: 'J', row: 2 }, { type: 'builder', team: 'green', col: 'G', row: 9 }, { type: 'barricade', team: 'green', col: 'G', row: 7 }, { type: 'barricade', team: 'green', col: 'F', row: 9 }, { type: 'barricade', team: 'green', col: 'H', row: 9 }], correctSquares: [{ col: 'G', row: 9 }] },
+        { type: 'multipleChoice', textKey: 'coachExamAdvancedStep4', question: 'coachExamAdvancedStep4', answers: ['coachExamAdvancedOpt1', 'coachExamAdvancedOpt2', 'coachExamAdvancedOpt3'], correct: 1 },
+        { type: 'boardClick', textKey: 'coachExamAdvancedStep5', boardPieces: [{ type: 'sub', team: 'yellow', col: 'D', row: 5 }, { type: 'tank', team: 'yellow', col: 'H', row: 3 }, { type: 'builder', team: 'green', col: 'D', row: 10 }, { type: 'ship', team: 'green', col: 'H', row: 8 }], correctSquares: [{ col: 'D', row: 10 }] }
+      ]
+    },
+    {
+      id: 'examNavigation',
+      category: 'navigation',
+      level: 'medium',
+      titleKey: 'coachExamNavigationTitle',
+      descriptionKey: 'coachExamNavigationDesc',
+      reward: 50,
+      requires: ['navMainMenu', 'navGameModes'],
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachExamNavigationStep1', question: 'coachExamNavigationStep1', answers: ['coachExamNavOpt1', 'coachExamNavOpt2', 'coachExamNavOpt3'], correct: 0 },
+        { type: 'multipleChoice', textKey: 'coachExamNavigationStep2', question: 'coachExamNavigationStep2', answers: ['coachExamNavOpt2a', 'coachExamNavOpt2b', 'coachExamNavOpt2c'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachExamNavigationStep3', question: 'coachExamNavigationStep3', answers: ['coachExamNavOpt3a', 'coachExamNavOpt3b', 'coachExamNavOpt3c'], correct: 2 }
+      ]
+    },
+    {
+      id: 'examSettings',
+      category: 'settings',
+      level: 'medium',
+      titleKey: 'coachExamSettingsTitle',
+      descriptionKey: 'coachExamSettingsDesc',
+      reward: 50,
+      requires: ['soundSettings', 'visualSettings'],
+      steps: [
+        { type: 'multipleChoice', textKey: 'coachExamSettingsStep1', question: 'coachExamSettingsStep1', answers: ['coachExamSettingsOpt1', 'coachExamSettingsOpt2', 'coachExamSettingsOpt3'], correct: 1 },
+        { type: 'multipleChoice', textKey: 'coachExamSettingsStep2', question: 'coachExamSettingsStep2', answers: ['coachExamSettingsOpt2a', 'coachExamSettingsOpt2b', 'coachExamSettingsOpt2c'], correct: 0 },
+        { type: 'settingsTask', textKey: 'coachExamSettingsStep3', settingName: 'sound', settingValue: false },
+        { type: 'settingsTask', textKey: 'coachExamSettingsStep4', settingName: 'sound', settingValue: true }
+      ]
+    },
+    // Final Grand Exam - unlocks after all category exams
+    {
+      id: 'grandExam',
+      category: 'advanced',
+      level: 'war_gods',
+      titleKey: 'coachGrandExamTitle',
+      descriptionKey: 'coachGrandExamDesc',
+      reward: 300,
+      requires: ['examBasics', 'examPieces', 'examSpecial', 'examAdvanced'],
+      steps: [
+        { type: 'boardClick', textKey: 'coachGrandExamStep1', showCoordinates: true, correctSquares: [{ col: 'I', row: 7 }] },
+        { type: 'boardClick', textKey: 'coachGrandExamStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 2 }, { type: 'helicopter', team: 'yellow', col: 'J', row: 9 }, { type: 'builder', team: 'green', col: 'F', row: 6 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'soldier', team: 'green', col: 'G', row: 5 }, { type: 'tank', team: 'green', col: 'B', row: 8 }], correctSquares: [{ col: 'F', row: 6 }] },
+        { type: 'boardSelect', textKey: 'coachGrandExamStep3', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'F', row: 5 }], requiredSelections: [{ col: 'E', row: 4 }, { col: 'E', row: 5 }, { col: 'E', row: 6 }, { col: 'F', row: 4 }, { col: 'F', row: 6 }, { col: 'G', row: 4 }, { col: 'G', row: 5 }, { col: 'G', row: 6 }] },
+        { type: 'boardClick', textKey: 'coachGrandExamStep4', boardPieces: [{ type: 'sub', team: 'yellow', col: 'D', row: 3 }, { type: 'ship', team: 'green', col: 'D', row: 9 }, { type: 'carrier', team: 'green', col: 'H', row: 3 }], correctSquares: [{ col: 'D', row: 9 }, { col: 'H', row: 3 }] },
+        { type: 'multipleChoice', textKey: 'coachGrandExamStep5', question: 'coachGrandExamStep5', answers: ['coachGrandExamOpt1', 'coachGrandExamOpt2', 'coachGrandExamOpt3'], correct: 2 },
+        { type: 'boardClick', textKey: 'coachGrandExamStep6', boardPieces: [{ type: 'hacker', team: 'yellow', col: 'E', row: 4 }, { type: 'tank', team: 'green', col: 'D', row: 5 }, { type: 'helicopter', team: 'green', col: 'F', row: 3 }], correctSquares: [{ col: 'D', row: 5 }, { col: 'F', row: 3 }] },
+        { type: 'boardSelect', textKey: 'coachGrandExamStep7', boardPieces: [{ type: 'builder', team: 'yellow', col: 'F', row: 2 }, { type: 'rocket', team: 'green', col: 'F', row: 6 }], requiredSelections: [{ col: 'E', row: 3 }, { col: 'F', row: 3 }, { col: 'G', row: 3 }] },
+        { type: 'boardClick', textKey: 'coachGrandExamStep8', boardPieces: [{ type: 'artillery', team: 'yellow', col: 'F', row: 1 }, { type: 'soldier', team: 'green', col: 'F', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 8 }, { type: 'builder', team: 'green', col: 'F', row: 10 }], correctSquares: [{ col: 'F', row: 5 }, { col: 'F', row: 8 }, { col: 'F', row: 10 }] }
+      ]
     }
   ]
 }
@@ -9750,6 +9906,129 @@ const translations: Record<Language, Record<string, string>> = {
     coachReviewSpecialStep1: 'The helicopter can fly anywhere! Click the best target.',
     coachReviewSpecialStep2: 'Select ALL squares affected by this rocket explosion.',
     coachReviewSpecialStep3: 'Which landmines will the enemy trigger? Click them.',
+
+    // Machinegun lesson
+    coachMachinegunTitle: 'The Machinegun',
+    coachMachinegunDesc: 'Learn about the machinegun - attacks all adjacent squares!',
+    coachMachinegunStep1: 'How does the machinegun attack?',
+    coachMachinegunOpt1: 'Only forward',
+    coachMachinegunOpt2: 'All 8 adjacent squares',
+    coachMachinegunOpt3: 'Only diagonal',
+    coachMachinegunStep2: 'Select ALL squares where the machinegun can attack.',
+    coachMachinegunStep3: 'Click the pieces the machinegun can capture!',
+
+    // Carrier lesson
+    coachCarrierTitle: 'The Carrier',
+    coachCarrierDesc: 'Learn about the carrier - moves far and transports helicopters!',
+    coachCarrierStep1: 'What makes the carrier special?',
+    coachCarrierOpt1: 'Can transport helicopters',
+    coachCarrierOpt2: 'Can fly over pieces',
+    coachCarrierOpt3: 'Can attack twice',
+    coachCarrierStep2: 'Select ALL squares where the carrier can move.',
+    coachCarrierStep3: 'How far can the carrier move?',
+    coachCarrierOpt3a: 'Only 2 squares',
+    coachCarrierOpt3b: 'Up to 6 squares in a straight line',
+    coachCarrierOpt3c: 'Unlimited',
+
+    // Sub lesson
+    coachSubTitle: 'The Submarine',
+    coachSubDesc: 'Learn about the sub - rams enemy ships!',
+    coachSubStep1: 'What can the submarine destroy?',
+    coachSubOpt1: 'Only soldiers',
+    coachSubOpt2: 'All ground units',
+    coachSubOpt3: 'Ships and carriers by ramming',
+    coachSubStep2: 'Select ALL squares where the sub can move.',
+    coachSubStep3: 'Click the enemy naval units the sub can ram!',
+
+    // Category Exams
+    coachExamBasicsTitle: 'Basics Exam',
+    coachExamBasicsDesc: 'Test your knowledge of the board and coordinates!',
+    coachExamBasicsStep1: 'Click on square G4.',
+    coachExamBasicsStep2: 'Click on square C8.',
+    coachExamBasicsStep3: 'Click on square K1.',
+    coachExamBasicsStep4: 'What size is the War Chess board?',
+    coachExamBasicsOpt1: '8x8 squares',
+    coachExamBasicsOpt2: '10x10 squares',
+    coachExamBasicsOpt3: '11x11 squares',
+    coachExamBasicsStep5: 'Click the Builder to win the game instantly!',
+
+    coachExamPiecesTitle: 'Pieces Exam',
+    coachExamPiecesDesc: 'Test your knowledge of all the pieces!',
+    coachExamPiecesStep1: 'The tank can reach the Builder in one move. Click it!',
+    coachExamPiecesStep2: 'Select ALL squares where the helicopter can move.',
+    coachExamPiecesStep3: 'The sub can ram ships. Click the target!',
+    coachExamPiecesStep4: 'Select ALL squares affected by the rocket explosion.',
+    coachExamPiecesStep5: 'Which piece can hack enemy units?',
+    coachExamPiecesOpt1: 'Hacker',
+    coachExamPiecesOpt2: 'Tank',
+    coachExamPiecesOpt3: 'Helicopter',
+
+    coachExamSpecialTitle: 'Special Units Exam',
+    coachExamSpecialDesc: 'Test your knowledge of hackers, defenses, and explosives!',
+    coachExamSpecialStep1: 'What does the hacker do?',
+    coachExamSpecialOpt1: 'Destroys buildings',
+    coachExamSpecialOpt2: 'Converts enemy units to your team',
+    coachExamSpecialOpt3: 'Heals your units',
+    coachExamSpecialStep2: 'Click all pieces the hacker can convert!',
+    coachExamSpecialStep3: 'What can the builder NOT create?',
+    coachExamSpecialOpt3a: 'Barricades',
+    coachExamSpecialOpt3b: 'Spikes',
+    coachExamSpecialOpt3c: 'Tanks',
+    coachExamSpecialStep4: 'Artillery shoots straight. Click what it can hit!',
+
+    coachExamAdvancedTitle: 'Advanced Tactics Exam',
+    coachExamAdvancedDesc: 'Prove your tactical mastery!',
+    coachExamAdvancedStep1: 'Find and capture the enemy Builder!',
+    coachExamAdvancedStep2: 'Your Builder is in danger! Select squares to place barricades.',
+    coachExamAdvancedStep3: 'Which piece can reach the protected Builder?',
+    coachExamAdvancedStep4: 'What happens when you capture the enemy Builder?',
+    coachExamAdvancedOpt1: 'You get extra points',
+    coachExamAdvancedOpt2: 'You win the game instantly!',
+    coachExamAdvancedOpt3: 'Nothing special',
+    coachExamAdvancedStep5: 'Two paths to victory! Click the best target.',
+
+    coachExamNavigationTitle: 'Navigation Exam',
+    coachExamNavigationDesc: 'Test your knowledge of the game menus!',
+    coachExamNavigationStep1: 'Where do you find the Coach lessons?',
+    coachExamNavOpt1: 'Main menu - Coach button',
+    coachExamNavOpt2: 'Settings - Coach',
+    coachExamNavOpt3: 'During gameplay',
+    coachExamNavigationStep2: 'Where can you play against a bot?',
+    coachExamNavOpt2a: 'Only in puzzles',
+    coachExamNavOpt2b: 'Main menu - vs Bot',
+    coachExamNavOpt2c: 'Settings - Bot mode',
+    coachExamNavigationStep3: 'Where do you find puzzles?',
+    coachExamNavOpt3a: 'In vs Player mode',
+    coachExamNavOpt3b: 'In vs Bot mode',
+    coachExamNavOpt3c: 'Main menu - Puzzles button',
+
+    coachExamSettingsTitle: 'Settings Exam',
+    coachExamSettingsDesc: 'Test your knowledge of game settings!',
+    coachExamSettingsStep1: 'Where do you change the language?',
+    coachExamSettingsOpt1: 'Main menu',
+    coachExamSettingsOpt2: 'Settings - Language dropdown',
+    coachExamSettingsOpt3: 'Cannot change',
+    coachExamSettingsStep2: 'What does Screen Shake do?',
+    coachExamSettingsOpt2a: 'Makes the screen shake on captures',
+    coachExamSettingsOpt2b: 'Changes the music',
+    coachExamSettingsOpt2c: 'Changes colors',
+    coachExamSettingsStep3: 'Turn sound OFF using the settings.',
+    coachExamSettingsStep4: 'Now turn sound back ON.',
+
+    // Grand Final Exam
+    coachGrandExamTitle: 'Grand Final Exam',
+    coachGrandExamDesc: 'The ultimate test! Complete all category exams first.',
+    coachGrandExamStep1: 'Click on square I7.',
+    coachGrandExamStep2: 'The helicopter can fly to the Builder! Click the winning target.',
+    coachGrandExamStep3: 'Select ALL squares where the machinegun can attack.',
+    coachGrandExamStep4: 'The sub can ram ships. Click both naval targets!',
+    coachGrandExamStep5: 'What is the winning condition in War Chess?',
+    coachGrandExamOpt1: 'Capture all pieces',
+    coachGrandExamOpt2: 'Score 100 points',
+    coachGrandExamOpt3: 'Capture the enemy Builder',
+    coachGrandExamStep6: 'The hacker can convert enemies! Click both targets.',
+    coachGrandExamStep7: 'Protect your Builder from the rocket! Select barricade squares.',
+    coachGrandExamStep8: 'Artillery shoots in a straight line. Click ALL targets!',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -10881,6 +11160,129 @@ const translations: Record<Language, Record<string, string>> = {
     coachReviewSpecialStep1: 'De helikopter kan overal vliegen! Klik het beste doel.',
     coachReviewSpecialStep2: 'Selecteer ALLE vakjes die getroffen worden door deze raketexplosie.',
     coachReviewSpecialStep3: 'Welke landmijnen zal de vijand activeren? Klik ze.',
+
+    // Machinegeweer les
+    coachMachinegunTitle: 'Het Machinegeweer',
+    coachMachinegunDesc: 'Leer over het machinegeweer - valt alle aangrenzende vakjes aan!',
+    coachMachinegunStep1: 'Hoe valt het machinegeweer aan?',
+    coachMachinegunOpt1: 'Alleen vooruit',
+    coachMachinegunOpt2: 'Alle 8 aangrenzende vakjes',
+    coachMachinegunOpt3: 'Alleen diagonaal',
+    coachMachinegunStep2: 'Selecteer ALLE vakjes waar het machinegeweer kan aanvallen.',
+    coachMachinegunStep3: 'Klik de stukken die het machinegeweer kan pakken!',
+
+    // Carrier les
+    coachCarrierTitle: 'De Carrier',
+    coachCarrierDesc: 'Leer over de carrier - beweegt ver en vervoert helikopters!',
+    coachCarrierStep1: 'Wat maakt de carrier speciaal?',
+    coachCarrierOpt1: 'Kan helikopters vervoeren',
+    coachCarrierOpt2: 'Kan over stukken vliegen',
+    coachCarrierOpt3: 'Kan twee keer aanvallen',
+    coachCarrierStep2: 'Selecteer ALLE vakjes waar de carrier heen kan.',
+    coachCarrierStep3: 'Hoe ver kan de carrier bewegen?',
+    coachCarrierOpt3a: 'Slechts 2 vakjes',
+    coachCarrierOpt3b: 'Tot 6 vakjes in een rechte lijn',
+    coachCarrierOpt3c: 'Onbeperkt',
+
+    // Onderzeeër les
+    coachSubTitle: 'De Onderzeeër',
+    coachSubDesc: 'Leer over de onderzeeër - ramt vijandelijke schepen!',
+    coachSubStep1: 'Wat kan de onderzeeër vernietigen?',
+    coachSubOpt1: 'Alleen soldaten',
+    coachSubOpt2: 'Alle grondeenheden',
+    coachSubOpt3: 'Schepen en carriers door rammen',
+    coachSubStep2: 'Selecteer ALLE vakjes waar de onderzeeër heen kan.',
+    coachSubStep3: 'Klik de vijandelijke marine eenheden die de onderzeeër kan rammen!',
+
+    // Categorie Examens
+    coachExamBasicsTitle: 'Basis Examen',
+    coachExamBasicsDesc: 'Test je kennis van het bord en coördinaten!',
+    coachExamBasicsStep1: 'Klik op vakje G4.',
+    coachExamBasicsStep2: 'Klik op vakje C8.',
+    coachExamBasicsStep3: 'Klik op vakje K1.',
+    coachExamBasicsStep4: 'Hoe groot is het Oorlog Schaak bord?',
+    coachExamBasicsOpt1: '8x8 vakjes',
+    coachExamBasicsOpt2: '10x10 vakjes',
+    coachExamBasicsOpt3: '11x11 vakjes',
+    coachExamBasicsStep5: 'Klik de Builder om direct te winnen!',
+
+    coachExamPiecesTitle: 'Stukken Examen',
+    coachExamPiecesDesc: 'Test je kennis van alle stukken!',
+    coachExamPiecesStep1: 'De tank kan de Builder in één zet bereiken. Klik erop!',
+    coachExamPiecesStep2: 'Selecteer ALLE vakjes waar de helikopter heen kan.',
+    coachExamPiecesStep3: 'De onderzeeër kan schepen rammen. Klik het doel!',
+    coachExamPiecesStep4: 'Selecteer ALLE vakjes die getroffen worden door de raketexplosie.',
+    coachExamPiecesStep5: 'Welk stuk kan vijanden hacken?',
+    coachExamPiecesOpt1: 'Hacker',
+    coachExamPiecesOpt2: 'Tank',
+    coachExamPiecesOpt3: 'Helikopter',
+
+    coachExamSpecialTitle: 'Speciale Eenheden Examen',
+    coachExamSpecialDesc: 'Test je kennis van hackers, verdediging en explosieven!',
+    coachExamSpecialStep1: 'Wat doet de hacker?',
+    coachExamSpecialOpt1: 'Vernietigt gebouwen',
+    coachExamSpecialOpt2: 'Converteert vijanden naar jouw team',
+    coachExamSpecialOpt3: 'Geneest je eenheden',
+    coachExamSpecialStep2: 'Klik alle stukken die de hacker kan converteren!',
+    coachExamSpecialStep3: 'Wat kan de builder NIET maken?',
+    coachExamSpecialOpt3a: 'Barricades',
+    coachExamSpecialOpt3b: 'Spikes',
+    coachExamSpecialOpt3c: 'Tanks',
+    coachExamSpecialStep4: 'Artillerie schiet rechtdoor. Klik wat het kan raken!',
+
+    coachExamAdvancedTitle: 'Gevorderde Tactieken Examen',
+    coachExamAdvancedDesc: 'Bewijs je tactische meesterschap!',
+    coachExamAdvancedStep1: 'Vind en pak de vijandelijke Builder!',
+    coachExamAdvancedStep2: 'Je Builder is in gevaar! Selecteer vakjes voor barricades.',
+    coachExamAdvancedStep3: 'Welk stuk kan de beschermde Builder bereiken?',
+    coachExamAdvancedStep4: 'Wat gebeurt er als je de vijandelijke Builder pakt?',
+    coachExamAdvancedOpt1: 'Je krijgt extra punten',
+    coachExamAdvancedOpt2: 'Je wint het spel direct!',
+    coachExamAdvancedOpt3: 'Niets speciaals',
+    coachExamAdvancedStep5: 'Twee wegen naar de overwinning! Klik het beste doel.',
+
+    coachExamNavigationTitle: 'Navigatie Examen',
+    coachExamNavigationDesc: 'Test je kennis van de spelmenu\'s!',
+    coachExamNavigationStep1: 'Waar vind je de Coach lessen?',
+    coachExamNavOpt1: 'Hoofdmenu - Coach knop',
+    coachExamNavOpt2: 'Instellingen - Coach',
+    coachExamNavOpt3: 'Tijdens het spel',
+    coachExamNavigationStep2: 'Waar kun je tegen een bot spelen?',
+    coachExamNavOpt2a: 'Alleen in puzzels',
+    coachExamNavOpt2b: 'Hoofdmenu - vs Bot',
+    coachExamNavOpt2c: 'Instellingen - Bot modus',
+    coachExamNavigationStep3: 'Waar vind je puzzels?',
+    coachExamNavOpt3a: 'In vs Speler modus',
+    coachExamNavOpt3b: 'In vs Bot modus',
+    coachExamNavOpt3c: 'Hoofdmenu - Puzzels knop',
+
+    coachExamSettingsTitle: 'Instellingen Examen',
+    coachExamSettingsDesc: 'Test je kennis van de spelinstellingen!',
+    coachExamSettingsStep1: 'Waar verander je de taal?',
+    coachExamSettingsOpt1: 'Hoofdmenu',
+    coachExamSettingsOpt2: 'Instellingen - Taal dropdown',
+    coachExamSettingsOpt3: 'Kan niet veranderen',
+    coachExamSettingsStep2: 'Wat doet Scherm Schudden?',
+    coachExamSettingsOpt2a: 'Laat het scherm trillen bij vangsten',
+    coachExamSettingsOpt2b: 'Verandert de muziek',
+    coachExamSettingsOpt2c: 'Verandert kleuren',
+    coachExamSettingsStep3: 'Zet geluid UIT via de instellingen.',
+    coachExamSettingsStep4: 'Zet geluid nu weer AAN.',
+
+    // Groot Eindexamen
+    coachGrandExamTitle: 'Groot Eindexamen',
+    coachGrandExamDesc: 'De ultieme test! Voltooi eerst alle categorie examens.',
+    coachGrandExamStep1: 'Klik op vakje I7.',
+    coachGrandExamStep2: 'De helikopter kan naar de Builder vliegen! Klik het winnende doel.',
+    coachGrandExamStep3: 'Selecteer ALLE vakjes waar het machinegeweer kan aanvallen.',
+    coachGrandExamStep4: 'De onderzeeër kan schepen rammen. Klik beide marine doelen!',
+    coachGrandExamStep5: 'Wat is de winconditie in Oorlog Schaak?',
+    coachGrandExamOpt1: 'Pak alle stukken',
+    coachGrandExamOpt2: 'Score 100 punten',
+    coachGrandExamOpt3: 'Pak de vijandelijke Builder',
+    coachGrandExamStep6: 'De hacker kan vijanden converteren! Klik beide doelen.',
+    coachGrandExamStep7: 'Bescherm je Builder tegen de raket! Selecteer barricade vakjes.',
+    coachGrandExamStep8: 'Artillerie schiet in een rechte lijn. Klik ALLE doelen!',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -22652,7 +23054,7 @@ function render() {
       function createCoachInteractiveBoard(step: CoachStep): string {
         const boardSize = coachBoardSize
         const sqSize = coachBoardSquareSize
-        const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].slice(0, boardSize)
+        const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].slice(0, boardSize)
 
         let svg = `<svg width="${boardSize * sqSize + (step.showCoordinates ? 20 : 0)}" height="${boardSize * sqSize + (step.showCoordinates ? 20 : 0)}" class="rounded-lg overflow-hidden">`
 
