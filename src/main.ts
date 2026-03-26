@@ -27435,21 +27435,39 @@ function render() {
           btn.addEventListener('click', async (e) => {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
-            if (userId) { await adminGiveWarBucks(userId, 100); renderAdminPanel() }
+            if (userId) {
+              const success = await adminGiveWarBucks(userId, 100)
+              if (!success) {
+                alert('Failed to give War Bucks! Check console for errors.')
+              }
+              renderAdminPanel()
+            }
           })
         })
         document.querySelectorAll('.admin-give-all-items').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
-            if (userId && confirm('Give ALL items?')) { await adminGiveAllItems(userId); renderAdminPanel() }
+            if (userId && confirm('Give ALL items?')) {
+              const success = await adminGiveAllItems(userId)
+              if (!success) {
+                alert('Failed to give items! Check console for errors.')
+              }
+              renderAdminPanel()
+            }
           })
         })
         document.querySelectorAll('.admin-reset-user').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
-            if (userId && confirm('Reset user stats?')) { await adminResetUser(userId); renderAdminPanel() }
+            if (userId && confirm('Reset user stats?')) {
+              const success = await adminResetUser(userId)
+              if (!success) {
+                alert('Failed to reset user! Check console for errors.')
+              }
+              renderAdminPanel()
+            }
           })
         })
 
@@ -27461,7 +27479,10 @@ function render() {
             const input = document.querySelector(`.admin-custom-bucks-input[data-userid="${userId}"]`) as HTMLInputElement
             const amount = parseInt(input?.value || '0')
             if (userId && amount > 0) {
-              await adminGiveWarBucks(userId, amount)
+              const success = await adminGiveWarBucks(userId, amount)
+              if (!success) {
+                alert('Failed to give War Bucks! Check console for errors.')
+              }
               input.value = ''
               renderAdminPanel()
             } else {
@@ -27476,7 +27497,10 @@ function render() {
             const input = document.querySelector(`.admin-custom-bucks-input[data-userid="${userId}"]`) as HTMLInputElement
             const amount = parseInt(input?.value || '0')
             if (userId && amount > 0) {
-              await adminGiveWarBucks(userId, -amount)
+              const success = await adminGiveWarBucks(userId, -amount)
+              if (!success) {
+                alert('Failed to take War Bucks! Check console for errors.')
+              }
               input.value = ''
               renderAdminPanel()
             } else {
@@ -27493,7 +27517,10 @@ function render() {
             const select = document.querySelector(`.admin-item-select[data-userid="${userId}"]`) as HTMLSelectElement
             const itemId = select?.value
             if (userId && itemId) {
-              await adminGiveItem(userId, itemId)
+              const success = await adminGiveItem(userId, itemId)
+              if (!success) {
+                alert('Failed to give item! Check console for errors.')
+              }
               select.value = ''
               renderAdminPanel()
             } else {
@@ -27508,7 +27535,10 @@ function render() {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId && confirm('Remove ALL items from this user?')) {
-              await adminUpdateUser(userId, { purchasedItems: [], equippedItems: { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null } })
+              const success = await adminUpdateUser(userId, { purchasedItems: [], equippedItems: { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null } })
+              if (!success) {
+                alert('Failed to reset items! Check console for errors.')
+              }
               renderAdminPanel()
             }
           })
@@ -27520,7 +27550,10 @@ function render() {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
             if (userId && confirm('Reset War Bucks to 0?')) {
-              await adminUpdateUser(userId, { warBucks: 0 })
+              const success = await adminUpdateUser(userId, { warBucks: 0 })
+              if (!success) {
+                alert('Failed to reset War Bucks! Check console for errors.')
+              }
               renderAdminPanel()
             }
           })
@@ -27529,14 +27562,26 @@ function render() {
           btn.addEventListener('click', async (e) => {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
-            if (userId) { await adminSetAdmin(userId, true); renderAdminPanel() }
+            if (userId) {
+              const success = await adminSetAdmin(userId, true)
+              if (!success) {
+                alert('Failed to make admin! Check console for errors.')
+              }
+              renderAdminPanel()
+            }
           })
         })
         document.querySelectorAll('.admin-remove-admin').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             e.stopPropagation()
             const userId = (e.currentTarget as HTMLElement).dataset.userid
-            if (userId) { await adminSetAdmin(userId, false); renderAdminPanel() }
+            if (userId) {
+              const success = await adminSetAdmin(userId, false)
+              if (!success) {
+                alert('Failed to remove admin! Check console for errors.')
+              }
+              renderAdminPanel()
+            }
           })
         })
         document.querySelectorAll('.admin-delete-user').forEach(btn => {
