@@ -9172,7 +9172,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Soldier
     coachSoldierTitle: 'The Soldier',
     coachSoldierDesc: 'Learn about the Soldier piece',
-    coachSoldierStep1: 'The Soldier moves 1 square forward, left, or right. It can also shoot 1 square forward.',
+    coachSoldierStep1: 'The Soldier moves 1 square in any direction (up, down, left, right). Soldiers can shoot up to 2 squares forward to attack enemies.',
     coachSoldierQ1: 'How many squares can a Soldier move?',
     coachSoldierA1a: '1 square',
     coachSoldierA1b: '2 squares',
@@ -10426,7 +10426,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Soldier
     coachSoldierTitle: 'De Soldaat',
     coachSoldierDesc: 'Leer over het Soldaat stuk',
-    coachSoldierStep1: 'De Soldaat verplaatst 1 vak vooruit, links, of rechts. Hij kan ook 1 vak vooruit schieten.',
+    coachSoldierStep1: 'De Soldaat beweegt 1 vak in elke richting (boven, onder, links, rechts). Soldaten kunnen tot 2 vakken vooruit schieten om vijanden aan te vallen.',
     coachSoldierQ1: 'Hoeveel vakken kan een Soldaat verplaatsen?',
     coachSoldierA1a: '1 vak',
     coachSoldierA1b: '2 vakken',
