@@ -7815,8 +7815,8 @@ function getCoachLessons(): CoachLesson[] {
       piece: 'tank',
       steps: [
         { type: 'multipleChoice', textKey: 'coachTankPowerStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }], question: 'coachTankPowerQ1', answers: ['coachTankPowerA1a', 'coachTankPowerA1b', 'coachTankPowerA1c'], correct: 0 },
-        { type: 'boardSelect', textKey: 'coachTankPowerStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'D', row: 1 }, { col: 'D', row: 2 }, { col: 'D', row: 3 }, { col: 'D', row: 5 }, { col: 'D', row: 6 }, { col: 'D', row: 7 }, { col: 'A', row: 4 }, { col: 'B', row: 4 }, { col: 'C', row: 4 }, { col: 'E', row: 4 }, { col: 'F', row: 4 }, { col: 'G', row: 4 }] },
-        { type: 'boardClick', textKey: 'coachTankPowerStep3', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'B', row: 5 }, { type: 'soldier', team: 'green', col: 'E', row: 2 }, { type: 'barricade', team: 'green', col: 'D', row: 4 }], correctSquares: [{ col: 'B', row: 5 }, { col: 'E', row: 2 }] }
+        { type: 'boardSelect', textKey: 'coachTankPowerStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'D', row: 3 }, { col: 'D', row: 2 }, { col: 'D', row: 5 }, { col: 'B', row: 4 }, { col: 'C', row: 4 }, { col: 'E', row: 4 }, { col: 'F', row: 4 }] },
+        { type: 'boardClick', textKey: 'coachTankPowerStep3', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'barricade', team: 'green', col: 'B', row: 4 }], correctSquares: [{ col: 'C', row: 3 }, { col: 'E', row: 5 }] }
       ]
     },
     {
@@ -7845,10 +7845,10 @@ function getCoachLessons(): CoachLesson[] {
       isReview: true,
       requires: ['soldier', 'soldierMovement'],
       steps: [
-        { type: 'boardClick', textKey: 'coachReviewSoldierStep1', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'C', row: 4 }, { type: 'soldier', team: 'green', col: 'B', row: 5 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }], correctSquares: [{ col: 'B', row: 5 }, { col: 'D', row: 5 }] },
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep1', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }, { type: 'soldier', team: 'green', col: 'D', row: 6 }], correctSquares: [{ col: 'D', row: 5 }, { col: 'D', row: 6 }] },
         { type: 'boardClick', textKey: 'coachReviewSoldierStep2', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'yellow', col: 'E', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }, { type: 'builder', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'D', row: 4 }, { col: 'E', row: 4 }] },
-        { type: 'boardSelect', textKey: 'coachReviewSoldierStep3', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'C', row: 5 }, { col: 'D', row: 5 }, { col: 'E', row: 5 }] },
-        { type: 'boardClick', textKey: 'coachReviewSoldierStep4', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'B', row: 6 }, { type: 'soldier', team: 'yellow', col: 'C', row: 6 }, { type: 'soldier', team: 'green', col: 'A', row: 7 }, { type: 'builder', team: 'green', col: 'D', row: 7 }], correctSquares: [{ col: 'A', row: 7 }] }
+        { type: 'boardSelect', textKey: 'coachReviewSoldierStep3', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'D', row: 4 }], requiredSelections: [{ col: 'D', row: 5 }, { col: 'D', row: 3 }, { col: 'C', row: 4 }, { col: 'E', row: 4 }] },
+        { type: 'boardClick', textKey: 'coachReviewSoldierStep4', boardPieces: [{ type: 'soldier', team: 'yellow', col: 'C', row: 5 }, { type: 'soldier', team: 'yellow', col: 'D', row: 5 }, { type: 'soldier', team: 'green', col: 'D', row: 7 }, { type: 'builder', team: 'green', col: 'E', row: 8 }], correctSquares: [{ col: 'D', row: 7 }] }
       ]
     },
     {
@@ -7862,10 +7862,10 @@ function getCoachLessons(): CoachLesson[] {
       isReview: true,
       requires: ['tank', 'tankPower'],
       steps: [
-        { type: 'boardClick', textKey: 'coachReviewTankStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'B', row: 2 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'F', row: 2 }, { type: 'tank', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'B', row: 6 }, { col: 'F', row: 2 }] },
-        { type: 'boardClick', textKey: 'coachReviewTankStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'barricade', team: 'green', col: 'D', row: 6 }, { type: 'soldier', team: 'green', col: 'D', row: 7 }, { type: 'soldier', team: 'green', col: 'G', row: 4 }], correctSquares: [{ col: 'G', row: 4 }] },
+        { type: 'boardClick', textKey: 'coachReviewTankStep1', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'tank', team: 'green', col: 'B', row: 2 }], correctSquares: [{ col: 'C', row: 3 }, { col: 'E', row: 5 }, { col: 'B', row: 2 }] },
+        { type: 'boardClick', textKey: 'coachReviewTankStep2', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'barricade', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'B', row: 6 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }], correctSquares: [{ col: 'E', row: 5 }] },
         { type: 'boardSelect', textKey: 'coachReviewTankStep3', boardPieces: [{ type: 'tank', team: 'yellow', col: 'A', row: 1 }, { type: 'barricade', team: 'green', col: 'A', row: 4 }, { type: 'barricade', team: 'green', col: 'D', row: 1 }], requiredSelections: [{ col: 'A', row: 2 }, { col: 'A', row: 3 }, { col: 'B', row: 1 }, { col: 'C', row: 1 }] },
-        { type: 'boardClick', textKey: 'coachReviewTankStep4', boardPieces: [{ type: 'tank', team: 'yellow', col: 'C', row: 3 }, { type: 'builder', team: 'green', col: 'C', row: 7 }, { type: 'soldier', team: 'green', col: 'C', row: 5 }, { type: 'soldier', team: 'green', col: 'F', row: 3 }], correctSquares: [{ col: 'C', row: 5 }] }
+        { type: 'boardClick', textKey: 'coachReviewTankStep4', boardPieces: [{ type: 'tank', team: 'yellow', col: 'D', row: 4 }, { type: 'builder', team: 'green', col: 'D', row: 8 }, { type: 'soldier', team: 'green', col: 'E', row: 5 }, { type: 'soldier', team: 'green', col: 'C', row: 3 }], correctSquares: [{ col: 'E', row: 5 }] }
       ]
     },
     {
@@ -7926,9 +7926,9 @@ function getCoachLessons(): CoachLesson[] {
       reward: 25,
       piece: 'machinegun',
       steps: [
-        { type: 'multipleChoice', textKey: 'coachMachinegunStep1', question: 'coachMachinegunStep1', answers: ['coachMachinegunOpt1', 'coachMachinegunOpt2', 'coachMachinegunOpt3'], correct: 1 },
-        { type: 'boardSelect', textKey: 'coachMachinegunStep2', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'D', row: 6 }, { col: 'E', row: 6 }, { col: 'F', row: 6 }, { col: 'D', row: 4 }, { col: 'E', row: 4 }, { col: 'F', row: 4 }, { col: 'D', row: 5 }, { col: 'F', row: 5 }] },
-        { type: 'boardClick', textKey: 'coachMachinegunStep3', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'E', row: 4 }, { type: 'soldier', team: 'green', col: 'C', row: 2 }, { type: 'tank', team: 'green', col: 'F', row: 5 }], correctSquares: [{ col: 'E', row: 4 }, { col: 'C', row: 2 }] }
+        { type: 'multipleChoice', textKey: 'coachMachinegunStep1', question: 'coachMachinegunStep1', answers: ['coachMachinegunOpt1', 'coachMachinegunOpt2', 'coachMachinegunOpt3'], correct: 0 },
+        { type: 'boardSelect', textKey: 'coachMachinegunStep2', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'E', row: 3 }], requiredSelections: [{ col: 'E', row: 4 }, { col: 'E', row: 5 }, { col: 'E', row: 6 }, { col: 'E', row: 7 }] },
+        { type: 'boardClick', textKey: 'coachMachinegunStep3', boardPieces: [{ type: 'machinegun', team: 'yellow', col: 'D', row: 3 }, { type: 'soldier', team: 'green', col: 'D', row: 5 }, { type: 'soldier', team: 'green', col: 'C', row: 4 }, { type: 'tank', team: 'green', col: 'E', row: 3 }], correctSquares: [{ col: 'D', row: 5 }] }
       ]
     },
     {
@@ -7941,8 +7941,8 @@ function getCoachLessons(): CoachLesson[] {
       piece: 'carrier',
       steps: [
         { type: 'multipleChoice', textKey: 'coachCarrierStep1', question: 'coachCarrierStep1', answers: ['coachCarrierOpt1', 'coachCarrierOpt2', 'coachCarrierOpt3'], correct: 0 },
-        { type: 'boardSelect', textKey: 'coachCarrierStep2', boardPieces: [{ type: 'carrier', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'E', row: 6 }, { col: 'E', row: 7 }, { col: 'E', row: 8 }, { col: 'E', row: 4 }, { col: 'E', row: 3 }, { col: 'E', row: 2 }, { col: 'F', row: 5 }, { col: 'G', row: 5 }, { col: 'H', row: 5 }, { col: 'D', row: 5 }, { col: 'C', row: 5 }, { col: 'B', row: 5 }] },
-        { type: 'multipleChoice', textKey: 'coachCarrierStep3', question: 'coachCarrierStep3', answers: ['coachCarrierOpt3a', 'coachCarrierOpt3b', 'coachCarrierOpt3c'], correct: 1 }
+        { type: 'boardSelect', textKey: 'coachCarrierStep2', boardPieces: [{ type: 'carrier', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'E', row: 6 }, { col: 'E', row: 7 }, { col: 'E', row: 4 }, { col: 'E', row: 3 }, { col: 'F', row: 5 }, { col: 'G', row: 5 }, { col: 'D', row: 5 }, { col: 'C', row: 5 }] },
+        { type: 'multipleChoice', textKey: 'coachCarrierStep3', question: 'coachCarrierStep3', answers: ['coachCarrierOpt3a', 'coachCarrierOpt3b', 'coachCarrierOpt3c'], correct: 0 }
       ]
     },
     {
@@ -7955,8 +7955,8 @@ function getCoachLessons(): CoachLesson[] {
       piece: 'sub',
       steps: [
         { type: 'multipleChoice', textKey: 'coachSubStep1', question: 'coachSubStep1', answers: ['coachSubOpt1', 'coachSubOpt2', 'coachSubOpt3'], correct: 2 },
-        { type: 'boardSelect', textKey: 'coachSubStep2', boardPieces: [{ type: 'sub', team: 'yellow', col: 'E', row: 5 }], requiredSelections: [{ col: 'E', row: 6 }, { col: 'E', row: 7 }, { col: 'E', row: 8 }, { col: 'E', row: 4 }, { col: 'E', row: 3 }, { col: 'E', row: 2 }, { col: 'F', row: 5 }, { col: 'G', row: 5 }, { col: 'H', row: 5 }, { col: 'D', row: 5 }, { col: 'C', row: 5 }, { col: 'B', row: 5 }] },
-        { type: 'boardClick', textKey: 'coachSubStep3', boardPieces: [{ type: 'sub', team: 'yellow', col: 'D', row: 4 }, { type: 'ship', team: 'green', col: 'D', row: 7 }, { type: 'carrier', team: 'green', col: 'G', row: 4 }], correctSquares: [{ col: 'D', row: 7 }, { col: 'G', row: 4 }] }
+        { type: 'boardSelect', textKey: 'coachSubStep2', boardPieces: [{ type: 'sub', team: 'yellow', col: 'E', row: 6 }], requiredSelections: [{ col: 'F', row: 6 }, { col: 'G', row: 6 }, { col: 'D', row: 6 }, { col: 'C', row: 6 }] },
+        { type: 'boardClick', textKey: 'coachSubStep3', boardPieces: [{ type: 'sub', team: 'yellow', col: 'D', row: 6 }, { type: 'ship', team: 'green', col: 'B', row: 6 }, { type: 'carrier', team: 'green', col: 'G', row: 6 }], correctSquares: [{ col: 'B', row: 6 }, { col: 'G', row: 6 }] }
       ]
     },
     // Category Exams
@@ -9186,9 +9186,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Tank
     coachTankTitle: 'The Tank',
     coachTankDesc: 'Learn about the Tank piece',
-    coachTankStep1: 'The Tank can move multiple squares in any straight direction (like a rook in chess).',
+    coachTankStep1: 'The Tank moves 1-2 squares orthogonally (up, down, left, right). It SHOOTS diagonally 1-2 squares to attack enemies!',
     coachTankQ1: 'How does the Tank move?',
-    coachTankA1a: 'Multiple squares straight',
+    coachTankA1a: '1-2 squares orthogonally',
     coachTankA1b: 'Only diagonally',
     coachTankA1c: 'Only 1 square',
     coachTankStep2: 'Tanks are powerful but can be trapped in corners!',
@@ -9199,12 +9199,12 @@ const translations: Record<Language, Record<string, string>> = {
     // SUV
     coachSUVTitle: 'The SUV',
     coachSUVDesc: 'Learn about the SUV piece',
-    coachSUVStep1: 'The SUV moves diagonally like a bishop in chess. It\'s fast but limited to diagonals.',
+    coachSUVStep1: 'The SUV moves 1-2 squares in ALL 8 directions (orthogonal + diagonal). It can RAM enemies when moving straight!',
     coachSUVQ1: 'How does the SUV move?',
-    coachSUVA1a: 'Diagonally',
-    coachSUVA1b: 'Straight lines',
+    coachSUVA1a: 'All 8 directions',
+    coachSUVA1b: 'Only straight lines',
     coachSUVA1c: 'L-shape',
-    coachSUVStep2: 'Select all 4 diagonal squares where the SUV can move.',
+    coachSUVStep2: 'Select all diagonal squares where the SUV can move (1-2 squares).',
     // Builder
     coachBuilderTitle: 'The Engineer',
     coachBuilderDesc: 'Learn about the most important piece',
@@ -9253,11 +9253,11 @@ const translations: Record<Language, Record<string, string>> = {
     coachShipA1a: 'It can fly',
     coachShipA1b: 'It crosses water',
     coachShipA1c: 'It\'s invisible',
-    coachShipStep2: 'Ships can also carry helicopters!',
-    coachShipQ2: 'What can Ships carry?',
-    coachShipA2a: 'Helicopters',
-    coachShipA2b: 'Tanks',
-    coachShipA2c: 'Soldiers',
+    coachShipStep2: 'Ships can SHOOT 1-2 squares in any direction to attack enemies!',
+    coachShipQ2: 'How does the Ship attack?',
+    coachShipA2a: 'Shoots 1-2 squares in any direction',
+    coachShipA2b: 'Rams enemies by moving',
+    coachShipA2c: 'Cannot attack',
     // Rocket
     coachRocketTitle: 'The Rocket',
     coachRocketDesc: 'Learn about massive destruction',
@@ -9841,13 +9841,13 @@ const translations: Record<Language, Record<string, string>> = {
     // Tank power lesson
     coachTankPowerTitle: 'Tank Domination',
     coachTankPowerDesc: 'Master the powerful tank movement.',
-    coachTankPowerStep1: 'Tanks are your heavy hitters - they move in straight lines.',
+    coachTankPowerStep1: 'Tanks move 1-2 squares orthogonally, but SHOOT diagonally!',
     coachTankPowerQ1: 'How does the tank move?',
-    coachTankPowerA1a: 'Horizontally and vertically any distance',
+    coachTankPowerA1a: '1-2 squares horizontally or vertically',
     coachTankPowerA1b: 'Diagonally only',
-    coachTankPowerA1c: 'One square at a time',
-    coachTankPowerStep2: 'Select ALL squares this tank can move to.',
-    coachTankPowerStep3: 'Click on the enemy pieces the tank can capture (not barricades).',
+    coachTankPowerA1c: 'Unlimited distance',
+    coachTankPowerStep2: 'Select ALL squares this tank can move to (1-2 squares orthogonally).',
+    coachTankPowerStep3: 'Click on the enemy pieces the tank can SHOOT (diagonally!).',
 
     // Find the General lesson
     coachFindGeneralTitle: 'Find the Builder',
@@ -9863,18 +9863,18 @@ const translations: Record<Language, Record<string, string>> = {
     // Review lessons - Soldier
     coachReviewSoldierTitle: 'Soldier Review',
     coachReviewSoldierDesc: 'Advanced soldier tactics - prove your mastery!',
-    coachReviewSoldierStep1: 'Click on ALL enemy soldiers this soldier can capture diagonally.',
+    coachReviewSoldierStep1: 'Click on ALL enemy soldiers this soldier can SHOOT (1-2 squares forward).',
     coachReviewSoldierStep2: 'Both soldiers need to advance. Click the best squares to move them.',
-    coachReviewSoldierStep3: 'Select ALL squares this soldier can move to or attack.',
-    coachReviewSoldierStep4: 'One soldier can capture the enemy! Click the capturing move.',
+    coachReviewSoldierStep3: 'Select ALL squares this soldier can move to (orthogonal).',
+    coachReviewSoldierStep4: 'One soldier can shoot the enemy! Click the target.',
 
     // Review lessons - Tank
     coachReviewTankTitle: 'Tank Review',
     coachReviewTankDesc: 'Advanced tank tactics - dominate the battlefield!',
-    coachReviewTankStep1: 'Click on ALL pieces this tank can capture.',
-    coachReviewTankStep2: 'The barricade blocks the path. Which piece CAN the tank capture?',
-    coachReviewTankStep3: 'Select ALL squares this tank can actually move to (blocked by barricades).',
-    coachReviewTankStep4: 'Clear the path to the Builder. Which piece should the tank capture first?',
+    coachReviewTankStep1: 'Click on ALL pieces this tank can SHOOT (diagonally 1-2 squares).',
+    coachReviewTankStep2: 'The barricade blocks one diagonal. Which piece CAN the tank still shoot?',
+    coachReviewTankStep3: 'Select ALL squares this tank can MOVE to (orthogonally, blocked by barricades).',
+    coachReviewTankStep4: 'Clear the path to the Builder. Which piece should the tank shoot first?',
 
     // Review lessons - Sniper
     coachReviewSniperTitle: 'Sniper Review',
@@ -9909,13 +9909,13 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Machinegun lesson
     coachMachinegunTitle: 'The Machinegun',
-    coachMachinegunDesc: 'Learn about the machinegun - attacks all adjacent squares!',
+    coachMachinegunDesc: 'Learn about the machinegun - shoots up to 4 squares forward!',
     coachMachinegunStep1: 'How does the machinegun attack?',
-    coachMachinegunOpt1: 'Only forward',
+    coachMachinegunOpt1: '1-4 squares forward only',
     coachMachinegunOpt2: 'All 8 adjacent squares',
     coachMachinegunOpt3: 'Only diagonal',
-    coachMachinegunStep2: 'Select ALL squares where the machinegun can attack.',
-    coachMachinegunStep3: 'Click the pieces the machinegun can capture!',
+    coachMachinegunStep2: 'Select ALL squares where the machinegun can shoot (forward only!).',
+    coachMachinegunStep3: 'Click the pieces the machinegun can shoot (only forward in the same column)!',
 
     // Carrier lesson
     coachCarrierTitle: 'The Carrier',
@@ -9924,10 +9924,10 @@ const translations: Record<Language, Record<string, string>> = {
     coachCarrierOpt1: 'Can transport helicopters',
     coachCarrierOpt2: 'Can fly over pieces',
     coachCarrierOpt3: 'Can attack twice',
-    coachCarrierStep2: 'Select ALL squares where the carrier can move.',
+    coachCarrierStep2: 'Select ALL squares where the carrier can move (1-2 squares).',
     coachCarrierStep3: 'How far can the carrier move?',
-    coachCarrierOpt3a: 'Only 2 squares',
-    coachCarrierOpt3b: 'Up to 6 squares in a straight line',
+    coachCarrierOpt3a: '1-2 squares orthogonally',
+    coachCarrierOpt3b: 'Up to 6 squares',
     coachCarrierOpt3c: 'Unlimited',
 
     // Sub lesson
@@ -9937,7 +9937,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachSubOpt1: 'Only soldiers',
     coachSubOpt2: 'All ground units',
     coachSubOpt3: 'Ships and carriers by ramming',
-    coachSubStep2: 'Select ALL squares where the sub can move.',
+    coachSubStep2: 'Select ALL squares where the sub can move (left/right only on water row 6).',
     coachSubStep3: 'Click the enemy naval units the sub can ram!',
 
     // Category Exams
@@ -10440,9 +10440,9 @@ const translations: Record<Language, Record<string, string>> = {
     // Tank
     coachTankTitle: 'De Tank',
     coachTankDesc: 'Leer over het Tank stuk',
-    coachTankStep1: 'De Tank kan meerdere vakken in elke rechte richting bewegen (als een toren in schaak).',
+    coachTankStep1: 'De Tank beweegt 1-2 vakjes orthogonaal (omhoog, omlaag, links, rechts). Hij SCHIET diagonaal 1-2 vakjes om vijanden aan te vallen!',
     coachTankQ1: 'Hoe beweegt de Tank?',
-    coachTankA1a: 'Meerdere vakken recht',
+    coachTankA1a: '1-2 vakjes orthogonaal',
     coachTankA1b: 'Alleen diagonaal',
     coachTankA1c: 'Alleen 1 vak',
     coachTankStep2: 'Tanks zijn krachtig maar kunnen in hoeken vastzitten!',
@@ -10453,12 +10453,12 @@ const translations: Record<Language, Record<string, string>> = {
     // SUV
     coachSUVTitle: 'De SUV',
     coachSUVDesc: 'Leer over het SUV stuk',
-    coachSUVStep1: 'De SUV beweegt diagonaal als een loper in schaak. Hij is snel maar beperkt tot diagonalen.',
+    coachSUVStep1: 'De SUV beweegt 1-2 vakjes in ALLE 8 richtingen (orthogonaal + diagonaal). Hij kan vijanden RAMMEN bij recht bewegen!',
     coachSUVQ1: 'Hoe beweegt de SUV?',
-    coachSUVA1a: 'Diagonaal',
-    coachSUVA1b: 'Rechte lijnen',
+    coachSUVA1a: 'Alle 8 richtingen',
+    coachSUVA1b: 'Alleen rechte lijnen',
     coachSUVA1c: 'L-vorm',
-    coachSUVStep2: 'Selecteer alle 4 diagonale vakken waar de SUV naartoe kan.',
+    coachSUVStep2: 'Selecteer alle diagonale vakken waar de SUV naartoe kan (1-2 vakjes).',
     // Builder
     coachBuilderTitle: 'De Engineer',
     coachBuilderDesc: 'Leer over het belangrijkste stuk',
@@ -10507,11 +10507,11 @@ const translations: Record<Language, Record<string, string>> = {
     coachShipA1a: 'Het kan vliegen',
     coachShipA1b: 'Het steekt water over',
     coachShipA1c: 'Het is onzichtbaar',
-    coachShipStep2: 'Schepen kunnen ook helikopters vervoeren!',
-    coachShipQ2: 'Wat kunnen Schepen vervoeren?',
-    coachShipA2a: 'Helikopters',
-    coachShipA2b: 'Tanks',
-    coachShipA2c: 'Soldaten',
+    coachShipStep2: 'Schepen kunnen SCHIETEN 1-2 vakjes in elke richting om vijanden aan te vallen!',
+    coachShipQ2: 'Hoe valt het Schip aan?',
+    coachShipA2a: 'Schiet 1-2 vakjes in elke richting',
+    coachShipA2b: 'Ramt vijanden door te bewegen',
+    coachShipA2c: 'Kan niet aanvallen',
     // Rocket
     coachRocketTitle: 'De Raket',
     coachRocketDesc: 'Leer over massale vernietiging',
@@ -11095,13 +11095,13 @@ const translations: Record<Language, Record<string, string>> = {
     // Tank kracht les
     coachTankPowerTitle: 'Tank Dominantie',
     coachTankPowerDesc: 'Beheers de krachtige tankbeweging.',
-    coachTankPowerStep1: 'Tanks zijn je zware slagkracht - ze bewegen in rechte lijnen.',
+    coachTankPowerStep1: 'Tanks bewegen 1-2 vakjes orthogonaal, maar SCHIETEN diagonaal!',
     coachTankPowerQ1: 'Hoe beweegt de tank?',
-    coachTankPowerA1a: 'Horizontaal en verticaal elke afstand',
+    coachTankPowerA1a: '1-2 vakjes horizontaal of verticaal',
     coachTankPowerA1b: 'Alleen diagonaal',
-    coachTankPowerA1c: 'Eén vakje per keer',
-    coachTankPowerStep2: 'Selecteer ALLE vakjes waar deze tank naartoe kan.',
-    coachTankPowerStep3: 'Klik op de vijandelijke stukken die de tank kan vangen (geen barricades).',
+    coachTankPowerA1c: 'Onbeperkte afstand',
+    coachTankPowerStep2: 'Selecteer ALLE vakjes waar deze tank naartoe kan (1-2 vakjes orthogonaal).',
+    coachTankPowerStep3: 'Klik op de vijandelijke stukken die de tank kan SCHIETEN (diagonaal!).',
 
     // Vind de Builder les
     coachFindGeneralTitle: 'Vind de Builder',
@@ -11117,18 +11117,18 @@ const translations: Record<Language, Record<string, string>> = {
     // Herhalingslessen - Soldaat
     coachReviewSoldierTitle: 'Soldaat Herhaling',
     coachReviewSoldierDesc: 'Geavanceerde soldaattactieken - bewijs je meesterschap!',
-    coachReviewSoldierStep1: 'Klik op ALLE vijandelijke soldaten die deze soldaat diagonaal kan vangen.',
+    coachReviewSoldierStep1: 'Klik op ALLE vijandelijke soldaten die deze soldaat kan SCHIETEN (1-2 vakjes vooruit).',
     coachReviewSoldierStep2: 'Beide soldaten moeten oprukken. Klik de beste vakjes om ze te verplaatsen.',
-    coachReviewSoldierStep3: 'Selecteer ALLE vakjes waar deze soldaat naartoe kan of kan aanvallen.',
-    coachReviewSoldierStep4: 'Eén soldaat kan de vijand vangen! Klik de vangende zet.',
+    coachReviewSoldierStep3: 'Selecteer ALLE vakjes waar deze soldaat naartoe kan (orthogonaal).',
+    coachReviewSoldierStep4: 'Eén soldaat kan de vijand schieten! Klik het doelwit.',
 
     // Herhalingslessen - Tank
     coachReviewTankTitle: 'Tank Herhaling',
     coachReviewTankDesc: 'Geavanceerde tanktactieken - domineer het slagveld!',
-    coachReviewTankStep1: 'Klik op ALLE stukken die deze tank kan vangen.',
-    coachReviewTankStep2: 'De barricade blokkeert het pad. Welk stuk KAN de tank vangen?',
-    coachReviewTankStep3: 'Selecteer ALLE vakjes waar deze tank echt naartoe kan (geblokkeerd door barricades).',
-    coachReviewTankStep4: 'Maak het pad naar de Builder vrij. Welk stuk moet de tank eerst vangen?',
+    coachReviewTankStep1: 'Klik op ALLE stukken die deze tank kan SCHIETEN (diagonaal 1-2 vakjes).',
+    coachReviewTankStep2: 'De barricade blokkeert één diagonaal. Welk stuk KAN de tank nog schieten?',
+    coachReviewTankStep3: 'Selecteer ALLE vakjes waar deze tank naartoe kan BEWEGEN (orthogonaal, geblokkeerd door barricades).',
+    coachReviewTankStep4: 'Maak het pad naar de Builder vrij. Welk stuk moet de tank eerst schieten?',
 
     // Herhalingslessen - Sluipschutter
     coachReviewSniperTitle: 'Sluipschutter Herhaling',
@@ -11163,13 +11163,13 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Machinegeweer les
     coachMachinegunTitle: 'Het Machinegeweer',
-    coachMachinegunDesc: 'Leer over het machinegeweer - valt alle aangrenzende vakjes aan!',
+    coachMachinegunDesc: 'Leer over het machinegeweer - schiet tot 4 vakjes vooruit!',
     coachMachinegunStep1: 'Hoe valt het machinegeweer aan?',
-    coachMachinegunOpt1: 'Alleen vooruit',
+    coachMachinegunOpt1: '1-4 vakjes vooruit alleen',
     coachMachinegunOpt2: 'Alle 8 aangrenzende vakjes',
     coachMachinegunOpt3: 'Alleen diagonaal',
-    coachMachinegunStep2: 'Selecteer ALLE vakjes waar het machinegeweer kan aanvallen.',
-    coachMachinegunStep3: 'Klik de stukken die het machinegeweer kan pakken!',
+    coachMachinegunStep2: 'Selecteer ALLE vakjes waar het machinegeweer kan schieten (alleen vooruit!).',
+    coachMachinegunStep3: 'Klik de stukken die het machinegeweer kan schieten (alleen vooruit in dezelfde kolom)!',
 
     // Carrier les
     coachCarrierTitle: 'De Carrier',
@@ -11178,10 +11178,10 @@ const translations: Record<Language, Record<string, string>> = {
     coachCarrierOpt1: 'Kan helikopters vervoeren',
     coachCarrierOpt2: 'Kan over stukken vliegen',
     coachCarrierOpt3: 'Kan twee keer aanvallen',
-    coachCarrierStep2: 'Selecteer ALLE vakjes waar de carrier heen kan.',
+    coachCarrierStep2: 'Selecteer ALLE vakjes waar de carrier heen kan (1-2 vakjes).',
     coachCarrierStep3: 'Hoe ver kan de carrier bewegen?',
-    coachCarrierOpt3a: 'Slechts 2 vakjes',
-    coachCarrierOpt3b: 'Tot 6 vakjes in een rechte lijn',
+    coachCarrierOpt3a: '1-2 vakjes orthogonaal',
+    coachCarrierOpt3b: 'Tot 6 vakjes',
     coachCarrierOpt3c: 'Onbeperkt',
 
     // Onderzeeër les
@@ -11191,7 +11191,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachSubOpt1: 'Alleen soldaten',
     coachSubOpt2: 'Alle grondeenheden',
     coachSubOpt3: 'Schepen en carriers door rammen',
-    coachSubStep2: 'Selecteer ALLE vakjes waar de onderzeeër heen kan.',
+    coachSubStep2: 'Selecteer ALLE vakjes waar de onderzeeër heen kan (alleen links/rechts op waterrij 6).',
     coachSubStep3: 'Klik de vijandelijke marine eenheden die de onderzeeër kan rammen!',
 
     // Categorie Examens
@@ -11628,7 +11628,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachPuzzlesAnswer3: 'Nur Punkte',
     coachShipTitle: 'Das Schiff',
     coachShipStep1: 'Das Schiff kann auf Wasser fahren (Spalte F). Es ist die einzige Figur, die Wasser überqueren kann!',
-    coachShipStep2: 'Schiffe können Hubschrauber auf ihrem Deck tragen.',
+    coachShipStep2: 'Schiffe können 1-2 Felder in jede Richtung SCHIESSEN um Feinde anzugreifen!',
     coachShipQuestion: 'Was macht das Schiff besonders?',
     coachShipAnswer1: 'Fährt auf Wasser',
     coachShipAnswer2: 'Kann fliegen',
@@ -11650,13 +11650,13 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Maschinengewehr Lektion
     coachMachinegunTitle: 'Das Maschinengewehr',
-    coachMachinegunDesc: 'Lerne das Maschinengewehr kennen - greift alle angrenzenden Felder an!',
+    coachMachinegunDesc: 'Lerne das Maschinengewehr kennen - schießt bis zu 4 Felder vorwärts!',
     coachMachinegunStep1: 'Wie greift das Maschinengewehr an?',
-    coachMachinegunOpt1: 'Nur vorwärts',
+    coachMachinegunOpt1: '1-4 Felder nur vorwärts',
     coachMachinegunOpt2: 'Alle 8 angrenzenden Felder',
     coachMachinegunOpt3: 'Nur diagonal',
-    coachMachinegunStep2: 'Wähle ALLE Felder, die das Maschinengewehr angreifen kann.',
-    coachMachinegunStep3: 'Klicke die Figuren, die das Maschinengewehr schlagen kann!',
+    coachMachinegunStep2: 'Wähle ALLE Felder, wohin das Maschinengewehr schießen kann (nur vorwärts!).',
+    coachMachinegunStep3: 'Klicke die Figuren, die das Maschinengewehr schießen kann (nur vorwärts in derselben Spalte)!',
 
     // Träger Lektion
     coachCarrierTitle: 'Der Träger',
@@ -11665,10 +11665,10 @@ const translations: Record<Language, Record<string, string>> = {
     coachCarrierOpt1: 'Kann Hubschrauber transportieren',
     coachCarrierOpt2: 'Kann über Figuren fliegen',
     coachCarrierOpt3: 'Kann zweimal angreifen',
-    coachCarrierStep2: 'Wähle ALLE Felder, wohin der Träger ziehen kann.',
+    coachCarrierStep2: 'Wähle ALLE Felder, wohin der Träger ziehen kann (1-2 Felder).',
     coachCarrierStep3: 'Wie weit kann der Träger ziehen?',
-    coachCarrierOpt3a: 'Nur 2 Felder',
-    coachCarrierOpt3b: 'Bis zu 6 Felder in gerader Linie',
+    coachCarrierOpt3a: '1-2 Felder orthogonal',
+    coachCarrierOpt3b: 'Bis zu 6 Felder',
     coachCarrierOpt3c: 'Unbegrenzt',
 
     // U-Boot Lektion
@@ -11678,7 +11678,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachSubOpt1: 'Nur Soldaten',
     coachSubOpt2: 'Alle Bodeneinheiten',
     coachSubOpt3: 'Schiffe und Träger durch Rammen',
-    coachSubStep2: 'Wähle ALLE Felder, wohin das U-Boot ziehen kann.',
+    coachSubStep2: 'Wähle ALLE Felder, wohin das U-Boot ziehen kann (nur links/rechts auf Wasserreihe 6).',
     coachSubStep3: 'Klicke die feindlichen Marineeinheiten, die das U-Boot rammen kann!',
 
     // Kategorie-Prüfungen
@@ -12114,7 +12114,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachPuzzlesAnswer3: 'Seulement des points',
     coachShipTitle: 'Le Navire',
     coachShipStep1: 'Le Navire peut se déplacer sur l\'eau (colonne F). C\'est la seule pièce qui peut traverser l\'eau!',
-    coachShipStep2: 'Les navires peuvent transporter des hélicoptères sur leur pont.',
+    coachShipStep2: 'Les navires peuvent TIRER 1-2 cases dans toutes les directions pour attaquer les ennemis!',
     coachShipQuestion: 'Qu\'est-ce qui rend le Navire spécial?',
     coachShipAnswer1: 'Se déplace sur l\'eau',
     coachShipAnswer2: 'Peut voler',
@@ -12136,13 +12136,13 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Leçon Mitrailleuse
     coachMachinegunTitle: 'La Mitrailleuse',
-    coachMachinegunDesc: 'Apprends la mitrailleuse - attaque toutes les cases adjacentes!',
+    coachMachinegunDesc: 'Apprends la mitrailleuse - tire jusqu\'à 4 cases en avant!',
     coachMachinegunStep1: 'Comment la mitrailleuse attaque-t-elle?',
-    coachMachinegunOpt1: 'Seulement en avant',
+    coachMachinegunOpt1: '1-4 cases en avant seulement',
     coachMachinegunOpt2: 'Les 8 cases adjacentes',
     coachMachinegunOpt3: 'Seulement en diagonale',
-    coachMachinegunStep2: 'Sélectionne TOUTES les cases où la mitrailleuse peut attaquer.',
-    coachMachinegunStep3: 'Clique sur les pièces que la mitrailleuse peut capturer!',
+    coachMachinegunStep2: 'Sélectionne TOUTES les cases où la mitrailleuse peut tirer (en avant seulement!).',
+    coachMachinegunStep3: 'Clique sur les pièces que la mitrailleuse peut tirer (seulement en avant dans la même colonne)!',
 
     // Leçon Porte-avions
     coachCarrierTitle: 'Le Porte-avions',
@@ -12151,10 +12151,10 @@ const translations: Record<Language, Record<string, string>> = {
     coachCarrierOpt1: 'Peut transporter des hélicoptères',
     coachCarrierOpt2: 'Peut voler au-dessus des pièces',
     coachCarrierOpt3: 'Peut attaquer deux fois',
-    coachCarrierStep2: 'Sélectionne TOUTES les cases où le porte-avions peut aller.',
+    coachCarrierStep2: 'Sélectionne TOUTES les cases où le porte-avions peut aller (1-2 cases).',
     coachCarrierStep3: 'Jusqu\'où le porte-avions peut-il se déplacer?',
-    coachCarrierOpt3a: 'Seulement 2 cases',
-    coachCarrierOpt3b: 'Jusqu\'à 6 cases en ligne droite',
+    coachCarrierOpt3a: '1-2 cases orthogonalement',
+    coachCarrierOpt3b: 'Jusqu\'à 6 cases',
     coachCarrierOpt3c: 'Illimité',
 
     // Leçon Sous-marin
@@ -12164,7 +12164,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachSubOpt1: 'Seulement les soldats',
     coachSubOpt2: 'Toutes les unités terrestres',
     coachSubOpt3: 'Les navires et porte-avions en les éperonnant',
-    coachSubStep2: 'Sélectionne TOUTES les cases où le sous-marin peut aller.',
+    coachSubStep2: 'Sélectionne TOUTES les cases où le sous-marin peut aller (gauche/droite uniquement sur la rangée d\'eau 6).',
     coachSubStep3: 'Clique sur les unités navales ennemies que le sous-marin peut éperonner!',
 
     // Examens de catégorie
@@ -12600,7 +12600,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachPuzzlesAnswer3: 'Solo puntos',
     coachShipTitle: 'El Barco',
     coachShipStep1: 'El Barco puede moverse sobre el agua (columna F). ¡Es la única pieza que puede cruzar el agua!',
-    coachShipStep2: 'Los barcos pueden llevar helicópteros en su cubierta.',
+    coachShipStep2: '¡Los barcos pueden DISPARAR 1-2 casillas en cualquier dirección para atacar enemigos!',
     coachShipQuestion: '¿Qué hace especial al Barco?',
     coachShipAnswer1: 'Se mueve sobre el agua',
     coachShipAnswer2: 'Puede volar',
@@ -12622,13 +12622,13 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Lección Ametralladora
     coachMachinegunTitle: 'La Ametralladora',
-    coachMachinegunDesc: '¡Aprende sobre la ametralladora - ataca todas las casillas adyacentes!',
+    coachMachinegunDesc: '¡Aprende sobre la ametralladora - dispara hasta 4 casillas hacia adelante!',
     coachMachinegunStep1: '¿Cómo ataca la ametralladora?',
-    coachMachinegunOpt1: 'Solo hacia adelante',
+    coachMachinegunOpt1: '1-4 casillas solo hacia adelante',
     coachMachinegunOpt2: 'Las 8 casillas adyacentes',
     coachMachinegunOpt3: 'Solo en diagonal',
-    coachMachinegunStep2: 'Selecciona TODAS las casillas donde la ametralladora puede atacar.',
-    coachMachinegunStep3: '¡Haz clic en las piezas que la ametralladora puede capturar!',
+    coachMachinegunStep2: 'Selecciona TODAS las casillas donde la ametralladora puede disparar (¡solo hacia adelante!).',
+    coachMachinegunStep3: '¡Haz clic en las piezas que la ametralladora puede disparar (solo hacia adelante en la misma columna)!',
 
     // Lección Portaaviones
     coachCarrierTitle: 'El Portaaviones',
@@ -12637,10 +12637,10 @@ const translations: Record<Language, Record<string, string>> = {
     coachCarrierOpt1: 'Puede transportar helicópteros',
     coachCarrierOpt2: 'Puede volar sobre las piezas',
     coachCarrierOpt3: 'Puede atacar dos veces',
-    coachCarrierStep2: 'Selecciona TODAS las casillas donde el portaaviones puede ir.',
+    coachCarrierStep2: 'Selecciona TODAS las casillas donde el portaaviones puede ir (1-2 casillas).',
     coachCarrierStep3: '¿Hasta dónde puede moverse el portaaviones?',
-    coachCarrierOpt3a: 'Solo 2 casillas',
-    coachCarrierOpt3b: 'Hasta 6 casillas en línea recta',
+    coachCarrierOpt3a: '1-2 casillas ortogonalmente',
+    coachCarrierOpt3b: 'Hasta 6 casillas',
     coachCarrierOpt3c: 'Ilimitado',
 
     // Lección Submarino
@@ -12650,7 +12650,7 @@ const translations: Record<Language, Record<string, string>> = {
     coachSubOpt1: 'Solo soldados',
     coachSubOpt2: 'Todas las unidades terrestres',
     coachSubOpt3: 'Barcos y portaaviones embistiéndolos',
-    coachSubStep2: 'Selecciona TODAS las casillas donde el submarino puede ir.',
+    coachSubStep2: 'Selecciona TODAS las casillas donde el submarino puede ir (solo izquierda/derecha en la fila de agua 6).',
     coachSubStep3: '¡Haz clic en las unidades navales enemigas que el submarino puede embestir!',
 
     // Exámenes de Categoría
@@ -23680,6 +23680,16 @@ function render() {
             coachSelectedAnswer = -1
             coachFeedbackMessage = ''
             coachSelectedSquares = []
+            // Speak the new step's question if voice is enabled
+            if (coachVoiceEnabled && lesson.steps[coachStepIndex]) {
+              const newStep = lesson.steps[coachStepIndex]
+              const textToSpeak = t(newStep.textKey)
+              if (newStep.question) {
+                speakCoachFeedback(textToSpeak + '. ' + t(newStep.question))
+              } else {
+                speakCoachFeedback(textToSpeak)
+              }
+            }
             render()
           }
         })
@@ -23690,6 +23700,16 @@ function render() {
             coachSelectedAnswer = -1
             coachFeedbackMessage = ''
             coachSelectedSquares = []
+            // Speak the step when going back
+            if (coachVoiceEnabled && lesson.steps[coachStepIndex]) {
+              const stepBack = lesson.steps[coachStepIndex]
+              const textToSpeak = t(stepBack.textKey)
+              if (stepBack.question) {
+                speakCoachFeedback(textToSpeak + '. ' + t(stepBack.question))
+              } else {
+                speakCoachFeedback(textToSpeak)
+              }
+            }
           } else {
             coachSelectedLesson = null
             coachStepIndex = 0
@@ -23813,6 +23833,16 @@ function render() {
             coachSelectedAnswer = -1
             coachFeedbackMessage = ''
             coachSelectedSquares = []
+            // Speak the first step's question if voice is enabled
+            if (coachVoiceEnabled && lesson.steps[0]) {
+              const firstStep = lesson.steps[0]
+              const textToSpeak = t(firstStep.textKey)
+              if (firstStep.question) {
+                speakCoachFeedback(textToSpeak + '. ' + t(firstStep.question))
+              } else {
+                speakCoachFeedback(textToSpeak)
+              }
+            }
             render()
           }
         })
