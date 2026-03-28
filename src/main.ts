@@ -23281,16 +23281,30 @@ function createChatPanel(): string {
         <div id="chat-messages" class="flex-1 overflow-y-auto space-y-1 text-xs mb-2 min-h-0 max-h-32">
           ${chatMessages.length === 0
             ? '<p class="text-gray-500 italic">No messages yet</p>'
-            : chatMessages.slice(-7).map(msg => {
-                const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
-                const isMe = msg.fromPlayerId === getCurrentUser()?.uid
-                return `
-                  <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+            : `
+              <!-- Desktop: 7 messages -->
+              <div class="hidden lg:block">
+                ${chatMessages.slice(-7).map(msg => {
+                  const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
+                  const isMe = msg.fromPlayerId === getCurrentUser()?.uid
+                  return `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-1">
                     <span class="${msgColor} text-xs font-bold">${msg.fromUsername}</span>
-                    <span class="bg-gray-700 px-2 py-1 rounded ${isMe ? 'bg-${teamColor}-900' : ''}">${msg.message}</span>
-                  </div>
-                `
-              }).join('')
+                    <span class="bg-gray-700 px-2 py-1 rounded">${msg.message}</span>
+                  </div>`
+                }).join('')}
+              </div>
+              <!-- Mobile: 3 messages -->
+              <div class="lg:hidden">
+                ${chatMessages.slice(-3).map(msg => {
+                  const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
+                  const isMe = msg.fromPlayerId === getCurrentUser()?.uid
+                  return `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-1">
+                    <span class="${msgColor} text-xs font-bold">${msg.fromUsername}</span>
+                    <span class="bg-gray-700 px-2 py-1 rounded">${msg.message}</span>
+                  </div>`
+                }).join('')}
+              </div>
+            `
           }
         </div>
         <div class="flex flex-col gap-1">
