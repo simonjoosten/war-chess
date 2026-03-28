@@ -23281,7 +23281,7 @@ function createChatPanel(): string {
         <div id="chat-messages" class="flex-1 overflow-y-auto space-y-1 text-xs mb-2 min-h-0 max-h-32">
           ${chatMessages.length === 0
             ? '<p class="text-gray-500 italic">No messages yet</p>'
-            : chatMessages.map(msg => {
+            : chatMessages.slice(-7).map(msg => {
                 const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
                 const isMe = msg.fromPlayerId === getCurrentUser()?.uid
                 return `
@@ -28555,7 +28555,12 @@ function render() {
           ${t('resetButton')}
         </button>
       </div>
-      <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 w-full max-w-4xl">
+      <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 w-full max-w-5xl">
+        ${multiplayerGameId ? `
+          <div class="hidden lg:flex flex-col gap-4 w-64">
+            ${createChatPanel()}
+          </div>
+        ` : ''}
         ${(() => {
           const decorations = getThemeDecorations()
           return `
@@ -28572,7 +28577,7 @@ function render() {
         <div class="flex flex-row lg:flex-col gap-4 w-full lg:w-64 lg:h-[80vh]">
           ${createScorePanel()}
           ${createMoveLog()}
-          ${multiplayerGameId ? createChatPanel() : ''}
+          ${multiplayerGameId ? `<div class="lg:hidden">${createChatPanel()}</div>` : ''}
         </div>
       </div>
     </div>
