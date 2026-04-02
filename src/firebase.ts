@@ -2749,7 +2749,23 @@ export async function adminDeleteAllPuzzles(): Promise<number> {
 
 // Admin: Create sample puzzles
 export async function adminCreateSamplePuzzles(): Promise<number> {
-  if (!db || !isCurrentUserAdmin() || !currentUserData) return 0
+  console.log('[ADMIN] adminCreateSamplePuzzles called')
+  console.log('[ADMIN] db:', !!db, 'isAdmin:', isCurrentUserAdmin(), 'userData:', !!currentUserData)
+
+  if (!db) {
+    console.error('[ADMIN] adminCreateSamplePuzzles FAILED: No database')
+    return 0
+  }
+  if (!isCurrentUserAdmin()) {
+    console.error('[ADMIN] adminCreateSamplePuzzles FAILED: Not admin')
+    return 0
+  }
+  if (!currentUserData) {
+    console.error('[ADMIN] adminCreateSamplePuzzles FAILED: No user data')
+    return 0
+  }
+
+  console.log('[ADMIN] All checks passed, creating puzzles...')
 
   const samplePuzzles: Omit<Puzzle, 'id' | 'createdAt' | 'createdBy' | 'timesAttempted' | 'timesSolved' | 'rating'>[] = [
     // ========================================
