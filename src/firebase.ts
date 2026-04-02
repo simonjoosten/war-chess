@@ -22,7 +22,8 @@ import {
   serverTimestamp,
   Timestamp,
   getDocs,
-  arrayUnion
+  arrayUnion,
+  addDoc
 } from 'firebase/firestore'
 
 // Firebase configuration
@@ -2314,6 +2315,7 @@ export interface Puzzle {
   rewards: {
     warBucks: number
     xp: number
+    itemId?: string  // Optional: unlock a shop item as reward
   }
   createdAt: number
   createdBy: string
@@ -2402,7 +2404,7 @@ export async function getDailyPuzzles(): Promise<Puzzle[]> {
 }
 
 // Record puzzle attempt
-export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, attempts: number): Promise<{ warBucks: number; perfect: boolean }> {
+export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, attempts: number): Promise<{ warBucks: number; perfect: boolean; itemId?: string; itemName?: string }> {
   if (!db || !currentUser || !currentUserData) return { warBucks: 0, perfect: false }
 
   try {
@@ -2422,6 +2424,7 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
     // Get puzzle rewards from the already fetched puzzleDoc
     const puzzleData = puzzleDoc.exists() ? puzzleDoc.data() as Puzzle : null
     const baseReward = puzzleData?.rewards?.warBucks || 50
+    const itemReward = puzzleData?.rewards?.itemId
 
     // Calculate rewards based on attempts
     let warBucks = 0
@@ -2483,7 +2486,26 @@ export async function recordPuzzleAttempt(puzzleId: string, solved: boolean, att
       currentUserData.puzzleStats.solvedPuzzleIds.push(puzzleId)
     }
 
-    return { warBucks, perfect }
+    // Handle item reward (only on first solve / perfect)
+    let unlockedItemId: string | undefined
+    let unlockedItemName: string | undefined
+    if (perfect && itemReward) {
+      const purchasedItems = currentUserData.purchasedItems || []
+      if (!purchasedItems.includes(itemReward)) {
+        // Give the item
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          purchasedItems: arrayUnion(itemReward)
+        })
+        currentUserData.purchasedItems = [...purchasedItems, itemReward]
+        unlockedItemId = itemReward
+        // Find item name
+        const shopItem = SHOP_ITEMS.find(i => i.id === itemReward)
+        unlockedItemName = shopItem?.name || itemReward
+        console.log('[PUZZLE] Item reward unlocked:', itemReward)
+      }
+    }
+
+    return { warBucks, perfect, itemId: unlockedItemId, itemName: unlockedItemName }
   } catch (error) {
     console.error('Error recording puzzle attempt:', error)
     return { warBucks: 0, perfect: false }
@@ -3068,9 +3090,753 @@ export async function adminCreateSamplePuzzles(): Promise<number> {
     },
   ]
 
-  // Sample puzzles uitgeschakeld - maak je eigen puzzles via de editor
-  console.log('[ADMIN] Sample puzzles disabled - use editor to create your own')
-  return 0
+  // ========================================
+  // ITEM REWARD PUZZLES - Unlock special items!
+  // ========================================
+  const itemRewardPuzzles: typeof samplePuzzles = [
+    // EFFECT REWARDS
+    {
+      name: 'Fire Master',
+      icon: '🔥',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Destroy 2 tanks to unlock the Fire Trail effect!',
+      objectiveType: 'score',
+      targetScore: 12,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'tank', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 50, itemId: 'effect_fire' }
+    },
+    {
+      name: 'Lightning Strike',
+      icon: '⚡',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Eliminate all enemies to unlock Lightning effects!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 3, col: 3 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 2 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 8 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 150, xp: 75, itemId: 'effect_lightning' }
+    },
+    {
+      name: 'Sparkle Party',
+      icon: '✨',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Capture the soldier at F7 to get Sparkle effect!',
+      objectiveType: 'capture',
+      targetPieceType: 'soldier',
+      targetPosition: { row: 7, col: 5 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 60, xp: 30, itemId: 'effect_sparkle' }
+    },
+    {
+      name: 'Heart Collector',
+      icon: '❤️',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'One shot, one love! Capture to unlock Hearts!',
+      objectiveType: 'capture',
+      targetPieceType: 'soldier',
+      targetPosition: { row: 6, col: 5 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25, itemId: 'effect_hearts' }
+    },
+    {
+      name: 'Ghost Hunter',
+      icon: '👻',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Find and destroy the hidden tank to get Ghost Trail!',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      targetPosition: { row: 9, col: 8 },
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 2 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 6 }, team: 'red' },
+        { type: 'tank', position: { row: 9, col: 8 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 175, xp: 85, itemId: 'effect_ghost' }
+    },
+    {
+      name: 'Rainbow Road',
+      icon: '🌈',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'Reach H10 to unlock Rainbow Trail!',
+      objectiveType: 'reach',
+      targetSquare: { row: 10, col: 7 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 7, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 6 }, team: 'red' },
+        { type: 'tank', position: { row: 10, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 125, xp: 60, itemId: 'effect_rainbow' }
+    },
+    {
+      name: 'Cherry Blossom',
+      icon: '🌸',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Protect your builder for 1 turn to unlock Sakura!',
+      objectiveType: 'protect',
+      protectPieceType: 'builder',
+      protectTurns: 1,
+      noBases: true,
+      initialBoard: [
+        { type: 'builder', position: { row: 5, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [
+        { from: { row: 7, col: 5 }, to: { row: 6, col: 5 }, action: 'move' },
+      ],
+      rewards: { warBucks: 100, xp: 50, itemId: 'effect_sakura' }
+    },
+
+    // THEME REWARDS
+    {
+      name: 'Desert Storm',
+      icon: '🏜️',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Score 6 points to unlock Desert Camo theme!',
+      objectiveType: 'score',
+      targetScore: 6,
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 75, xp: 35, itemId: 'theme_desert' }
+    },
+    {
+      name: 'Arctic Assault',
+      icon: '❄️',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Capture the tank at G8 to unlock Arctic theme!',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      targetPosition: { row: 8, col: 6 },
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 5, col: 6 }, team: 'blue' },
+        { type: 'tank', position: { row: 8, col: 6 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 8 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 90, xp: 45, itemId: 'theme_arctic' }
+    },
+    {
+      name: 'Jungle Warfare',
+      icon: '🌴',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'Eliminate all 4 enemies to unlock Jungle theme!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 120, xp: 60, itemId: 'theme_jungle' }
+    },
+    {
+      name: 'Night Operations',
+      icon: '🌙',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Score 15 points in the dark to unlock Night Ops!',
+      objectiveType: 'score',
+      targetScore: 15,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },
+        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 150, xp: 75, itemId: 'theme_night' }
+    },
+    {
+      name: 'Ocean Battle',
+      icon: '🌊',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Reach the shore at J9 to unlock Ocean theme!',
+      objectiveType: 'reach',
+      targetSquare: { row: 9, col: 9 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'blue' },
+        { type: 'soldier', position: { row: 8, col: 8 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 65, xp: 30, itemId: 'theme_ocean' }
+    },
+    {
+      name: 'Volcanic Victory',
+      icon: '🌋',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Protect your tank for 3 turns in the volcano!',
+      objectiveType: 'protect',
+      protectPieceType: 'tank',
+      protectTurns: 3,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 5, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },
+        { type: 'tank', position: { row: 8, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [
+        { from: { row: 8, col: 5 }, to: { row: 7, col: 5 }, action: 'move' },
+        { from: { row: 7, col: 3 }, to: { row: 6, col: 4 }, action: 'move' },
+        { from: { row: 7, col: 5 }, to: { row: 6, col: 5 }, action: 'move' },
+      ],
+      rewards: { warBucks: 175, xp: 90, itemId: 'theme_lava' }
+    },
+    {
+      name: 'Space Commander',
+      icon: '🚀',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Destroy the alien helicopter to unlock Space theme!',
+      objectiveType: 'capture',
+      targetPieceType: 'helicopter',
+      targetPosition: { row: 9, col: 9 },
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 2 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 6, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 8 }, team: 'red' },
+        { type: 'helicopter', position: { row: 9, col: 9 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 200, xp: 100, itemId: 'theme_space' }
+    },
+    {
+      name: 'Candy Crush',
+      icon: '🍬',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Sweet victory! Capture the candy soldier!',
+      objectiveType: 'capture',
+      targetPieceType: 'soldier',
+      targetPosition: { row: 6, col: 5 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25, itemId: 'theme_candy' }
+    },
+    {
+      name: 'Neon Nights',
+      icon: '🌃',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Score 18 points in the neon city!',
+      objectiveType: 'score',
+      targetScore: 18,
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 5 }, team: 'blue' },
+        { type: 'tank', position: { row: 5, col: 3 }, team: 'red' },
+        { type: 'tank', position: { row: 5, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'helicopter', position: { row: 8, col: 8 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 175, xp: 85, itemId: 'theme_neon' }
+    },
+    {
+      name: 'Golden Glory',
+      icon: '💎',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Eliminate all for the ultimate Gold Rush theme!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 2, col: 8 }, team: 'blue' },
+        { type: 'tank', position: { row: 6, col: 3 }, team: 'red' },
+        { type: 'tank', position: { row: 6, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 225, xp: 110, itemId: 'theme_gold' }
+    },
+
+    // MUSIC PACK REWARDS
+    {
+      name: 'Electronic Beats',
+      icon: '🎧',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Drop the beat! Score 10 points!',
+      objectiveType: 'score',
+      targetScore: 10,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },
+        { type: 'tank', position: { row: 8, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 50, itemId: 'music_electronic' }
+    },
+    {
+      name: 'Epic Orchestra',
+      icon: '🎻',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Conduct an epic battle! Eliminate all!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 3, col: 3 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 150, xp: 75, itemId: 'music_orchestral' }
+    },
+    {
+      name: 'Retro Gaming',
+      icon: '🎮',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Classic gameplay! Reach E8!',
+      objectiveType: 'reach',
+      targetSquare: { row: 8, col: 4 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 60, xp: 30, itemId: 'music_chiptune' }
+    },
+    {
+      name: 'Jazz Night',
+      icon: '🎷',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'Smooth moves! Protect your builder for 2 turns!',
+      objectiveType: 'protect',
+      protectPieceType: 'builder',
+      protectTurns: 2,
+      noBases: true,
+      initialBoard: [
+        { type: 'builder', position: { row: 5, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 8, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [
+        { from: { row: 7, col: 5 }, to: { row: 6, col: 5 }, action: 'move' },
+        { from: { row: 8, col: 5 }, to: { row: 7, col: 5 }, action: 'move' },
+      ],
+      rewards: { warBucks: 110, xp: 55, itemId: 'music_jazz' }
+    },
+    {
+      name: 'Rock Star',
+      icon: '🎸',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Rock out! Destroy the enemy tank!',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      targetPosition: { row: 7, col: 5 },
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 50, itemId: 'music_rock' }
+    },
+    {
+      name: 'Lo-Fi Chill',
+      icon: '🎵',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Relax and score 6 points!',
+      objectiveType: 'score',
+      targetScore: 6,
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 3 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 60, xp: 30, itemId: 'music_lofi' }
+    },
+    {
+      name: 'Epic Battle',
+      icon: '⚔️',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Ultimate showdown! Score 25 points!',
+      objectiveType: 'score',
+      targetScore: 25,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 2, col: 8 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },
+        { type: 'tank', position: { row: 6, col: 3 }, team: 'red' },
+        { type: 'tank', position: { row: 6, col: 7 }, team: 'red' },
+        { type: 'helicopter', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 6 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 200, xp: 100, itemId: 'music_epic' }
+    },
+    {
+      name: 'Heavy Metal',
+      icon: '🤘',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Destroy everything! Eliminate all enemies!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 150, xp: 75, itemId: 'music_metal' }
+    },
+    {
+      name: 'Synthwave Sunset',
+      icon: '🌆',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'Drive into the sunset! Reach J10!',
+      objectiveType: 'reach',
+      targetSquare: { row: 10, col: 9 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 7, col: 6 }, team: 'blue' },
+        { type: 'soldier', position: { row: 8, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 8 }, team: 'red' },
+        { type: 'tank', position: { row: 10, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 125, xp: 60, itemId: 'music_synthwave' }
+    },
+
+    // SOUND PACK REWARDS
+    {
+      name: 'Retro Arcade',
+      icon: '🕹️',
+      difficulty: 'easy',
+      maxMoves: 1,
+      objective: 'Insert coin! Quick capture!',
+      objectiveType: 'capture',
+      targetPieceType: 'soldier',
+      targetPosition: { row: 6, col: 5 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 50, xp: 25, itemId: 'sound_retro' }
+    },
+    {
+      name: 'Sci-Fi Sounds',
+      icon: '🛸',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Alien encounter! Capture the UFO (helicopter)!',
+      objectiveType: 'capture',
+      targetPieceType: 'helicopter',
+      targetPosition: { row: 7, col: 7 },
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 3, col: 3 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 90, xp: 45, itemId: 'sound_scifi' }
+    },
+    {
+      name: 'Cartoon Fun',
+      icon: '🎪',
+      difficulty: 'easy',
+      maxMoves: 2,
+      objective: 'Boing! Score 6 cartoon points!',
+      objectiveType: 'score',
+      targetScore: 6,
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 4, col: 4 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 6 }, team: 'blue' },
+        { type: 'soldier', position: { row: 6, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 55, xp: 25, itemId: 'sound_cartoon' }
+    },
+    {
+      name: 'War Zone',
+      icon: '💣',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Total war! Score 20 points!',
+      objectiveType: 'score',
+      targetScore: 20,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 2, col: 8 }, team: 'blue' },
+        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 7 }, team: 'red' },
+        { type: 'helicopter', position: { row: 5, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 160, xp: 80, itemId: 'sound_war' }
+    },
+    {
+      name: 'Spooky Sounds',
+      icon: '👻',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: 'Boo! Sneak to the haunted square G9!',
+      objectiveType: 'reach',
+      targetSquare: { row: 9, col: 6 },
+      noBases: true,
+      initialBoard: [
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 8, col: 6 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 85, xp: 40, itemId: 'sound_horror' }
+    },
+    {
+      name: 'Medieval Battle',
+      icon: '🏰',
+      difficulty: 'medium',
+      maxMoves: 3,
+      objective: 'For the kingdom! Eliminate all foes!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 100, xp: 50, itemId: 'sound_medieval' }
+    },
+
+    // PIECE SKIN REWARDS
+    {
+      name: 'Robot Uprising',
+      icon: '🤖',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Become the machine! Eliminate all humans!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 2, col: 2 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 5, col: 7 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 250, xp: 125, itemId: 'skin_robot' }
+    },
+    {
+      name: 'Knight Tournament',
+      icon: '⚔️',
+      difficulty: 'hard',
+      maxMoves: 3,
+      objective: 'Win the joust! Score 18 points!',
+      objectiveType: 'score',
+      targetScore: 18,
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 3, col: 5 }, team: 'blue' },
+        { type: 'soldier', position: { row: 4, col: 3 }, team: 'blue' },
+        { type: 'tank', position: { row: 6, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 8, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 7, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 225, xp: 110, itemId: 'skin_medieval' }
+    },
+    {
+      name: 'Space Marines',
+      icon: '🚀',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Galactic conquest! Score 30 points!',
+      objectiveType: 'score',
+      targetScore: 30,
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 5 }, team: 'blue' },
+        { type: 'tank', position: { row: 3, col: 3 }, team: 'blue' },
+        { type: 'tank', position: { row: 3, col: 7 }, team: 'blue' },
+        { type: 'helicopter', position: { row: 5, col: 5 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 3 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 7 }, team: 'red' },
+        { type: 'soldier', position: { row: 8, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 4 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 6 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 300, xp: 150, itemId: 'skin_scifi' }
+    },
+    {
+      name: 'Pixel Perfect',
+      icon: '👾',
+      difficulty: 'medium',
+      maxMoves: 2,
+      objective: '8-bit glory! Capture the pixel boss!',
+      objectiveType: 'capture',
+      targetPieceType: 'tank',
+      targetPosition: { row: 7, col: 5 },
+      noBases: true,
+      initialBoard: [
+        { type: 'tank', position: { row: 4, col: 5 }, team: 'blue' },
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 3 }, team: 'red' },
+        { type: 'soldier', position: { row: 6, col: 7 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 175, xp: 85, itemId: 'skin_pixel' }
+    },
+    {
+      name: 'Crystal Quest',
+      icon: '💎',
+      difficulty: 'hard',
+      maxMoves: 4,
+      objective: 'Find all crystals! Eliminate all enemies!',
+      objectiveType: 'eliminate_all',
+      noBases: true,
+      initialBoard: [
+        { type: 'helicopter', position: { row: 2, col: 5 }, team: 'blue' },
+        { type: 'tank', position: { row: 3, col: 3 }, team: 'blue' },
+        { type: 'soldier', position: { row: 5, col: 2 }, team: 'red' },
+        { type: 'soldier', position: { row: 5, col: 8 }, team: 'red' },
+        { type: 'tank', position: { row: 7, col: 5 }, team: 'red' },
+        { type: 'helicopter', position: { row: 8, col: 8 }, team: 'red' },
+        { type: 'soldier', position: { row: 9, col: 5 }, team: 'red' },
+      ],
+      aiMoves: [],
+      rewards: { warBucks: 325, xp: 160, itemId: 'skin_crystal' }
+    },
+  ]
+
+  // Combine all puzzles
+  const allPuzzles = [...samplePuzzles, ...itemRewardPuzzles]
+
+  // Create all puzzles
+  let created = 0
+  for (const puzzleData of allPuzzles) {
+    try {
+      const puzzleDoc = await addDoc(collection(db, 'puzzles'), {
+        ...puzzleData,
+        createdAt: Date.now(),
+        createdBy: currentUserData.username,
+        timesAttempted: 0,
+        timesSolved: 0,
+        rating: puzzleData.difficulty === 'easy' ? 800 : puzzleData.difficulty === 'medium' ? 1200 : 1600,
+        isSample: true
+      })
+      console.log('[ADMIN] Created puzzle:', puzzleData.name, puzzleDoc.id)
+      created++
+    } catch (error) {
+      console.error('[ADMIN] Failed to create puzzle:', puzzleData.name, error)
+    }
+  }
+
+  console.log('[ADMIN] adminCreateSamplePuzzles complete:', created, 'puzzles created')
+  return created
 }
 
 // ==================== ADMIN BAN SYSTEM ====================
@@ -3117,16 +3883,18 @@ export async function adminResetPuzzleProgress(userId: string): Promise<boolean>
   console.log('[ADMIN] adminResetPuzzleProgress called', { userId })
 
   if (!db) {
-    console.error('[ADMIN] adminResetPuzzleProgress FAILED: Database not initialized')
-    return false
+    const err = new Error('Database not initialized')
+    console.error('[ADMIN] adminResetPuzzleProgress FAILED:', err.message)
+    throw err
   }
   if (!isCurrentUserAdmin()) {
-    console.error('[ADMIN] adminResetPuzzleProgress FAILED: User is not admin')
-    return false
+    const err = new Error('User is not admin (client-side check failed)')
+    console.error('[ADMIN] adminResetPuzzleProgress FAILED:', err.message)
+    throw err
   }
 
   try {
-    console.log('[ADMIN] adminResetPuzzleProgress: Resetting solvedPuzzleIds')
+    console.log('[ADMIN] adminResetPuzzleProgress: Resetting solvedPuzzleIds for user', userId)
     await updateDoc(doc(db, 'users', userId), {
       'puzzleStats.solvedPuzzleIds': []
     })
@@ -3140,7 +3908,9 @@ export async function adminResetPuzzleProgress(userId: string): Promise<boolean>
     return true
   } catch (error) {
     console.error('[ADMIN] adminResetPuzzleProgress ERROR:', error)
-    return false
+    const code = (error as { code?: string })?.code || 'unknown'
+    const msg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Firebase error [${code}]: ${msg}`)
   }
 }
 
@@ -3149,22 +3919,27 @@ export async function adminSetWarBucks(userId: string, amount: number): Promise<
   console.log('[ADMIN] adminSetWarBucks called', { userId, amount })
 
   if (!db) {
-    console.error('[ADMIN] adminSetWarBucks FAILED: Database not initialized')
-    return false
+    const err = new Error('Database not initialized')
+    console.error('[ADMIN] adminSetWarBucks FAILED:', err.message)
+    throw err
   }
   if (!isCurrentUserAdmin()) {
-    console.error('[ADMIN] adminSetWarBucks FAILED: User is not admin')
-    return false
+    const err = new Error('User is not admin (client-side check failed)')
+    console.error('[ADMIN] adminSetWarBucks FAILED:', err.message)
+    throw err
   }
 
   try {
-    console.log('[ADMIN] adminSetWarBucks: Setting War Bucks to', amount)
+    console.log('[ADMIN] adminSetWarBucks: Setting War Bucks to', amount, 'for user', userId)
     await updateDoc(doc(db, 'users', userId), { warBucks: amount })
     console.log('[ADMIN] adminSetWarBucks SUCCESS')
     return true
   } catch (error) {
     console.error('[ADMIN] adminSetWarBucks ERROR:', error)
-    return false
+    // Re-throw with more context
+    const code = (error as { code?: string })?.code || 'unknown'
+    const msg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Firebase error [${code}]: ${msg}`)
   }
 }
 

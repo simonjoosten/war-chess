@@ -28930,6 +28930,12 @@ function showDebugPanel() {
           <button id="debug-reset-daily" class="bg-blue-600 hover:bg-blue-500 text-white py-2 px-3 rounded text-sm">
             🔄 Reset Daily Puzzles
           </button>
+          <button id="debug-backup-cache" class="bg-indigo-600 hover:bg-indigo-500 text-white py-2 px-3 rounded text-sm">
+            💾 Backup Cache
+          </button>
+          <button id="debug-restore-cache" class="bg-teal-600 hover:bg-teal-500 text-white py-2 px-3 rounded text-sm">
+            📥 Restore Backup
+          </button>
           <button id="debug-clear-cache" class="bg-purple-600 hover:bg-purple-500 text-white py-2 px-3 rounded text-sm">
             🗑️ Clear Cache
           </button>
@@ -29053,49 +29059,234 @@ function showDebugPanel() {
   // Quick action buttons
   document.getElementById('debug-add-bucks')?.addEventListener('click', async () => {
     const result = document.getElementById('debug-action-result')
-    if (!userData?.isAdmin) {
-      if (result) result.innerHTML = '<span class="text-red-400">❌ Admin only!</span>'
+    addDebugLog('info', 'Add War Bucks', 'Starting +100 War Bucks action...')
+
+    if (!userData) {
+      addDebugLog('error', 'Add War Bucks Failed', 'No user data loaded')
+      if (result) result.innerHTML = '<span class="text-red-400">❌ No user data loaded</span>'
+      return
+    }
+    if (!userData.isAdmin) {
+      addDebugLog('error', 'Add War Bucks Failed', 'User is not admin (isAdmin=' + userData.isAdmin + ')')
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Admin only! (isAdmin=' + userData.isAdmin + ')</span>'
       return
     }
     const user = getCurrentUser()
-    if (user && userData) {
-      const newAmount = (userData.warBucks || 0) + 100
+    if (!user) {
+      addDebugLog('error', 'Add War Bucks Failed', 'No Firebase user logged in')
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Not logged in to Firebase</span>'
+      return
+    }
+
+    addDebugLog('info', 'Add War Bucks', 'User verified, calling adminSetWarBucks for uid=' + user.uid)
+    const currentBucks = userData.warBucks || 0
+    const newAmount = currentBucks + 100
+
+    try {
+      if (result) result.innerHTML = '<span class="text-yellow-400">⏳ Adding War Bucks...</span>'
       const success = await adminSetWarBucks(user.uid, newAmount)
-      if (result) result.innerHTML = success ? '<span class="text-green-400">✅ +100 War Bucks added! (Now: ' + newAmount + ')</span>' : '<span class="text-red-400">❌ Failed</span>'
+      if (success) {
+        addDebugLog('success', 'Add War Bucks Success', 'Changed from ' + currentBucks + ' to ' + newAmount)
+        if (result) result.innerHTML = '<span class="text-green-400">✅ +100 War Bucks added! (' + currentBucks + ' → ' + newAmount + ')</span>'
+      } else {
+        addDebugLog('error', 'Add War Bucks Failed', 'adminSetWarBucks returned false - check Firebase rules')
+        if (result) result.innerHTML = '<span class="text-red-400">❌ Failed - adminSetWarBucks returned false (check Firebase rules)</span>'
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      addDebugLog('error', 'Add War Bucks Exception', errorMsg)
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Exception: ' + errorMsg + '</span>'
     }
   })
 
   document.getElementById('debug-reset-daily')?.addEventListener('click', async () => {
     const result = document.getElementById('debug-action-result')
+    addDebugLog('info', 'Reset Daily Puzzles', 'Starting reset action...')
+
     const user = getCurrentUser()
     if (!user) {
+      addDebugLog('error', 'Reset Daily Puzzles Failed', 'No Firebase user logged in')
       if (result) result.innerHTML = '<span class="text-red-400">❌ Not logged in</span>'
       return
     }
 
-    // Reset in Firestore
-    const success = await adminResetPuzzleProgress(user.uid)
-    if (success) {
-      // Also clear local cache
-      dailyPuzzles = []
-      if (result) result.innerHTML = '<span class="text-green-400">✅ Puzzle progress reset! Refresh to see changes.</span>'
-    } else {
-      if (result) result.innerHTML = '<span class="text-red-400">❌ Failed to reset (admin only)</span>'
+    addDebugLog('info', 'Reset Daily Puzzles', 'Calling adminResetPuzzleProgress for uid=' + user.uid)
+    if (result) result.innerHTML = '<span class="text-yellow-400">⏳ Resetting puzzle progress...</span>'
+
+    try {
+      const success = await adminResetPuzzleProgress(user.uid)
+      if (success) {
+        dailyPuzzles = []
+        addDebugLog('success', 'Reset Daily Puzzles Success', 'Puzzle progress cleared for user')
+        if (result) result.innerHTML = '<span class="text-green-400">✅ Puzzle progress reset! Refresh to see changes.</span>'
+      } else {
+        addDebugLog('error', 'Reset Daily Puzzles Failed', 'adminResetPuzzleProgress returned false - check if admin and Firebase rules')
+        if (result) result.innerHTML = '<span class="text-red-400">❌ Failed - returned false (admin only, check Firebase rules)</span>'
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      addDebugLog('error', 'Reset Daily Puzzles Exception', errorMsg)
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Exception: ' + errorMsg + '</span>'
     }
   })
 
   document.getElementById('debug-clear-cache')?.addEventListener('click', () => {
     const result = document.getElementById('debug-action-result')
+
     const keysToKeep = ['language', 'soundEnabled', 'musicEnabled', 'volume', 'musicVolume', 'sfxVolume']
     const allKeys = Object.keys(localStorage)
-    let removed = 0
-    allKeys.forEach(key => {
-      if (!keysToKeep.includes(key)) {
-        localStorage.removeItem(key)
-        removed++
+    const keysToRemove = allKeys.filter(key => !keysToKeep.includes(key))
+
+    if (keysToRemove.length === 0) {
+      addDebugLog('info', 'Clear Cache', 'No cache items to clear')
+      if (result) result.innerHTML = '<span class="text-yellow-400">No cache items to clear</span>'
+      return
+    }
+
+    // Show confirmation with backup option
+    const confirmMsg = `Dit wist ${keysToRemove.length} cache items.\n\n` +
+      `LET OP: Dit wist alleen lokale cache, NIET je Firebase data (War Bucks, items, stats).\n\n` +
+      `Wil je eerst een backup maken naar clipboard?\n\n` +
+      `Klik OK om backup te maken en daarna te wissen.\n` +
+      `Klik Cancel om te annuleren.`
+
+    if (!confirm(confirmMsg)) {
+      addDebugLog('info', 'Clear Cache', 'Cancelled by user')
+      if (result) result.innerHTML = '<span class="text-yellow-400">Cancelled</span>'
+      return
+    }
+
+    // Create backup before clearing
+    addDebugLog('info', 'Clear Cache', 'Creating backup before clearing...')
+    const backup: Record<string, string> = {}
+    keysToRemove.forEach(key => {
+      const value = localStorage.getItem(key)
+      if (value !== null) {
+        backup[key] = value
       }
     })
-    if (result) result.innerHTML = `<span class="text-green-400">✅ Cleared ${removed} cache items (kept settings)</span>`
+
+    const backupJson = JSON.stringify(backup, null, 2)
+    navigator.clipboard.writeText(backupJson).then(() => {
+      addDebugLog('success', 'Backup Created', 'Backup copied to clipboard (' + keysToRemove.length + ' items)')
+    }).catch(() => {
+      addDebugLog('warning', 'Backup Failed', 'Could not copy to clipboard, but backup is in console')
+      console.log('[CACHE BACKUP]', backupJson)
+    })
+
+    // Now clear the cache
+    let removed = 0
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key)
+      removed++
+    })
+
+    addDebugLog('success', 'Clear Cache Success', 'Removed ' + removed + ' items (backup saved to clipboard)')
+    if (result) result.innerHTML = `<span class="text-green-400">✅ Cleared ${removed} items. Backup saved to clipboard!</span>`
+  })
+
+  document.getElementById('debug-backup-cache')?.addEventListener('click', async () => {
+    const result = document.getElementById('debug-action-result')
+    addDebugLog('info', 'Backup Cache', 'Creating full localStorage backup...')
+
+    const keysToKeep = ['language', 'soundEnabled', 'musicEnabled', 'volume', 'musicVolume', 'sfxVolume']
+    const backup: Record<string, string> = {}
+    let count = 0
+
+    Object.keys(localStorage).forEach(key => {
+      if (!keysToKeep.includes(key)) {
+        const value = localStorage.getItem(key)
+        if (value !== null) {
+          backup[key] = value
+          count++
+        }
+      }
+    })
+
+    if (count === 0) {
+      addDebugLog('info', 'Backup Cache', 'No cache items to backup')
+      if (result) result.innerHTML = '<span class="text-yellow-400">No cache items to backup</span>'
+      return
+    }
+
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      version: '1.0',
+      itemCount: count,
+      data: backup
+    }
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(backupData, null, 2))
+      addDebugLog('success', 'Backup Cache Success', 'Backed up ' + count + ' items to clipboard')
+      if (result) result.innerHTML = `<span class="text-green-400">✅ Backup saved to clipboard (${count} items)</span>`
+    } catch {
+      // Fallback: show in console
+      console.log('[CACHE BACKUP]', JSON.stringify(backupData, null, 2))
+      addDebugLog('warning', 'Backup Cache', 'Clipboard failed, backup logged to console (F12)')
+      if (result) result.innerHTML = '<span class="text-yellow-400">Clipboard failed - check F12 console</span>'
+    }
+  })
+
+  document.getElementById('debug-restore-cache')?.addEventListener('click', async () => {
+    const result = document.getElementById('debug-action-result')
+    addDebugLog('info', 'Restore Cache', 'Reading backup from clipboard...')
+
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+
+      let backupData: { timestamp?: string; version?: string; itemCount?: number; data?: Record<string, string> }
+      try {
+        backupData = JSON.parse(clipboardText)
+      } catch {
+        addDebugLog('error', 'Restore Cache Failed', 'Clipboard does not contain valid JSON')
+        if (result) result.innerHTML = '<span class="text-red-400">❌ Invalid backup data in clipboard</span>'
+        return
+      }
+
+      // Check if it's our backup format
+      if (!backupData.data || typeof backupData.data !== 'object') {
+        addDebugLog('error', 'Restore Cache Failed', 'Backup format not recognized (missing data object)')
+        if (result) result.innerHTML = '<span class="text-red-400">❌ Not a valid backup format</span>'
+        return
+      }
+
+      const keys = Object.keys(backupData.data)
+      if (keys.length === 0) {
+        addDebugLog('warning', 'Restore Cache', 'Backup is empty')
+        if (result) result.innerHTML = '<span class="text-yellow-400">Backup is empty</span>'
+        return
+      }
+
+      const confirmMsg = `Restore ${keys.length} items from backup?\n\n` +
+        `Backup timestamp: ${backupData.timestamp || 'unknown'}\n\n` +
+        `Dit overschrijft bestaande cache data.\n` +
+        `Klik OK om te herstellen.`
+
+      if (!confirm(confirmMsg)) {
+        addDebugLog('info', 'Restore Cache', 'Cancelled by user')
+        if (result) result.innerHTML = '<span class="text-yellow-400">Cancelled</span>'
+        return
+      }
+
+      // Restore the data
+      let restored = 0
+      keys.forEach(key => {
+        const value = backupData.data![key]
+        if (value !== undefined) {
+          localStorage.setItem(key, value)
+          restored++
+        }
+      })
+
+      addDebugLog('success', 'Restore Cache Success', 'Restored ' + restored + ' items from backup')
+      if (result) result.innerHTML = `<span class="text-green-400">✅ Restored ${restored} items! Refresh to apply.</span>`
+
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      addDebugLog('error', 'Restore Cache Failed', 'Clipboard read error: ' + errorMsg)
+      if (result) result.innerHTML = '<span class="text-red-400">❌ Cannot read clipboard: ' + errorMsg + '</span>'
+    }
   })
 
   document.getElementById('debug-reload')?.addEventListener('click', () => {
@@ -29104,23 +29295,35 @@ function showDebugPanel() {
 
   document.getElementById('debug-copy-uid')?.addEventListener('click', () => {
     const result = document.getElementById('debug-action-result')
+    addDebugLog('info', 'Copy User ID', 'Attempting to copy UID to clipboard...')
+
     const user = getCurrentUser()
     if (user) {
       navigator.clipboard.writeText(user.uid)
+      addDebugLog('success', 'Copy User ID Success', 'Copied UID: ' + user.uid)
       if (result) result.innerHTML = `<span class="text-green-400">✅ Copied: ${user.uid.substring(0, 10)}...</span>`
     } else {
+      addDebugLog('error', 'Copy User ID Failed', 'No Firebase user logged in')
       if (result) result.innerHTML = '<span class="text-red-400">❌ Not logged in</span>'
     }
   })
 
   document.getElementById('debug-test-firebase')?.addEventListener('click', async () => {
     const result = document.getElementById('debug-action-result')
+    addDebugLog('info', 'Test Firebase', 'Starting Firebase connection test...')
+
     if (result) result.innerHTML = '<span class="text-yellow-400">⏳ Testing Firebase connection...</span>'
+
     try {
+      addDebugLog('info', 'Test Firebase', 'Calling getDailyPuzzles()...')
       const puzzles = await getDailyPuzzles()
+      addDebugLog('success', 'Test Firebase Success', 'Connected! Found ' + puzzles.length + ' puzzles')
       if (result) result.innerHTML = `<span class="text-green-400">✅ Firebase OK! Found ${puzzles.length} puzzles</span>`
     } catch (error) {
-      if (result) result.innerHTML = `<span class="text-red-400">❌ Firebase Error: ${error}</span>`
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      const errorCode = (error as { code?: string })?.code || 'unknown'
+      addDebugLog('error', 'Test Firebase Failed', 'Code: ' + errorCode + ', Message: ' + errorMsg)
+      if (result) result.innerHTML = `<span class="text-red-400">❌ Firebase Error [${errorCode}]: ${errorMsg}</span>`
     }
   })
 
