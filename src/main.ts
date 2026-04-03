@@ -28762,7 +28762,7 @@ function render() {
             </button>
             <button id="friends-btn" class="bg-pink-600 hover:bg-pink-700 active:bg-pink-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation relative">
               👥 ${t('friendsTitle')}
-              ${friendRequests.length > 0 || getTotalUnreadCount(conversations) > 0 ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${friendRequests.length + getTotalUnreadCount(conversations)}</span>` : ''}
+              ${((friendRequests?.length || 0) + getTotalUnreadCount(conversations || [])) > 0 ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${(friendRequests?.length || 0) + getTotalUnreadCount(conversations || [])}</span>` : ''}
             </button>
           </div>
           <div class="flex gap-2">
