@@ -26399,7 +26399,9 @@ function render() {
       let searchDebounce: ReturnType<typeof setTimeout> | null = null
 
       document.getElementById('friend-search')?.addEventListener('input', async (e) => {
-        friendSearchQuery = (e.target as HTMLInputElement).value
+        const input = e.target as HTMLInputElement
+        friendSearchQuery = input.value
+        const cursorPos = input.selectionStart || friendSearchQuery.length
         friendSearchResult = null
         friendSearchError = ''
         friendSearchSuggestions = []
@@ -26412,10 +26414,15 @@ function render() {
           searchDebounce = setTimeout(async () => {
             friendSearchSuggestions = await searchUsersByPrefix(friendSearchQuery.trim(), 8)
             render()
+            // Refocus input and restore cursor position
+            const newInput = document.getElementById('friend-search') as HTMLInputElement
+            if (newInput) {
+              newInput.focus()
+              newInput.setSelectionRange(cursorPos, cursorPos)
+            }
           }, 300)
-        } else {
-          render()
         }
+        // Don't render on every keystroke - only after debounce with results
       })
 
       document.getElementById('search-friend-btn')?.addEventListener('click', async () => {
