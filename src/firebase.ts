@@ -4859,7 +4859,7 @@ export async function searchUsersByPrefix(prefix: string, limit: number = 5): Pr
     )
 
     const snapshot = await getDocs(q)
-    const results: Array<{ odataId: string; username: string }> = []
+    const userIds: Array<{ odataId: string; lowercaseName: string }> = []
 
     snapshot.forEach((docSnap) => {
       const data = docSnap.data()
@@ -4867,15 +4867,35 @@ export async function searchUsersByPrefix(prefix: string, limit: number = 5): Pr
       if (data.uid !== currentUser!.uid) {
         const blockedUsers = currentUserData?.blockedUsers || []
         if (!blockedUsers.includes(data.uid)) {
-          results.push({
+          userIds.push({
             odataId: data.uid,
-            username: docSnap.id // The document ID is the lowercase username
+            lowercaseName: docSnap.id
           })
         }
       }
     })
 
-    return results.slice(0, limit)
+    // Fetch actual usernames from users collection (with proper casing)
+    const results: Array<{ odataId: string; username: string }> = []
+    for (const user of userIds.slice(0, limit)) {
+      try {
+        const userDoc = await getDoc(doc(db!, 'users', user.odataId))
+        if (userDoc.exists()) {
+          results.push({
+            odataId: user.odataId,
+            username: userDoc.data().username || user.lowercaseName
+          })
+        }
+      } catch {
+        // If we can't fetch user doc, use lowercase name
+        results.push({
+          odataId: user.odataId,
+          username: user.lowercaseName
+        })
+      }
+    }
+
+    return results
   } catch (error) {
     console.error('Error searching users by prefix:', error)
     return []
