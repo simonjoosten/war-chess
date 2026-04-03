@@ -24525,9 +24525,32 @@ function render() {
         render()
       })
 
-      // Back button
-      document.getElementById('back-btn')?.addEventListener('click', () => {
+      // Back button - save settings to Firebase
+      document.getElementById('back-btn')?.addEventListener('click', async () => {
         showSettings = false
+
+        // Save settings to Firebase if logged in
+        if (getCurrentUser()) {
+          await saveUserData({
+            settings: {
+              language: currentLanguage,
+              soundEnabled,
+              musicEnabled,
+              masterVolume,
+              musicVolume,
+              sfxVolume,
+              musicStyle,
+              boardTheme,
+              animationSpeed,
+              screenShakeEnabled,
+              showCoordinates,
+              colorBlindMode,
+              highContrastMode,
+              largeUIMode
+            }
+          })
+        }
+
         // Return to multiplayer lobby if that's where we came from
         if (previousAuthScreen === 'multiplayer') {
           showAuthScreen = 'multiplayer'
