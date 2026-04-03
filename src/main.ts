@@ -1,6 +1,7 @@
 import './style.css'
 import {
   initFirebase,
+  setAuthStateCallback,
   registerUser,
   loginUser,
   logoutUser,
@@ -29412,7 +29413,40 @@ if (firebaseInitialized) {
   // Show login screen if Firebase is configured
   showAuthScreen = 'login'
 
-  } else {
+  // Listen for auth state changes (handles auto-login on refresh)
+  setAuthStateCallback(async (user) => {
+    if (user) {
+      // User is logged in - load their data and settings
+      await loadUserData()
+      const userData = getCurrentUserData()
+      if (userData?.settings) {
+        currentLanguage = userData.settings.language as Language
+        soundEnabled = userData.settings.soundEnabled
+        musicEnabled = userData.settings.musicEnabled
+        masterVolume = userData.settings.masterVolume
+        musicVolume = userData.settings.musicVolume
+        sfxVolume = userData.settings.sfxVolume
+        musicStyle = userData.settings.musicStyle as MusicStyle
+        boardTheme = userData.settings.boardTheme as BoardTheme
+        animationSpeed = userData.settings.animationSpeed as 'fast' | 'normal' | 'slow'
+        screenShakeEnabled = userData.settings.screenShakeEnabled
+        showCoordinates = userData.settings.showCoordinates
+        colorBlindMode = userData.settings.colorBlindMode
+        highContrastMode = userData.settings.highContrastMode
+        largeUIMode = userData.settings.largeUIMode
+        // Load equipped cosmetics
+        equippedTheme = userData.equippedItems?.theme || null
+        equippedPieceSkin = userData.equippedItems?.pieceSkin || null
+        equippedEffect = userData.equippedItems?.effect || null
+        equippedSoundPack = userData.equippedItems?.soundPack || null
+        equippedMusicPack = userData.equippedItems?.musicPack || null
+      }
+      showAuthScreen = 'none'
+      checkGlobalMessages()
+    }
+    render()
+  })
+} else {
   // Firebase not configured - run in offline mode
   setOfflineMode(true)
 }
