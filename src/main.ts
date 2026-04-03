@@ -131,11 +131,35 @@ import {
   likeTip,
   adminGetAllFeedback,
   adminApproveTip,
-  adminDeleteFeedback
+  adminDeleteFeedback,
+  // Friends System
+  FriendRequest,
+  DirectMessage,
+  Conversation,
+  FriendWithStatus,
+  searchUserByUsername,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  listenToFriendRequests,
+  stopListeningToFriendRequests,
+  removeFriend,
+  blockUser,
+  unblockUser,
+  getFriendsWithStatus,
+  listenToFriendsStatus,
+  stopListeningToFriendsStatus,
+  sendDirectMessage,
+  listenToDirectMessages,
+  stopListeningToDirectMessages,
+  markMessagesAsRead,
+  listenToConversations,
+  stopListeningToConversations,
+  getTotalUnreadCount
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips' | 'friends'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -155,6 +179,20 @@ let feedbackTips: FeedbackTip[] = []
 let feedbackCategory: FeedbackTip['category'] | 'all' = 'all'
 let adminFeedbackList: FeedbackTip[] = []
 let myTournamentMatch: TournamentMatch | null = null
+
+// Friends state
+let showFriendsScreen = false
+let friendsList: FriendWithStatus[] = []
+let friendRequests: FriendRequest[] = []
+let selectedFriend: FriendWithStatus | null = null
+let friendChatMessages: DirectMessage[] = []
+let friendChatInput = ''
+let friendSearchQuery = ''
+let friendSearchResult: { odataId: string; username: string } | null = null
+let friendSearchError = ''
+let conversations: Conversation[] = []
+let friendsStatusMap: Record<string, 'online' | 'offline' | 'playing'> = {}
+let friendsListening = false
 
 // Multiplayer state
 let onlinePlayers: OnlinePlayer[] = []
@@ -571,6 +609,51 @@ async function checkGlobalMessages() {
 
   pendingGlobalMessages = await getActiveGlobalMessages()
   showNextGlobalMessage()
+}
+
+// Load friends data
+async function loadFriendsData() {
+  if (!getCurrentUser()) return
+
+  // Load friends list with status
+  friendsList = await getFriendsWithStatus()
+
+  // Start listening to friend requests
+  if (!friendsListening) {
+    friendsListening = true
+    listenToFriendRequests((requests) => {
+      friendRequests = requests
+      render()
+    })
+    listenToConversations((convs) => {
+      conversations = convs
+      render()
+    })
+    // Listen to friends status changes
+    const friendIds = friendsList.map(f => f.odataId)
+    if (friendIds.length > 0) {
+      listenToFriendsStatus(friendIds, (statuses) => {
+        friendsStatusMap = statuses
+        // Update friends list with new statuses
+        friendsList = friendsList.map(f => ({
+          ...f,
+          status: statuses[f.odataId] || 'offline'
+        }))
+        render()
+      })
+    }
+  }
+}
+
+// Stop friends listeners
+function stopFriendsListeners() {
+  if (friendsListening) {
+    friendsListening = false
+    stopListeningToFriendRequests()
+    stopListeningToConversations()
+    stopListeningToFriendsStatus()
+    stopListeningToDirectMessages()
+  }
 }
 
 function showNextGlobalMessage() {
@@ -9020,6 +9103,37 @@ const translations: Record<Language, Record<string, string>> = {
     tipsBack: 'Back',
     tipsAll: 'All',
     tipsBy: 'By:',
+    // Friends System
+    friendsTitle: 'Friends',
+    friendsList: 'Friends List',
+    friendRequests: 'Friend Requests',
+    addFriend: 'Add Friend',
+    searchFriend: 'Search by username',
+    userNotFound: 'User not found',
+    userAlreadyFriend: 'Already friends',
+    requestSent: 'Request sent!',
+    acceptRequest: 'Accept',
+    declineRequest: 'Decline',
+    removeFriend: 'Remove Friend',
+    blockUser: 'Block User',
+    unblockUser: 'Unblock',
+    inviteToGame: 'Invite to Game',
+    sendMessage: 'Send',
+    chatWith: 'Chat with',
+    noFriends: 'No friends yet. Search for players!',
+    noFriendRequests: 'No pending friend requests',
+    friendOnline: 'Online',
+    friendOffline: 'Offline',
+    friendPlaying: 'In Game',
+    friendsOnlineCount: '{0} friends online',
+    typeMessage: 'Type a message...',
+    confirmRemoveFriend: 'Remove {0} from friends?',
+    confirmBlockUser: 'Block {0}? They won\'t be able to contact you.',
+    searchingUser: 'Searching...',
+    requestPending: 'Request pending',
+    viewChat: 'Chat',
+    backToFriends: 'Back to Friends',
+    unreadMessages: '{0} unread',
     // Puzzle Editor
     puzzleCurrentTarget: 'Current target:',
     puzzleNotSet: 'Not set',
@@ -10274,6 +10388,37 @@ const translations: Record<Language, Record<string, string>> = {
     tipsBack: 'Terug',
     tipsAll: 'Alle',
     tipsBy: 'Door:',
+    // Friends System
+    friendsTitle: 'Vrienden',
+    friendsList: 'Vriendenlijst',
+    friendRequests: 'Vriendschapsverzoeken',
+    addFriend: 'Vriend Toevoegen',
+    searchFriend: 'Zoek op gebruikersnaam',
+    userNotFound: 'Gebruiker niet gevonden',
+    userAlreadyFriend: 'Al bevriend',
+    requestSent: 'Verzoek verzonden!',
+    acceptRequest: 'Accepteren',
+    declineRequest: 'Weigeren',
+    removeFriend: 'Verwijder Vriend',
+    blockUser: 'Blokkeer Gebruiker',
+    unblockUser: 'Deblokkeren',
+    inviteToGame: 'Uitnodigen voor Spel',
+    sendMessage: 'Verstuur',
+    chatWith: 'Chat met',
+    noFriends: 'Nog geen vrienden. Zoek spelers!',
+    noFriendRequests: 'Geen openstaande vriendschapsverzoeken',
+    friendOnline: 'Online',
+    friendOffline: 'Offline',
+    friendPlaying: 'In Spel',
+    friendsOnlineCount: '{0} vrienden online',
+    typeMessage: 'Typ een bericht...',
+    confirmRemoveFriend: '{0} verwijderen als vriend?',
+    confirmBlockUser: '{0} blokkeren? Ze kunnen je niet meer contacteren.',
+    searchingUser: 'Zoeken...',
+    requestPending: 'Verzoek in behandeling',
+    viewChat: 'Chat',
+    backToFriends: 'Terug naar Vrienden',
+    unreadMessages: '{0} ongelezen',
     // Puzzle Editor
     puzzleCurrentTarget: 'Huidige target:',
     puzzleNotSet: 'Niet ingesteld',
@@ -11528,6 +11673,37 @@ const translations: Record<Language, Record<string, string>> = {
     tipsBack: 'Zurück',
     tipsAll: 'Alle',
     tipsBy: 'Von:',
+    // Friends System
+    friendsTitle: 'Freunde',
+    friendsList: 'Freundesliste',
+    friendRequests: 'Freundschaftsanfragen',
+    addFriend: 'Freund Hinzufugen',
+    searchFriend: 'Nach Benutzername suchen',
+    userNotFound: 'Benutzer nicht gefunden',
+    userAlreadyFriend: 'Bereits befreundet',
+    requestSent: 'Anfrage gesendet!',
+    acceptRequest: 'Annehmen',
+    declineRequest: 'Ablehnen',
+    removeFriend: 'Freund Entfernen',
+    blockUser: 'Benutzer Blockieren',
+    unblockUser: 'Entsperren',
+    inviteToGame: 'Zum Spiel Einladen',
+    sendMessage: 'Senden',
+    chatWith: 'Chat mit',
+    noFriends: 'Noch keine Freunde. Suche nach Spielern!',
+    noFriendRequests: 'Keine offenen Freundschaftsanfragen',
+    friendOnline: 'Online',
+    friendOffline: 'Offline',
+    friendPlaying: 'Im Spiel',
+    friendsOnlineCount: '{0} Freunde online',
+    typeMessage: 'Nachricht eingeben...',
+    confirmRemoveFriend: '{0} aus Freundesliste entfernen?',
+    confirmBlockUser: '{0} blockieren? Sie konnen dich nicht mehr kontaktieren.',
+    searchingUser: 'Suche...',
+    requestPending: 'Anfrage ausstehend',
+    viewChat: 'Chat',
+    backToFriends: 'Zuruck zu Freunden',
+    unreadMessages: '{0} ungelesen',
     // Puzzle Editor
     puzzleCurrentTarget: 'Aktuelles Ziel:',
     puzzleNotSet: 'Nicht gesetzt',
@@ -12015,6 +12191,37 @@ const translations: Record<Language, Record<string, string>> = {
     tipsBack: 'Retour',
     tipsAll: 'Tous',
     tipsBy: 'Par:',
+    // Friends System
+    friendsTitle: 'Amis',
+    friendsList: 'Liste d\'Amis',
+    friendRequests: 'Demandes d\'Amis',
+    addFriend: 'Ajouter un Ami',
+    searchFriend: 'Rechercher par nom d\'utilisateur',
+    userNotFound: 'Utilisateur non trouve',
+    userAlreadyFriend: 'Deja amis',
+    requestSent: 'Demande envoyee!',
+    acceptRequest: 'Accepter',
+    declineRequest: 'Refuser',
+    removeFriend: 'Supprimer l\'Ami',
+    blockUser: 'Bloquer l\'Utilisateur',
+    unblockUser: 'Debloquer',
+    inviteToGame: 'Inviter a Jouer',
+    sendMessage: 'Envoyer',
+    chatWith: 'Discuter avec',
+    noFriends: 'Pas encore d\'amis. Recherchez des joueurs!',
+    noFriendRequests: 'Aucune demande d\'ami en attente',
+    friendOnline: 'En ligne',
+    friendOffline: 'Hors ligne',
+    friendPlaying: 'En jeu',
+    friendsOnlineCount: '{0} amis en ligne',
+    typeMessage: 'Tapez un message...',
+    confirmRemoveFriend: 'Supprimer {0} de vos amis?',
+    confirmBlockUser: 'Bloquer {0}? Il ne pourra plus vous contacter.',
+    searchingUser: 'Recherche...',
+    requestPending: 'Demande en attente',
+    viewChat: 'Chat',
+    backToFriends: 'Retour aux Amis',
+    unreadMessages: '{0} non lus',
     // Puzzle Editor
     puzzleCurrentTarget: 'Cible actuelle:',
     puzzleNotSet: 'Non défini',
@@ -12501,6 +12708,37 @@ const translations: Record<Language, Record<string, string>> = {
     tipsBack: 'Volver',
     tipsAll: 'Todos',
     tipsBy: 'Por:',
+    // Friends System
+    friendsTitle: 'Amigos',
+    friendsList: 'Lista de Amigos',
+    friendRequests: 'Solicitudes de Amistad',
+    addFriend: 'Agregar Amigo',
+    searchFriend: 'Buscar por nombre de usuario',
+    userNotFound: 'Usuario no encontrado',
+    userAlreadyFriend: 'Ya son amigos',
+    requestSent: 'Solicitud enviada!',
+    acceptRequest: 'Aceptar',
+    declineRequest: 'Rechazar',
+    removeFriend: 'Eliminar Amigo',
+    blockUser: 'Bloquear Usuario',
+    unblockUser: 'Desbloquear',
+    inviteToGame: 'Invitar a Jugar',
+    sendMessage: 'Enviar',
+    chatWith: 'Chatear con',
+    noFriends: 'Sin amigos aun. Busca jugadores!',
+    noFriendRequests: 'No hay solicitudes de amistad pendientes',
+    friendOnline: 'En linea',
+    friendOffline: 'Desconectado',
+    friendPlaying: 'Jugando',
+    friendsOnlineCount: '{0} amigos en linea',
+    typeMessage: 'Escribe un mensaje...',
+    confirmRemoveFriend: 'Eliminar a {0} de amigos?',
+    confirmBlockUser: 'Bloquear a {0}? No podra contactarte.',
+    searchingUser: 'Buscando...',
+    requestPending: 'Solicitud pendiente',
+    viewChat: 'Chat',
+    backToFriends: 'Volver a Amigos',
+    unreadMessages: '{0} sin leer',
     // Puzzle Editor
     puzzleCurrentTarget: 'Objetivo actual:',
     puzzleNotSet: 'No establecido',
@@ -25925,6 +26163,325 @@ function render() {
       return
     }
 
+    // Friends screen
+    if (showAuthScreen === 'friends') {
+      const onlineFriends = friendsList.filter(f => f.status !== 'offline').length
+
+      // If a friend is selected for chat, show chat view
+      if (selectedFriend) {
+        app.innerHTML = `
+          <div class="min-h-screen p-2 sm:p-4 md:p-8">
+            <div class="max-w-2xl mx-auto bg-gray-800 rounded-xl shadow-xl flex flex-col" style="height: calc(100vh - 2rem); max-height: 700px;">
+              <!-- Chat header -->
+              <div class="bg-gray-700 p-4 rounded-t-xl flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <button id="chat-back-btn" class="text-gray-400 hover:text-white">
+                    ← ${t('backToFriends')}
+                  </button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-semibold">${selectedFriend.username}</span>
+                  <span class="w-2 h-2 rounded-full ${selectedFriend.status === 'online' ? 'bg-green-500' : selectedFriend.status === 'playing' ? 'bg-yellow-500' : 'bg-gray-500'}"></span>
+                </div>
+                <button id="chat-invite-btn" class="bg-purple-600 hover:bg-purple-500 text-white text-sm py-1 px-3 rounded">
+                  🎮 ${t('inviteToGame')}
+                </button>
+              </div>
+
+              <!-- Chat messages -->
+              <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3">
+                ${friendChatMessages.length === 0 ? `
+                  <div class="text-center text-gray-500 py-8">
+                    ${t('chatWith')} ${selectedFriend.username}
+                  </div>
+                ` : friendChatMessages.map(msg => `
+                  <div class="flex ${msg.fromUserId === getCurrentUser()?.uid ? 'justify-end' : 'justify-start'}">
+                    <div class="${msg.fromUserId === getCurrentUser()?.uid ? 'bg-pink-600' : 'bg-gray-600'} px-4 py-2 rounded-lg max-w-[80%]">
+                      <p class="text-white text-sm">${msg.message}</p>
+                      <p class="text-xs ${msg.fromUserId === getCurrentUser()?.uid ? 'text-pink-200' : 'text-gray-400'} mt-1">
+                        ${new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- Chat input -->
+              <div class="p-4 border-t border-gray-700">
+                <form id="chat-form" class="flex gap-2">
+                  <input type="text" id="chat-input" value="${friendChatInput}" placeholder="${t('typeMessage')}"
+                    class="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500">
+                  <button type="submit" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg font-semibold">
+                    ${t('sendMessage')}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        `
+
+        // Scroll to bottom of chat
+        const chatMessages = document.getElementById('chat-messages')
+        if (chatMessages) {
+          chatMessages.scrollTop = chatMessages.scrollHeight
+        }
+
+        // Event listeners
+        document.getElementById('chat-back-btn')?.addEventListener('click', () => {
+          selectedFriend = null
+          friendChatMessages = []
+          friendChatInput = ''
+          stopListeningToDirectMessages()
+          render()
+        })
+
+        document.getElementById('chat-invite-btn')?.addEventListener('click', () => {
+          if (selectedFriend) {
+            // Switch to multiplayer and send invite
+            showAuthScreen = 'multiplayer'
+            showInviteSettings = selectedFriend.odataId
+            render()
+          }
+        })
+
+        document.getElementById('chat-form')?.addEventListener('submit', async (e) => {
+          e.preventDefault()
+          const input = document.getElementById('chat-input') as HTMLInputElement
+          const message = input?.value.trim()
+          if (message && selectedFriend) {
+            await sendDirectMessage(selectedFriend.odataId, message)
+            input.value = ''
+            friendChatInput = ''
+          }
+        })
+
+        document.getElementById('chat-input')?.addEventListener('input', (e) => {
+          friendChatInput = (e.target as HTMLInputElement).value
+        })
+
+        return
+      }
+
+      // Main friends screen
+      app.innerHTML = `
+        <div class="min-h-screen p-2 sm:p-4 md:p-8">
+          <div class="max-w-2xl mx-auto bg-gray-800 rounded-xl p-4 sm:p-6 shadow-xl">
+            <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2">
+              👥 ${t('friendsTitle')}
+              ${onlineFriends > 0 ? `<span class="text-sm font-normal text-green-400">(${t('friendsOnlineCount').replace('{0}', String(onlineFriends))})</span>` : ''}
+            </h2>
+
+            <!-- Friend Requests Section -->
+            ${friendRequests.length > 0 ? `
+              <div class="bg-gray-700 rounded-lg p-4 mb-4">
+                <h3 class="text-white font-semibold mb-3 flex items-center gap-2">
+                  📬 ${t('friendRequests')}
+                  <span class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">${friendRequests.length}</span>
+                </h3>
+                <div class="space-y-2">
+                  ${friendRequests.map(req => `
+                    <div class="bg-gray-600 rounded-lg p-3 flex items-center justify-between">
+                      <span class="text-white">${req.fromUsername}</span>
+                      <div class="flex gap-2">
+                        <button class="accept-request-btn bg-green-600 hover:bg-green-500 text-white text-sm py-1 px-3 rounded" data-id="${req.id}">
+                          ✓ ${t('acceptRequest')}
+                        </button>
+                        <button class="decline-request-btn bg-red-600 hover:bg-red-500 text-white text-sm py-1 px-3 rounded" data-id="${req.id}">
+                          ✕ ${t('declineRequest')}
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Add Friend Section -->
+            <div class="bg-gray-700 rounded-lg p-4 mb-4">
+              <h3 class="text-white font-semibold mb-3">➕ ${t('addFriend')}</h3>
+              <div class="flex gap-2">
+                <input type="text" id="friend-search" value="${friendSearchQuery}" placeholder="${t('searchFriend')}"
+                  class="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500">
+                <button id="search-friend-btn" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg">
+                  🔍
+                </button>
+              </div>
+              ${friendSearchError ? `<p class="text-red-400 text-sm mt-2">${friendSearchError}</p>` : ''}
+              ${friendSearchResult ? `
+                <div class="bg-gray-600 rounded-lg p-3 mt-3 flex items-center justify-between">
+                  <span class="text-white">${friendSearchResult.username}</span>
+                  <button id="send-request-btn" class="bg-pink-600 hover:bg-pink-500 text-white text-sm py-1 px-3 rounded">
+                    ➕ ${t('addFriend')}
+                  </button>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Friends List Section -->
+            <div class="bg-gray-700 rounded-lg p-4">
+              <h3 class="text-white font-semibold mb-3">📋 ${t('friendsList')}</h3>
+              ${friendsList.length === 0 ? `
+                <p class="text-gray-400 text-center py-4">${t('noFriends')}</p>
+              ` : `
+                <div class="space-y-2">
+                  ${friendsList.map(friend => {
+                    const unread = conversations.find(c => c.participants.includes(friend.odataId))?.unreadCount[getCurrentUser()?.uid || ''] || 0
+                    return `
+                      <div class="bg-gray-600 rounded-lg p-3 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                          <span class="w-3 h-3 rounded-full ${friend.status === 'online' ? 'bg-green-500' : friend.status === 'playing' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-500'}"></span>
+                          <div>
+                            <span class="text-white font-medium">${friend.username}</span>
+                            <p class="text-xs ${friend.status === 'online' ? 'text-green-400' : friend.status === 'playing' ? 'text-yellow-400' : 'text-gray-400'}">
+                              ${friend.status === 'online' ? t('friendOnline') : friend.status === 'playing' ? t('friendPlaying') : t('friendOffline')}
+                            </p>
+                          </div>
+                          ${unread > 0 ? `<span class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">${unread}</span>` : ''}
+                        </div>
+                        <div class="flex gap-2">
+                          <button class="chat-friend-btn bg-blue-600 hover:bg-blue-500 text-white text-sm py-1 px-3 rounded" data-id="${friend.odataId}" data-username="${friend.username}" data-status="${friend.status}">
+                            💬 ${t('viewChat')}
+                          </button>
+                          ${friend.status !== 'offline' ? `
+                            <button class="invite-friend-btn bg-purple-600 hover:bg-purple-500 text-white text-sm py-1 px-3 rounded" data-id="${friend.odataId}">
+                              🎮
+                            </button>
+                          ` : ''}
+                          <button class="remove-friend-btn bg-gray-500 hover:bg-red-600 text-white text-sm py-1 px-2 rounded" data-id="${friend.odataId}" data-username="${friend.username}">
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    `
+                  }).join('')}
+                </div>
+              `}
+            </div>
+
+            <button id="friends-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4 sm:mt-6 w-full sm:w-auto">
+              ${t('backButton')}
+            </button>
+          </div>
+        </div>
+      `
+
+      // Event listeners
+      document.getElementById('friends-back-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'none'
+        stopFriendsListeners()
+        friendSearchQuery = ''
+        friendSearchResult = null
+        friendSearchError = ''
+        render()
+      })
+
+      document.getElementById('friend-search')?.addEventListener('input', (e) => {
+        friendSearchQuery = (e.target as HTMLInputElement).value
+        friendSearchResult = null
+        friendSearchError = ''
+      })
+
+      document.getElementById('search-friend-btn')?.addEventListener('click', async () => {
+        if (!friendSearchQuery.trim()) return
+        friendSearchError = ''
+        friendSearchResult = null
+        render()
+
+        const result = await searchUserByUsername(friendSearchQuery.trim())
+        if (result) {
+          // Check if already friends
+          const userData = getCurrentUserData()
+          if (userData?.friends?.includes(result.odataId)) {
+            friendSearchError = t('userAlreadyFriend')
+          } else {
+            friendSearchResult = result
+          }
+        } else {
+          friendSearchError = t('userNotFound')
+        }
+        render()
+      })
+
+      document.getElementById('send-request-btn')?.addEventListener('click', async () => {
+        if (!friendSearchResult) return
+        const success = await sendFriendRequest(friendSearchResult.odataId, friendSearchResult.username)
+        if (success) {
+          friendSearchQuery = ''
+          friendSearchResult = null
+          friendSearchError = t('requestSent')
+          render()
+        }
+      })
+
+      document.querySelectorAll('.accept-request-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const requestId = (btn as HTMLElement).dataset.id
+          if (requestId) {
+            await acceptFriendRequest(requestId)
+            // Reload friends list
+            friendsList = await getFriendsWithStatus()
+            render()
+          }
+        })
+      })
+
+      document.querySelectorAll('.decline-request-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const requestId = (btn as HTMLElement).dataset.id
+          if (requestId) {
+            await declineFriendRequest(requestId)
+            render()
+          }
+        })
+      })
+
+      document.querySelectorAll('.chat-friend-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const friendId = (btn as HTMLElement).dataset.id
+          const username = (btn as HTMLElement).dataset.username
+          const status = (btn as HTMLElement).dataset.status as 'online' | 'offline' | 'playing'
+          if (friendId && username) {
+            selectedFriend = { odataId: friendId, username, status }
+            // Start listening to messages
+            listenToDirectMessages(friendId, (messages) => {
+              friendChatMessages = messages
+              render()
+            })
+            // Mark messages as read
+            markMessagesAsRead(friendId)
+            render()
+          }
+        })
+      })
+
+      document.querySelectorAll('.invite-friend-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const friendId = (btn as HTMLElement).dataset.id
+          if (friendId) {
+            showAuthScreen = 'multiplayer'
+            showInviteSettings = friendId
+            render()
+          }
+        })
+      })
+
+      document.querySelectorAll('.remove-friend-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const friendId = (btn as HTMLElement).dataset.id
+          const username = (btn as HTMLElement).dataset.username
+          if (friendId && username) {
+            if (confirm(t('confirmRemoveFriend').replace('{0}', username))) {
+              await removeFriend(friendId)
+              friendsList = await getFriendsWithStatus()
+              render()
+            }
+          }
+        })
+      })
+
+      return
+    }
+
     // Admin panel screen
     if (showAuthScreen === 'admin') {
       if (!isCurrentUserAdmin()) {
@@ -28199,9 +28756,15 @@ function render() {
             ${t('startButton')}
           </button>
           ${user && userData ? `
-          <button id="multiplayer-btn" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation">
-            🌐 ${t('multiplayerButton')}
-          </button>
+          <div class="flex gap-2">
+            <button id="multiplayer-btn" class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation">
+              🌐 ${t('multiplayerButton')}
+            </button>
+            <button id="friends-btn" class="bg-pink-600 hover:bg-pink-700 active:bg-pink-800 text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation relative">
+              👥 ${t('friendsTitle')}
+              ${friendRequests.length > 0 || getTotalUnreadCount(conversations) > 0 ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${friendRequests.length + getTotalUnreadCount(conversations)}</span>` : ''}
+            </button>
+          </div>
           <div class="flex gap-2">
             <button id="puzzles-menu-btn" class="${localStorage.getItem('puzzlesEnabled') !== 'false' ? 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800' : 'bg-gray-600 cursor-not-allowed opacity-50'} text-white font-bold py-2 px-4 rounded-lg text-base transition-colors touch-manipulation" ${localStorage.getItem('puzzlesEnabled') === 'false' ? 'disabled' : ''}>
               🧩 Puzzles ${localStorage.getItem('puzzlesEnabled') === 'false' ? t('puzzlesDisabled') : ''}
@@ -28265,6 +28828,11 @@ function render() {
     })
     document.getElementById('multiplayer-btn')?.addEventListener('click', () => {
       showAuthScreen = 'multiplayer'
+      render()
+    })
+    document.getElementById('friends-btn')?.addEventListener('click', () => {
+      showAuthScreen = 'friends'
+      loadFriendsData()
       render()
     })
     document.getElementById('puzzles-menu-btn')?.addEventListener('click', () => {

@@ -143,6 +143,9 @@ export interface UserData {
     lastPuzzleDate: number  // Timestamp of last puzzle completed
     solvedPuzzleIds: string[]  // IDs of puzzles solved today
   }
+  // Friends system
+  friends: string[]  // Friend user IDs
+  blockedUsers: string[]  // Blocked user IDs
 }
 
 // Shop items for sale
@@ -459,7 +462,9 @@ export function getDefaultUserData(username: string, email: string): UserData {
       dailyStreak: 0,
       lastPuzzleDate: 0,
       solvedPuzzleIds: []
-    }
+    },
+    friends: [],
+    blockedUsers: []
   }
 }
 
@@ -4758,4 +4763,553 @@ export async function adminDeleteFeedback(tipId: string): Promise<boolean> {
     console.error('Error deleting feedback:', error)
     return false
   }
+}
+
+// ==================== FRIENDS SYSTEM ====================
+
+// Friend request interface
+export interface FriendRequest {
+  id: string
+  fromUserId: string
+  fromUsername: string
+  toUserId: string
+  toUsername: string
+  status: 'pending' | 'accepted' | 'declined'
+  createdAt: number
+  respondedAt?: number
+}
+
+// Direct message interface
+export interface DirectMessage {
+  id: string
+  conversationId: string
+  fromUserId: string
+  fromUsername: string
+  toUserId: string
+  message: string
+  timestamp: number
+  read: boolean
+}
+
+// Conversation interface
+export interface Conversation {
+  id: string
+  participants: [string, string]
+  lastMessage: string
+  lastMessageTime: number
+  unreadCount: Record<string, number>
+}
+
+// Friend with online status
+export interface FriendWithStatus {
+  odataId: string
+  username: string
+  status: 'online' | 'offline' | 'playing'
+  lastSeen?: number
+}
+
+// Friends listeners
+let friendRequestsUnsubscribe: (() => void) | null = null
+let friendsStatusUnsubscribe: (() => void) | null = null
+let directMessagesUnsubscribe: (() => void) | null = null
+let conversationsUnsubscribe: (() => void) | null = null
+
+// Generate conversation ID from two user IDs (sorted for consistency)
+function getConversationId(userId1: string, userId2: string): string {
+  return [userId1, userId2].sort().join('_')
+}
+
+// Search for user by username
+export async function searchUserByUsername(username: string): Promise<{ odataId: string; username: string } | null> {
+  if (!db || !currentUser) return null
+
+  try {
+    // Look up in usernames collection
+    const usernameDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()))
+    if (usernameDoc.exists()) {
+      const data = usernameDoc.data()
+      // Don't return self
+      if (data.uid === currentUser.uid) return null
+      return {
+        odataId: data.uid,
+        username: username
+      }
+    }
+    return null
+  } catch (error) {
+    console.error('Error searching user:', error)
+    return null
+  }
+}
+
+// Send friend request
+export async function sendFriendRequest(toUserId: string, toUsername: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    // Check if already friends
+    const friends = currentUserData.friends || []
+    if (friends.includes(toUserId)) return false
+
+    // Check if request already exists
+    const existingQuery = query(
+      collection(db, 'friendRequests'),
+      where('fromUserId', '==', currentUser.uid),
+      where('toUserId', '==', toUserId),
+      where('status', '==', 'pending')
+    )
+    const existingSnap = await getDocs(existingQuery)
+    if (!existingSnap.empty) return false
+
+    // Check if reverse request exists (they already sent us one)
+    const reverseQuery = query(
+      collection(db, 'friendRequests'),
+      where('fromUserId', '==', toUserId),
+      where('toUserId', '==', currentUser.uid),
+      where('status', '==', 'pending')
+    )
+    const reverseSnap = await getDocs(reverseQuery)
+    if (!reverseSnap.empty) {
+      // Auto-accept the reverse request
+      const reverseRequestId = reverseSnap.docs[0].id
+      await acceptFriendRequest(reverseRequestId)
+      return true
+    }
+
+    // Create friend request
+    await addDoc(collection(db, 'friendRequests'), {
+      fromUserId: currentUser.uid,
+      fromUsername: currentUserData.username,
+      toUserId: toUserId,
+      toUsername: toUsername,
+      status: 'pending',
+      createdAt: Date.now()
+    })
+    return true
+  } catch (error) {
+    console.error('Error sending friend request:', error)
+    return false
+  }
+}
+
+// Accept friend request
+export async function acceptFriendRequest(requestId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    const requestDoc = await getDoc(doc(db, 'friendRequests', requestId))
+    if (!requestDoc.exists()) return false
+
+    const request = requestDoc.data() as FriendRequest
+    if (request.toUserId !== currentUser.uid || request.status !== 'pending') return false
+
+    // Update request status
+    await updateDoc(doc(db, 'friendRequests', requestId), {
+      status: 'accepted',
+      respondedAt: Date.now()
+    })
+
+    // Add to both users' friends lists
+    const myFriends = currentUserData.friends || []
+    if (!myFriends.includes(request.fromUserId)) {
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        friends: arrayUnion(request.fromUserId)
+      })
+      currentUserData.friends = [...myFriends, request.fromUserId]
+    }
+
+    // Add to other user's friends list
+    const otherUserDoc = await getDoc(doc(db, 'users', request.fromUserId))
+    if (otherUserDoc.exists()) {
+      const otherFriends = otherUserDoc.data().friends || []
+      if (!otherFriends.includes(currentUser.uid)) {
+        await updateDoc(doc(db, 'users', request.fromUserId), {
+          friends: arrayUnion(currentUser.uid)
+        })
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error accepting friend request:', error)
+    return false
+  }
+}
+
+// Decline friend request
+export async function declineFriendRequest(requestId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const requestDoc = await getDoc(doc(db, 'friendRequests', requestId))
+    if (!requestDoc.exists()) return false
+
+    const request = requestDoc.data() as FriendRequest
+    if (request.toUserId !== currentUser.uid || request.status !== 'pending') return false
+
+    await updateDoc(doc(db, 'friendRequests', requestId), {
+      status: 'declined',
+      respondedAt: Date.now()
+    })
+    return true
+  } catch (error) {
+    console.error('Error declining friend request:', error)
+    return false
+  }
+}
+
+// Listen to incoming friend requests
+export function listenToFriendRequests(callback: (requests: FriendRequest[]) => void): void {
+  if (!db || !currentUser) return
+
+  if (friendRequestsUnsubscribe) {
+    friendRequestsUnsubscribe()
+  }
+
+  const q = query(
+    collection(db, 'friendRequests'),
+    where('toUserId', '==', currentUser.uid),
+    where('status', '==', 'pending')
+  )
+
+  friendRequestsUnsubscribe = onSnapshot(q, (snapshot) => {
+    const requests: FriendRequest[] = []
+    snapshot.forEach((docSnap) => {
+      requests.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as FriendRequest)
+    })
+    callback(requests)
+  })
+}
+
+// Stop listening to friend requests
+export function stopListeningToFriendRequests(): void {
+  if (friendRequestsUnsubscribe) {
+    friendRequestsUnsubscribe()
+    friendRequestsUnsubscribe = null
+  }
+}
+
+// Remove friend
+export async function removeFriend(friendId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    // Remove from my friends list
+    const myFriends = currentUserData.friends || []
+    const updatedFriends = myFriends.filter(f => f !== friendId)
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      friends: updatedFriends
+    })
+    currentUserData.friends = updatedFriends
+
+    // Remove from their friends list
+    const friendDoc = await getDoc(doc(db, 'users', friendId))
+    if (friendDoc.exists()) {
+      const theirFriends = friendDoc.data().friends || []
+      await updateDoc(doc(db, 'users', friendId), {
+        friends: theirFriends.filter((f: string) => f !== currentUser!.uid)
+      })
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error removing friend:', error)
+    return false
+  }
+}
+
+// Block user
+export async function blockUser(userId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    const blockedUsers = currentUserData.blockedUsers || []
+    if (!blockedUsers.includes(userId)) {
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        blockedUsers: arrayUnion(userId)
+      })
+      currentUserData.blockedUsers = [...blockedUsers, userId]
+    }
+
+    // Also remove from friends if they were friends
+    await removeFriend(userId)
+    return true
+  } catch (error) {
+    console.error('Error blocking user:', error)
+    return false
+  }
+}
+
+// Unblock user
+export async function unblockUser(userId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    const blockedUsers = currentUserData.blockedUsers || []
+    const updated = blockedUsers.filter(u => u !== userId)
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      blockedUsers: updated
+    })
+    currentUserData.blockedUsers = updated
+    return true
+  } catch (error) {
+    console.error('Error unblocking user:', error)
+    return false
+  }
+}
+
+// Get friends with their online status
+export async function getFriendsWithStatus(): Promise<FriendWithStatus[]> {
+  if (!db || !currentUser || !currentUserData) return []
+
+  const friends = currentUserData.friends || []
+  if (friends.length === 0) return []
+
+  const result: FriendWithStatus[] = []
+
+  try {
+    for (const friendId of friends) {
+      // Get user data
+      const userDoc = await getDoc(doc(db, 'users', friendId))
+      if (!userDoc.exists()) continue
+
+      const userData = userDoc.data()
+
+      // Check online status
+      const onlineDoc = await getDoc(doc(db, 'online', friendId))
+      let status: 'online' | 'offline' | 'playing' = 'offline'
+      let lastSeen: number | undefined
+
+      if (onlineDoc.exists()) {
+        const onlineData = onlineDoc.data()
+        status = onlineData.status === 'playing' ? 'playing' : 'online'
+        lastSeen = onlineData.lastSeen?.toMillis() || Date.now()
+      }
+
+      result.push({
+        odataId: friendId,
+        username: userData.username,
+        status,
+        lastSeen
+      })
+    }
+
+    // Sort: online first, then playing, then offline
+    result.sort((a, b) => {
+      const statusOrder = { online: 0, playing: 1, offline: 2 }
+      return statusOrder[a.status] - statusOrder[b.status]
+    })
+
+    return result
+  } catch (error) {
+    console.error('Error getting friends status:', error)
+    return []
+  }
+}
+
+// Listen to friends' online status changes
+export function listenToFriendsStatus(friendIds: string[], callback: (statuses: Record<string, 'online' | 'offline' | 'playing'>) => void): void {
+  if (!db || friendIds.length === 0) return
+
+  if (friendsStatusUnsubscribe) {
+    friendsStatusUnsubscribe()
+  }
+
+  // Note: Firestore 'in' queries support max 30 items
+  // For simplicity, we'll listen to the online collection and filter
+  const q = query(collection(db, 'online'))
+  friendsStatusUnsubscribe = onSnapshot(q, (snapshot) => {
+    const statuses: Record<string, 'online' | 'offline' | 'playing'> = {}
+
+    // Default all friends to offline
+    friendIds.forEach(id => { statuses[id] = 'offline' })
+
+    // Update with actual online status
+    snapshot.forEach((docSnap) => {
+      if (friendIds.includes(docSnap.id)) {
+        const data = docSnap.data()
+        statuses[docSnap.id] = data.status === 'playing' ? 'playing' : 'online'
+      }
+    })
+
+    callback(statuses)
+  })
+}
+
+// Stop listening to friends status
+export function stopListeningToFriendsStatus(): void {
+  if (friendsStatusUnsubscribe) {
+    friendsStatusUnsubscribe()
+    friendsStatusUnsubscribe = null
+  }
+}
+
+// Send direct message
+export async function sendDirectMessage(toUserId: string, message: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  const filteredMessage = filterBadWords(message).filtered
+  if (!filteredMessage.trim()) return false
+
+  const conversationId = getConversationId(currentUser.uid, toUserId)
+
+  try {
+    // Create/update conversation
+    const convRef = doc(db, 'conversations', conversationId)
+    const convDoc = await getDoc(convRef)
+
+    if (convDoc.exists()) {
+      // Update existing conversation
+      const convData = convDoc.data()
+      const unreadCount = convData.unreadCount || {}
+      unreadCount[toUserId] = (unreadCount[toUserId] || 0) + 1
+
+      await updateDoc(convRef, {
+        lastMessage: filteredMessage,
+        lastMessageTime: Date.now(),
+        unreadCount
+      })
+    } else {
+      // Create new conversation
+      await setDoc(convRef, {
+        participants: [currentUser.uid, toUserId].sort(),
+        lastMessage: filteredMessage,
+        lastMessageTime: Date.now(),
+        unreadCount: { [toUserId]: 1 }
+      })
+    }
+
+    // Add message
+    await addDoc(collection(db, 'directMessages'), {
+      conversationId,
+      fromUserId: currentUser.uid,
+      fromUsername: currentUserData.username,
+      toUserId,
+      message: filteredMessage,
+      timestamp: Date.now(),
+      read: false
+    })
+
+    return true
+  } catch (error) {
+    console.error('Error sending direct message:', error)
+    return false
+  }
+}
+
+// Listen to direct messages with a specific friend
+export function listenToDirectMessages(friendId: string, callback: (messages: DirectMessage[]) => void): void {
+  if (!db || !currentUser) return
+
+  if (directMessagesUnsubscribe) {
+    directMessagesUnsubscribe()
+  }
+
+  const conversationId = getConversationId(currentUser.uid, friendId)
+  const q = query(
+    collection(db, 'directMessages'),
+    where('conversationId', '==', conversationId)
+  )
+
+  directMessagesUnsubscribe = onSnapshot(q, (snapshot) => {
+    const messages: DirectMessage[] = []
+    snapshot.forEach((docSnap) => {
+      messages.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as DirectMessage)
+    })
+    // Sort by timestamp
+    messages.sort((a, b) => a.timestamp - b.timestamp)
+    callback(messages)
+  })
+}
+
+// Stop listening to direct messages
+export function stopListeningToDirectMessages(): void {
+  if (directMessagesUnsubscribe) {
+    directMessagesUnsubscribe()
+    directMessagesUnsubscribe = null
+  }
+}
+
+// Mark messages as read
+export async function markMessagesAsRead(friendId: string): Promise<void> {
+  if (!db || !currentUser) return
+
+  const conversationId = getConversationId(currentUser.uid, friendId)
+
+  try {
+    // Update conversation unread count
+    const convRef = doc(db, 'conversations', conversationId)
+    const convDoc = await getDoc(convRef)
+    if (convDoc.exists()) {
+      const unreadCount = convDoc.data().unreadCount || {}
+      unreadCount[currentUser.uid] = 0
+      await updateDoc(convRef, { unreadCount })
+    }
+
+    // Mark all messages as read
+    const q = query(
+      collection(db, 'directMessages'),
+      where('conversationId', '==', conversationId),
+      where('toUserId', '==', currentUser.uid),
+      where('read', '==', false)
+    )
+    const snapshot = await getDocs(q)
+    const batch: Promise<void>[] = []
+    snapshot.forEach((docSnap) => {
+      batch.push(updateDoc(doc(db!, 'directMessages', docSnap.id), { read: true }))
+    })
+    await Promise.all(batch)
+  } catch (error) {
+    console.error('Error marking messages as read:', error)
+  }
+}
+
+// Listen to all conversations for unread indicator
+export function listenToConversations(callback: (conversations: Conversation[]) => void): void {
+  if (!db || !currentUser) return
+
+  if (conversationsUnsubscribe) {
+    conversationsUnsubscribe()
+  }
+
+  // Query conversations where current user is a participant
+  const q = query(
+    collection(db, 'conversations'),
+    where('participants', 'array-contains', currentUser.uid)
+  )
+
+  conversationsUnsubscribe = onSnapshot(q, (snapshot) => {
+    const conversations: Conversation[] = []
+    snapshot.forEach((docSnap) => {
+      conversations.push({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Conversation)
+    })
+    // Sort by last message time
+    conversations.sort((a, b) => b.lastMessageTime - a.lastMessageTime)
+    callback(conversations)
+  })
+}
+
+// Stop listening to conversations
+export function stopListeningToConversations(): void {
+  if (conversationsUnsubscribe) {
+    conversationsUnsubscribe()
+    conversationsUnsubscribe = null
+  }
+}
+
+// Get total unread message count
+export function getTotalUnreadCount(conversations: Conversation[]): number {
+  if (!currentUser) return 0
+  return conversations.reduce((total, conv) => {
+    return total + (conv.unreadCount[currentUser!.uid] || 0)
+  }, 0)
 }
