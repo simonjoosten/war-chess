@@ -4819,7 +4819,7 @@ function getConversationId(userId1: string, userId2: string): string {
   return [userId1, userId2].sort().join('_')
 }
 
-// Search for user by username
+// Search for user by username (exact match)
 export async function searchUserByUsername(username: string): Promise<{ odataId: string; username: string } | null> {
   if (!db || !currentUser) return null
 
@@ -4839,6 +4839,46 @@ export async function searchUserByUsername(username: string): Promise<{ odataId:
   } catch (error) {
     console.error('Error searching user:', error)
     return null
+  }
+}
+
+// Search for users by username prefix (autocomplete)
+export async function searchUsersByPrefix(prefix: string, limit: number = 5): Promise<Array<{ odataId: string; username: string }>> {
+  if (!db || !currentUser || prefix.length < 2) return []
+
+  try {
+    const lowerPrefix = prefix.toLowerCase()
+    // Firestore range query for prefix search
+    // We search from 'prefix' to 'prefix' + highest unicode char
+    const endPrefix = lowerPrefix + '\uf8ff'
+
+    const q = query(
+      collection(db, 'usernames'),
+      where('__name__', '>=', lowerPrefix),
+      where('__name__', '<=', endPrefix)
+    )
+
+    const snapshot = await getDocs(q)
+    const results: Array<{ odataId: string; username: string }> = []
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data()
+      // Don't include self or blocked users
+      if (data.uid !== currentUser!.uid) {
+        const blockedUsers = currentUserData?.blockedUsers || []
+        if (!blockedUsers.includes(data.uid)) {
+          results.push({
+            odataId: data.uid,
+            username: docSnap.id // The document ID is the lowercase username
+          })
+        }
+      }
+    })
+
+    return results.slice(0, limit)
+  } catch (error) {
+    console.error('Error searching users by prefix:', error)
+    return []
   }
 }
 

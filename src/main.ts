@@ -155,7 +155,8 @@ import {
   markMessagesAsRead,
   listenToConversations,
   stopListeningToConversations,
-  getTotalUnreadCount
+  getTotalUnreadCount,
+  searchUsersByPrefix
 } from './firebase'
 
 // Auth state
@@ -189,6 +190,7 @@ let friendChatMessages: DirectMessage[] = []
 let friendChatInput = ''
 let friendSearchQuery = ''
 let friendSearchResult: { odataId: string; username: string } | null = null
+let friendSearchSuggestions: Array<{ odataId: string; username: string }> = []
 let friendSearchError = ''
 let conversations: Conversation[] = []
 let friendsStatusMap: Record<string, 'online' | 'offline' | 'playing'> = {}
@@ -26299,15 +26301,32 @@ function render() {
             <!-- Add Friend Section -->
             <div class="bg-gray-700 rounded-lg p-4 mb-4">
               <h3 class="text-white font-semibold mb-3">➕ ${t('addFriend')}</h3>
-              <div class="flex gap-2">
+              <div class="relative">
                 <input type="text" id="friend-search" value="${friendSearchQuery}" placeholder="${t('searchFriend')}"
-                  class="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500">
-                <button id="search-friend-btn" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg">
-                  🔍
-                </button>
+                  class="w-full bg-gray-600 text-white px-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  autocomplete="off">
+                ${friendSearchSuggestions.length > 0 ? `
+                  <div class="absolute top-full left-0 right-0 bg-gray-600 rounded-lg mt-1 shadow-lg z-10 max-h-48 overflow-y-auto">
+                    ${friendSearchSuggestions.map(user => {
+                      const isAlreadyFriend = getCurrentUserData()?.friends?.includes(user.odataId)
+                      return `
+                        <div class="suggestion-item flex items-center justify-between px-4 py-2 hover:bg-gray-500 cursor-pointer border-b border-gray-700 last:border-0" data-id="${user.odataId}" data-username="${user.username}">
+                          <span class="text-white">${user.username}</span>
+                          ${isAlreadyFriend ? `
+                            <span class="text-green-400 text-xs">✓ ${t('userAlreadyFriend')}</span>
+                          ` : `
+                            <button class="add-suggestion-btn bg-pink-600 hover:bg-pink-500 text-white text-xs py-1 px-2 rounded" data-id="${user.odataId}" data-username="${user.username}">
+                              ➕
+                            </button>
+                          `}
+                        </div>
+                      `
+                    }).join('')}
+                  </div>
+                ` : ''}
               </div>
-              ${friendSearchError ? `<p class="text-red-400 text-sm mt-2">${friendSearchError}</p>` : ''}
-              ${friendSearchResult ? `
+              ${friendSearchError ? `<p class="${friendSearchError === t('requestSent') ? 'text-green-400' : 'text-red-400'} text-sm mt-2">${friendSearchError}</p>` : ''}
+              ${friendSearchResult && !friendSearchSuggestions.length ? `
                 <div class="bg-gray-600 rounded-lg p-3 mt-3 flex items-center justify-between">
                   <span class="text-white">${friendSearchResult.username}</span>
                   <button id="send-request-btn" class="bg-pink-600 hover:bg-pink-500 text-white text-sm py-1 px-3 rounded">
@@ -26371,20 +26390,39 @@ function render() {
         stopFriendsListeners()
         friendSearchQuery = ''
         friendSearchResult = null
+        friendSearchSuggestions = []
         friendSearchError = ''
         render()
       })
 
-      document.getElementById('friend-search')?.addEventListener('input', (e) => {
+      // Debounce timer for search
+      let searchDebounce: ReturnType<typeof setTimeout> | null = null
+
+      document.getElementById('friend-search')?.addEventListener('input', async (e) => {
         friendSearchQuery = (e.target as HTMLInputElement).value
         friendSearchResult = null
         friendSearchError = ''
+        friendSearchSuggestions = []
+
+        // Clear previous debounce
+        if (searchDebounce) clearTimeout(searchDebounce)
+
+        // Only search if 2+ characters
+        if (friendSearchQuery.trim().length >= 2) {
+          searchDebounce = setTimeout(async () => {
+            friendSearchSuggestions = await searchUsersByPrefix(friendSearchQuery.trim(), 8)
+            render()
+          }, 300)
+        } else {
+          render()
+        }
       })
 
       document.getElementById('search-friend-btn')?.addEventListener('click', async () => {
         if (!friendSearchQuery.trim()) return
         friendSearchError = ''
         friendSearchResult = null
+        friendSearchSuggestions = []
         render()
 
         const result = await searchUserByUsername(friendSearchQuery.trim())
@@ -26408,9 +26446,28 @@ function render() {
         if (success) {
           friendSearchQuery = ''
           friendSearchResult = null
+          friendSearchSuggestions = []
           friendSearchError = t('requestSent')
           render()
         }
+      })
+
+      // Handle clicking on suggestion add buttons
+      document.querySelectorAll('.add-suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation()
+          const userId = (btn as HTMLElement).dataset.id
+          const username = (btn as HTMLElement).dataset.username
+          if (userId && username) {
+            const success = await sendFriendRequest(userId, username)
+            if (success) {
+              friendSearchQuery = ''
+              friendSearchSuggestions = []
+              friendSearchError = t('requestSent')
+              render()
+            }
+          }
+        })
       })
 
       document.querySelectorAll('.accept-request-btn').forEach(btn => {
