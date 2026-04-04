@@ -1627,6 +1627,11 @@ let isFullscreen = false
 let deferredPrompt: any = null
 let canInstallPWA = false
 
+// Detect Safari (doesn't support beforeinstallprompt)
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+const isMacSafari = isSafari && !isIOS
+
 // Listen for PWA install prompt
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault()
@@ -8926,6 +8931,10 @@ const translations: Record<Language, Record<string, string>> = {
     installAppDesc: 'Play offline & faster loading',
     installAppButton: 'Install',
     appInstalled: 'App installed!',
+    safariInstallTitle: 'Install on iPhone/iPad',
+    safariInstallStep1: '1. Tap the Share button',
+    safariInstallStep2: '2. Scroll down and tap "Add to Home Screen"',
+    macSafariNotSupported: 'Safari on Mac does not support app installation. Use Chrome or Edge.',
     // Game
     yellowTurn: "YELLOW's turn",
     greenTurn: "GREEN's turn",
@@ -10233,6 +10242,10 @@ const translations: Record<Language, Record<string, string>> = {
     installAppDesc: 'Speel offline & sneller laden',
     installAppButton: 'Installeren',
     appInstalled: 'App geïnstalleerd!',
+    safariInstallTitle: 'Installeren op iPhone/iPad',
+    safariInstallStep1: '1. Tik op de Deel-knop',
+    safariInstallStep2: '2. Scroll naar beneden en tik op "Zet op beginscherm"',
+    macSafariNotSupported: 'Safari op Mac ondersteunt geen app-installatie. Gebruik Chrome of Edge.',
     yellowTurn: 'GEEL aan zet',
     greenTurn: 'GROEN aan zet',
     resetButton: 'Reset',
@@ -11529,6 +11542,10 @@ const translations: Record<Language, Record<string, string>> = {
     installAppDesc: 'Offline spielen & schneller laden',
     installAppButton: 'Installieren',
     appInstalled: 'App installiert!',
+    safariInstallTitle: 'Auf iPhone/iPad installieren',
+    safariInstallStep1: '1. Tippe auf die Teilen-Taste',
+    safariInstallStep2: '2. Scrolle und tippe auf "Zum Home-Bildschirm"',
+    macSafariNotSupported: 'Safari auf Mac unterstützt keine App-Installation. Verwende Chrome oder Edge.',
     yellowTurn: 'GELB ist dran',
     greenTurn: 'GRÜN ist dran',
     resetButton: 'Zurücksetzen',
@@ -12058,6 +12075,10 @@ const translations: Record<Language, Record<string, string>> = {
     installAppDesc: 'Jouer hors ligne & chargement rapide',
     installAppButton: 'Installer',
     appInstalled: 'App installée!',
+    safariInstallTitle: 'Installer sur iPhone/iPad',
+    safariInstallStep1: '1. Appuyez sur le bouton Partager',
+    safariInstallStep2: '2. Faites défiler et appuyez sur "Sur l\'écran d\'accueil"',
+    macSafariNotSupported: 'Safari sur Mac ne prend pas en charge l\'installation. Utilisez Chrome ou Edge.',
     yellowTurn: 'Tour de JAUNE',
     greenTurn: 'Tour de VERT',
     resetButton: 'Réinitialiser',
@@ -12586,6 +12607,10 @@ const translations: Record<Language, Record<string, string>> = {
     installAppDesc: 'Jugar sin conexión y carga rápida',
     installAppButton: 'Instalar',
     appInstalled: '¡App instalada!',
+    safariInstallTitle: 'Instalar en iPhone/iPad',
+    safariInstallStep1: '1. Toca el botón Compartir',
+    safariInstallStep2: '2. Desplázate y toca "Añadir a pantalla de inicio"',
+    macSafariNotSupported: 'Safari en Mac no soporta instalación de apps. Usa Chrome o Edge.',
     yellowTurn: 'Turno de AMARILLO',
     greenTurn: 'Turno de VERDE',
     resetButton: 'Reiniciar',
@@ -24515,6 +24540,20 @@ function render() {
                 </div>
                 <button id="install-app-btn" class="py-2 px-4 rounded bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold transition-colors">${t('installAppButton')}</button>
               </div>
+            </div>
+            ` : isIOS ? `
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <label class="text-white font-bold">📲 ${t('safariInstallTitle')}</label>
+              <div class="bg-gray-700 rounded p-3 text-sm">
+                <p class="text-gray-200">${t('safariInstallStep1')} <span class="inline-block">⬆️</span></p>
+                <p class="text-gray-200 mt-1">${t('safariInstallStep2')}</p>
+              </div>
+              <span class="text-gray-400 text-xs">${t('installAppDesc')}</span>
+            </div>
+            ` : isMacSafari ? `
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <label class="text-white font-bold">📲 ${t('installAppLabel')}</label>
+              <p class="text-gray-400 text-sm">${t('macSafariNotSupported')}</p>
             </div>
             ` : ''}
 
