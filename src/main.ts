@@ -23,6 +23,7 @@ import {
   // Multiplayer
   setOnline,
   setOffline,
+  setPlaying,
   listenToOnlinePlayers,
   stopListeningToOnlinePlayers,
   sendGameInvite,
@@ -36,6 +37,9 @@ import {
   getInvites,
   listenToGame,
   stopListeningToGame,
+  listenToGameAsSpectator,
+  stopSpectating,
+  getGameById,
   joinGame,
   getMyTeamInGame,
   updateGameState,
@@ -213,6 +217,11 @@ let waitingForOpponent = false
 let multiplayerGameStarted = false
 let opponentLeftGame = false // Track if opponent left the game
 let showOpponentLeftModal = false // Show modal when opponent leaves
+
+// Spectator state
+let isSpectating = false
+let spectatorGame: MultiplayerGame | null = null
+let spectatorGameId: string | null = null
 
 // Chat state
 let chatMessages: GameChatMessage[] = []
@@ -9137,6 +9146,12 @@ const translations: Record<Language, Record<string, string>> = {
     viewChat: 'Chat',
     backToFriends: 'Back to Friends',
     unreadMessages: '{0} unread',
+    // Spectator
+    watchGame: 'Watch',
+    spectating: 'Spectating',
+    spectatorMode: 'Spectator Mode',
+    stopWatching: 'Stop Watching',
+    spectatorChat: 'Spectator',
     // Puzzle Editor
     puzzleCurrentTarget: 'Current target:',
     puzzleNotSet: 'Not set',
@@ -10422,6 +10437,12 @@ const translations: Record<Language, Record<string, string>> = {
     viewChat: 'Chat',
     backToFriends: 'Terug naar Vrienden',
     unreadMessages: '{0} ongelezen',
+    // Spectator
+    watchGame: 'Kijken',
+    spectating: 'Aan het kijken',
+    spectatorMode: 'Toeschouwer Modus',
+    stopWatching: 'Stop Kijken',
+    spectatorChat: 'Toeschouwer',
     // Puzzle Editor
     puzzleCurrentTarget: 'Huidige target:',
     puzzleNotSet: 'Niet ingesteld',
@@ -11707,6 +11728,12 @@ const translations: Record<Language, Record<string, string>> = {
     viewChat: 'Chat',
     backToFriends: 'Zuruck zu Freunden',
     unreadMessages: '{0} ungelesen',
+    // Spectator
+    watchGame: 'Zuschauen',
+    spectating: 'Zuschauer',
+    spectatorMode: 'Zuschauer Modus',
+    stopWatching: 'Aufhoren',
+    spectatorChat: 'Zuschauer',
     // Puzzle Editor
     puzzleCurrentTarget: 'Aktuelles Ziel:',
     puzzleNotSet: 'Nicht gesetzt',
@@ -12225,6 +12252,12 @@ const translations: Record<Language, Record<string, string>> = {
     viewChat: 'Chat',
     backToFriends: 'Retour aux Amis',
     unreadMessages: '{0} non lus',
+    // Spectator
+    watchGame: 'Regarder',
+    spectating: 'En spectateur',
+    spectatorMode: 'Mode Spectateur',
+    stopWatching: 'Arreter',
+    spectatorChat: 'Spectateur',
     // Puzzle Editor
     puzzleCurrentTarget: 'Cible actuelle:',
     puzzleNotSet: 'Non défini',
@@ -12742,6 +12775,12 @@ const translations: Record<Language, Record<string, string>> = {
     viewChat: 'Chat',
     backToFriends: 'Volver a Amigos',
     unreadMessages: '{0} sin leer',
+    // Spectator
+    watchGame: 'Ver',
+    spectating: 'Viendo',
+    spectatorMode: 'Modo Espectador',
+    stopWatching: 'Dejar de Ver',
+    spectatorChat: 'Espectador',
     // Puzzle Editor
     puzzleCurrentTarget: 'Objetivo actual:',
     puzzleNotSet: 'No establecido',
@@ -13167,6 +13206,71 @@ function deserializeGameState(state: SerializedGameState) {
   }
 }
 
+// Apply game state for spectators (read-only, no multiplayer tracking)
+function applySpectatorGameState(state: SerializedGameState) {
+  const deserializePiece = (sp: SerializedPiece): Piece => {
+    const p: Piece = {
+      type: sp.type,
+      team: sp.team,
+      col: sp.col,
+      row: sp.row,
+      points: sp.points
+    }
+    if (sp.inTrench) p.inTrench = sp.inTrench
+    if (sp.trenchEnteredOnTurn !== undefined) p.trenchEnteredOnTurn = sp.trenchEnteredOnTurn
+    if (sp.inTunnel) p.inTunnel = sp.inTunnel
+    if (sp.hp !== undefined) p.hp = sp.hp
+    if (sp.hasHelicopter) p.hasHelicopter = sp.hasHelicopter
+    if (sp.used) p.used = sp.used
+    if (sp.cooldownTurns !== undefined) p.cooldownTurns = sp.cooldownTurns
+    if (sp.frozenTurns !== undefined) p.frozenTurns = sp.frozenTurns
+    if (sp.barricadesBuilt !== undefined) p.barricadesBuilt = sp.barricadesBuilt
+    if (sp.artilleryBuilt !== undefined) p.artilleryBuilt = sp.artilleryBuilt
+    if (sp.spikesBuilt !== undefined) p.spikesBuilt = sp.spikesBuilt
+    if (sp.barricadeCooldown !== undefined) p.barricadeCooldown = sp.barricadeCooldown
+    if (sp.artilleryCooldown !== undefined) p.artilleryCooldown = sp.artilleryCooldown
+    if (sp.spikeCooldown !== undefined) p.spikeCooldown = sp.spikeCooldown
+    if (sp.turnsRemaining !== undefined) p.turnsRemaining = sp.turnsRemaining
+    return p
+  }
+
+  // Clear and rebuild pieces array
+  pieces.length = 0
+  const newPieces = state.pieces.map(sp => deserializePiece(sp))
+
+  // Resolve onCarrier references
+  state.pieces.forEach((sp, i) => {
+    if (sp.onCarrierId !== undefined && sp.onCarrierId >= 0) {
+      newPieces[i].onCarrier = newPieces[sp.onCarrierId]
+    }
+  })
+
+  newPieces.forEach(p => pieces.push(p))
+
+  // Clear and rebuild captured pieces
+  capturedPieces.length = 0
+  state.capturedPieces.forEach(sp => capturedPieces.push(deserializePiece(sp)))
+
+  // Update game state
+  currentTurn = state.currentTurn
+  yellowTurnCount = state.yellowTurnCount
+  greenTurnCount = state.greenTurnCount
+  gameState = state.gameState as GameState
+  winner = state.winner || null
+  winReason = (state.winReason as 'points' | 'builder') || null
+
+  // Restore move log
+  if (state.moveLog) {
+    moveLog.length = 0
+    state.moveLog.forEach(m => moveLog.push(m as Move))
+  }
+
+  // Clear any selection for spectators
+  selectedPiece = null
+  validMoves = []
+  shootTargets = []
+}
+
 // Sync game state to Firebase for multiplayer
 async function syncMultiplayerState() {
   if (!multiplayerGameId || !multiplayerTeam) return
@@ -13193,6 +13297,8 @@ async function syncMultiplayerState() {
   // If game is over, end the game in Firebase
   if (gameState === 'gameOver' && winner) {
     await endGame(multiplayerGameId, winner)
+    // Set status back to offline
+    setOffline()
   }
 }
 
@@ -14869,7 +14975,8 @@ async function startMultiplayerGame() {
   stopListeningToOnlinePlayers()
   stopListeningToInvites()
   stopListeningToSentInvites()
-  setOffline()
+  // Set status to "playing" so friends can spectate
+  setPlaying(multiplayerGameId)
 
   // Set bot mode to false for multiplayer
   botMode = false
@@ -15721,6 +15828,8 @@ async function resetGame() {
     chatListening = false
     chatMessages = []
     showChat = false
+    // Set status back to offline
+    setOffline()
   }
 
   // Reset opponent left state
@@ -18263,6 +18372,11 @@ function placeBuilderItem(col: string, row: number) {
 }
 
 function handleSquareClick(col: string, row: number) {
+  // Block clicks for spectators
+  if (isSpectating) {
+    return
+  }
+
   // Block clicks during bot's turn
   if (botThinking || (botMode && currentTurn === 'green')) {
     return
@@ -23501,17 +23615,23 @@ function createMoveLog(): string {
   `
 }
 
-// Chat panel for multiplayer
+// Chat panel for multiplayer and spectators
 function createChatPanel(): string {
-  if (!multiplayerGameId || !multiplayerTeam) return ''
+  // Show chat for both multiplayer players and spectators
+  if (!multiplayerGameId && !isSpectating) return ''
+  if (multiplayerGameId && !multiplayerTeam && !isSpectating) return ''
 
-  const teamColor = multiplayerTeam === 'yellow' ? 'yellow' : 'green'
+  const getMsgColor = (team: string) => {
+    if (team === 'yellow') return 'text-yellow-400'
+    if (team === 'green') return 'text-green-400'
+    return 'text-purple-400' // Spectator color
+  }
 
   return `
     <div class="bg-gray-800 rounded-lg p-3 sm:p-4 w-full lg:w-64 flex flex-col ${showChat ? 'h-64' : 'h-auto'}">
       <div class="flex items-center justify-between mb-2 border-b border-gray-700 pb-2">
         <h2 class="text-gray-200 font-bold text-base sm:text-lg flex items-center gap-2">
-          💬 Chat
+          💬 Chat ${isSpectating ? '(Spectator)' : ''}
           ${chatMessages.length > 0 ? `<span class="bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">${chatMessages.length}</span>` : ''}
         </h2>
         <button id="toggle-chat" class="text-gray-400 hover:text-white text-sm px-2 py-1 rounded bg-gray-700 hover:bg-gray-600">
@@ -23526,10 +23646,11 @@ function createChatPanel(): string {
               <!-- Desktop: 7 messages -->
               <div class="hidden lg:block">
                 ${chatMessages.slice(-7).map(msg => {
-                  const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
+                  const msgColor = getMsgColor(msg.team)
                   const isMe = msg.fromPlayerId === getCurrentUser()?.uid
+                  const spectatorBadge = msg.team === 'spectator' ? '👁️ ' : ''
                   return `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-1">
-                    <span class="${msgColor} text-xs font-bold">${msg.fromUsername}</span>
+                    <span class="${msgColor} text-xs font-bold">${spectatorBadge}${msg.fromUsername}</span>
                     <span class="bg-gray-700 px-2 py-1 rounded">${msg.message}</span>
                   </div>`
                 }).join('')}
@@ -23537,10 +23658,11 @@ function createChatPanel(): string {
               <!-- Mobile: 3 messages -->
               <div class="lg:hidden">
                 ${chatMessages.slice(-3).map(msg => {
-                  const msgColor = msg.team === 'yellow' ? 'text-yellow-400' : 'text-green-400'
+                  const msgColor = getMsgColor(msg.team)
                   const isMe = msg.fromPlayerId === getCurrentUser()?.uid
+                  const spectatorBadge = msg.team === 'spectator' ? '👁️ ' : ''
                   return `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-1">
-                    <span class="${msgColor} text-xs font-bold">${msg.fromUsername}</span>
+                    <span class="${msgColor} text-xs font-bold">${spectatorBadge}${msg.fromUsername}</span>
                     <span class="bg-gray-700 px-2 py-1 rounded">${msg.message}</span>
                   </div>`
                 }).join('')}
@@ -26385,7 +26507,11 @@ function render() {
                           <button class="chat-friend-btn bg-blue-600 hover:bg-blue-500 text-white text-sm py-1 px-3 rounded" data-id="${friend.odataId}" data-username="${friend.username}" data-status="${friend.status}">
                             💬 ${t('viewChat')}
                           </button>
-                          ${friend.status !== 'offline' ? `
+                          ${friend.status === 'playing' && friend.gameId ? `
+                            <button class="watch-friend-btn bg-yellow-600 hover:bg-yellow-500 text-white text-sm py-1 px-3 rounded" data-gameid="${friend.gameId}" data-username="${friend.username}">
+                              👁️ ${t('watchGame')}
+                            </button>
+                          ` : friend.status === 'online' ? `
                             <button class="invite-friend-btn bg-purple-600 hover:bg-purple-500 text-white text-sm py-1 px-3 rounded" data-id="${friend.odataId}">
                               🎮
                             </button>
@@ -26548,6 +26674,46 @@ function render() {
           if (friendId) {
             showAuthScreen = 'multiplayer'
             showInviteSettings = friendId
+            render()
+          }
+        })
+      })
+
+      document.querySelectorAll('.watch-friend-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const gameId = (btn as HTMLElement).dataset.gameid
+          const username = (btn as HTMLElement).dataset.username
+          if (gameId) {
+            // Start spectating
+            spectatorGameId = gameId
+            isSpectating = true
+            showAuthScreen = 'none'
+            stopFriendsListeners()
+
+            // Get game and start listening
+            spectatorGame = await getGameById(gameId)
+            if (spectatorGame) {
+              // Listen to game updates
+              listenToGameAsSpectator(gameId, (game) => {
+                spectatorGame = game
+                if (game?.gameState) {
+                  // Update local game state from spectator game
+                  applySpectatorGameState(game.gameState as SerializedGameState)
+                }
+                render()
+              })
+              // Listen to chat
+              listenToGameChat(gameId, (messages) => {
+                chatMessages = messages
+                render()
+              })
+              // Apply initial state
+              if (spectatorGame.gameState) {
+                applySpectatorGameState(spectatorGame.gameState as SerializedGameState)
+              }
+              gameState = 'playing'
+              showChat = true
+            }
             render()
           }
         })
@@ -29199,9 +29365,24 @@ function render() {
     <div class="h-16"></div>
   ` : ''
 
+  // Spectator banner
+  const spectatorBannerHtml = isSpectating ? `
+    <div class="fixed top-0 left-0 right-0 bg-purple-600 text-white py-2 px-4 flex items-center justify-between z-50">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">👁️</span>
+        <span class="font-bold">${t('spectatorMode')}</span>
+        <span class="text-purple-200">- ${t('spectating')}</span>
+      </div>
+      <button id="stop-watching-btn" class="bg-purple-800 hover:bg-purple-900 text-white font-bold py-1 px-4 rounded transition-colors">
+        ${t('stopWatching')}
+      </button>
+    </div>
+  ` : ''
+
   // Playing state
   app.innerHTML = `
-    <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4">
+    ${spectatorBannerHtml}
+    <div class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 lg:p-8 gap-2 sm:gap-4 ${isSpectating ? 'pt-14' : ''}">
       ${puzzleHeaderHtml}
       ${opponentLeftModalHtml}
       ${forcedTrenchWarning}
@@ -29216,17 +29397,17 @@ function render() {
             </div>
           ` : ''}
         </div>
-        ${actionButtonsHtml}
-        ${hackActionsHtml}
-        ${builderActionsHtml}
-        ${carrierActionsHtml}
-        ${message && !forcedSoldier ? `<div class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs sm:text-sm">${message}</div>` : ''}
-        <button id="reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors">
+        ${isSpectating ? '' : actionButtonsHtml}
+        ${isSpectating ? '' : hackActionsHtml}
+        ${isSpectating ? '' : builderActionsHtml}
+        ${isSpectating ? '' : carrierActionsHtml}
+        ${message && !forcedSoldier && !isSpectating ? `<div class="bg-gray-800 text-white px-3 py-2 rounded-lg text-xs sm:text-sm">${message}</div>` : ''}
+        ${isSpectating ? '' : `<button id="reset-btn" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm transition-colors">
           ${t('resetButton')}
-        </button>
+        </button>`}
       </div>
       <div class="flex flex-col lg:flex-row items-center lg:items-start gap-4 w-full max-w-5xl">
-        ${multiplayerGameId ? `
+        ${(multiplayerGameId || isSpectating) ? `
           <div class="hidden lg:flex flex-col gap-4 w-64">
             ${createChatPanel()}
           </div>
@@ -29247,7 +29428,7 @@ function render() {
         <div class="flex flex-row lg:flex-col gap-4 w-full lg:w-64 lg:h-[80vh]">
           ${createScorePanel()}
           ${createMoveLog()}
-          ${multiplayerGameId ? `<div class="lg:hidden">${createChatPanel()}</div>` : ''}
+          ${(multiplayerGameId || isSpectating) ? `<div class="lg:hidden">${createChatPanel()}</div>` : ''}
         </div>
       </div>
     </div>
@@ -29308,20 +29489,30 @@ function render() {
 
   document.getElementById('send-chat')?.addEventListener('click', async () => {
     const input = document.getElementById('chat-input') as HTMLInputElement
-    if (input && input.value.trim() && multiplayerGameId && multiplayerTeam) {
-      await sendChatMessage(multiplayerGameId, input.value.trim(), multiplayerTeam)
-      chatInput = ''
-      input.value = ''
+    if (input && input.value.trim()) {
+      // Support both regular multiplayer and spectator chat
+      const gameId = isSpectating ? spectatorGameId : multiplayerGameId
+      const team = isSpectating ? 'spectator' : multiplayerTeam
+      if (gameId && team) {
+        await sendChatMessage(gameId, input.value.trim(), team as 'yellow' | 'green' | 'spectator')
+        chatInput = ''
+        input.value = ''
+      }
     }
   })
 
   document.getElementById('chat-input')?.addEventListener('keypress', async (e) => {
     if (e.key === 'Enter') {
       const input = e.target as HTMLInputElement
-      if (input.value.trim() && multiplayerGameId && multiplayerTeam) {
-        await sendChatMessage(multiplayerGameId, input.value.trim(), multiplayerTeam)
-        chatInput = ''
-        input.value = ''
+      if (input.value.trim()) {
+        // Support both regular multiplayer and spectator chat
+        const gameId = isSpectating ? spectatorGameId : multiplayerGameId
+        const team = isSpectating ? 'spectator' : multiplayerTeam
+        if (gameId && team) {
+          await sendChatMessage(gameId, input.value.trim(), team as 'yellow' | 'green' | 'spectator')
+          chatInput = ''
+          input.value = ''
+        }
       }
     }
   })
@@ -29333,13 +29524,29 @@ function render() {
   document.querySelectorAll('.quick-chat-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const msgId = (e.currentTarget as HTMLElement).dataset.msg
-      if (msgId && multiplayerGameId && multiplayerTeam) {
+      // Support both regular multiplayer and spectator chat
+      const gameId = isSpectating ? spectatorGameId : multiplayerGameId
+      const team = isSpectating ? 'spectator' : multiplayerTeam
+      if (msgId && gameId && team) {
         const quickMsg = QUICK_CHAT_MESSAGES.find(m => m.id === msgId)
         if (quickMsg) {
-          await sendChatMessage(multiplayerGameId, quickMsg.text, multiplayerTeam, true, msgId)
+          await sendChatMessage(gameId, quickMsg.text, team as 'yellow' | 'green' | 'spectator', true, msgId)
         }
       }
     })
+  })
+
+  // Stop watching button for spectators
+  document.getElementById('stop-watching-btn')?.addEventListener('click', () => {
+    stopSpectating()
+    isSpectating = false
+    spectatorGame = null
+    spectatorGameId = null
+    gameState = 'start'
+    showChat = false
+    chatMessages = []
+    message = null
+    render()
   })
 
   // Add soldier action listeners

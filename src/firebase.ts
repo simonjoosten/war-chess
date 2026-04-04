@@ -980,6 +980,70 @@ export async function setOffline(): Promise<void> {
   }
 }
 
+// Set user as playing (with gameId for spectators)
+export async function setPlaying(gameId: string): Promise<void> {
+  if (!db || !currentUser || !currentUserData || isOfflineMode) return
+
+  try {
+    await setDoc(doc(db, 'online', currentUser.uid), {
+      id: currentUser.uid,
+      username: currentUserData.username,
+      lastSeen: serverTimestamp(),
+      status: 'playing',
+      gameId: gameId
+    })
+  } catch (error) {
+    console.error('Error setting playing:', error)
+  }
+}
+
+// Spectator listener (separate from player game listener)
+let spectatorGameUnsubscribe: (() => void) | null = null
+
+export function listenToGameAsSpectator(gameId: string, callback: (game: MultiplayerGame | null) => void): void {
+  if (!db) return
+
+  // Clean up existing spectator listener
+  if (spectatorGameUnsubscribe) {
+    spectatorGameUnsubscribe()
+  }
+
+  spectatorGameUnsubscribe = onSnapshot(doc(db, 'games', gameId), (docSnap) => {
+    if (docSnap.exists()) {
+      callback({
+        id: docSnap.id,
+        ...docSnap.data()
+      } as MultiplayerGame)
+    } else {
+      callback(null)
+    }
+  })
+}
+
+export function stopSpectating(): void {
+  if (spectatorGameUnsubscribe) {
+    spectatorGameUnsubscribe()
+    spectatorGameUnsubscribe = null
+  }
+}
+
+// Get a game by ID (for spectator to fetch initial state)
+export async function getGameById(gameId: string): Promise<MultiplayerGame | null> {
+  if (!db) return null
+
+  try {
+    const gameDoc = await getDoc(doc(db, 'games', gameId))
+    if (!gameDoc.exists()) return null
+    return {
+      id: gameDoc.id,
+      ...gameDoc.data()
+    } as MultiplayerGame
+  } catch (error) {
+    console.error('Error getting game:', error)
+    return null
+  }
+}
+
 // Listen for online players
 export function listenToOnlinePlayers(callback: (players: OnlinePlayer[]) => void): void {
   if (!db) return
@@ -2210,7 +2274,7 @@ export interface GameChatMessage {
   fromUsername: string
   message: string
   timestamp: number
-  team: 'yellow' | 'green'
+  team: 'yellow' | 'green' | 'spectator'
   isQuickChat: boolean
   quickChatId?: string
 }
@@ -2220,7 +2284,7 @@ let chatUnsubscribe: (() => void) | null = null
 let chatCallback: ((messages: GameChatMessage[]) => void) | null = null
 
 // Send chat message
-export async function sendChatMessage(gameId: string, message: string, team: 'yellow' | 'green', isQuickChat: boolean = false, quickChatId?: string): Promise<boolean> {
+export async function sendChatMessage(gameId: string, message: string, team: 'yellow' | 'green' | 'spectator', isQuickChat: boolean = false, quickChatId?: string): Promise<boolean> {
   if (!db || !currentUser || !currentUserData) return false
 
   try {
@@ -4806,6 +4870,7 @@ export interface FriendWithStatus {
   username: string
   status: 'online' | 'offline' | 'playing'
   lastSeen?: number
+  gameId?: string  // If playing, the game ID to spectate
 }
 
 // Friends listeners
@@ -5142,18 +5207,21 @@ export async function getFriendsWithStatus(): Promise<FriendWithStatus[]> {
       const onlineDoc = await getDoc(doc(db, 'online', friendId))
       let status: 'online' | 'offline' | 'playing' = 'offline'
       let lastSeen: number | undefined
+      let gameId: string | undefined
 
       if (onlineDoc.exists()) {
         const onlineData = onlineDoc.data()
         status = onlineData.status === 'playing' ? 'playing' : 'online'
         lastSeen = onlineData.lastSeen?.toMillis() || Date.now()
+        gameId = onlineData.gameId  // Get gameId if playing
       }
 
       result.push({
         odataId: friendId,
         username: userData.username,
         status,
-        lastSeen
+        lastSeen,
+        gameId
       })
     }
 
