@@ -8935,7 +8935,10 @@ const translations: Record<Language, Record<string, string>> = {
     safariInstallTitle: 'Install on iPhone/iPad',
     safariInstallStep1: '1. Tap the Share button',
     safariInstallStep2: '2. Scroll down and tap "Add to Home Screen"',
-    macSafariNotSupported: 'Safari on Mac does not support app installation. Use Chrome or Edge.',
+    macSafariInstallTitle: 'Install on Mac',
+    macSafariStep1: '1. Open this page in Chrome or Edge',
+    macSafariStep2: '2. Click the install icon in the address bar',
+    macSafariNote: 'Safari on Mac does not support app installation',
     // Game
     yellowTurn: "YELLOW's turn",
     greenTurn: "GREEN's turn",
@@ -10246,7 +10249,10 @@ const translations: Record<Language, Record<string, string>> = {
     safariInstallTitle: 'Installeren op iPhone/iPad',
     safariInstallStep1: '1. Tik op de Deel-knop',
     safariInstallStep2: '2. Scroll naar beneden en tik op "Zet op beginscherm"',
-    macSafariNotSupported: 'Safari op Mac ondersteunt geen app-installatie. Gebruik Chrome of Edge.',
+    macSafariInstallTitle: 'Installeren op Mac',
+    macSafariStep1: '1. Open deze pagina in Chrome of Edge',
+    macSafariStep2: '2. Klik op het installatie-icoon in de adresbalk',
+    macSafariNote: 'Safari op Mac ondersteunt geen app-installatie',
     yellowTurn: 'GEEL aan zet',
     greenTurn: 'GROEN aan zet',
     resetButton: 'Reset',
@@ -11546,7 +11552,10 @@ const translations: Record<Language, Record<string, string>> = {
     safariInstallTitle: 'Auf iPhone/iPad installieren',
     safariInstallStep1: '1. Tippe auf die Teilen-Taste',
     safariInstallStep2: '2. Scrolle und tippe auf "Zum Home-Bildschirm"',
-    macSafariNotSupported: 'Safari auf Mac unterstützt keine App-Installation. Verwende Chrome oder Edge.',
+    macSafariInstallTitle: 'Auf Mac installieren',
+    macSafariStep1: '1. Öffne diese Seite in Chrome oder Edge',
+    macSafariStep2: '2. Klicke auf das Installations-Symbol in der Adressleiste',
+    macSafariNote: 'Safari auf Mac unterstützt keine App-Installation',
     yellowTurn: 'GELB ist dran',
     greenTurn: 'GRÜN ist dran',
     resetButton: 'Zurücksetzen',
@@ -12079,7 +12088,10 @@ const translations: Record<Language, Record<string, string>> = {
     safariInstallTitle: 'Installer sur iPhone/iPad',
     safariInstallStep1: '1. Appuyez sur le bouton Partager',
     safariInstallStep2: '2. Faites défiler et appuyez sur "Sur l\'écran d\'accueil"',
-    macSafariNotSupported: 'Safari sur Mac ne prend pas en charge l\'installation. Utilisez Chrome ou Edge.',
+    macSafariInstallTitle: 'Installer sur Mac',
+    macSafariStep1: '1. Ouvrez cette page dans Chrome ou Edge',
+    macSafariStep2: '2. Cliquez sur l\'icône d\'installation dans la barre d\'adresse',
+    macSafariNote: 'Safari sur Mac ne prend pas en charge l\'installation',
     yellowTurn: 'Tour de JAUNE',
     greenTurn: 'Tour de VERT',
     resetButton: 'Réinitialiser',
@@ -12611,7 +12623,10 @@ const translations: Record<Language, Record<string, string>> = {
     safariInstallTitle: 'Instalar en iPhone/iPad',
     safariInstallStep1: '1. Toca el botón Compartir',
     safariInstallStep2: '2. Desplázate y toca "Añadir a pantalla de inicio"',
-    macSafariNotSupported: 'Safari en Mac no soporta instalación de apps. Usa Chrome o Edge.',
+    macSafariInstallTitle: 'Instalar en Mac',
+    macSafariStep1: '1. Abre esta página en Chrome o Edge',
+    macSafariStep2: '2. Haz clic en el icono de instalación en la barra de direcciones',
+    macSafariNote: 'Safari en Mac no soporta instalación de apps',
     yellowTurn: 'Turno de AMARILLO',
     greenTurn: 'Turno de VERDE',
     resetButton: 'Reiniciar',
@@ -24553,8 +24568,12 @@ function render() {
             </div>
             ` : isMacSafari ? `
             <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
-              <label class="text-white font-bold">📲 ${t('installAppLabel')}</label>
-              <p class="text-gray-400 text-sm">${t('macSafariNotSupported')}</p>
+              <label class="text-white font-bold">📲 ${t('macSafariInstallTitle')}</label>
+              <div class="bg-gray-700 rounded p-3 text-sm">
+                <p class="text-gray-200">${t('macSafariStep1')}</p>
+                <p class="text-gray-200 mt-1">${t('macSafariStep2')} ⬇️</p>
+              </div>
+              <span class="text-gray-400 text-xs">${t('macSafariNote')}</span>
             </div>
             ` : ''}
 
