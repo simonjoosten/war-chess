@@ -1628,9 +1628,10 @@ let deferredPrompt: any = null
 let canInstallPWA = false
 
 // Detect Safari (doesn't support beforeinstallprompt)
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+const isSafari = /safari/i.test(navigator.userAgent) && !/chrome|chromium|edg/i.test(navigator.userAgent)
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 const isMacSafari = isSafari && !isIOS
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true
 
 // Listen for PWA install prompt
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -24531,7 +24532,7 @@ function render() {
             </div>
 
             <!-- Install App -->
-            ${canInstallPWA ? `
+            ${isStandalone ? '' : canInstallPWA ? `
             <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
               <div class="flex items-center justify-between">
                 <div class="flex flex-col">
