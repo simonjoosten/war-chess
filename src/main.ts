@@ -1623,6 +1623,17 @@ function learnFromMove(pieceType: string, action: string, success: boolean) {
 // Fullscreen
 let isFullscreen = false
 
+// PWA Install
+let deferredPrompt: any = null
+let canInstallPWA = false
+
+// Listen for PWA install prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  deferredPrompt = e
+  canInstallPWA = true
+})
+
 // Theme color palettes
 function getThemeColors(): { light: string; dark: string } {
   // Check for equipped shop theme first
@@ -8910,6 +8921,11 @@ const translations: Record<Language, Record<string, string>> = {
     largeUILabel: 'Large UI',
     // Fullscreen
     fullscreenLabel: 'Fullscreen',
+    // Install App
+    installAppLabel: 'Install App',
+    installAppDesc: 'Play offline & faster loading',
+    installAppButton: 'Install',
+    appInstalled: 'App installed!',
     // Game
     yellowTurn: "YELLOW's turn",
     greenTurn: "GREEN's turn",
@@ -10212,6 +10228,11 @@ const translations: Record<Language, Record<string, string>> = {
     highContrastLabel: 'Hoog Contrast',
     largeUILabel: 'Grote UI',
     fullscreenLabel: 'Volledig Scherm',
+    // Install App
+    installAppLabel: 'Installeer App',
+    installAppDesc: 'Speel offline & sneller laden',
+    installAppButton: 'Installeren',
+    appInstalled: 'App geïnstalleerd!',
     yellowTurn: 'GEEL aan zet',
     greenTurn: 'GROEN aan zet',
     resetButton: 'Reset',
@@ -11503,6 +11524,11 @@ const translations: Record<Language, Record<string, string>> = {
     highContrastLabel: 'Hoher Kontrast',
     largeUILabel: 'Große UI',
     fullscreenLabel: 'Vollbild',
+    // Install App
+    installAppLabel: 'App installieren',
+    installAppDesc: 'Offline spielen & schneller laden',
+    installAppButton: 'Installieren',
+    appInstalled: 'App installiert!',
     yellowTurn: 'GELB ist dran',
     greenTurn: 'GRÜN ist dran',
     resetButton: 'Zurücksetzen',
@@ -12027,6 +12053,11 @@ const translations: Record<Language, Record<string, string>> = {
     highContrastLabel: 'Contraste élevé',
     largeUILabel: 'Grande interface',
     fullscreenLabel: 'Plein écran',
+    // Install App
+    installAppLabel: 'Installer l\'app',
+    installAppDesc: 'Jouer hors ligne & chargement rapide',
+    installAppButton: 'Installer',
+    appInstalled: 'App installée!',
     yellowTurn: 'Tour de JAUNE',
     greenTurn: 'Tour de VERT',
     resetButton: 'Réinitialiser',
@@ -12550,6 +12581,11 @@ const translations: Record<Language, Record<string, string>> = {
     highContrastLabel: 'Alto contraste',
     largeUILabel: 'UI grande',
     fullscreenLabel: 'Pantalla completa',
+    // Install App
+    installAppLabel: 'Instalar App',
+    installAppDesc: 'Jugar sin conexión y carga rápida',
+    installAppButton: 'Instalar',
+    appInstalled: '¡App instalada!',
     yellowTurn: 'Turno de AMARILLO',
     greenTurn: 'Turno de VERDE',
     resetButton: 'Reiniciar',
@@ -24469,6 +24505,19 @@ function render() {
               </div>
             </div>
 
+            <!-- Install App -->
+            ${canInstallPWA ? `
+            <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+              <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                  <label class="text-white font-bold">📲 ${t('installAppLabel')}</label>
+                  <span class="text-gray-400 text-xs">${t('installAppDesc')}</span>
+                </div>
+                <button id="install-app-btn" class="py-2 px-4 rounded bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold transition-colors">${t('installAppButton')}</button>
+              </div>
+            </div>
+            ` : ''}
+
             <!-- How to Play -->
             <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
               <button id="manual-btn" class="w-full py-3 px-4 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors">
@@ -24639,6 +24688,19 @@ function render() {
           isFullscreen = false
         }
         render()
+      })
+
+      // Install App button
+      document.getElementById('install-app-btn')?.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt()
+          const { outcome } = await deferredPrompt.userChoice
+          if (outcome === 'accepted') {
+            canInstallPWA = false
+            deferredPrompt = null
+          }
+          render()
+        }
       })
 
       // Manual button
