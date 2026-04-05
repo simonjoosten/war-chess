@@ -17784,12 +17784,8 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
         piece.trenchEnteredOnTurn = currentTeamTurn
         message = t('enteredTrenchTurn').replace('{0}', '0')
       }
-      // If soldier was in trench and is leaving
-      else if (piece.type === 'soldier' && piece.inTrench && !isTrenchSquare(col, row)) {
-        piece.inTrench = false
-        piece.trenchEnteredOnTurn = undefined
-        message = t('leftTrench')
-      }
+      // Note: If soldier was leaving trench, inTrench is already cleared in pre-animation code
+      // This is kept as a fallback but normally won't execute for trench exits
 
       // Move the piece
       piece.col = col
