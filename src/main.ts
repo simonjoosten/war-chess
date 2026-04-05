@@ -13543,6 +13543,7 @@ type GameState = 'start' | 'playing' | 'confirmReset' | 'confirmTunnel' | 'confi
 let gameState: GameState = 'start'
 let winner: Team | null = null
 let winReason: 'points' | 'builder' | null = null
+let gameStartTime: number = 0 // Track when game started for playtime
 
 // Max turns per team before point-based win
 const MAX_TURNS_PER_TEAM = 80
@@ -14613,6 +14614,9 @@ async function saveGameStats() {
   const enemyPiecesEliminated = capturedPieces.filter(p => p.team === 'green').length
   const engineersCaptured = capturedPieces.filter(p => p.team === 'green' && p.type === 'builder').length
 
+  // Calculate playtime for this game (in seconds)
+  const gamePlaytime = gameStartTime > 0 ? Math.floor((Date.now() - gameStartTime) / 1000) : 0
+
   // Update stats
   const newStats = {
     ...userData.stats,
@@ -14621,7 +14625,8 @@ async function saveGameStats() {
     gamesLost: userData.stats.gamesLost + (playerWon ? 0 : 1),
     totalPointsScored: userData.stats.totalPointsScored + playerScore,
     piecesEliminated: userData.stats.piecesEliminated + enemyPiecesEliminated,
-    engineersCaptured: userData.stats.engineersCaptured + engineersCaptured
+    engineersCaptured: userData.stats.engineersCaptured + engineersCaptured,
+    timePlayed: (userData.stats.timePlayed || 0) + gamePlaytime
   }
 
   // Calculate War Bucks reward
@@ -14647,11 +14652,11 @@ async function saveGameStats() {
     badges: allBadges
   })
 
-  // Update periodic stats for leaderboard
-  await updatePeriodicStats(0, playerWon ? 1 : 0, warBucksEarned)
+  // Update periodic stats for leaderboard (playtime, wins, warbucks)
+  await updatePeriodicStats(gamePlaytime, playerWon ? 1 : 0, warBucksEarned)
 
   // Show reward notification (could add UI for this later)
-  console.log(`Game saved! +${warBucksEarned} War Bucks${newBadges.length > 0 ? `, New badges: ${newBadges.join(', ')}` : ''}`)
+  console.log(`Game saved! +${warBucksEarned} War Bucks, +${Math.floor(gamePlaytime / 60)}m playtime${newBadges.length > 0 ? `, New badges: ${newBadges.join(', ')}` : ''}`)
 }
 
 // Check if hacker is on cooldown
@@ -15175,6 +15180,7 @@ function getInitialPieces(): Piece[] {
 
 async function startGame() {
   gameState = 'playing'
+  gameStartTime = Date.now() // Track playtime
   await initAudio()
 
   // Load active game modes
@@ -15220,6 +15226,7 @@ async function startMultiplayerGame() {
   yellowTurnCount = 0
   greenTurnCount = 0
   gameState = 'playing'
+  gameStartTime = Date.now() // Track playtime for multiplayer
   currentTurn = 'yellow'
   winner = null
   winReason = null
@@ -16099,6 +16106,7 @@ async function resetGame() {
   greenTurnCount = 0
   winner = null
   winReason = null
+  gameStartTime = 0
 
   // Reset timer
   stopTimer()
@@ -29400,11 +29408,11 @@ function render() {
                 </div>
               ` : ''}
 
-              <!-- Rest of Leaderboard -->
+              <!-- Rest of Leaderboard (4-20) with scroll -->
               ${rest.length > 0 ? `
                 <div class="bg-gray-800 rounded-xl overflow-hidden">
-                  <div class="divide-y divide-gray-700">
-                    ${rest.map((entry, index) => {
+                  <div class="max-h-64 overflow-y-auto divide-y divide-gray-700">
+                    ${rest.slice(0, 17).map((entry, index) => {
                       const isCurrentUser = entry.odataId === currentUserId
                       const rank = index + 4
                       return `
