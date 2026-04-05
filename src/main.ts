@@ -17011,6 +17011,12 @@ function selectPiece(piece: Piece) {
     return
   }
 
+  // If clicking on already selected forced soldier, don't reset the state
+  if (forcedSoldier && piece === forcedSoldier && selectedPiece === piece) {
+    // Already selected, just return to avoid resetting valid moves
+    return
+  }
+
   selectedPiece = piece
   message = null
   actionMode = null
