@@ -5456,12 +5456,16 @@ export async function getLeaderboard(
   category: 'playtime' | 'wins' | 'warbucks',
   period: 'daily' | 'weekly' | 'monthly' | 'alltime'
 ): Promise<LeaderboardEntry[]> {
-  if (!db) return []
+  if (!db) {
+    console.log('Leaderboard: db not initialized')
+    return []
+  }
 
   try {
     // Get all users
     const usersRef = collection(db, 'users')
     const snapshot = await getDocs(usersRef)
+    console.log(`Leaderboard: Found ${snapshot.size} users, category=${category}, period=${period}`)
 
     const now = Date.now()
     const dayMs = 24 * 60 * 60 * 1000
@@ -5517,6 +5521,11 @@ export async function getLeaderboard(
         }
       }
 
+      // Log user data for debugging
+      if (period === 'alltime') {
+        console.log(`User ${data.username}: gamesWon=${data.stats.gamesWon}, timePlayed=${data.stats.timePlayed}, totalWarBucksEarned=${data.stats.totalWarBucksEarned}`)
+      }
+
       // Only include users with value > 0
       if (value > 0) {
         entries.push({
@@ -5527,6 +5536,8 @@ export async function getLeaderboard(
         })
       }
     })
+
+    console.log(`Leaderboard: ${entries.length} entries with value > 0`)
 
     // Sort by value descending
     entries.sort((a, b) => b.value - a.value)
