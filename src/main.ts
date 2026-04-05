@@ -10209,9 +10209,9 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardWeekly: 'Weekly',
     leaderboardMonthly: 'Monthly',
     leaderboardAllTime: 'All Time',
-    leaderboardPlaytime: 'Most Playtime',
-    leaderboardWins: 'Most Wins',
-    leaderboardWarBucks: 'Most War Bucks Earned',
+    leaderboardPlaytime: 'Playtime',
+    leaderboardWins: 'Wins',
+    leaderboardWarBucks: 'War Bucks',
     leaderboardRank: 'Rank',
     leaderboardPlayer: 'Player',
     leaderboardValue: 'Score',
@@ -10221,6 +10221,15 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardMinutes: 'm',
     leaderboardWeeklyReward: 'Weekly Top 1 Reward',
     leaderboardRewardDesc: 'Win the weekly leaderboard to earn War Bucks!',
+    leaderboardDailyReward: 'Daily Top 1 Reward',
+    leaderboardDailyRewardDesc: 'Win the daily leaderboard!',
+    leaderboardMonthlyReward: 'Monthly Top 1 Reward',
+    leaderboardMonthlyRewardDesc: 'Win the monthly leaderboard for big rewards!',
+    leaderboardHallOfFame: 'Hall of Fame',
+    leaderboardLegends: 'The greatest players of all time',
+    leaderboardTotalGames: 'Total Games',
+    leaderboardWinRate: 'Win Rate',
+    leaderboardTop3: 'Top 3 Champions',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -11530,9 +11539,9 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardWeekly: 'Wekelijks',
     leaderboardMonthly: 'Maandelijks',
     leaderboardAllTime: 'Altijd',
-    leaderboardPlaytime: 'Meeste Speeltijd',
-    leaderboardWins: 'Meeste Overwinningen',
-    leaderboardWarBucks: 'Meeste War Bucks Verdiend',
+    leaderboardPlaytime: 'Speeltijd',
+    leaderboardWins: 'Wins',
+    leaderboardWarBucks: 'War Bucks',
     leaderboardRank: 'Rang',
     leaderboardPlayer: 'Speler',
     leaderboardValue: 'Score',
@@ -11542,6 +11551,15 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardMinutes: 'm',
     leaderboardWeeklyReward: 'Wekelijkse Top 1 Beloning',
     leaderboardRewardDesc: 'Win de wekelijkse ranglijst om War Bucks te verdienen!',
+    leaderboardDailyReward: 'Dagelijkse Top 1 Beloning',
+    leaderboardDailyRewardDesc: 'Win de dagelijkse ranglijst!',
+    leaderboardMonthlyReward: 'Maandelijkse Top 1 Beloning',
+    leaderboardMonthlyRewardDesc: 'Win de maandelijkse ranglijst voor grote beloningen!',
+    leaderboardHallOfFame: 'Hall of Fame',
+    leaderboardLegends: 'De beste spelers aller tijden',
+    leaderboardTotalGames: 'Totaal Gespeeld',
+    leaderboardWinRate: 'Win Rate',
+    leaderboardTop3: 'Top 3 Kampioenen',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -12084,9 +12102,9 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardWeekly: 'Wöchentlich',
     leaderboardMonthly: 'Monatlich',
     leaderboardAllTime: 'Alle Zeit',
-    leaderboardPlaytime: 'Meiste Spielzeit',
-    leaderboardWins: 'Meiste Siege',
-    leaderboardWarBucks: 'Meiste War Bucks Verdient',
+    leaderboardPlaytime: 'Spielzeit',
+    leaderboardWins: 'Siege',
+    leaderboardWarBucks: 'War Bucks',
     leaderboardRank: 'Rang',
     leaderboardPlayer: 'Spieler',
     leaderboardValue: 'Punkte',
@@ -12096,6 +12114,15 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardMinutes: 'Min',
     leaderboardWeeklyReward: 'Wöchentliche Top 1 Belohnung',
     leaderboardRewardDesc: 'Gewinne die wöchentliche Bestenliste um War Bucks zu verdienen!',
+    leaderboardDailyReward: 'Tägliche Top 1 Belohnung',
+    leaderboardDailyRewardDesc: 'Gewinne die tägliche Bestenliste!',
+    leaderboardMonthlyReward: 'Monatliche Top 1 Belohnung',
+    leaderboardMonthlyRewardDesc: 'Gewinne die monatliche Bestenliste für große Belohnungen!',
+    leaderboardHallOfFame: 'Ruhmeshalle',
+    leaderboardLegends: 'Die besten Spieler aller Zeiten',
+    leaderboardTotalGames: 'Spiele Gesamt',
+    leaderboardWinRate: 'Siegesrate',
+    leaderboardTop3: 'Top 3 Champions',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -12637,9 +12664,9 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardWeekly: 'Hebdomadaire',
     leaderboardMonthly: 'Mensuel',
     leaderboardAllTime: 'Tout Temps',
-    leaderboardPlaytime: 'Plus de Temps de Jeu',
-    leaderboardWins: 'Plus de Victoires',
-    leaderboardWarBucks: 'Plus de War Bucks Gagnés',
+    leaderboardPlaytime: 'Temps de Jeu',
+    leaderboardWins: 'Victoires',
+    leaderboardWarBucks: 'War Bucks',
     leaderboardRank: 'Rang',
     leaderboardPlayer: 'Joueur',
     leaderboardValue: 'Score',
@@ -12649,6 +12676,15 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardMinutes: 'm',
     leaderboardWeeklyReward: 'Récompense Hebdo Top 1',
     leaderboardRewardDesc: 'Gagnez le classement hebdomadaire pour obtenir des War Bucks!',
+    leaderboardDailyReward: 'Récompense Quotidienne Top 1',
+    leaderboardDailyRewardDesc: 'Gagnez le classement quotidien!',
+    leaderboardMonthlyReward: 'Récompense Mensuelle Top 1',
+    leaderboardMonthlyRewardDesc: 'Gagnez le classement mensuel pour de grosses récompenses!',
+    leaderboardHallOfFame: 'Temple de la Renommée',
+    leaderboardLegends: 'Les meilleurs joueurs de tous les temps',
+    leaderboardTotalGames: 'Total Parties',
+    leaderboardWinRate: 'Taux de Victoire',
+    leaderboardTop3: 'Top 3 Champions',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -13190,9 +13226,9 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardWeekly: 'Semanal',
     leaderboardMonthly: 'Mensual',
     leaderboardAllTime: 'Todo el Tiempo',
-    leaderboardPlaytime: 'Más Tiempo de Juego',
-    leaderboardWins: 'Más Victorias',
-    leaderboardWarBucks: 'Más War Bucks Ganados',
+    leaderboardPlaytime: 'Tiempo de Juego',
+    leaderboardWins: 'Victorias',
+    leaderboardWarBucks: 'War Bucks',
     leaderboardRank: 'Rango',
     leaderboardPlayer: 'Jugador',
     leaderboardValue: 'Puntuación',
@@ -13202,6 +13238,15 @@ const translations: Record<Language, Record<string, string>> = {
     leaderboardMinutes: 'm',
     leaderboardWeeklyReward: 'Recompensa Semanal Top 1',
     leaderboardRewardDesc: '¡Gana la clasificación semanal para obtener War Bucks!',
+    leaderboardDailyReward: 'Recompensa Diaria Top 1',
+    leaderboardDailyRewardDesc: '¡Gana la clasificación diaria!',
+    leaderboardMonthlyReward: 'Recompensa Mensual Top 1',
+    leaderboardMonthlyRewardDesc: '¡Gana la clasificación mensual para grandes recompensas!',
+    leaderboardHallOfFame: 'Salón de la Fama',
+    leaderboardLegends: 'Los mejores jugadores de todos los tiempos',
+    leaderboardTotalGames: 'Partidas Totales',
+    leaderboardWinRate: 'Tasa de Victoria',
+    leaderboardTop3: 'Top 3 Campeones',
   }
 }
 
@@ -29212,110 +29257,178 @@ function render() {
         return '💰'
       }
 
-      const getPeriodReward = (): number => {
-        if (leaderboardCategory === 'playtime') return 500
-        if (leaderboardCategory === 'wins') return 750
-        return 1000
+      const getCategoryColor = (cat: LeaderboardCategory): string => {
+        if (cat === 'playtime') return 'blue'
+        if (cat === 'wins') return 'yellow'
+        return 'green'
       }
 
+      const getRewardAmount = (period: LeaderboardPeriod, category: LeaderboardCategory): number => {
+        const baseRewards = { playtime: 100, wins: 150, warbucks: 200 }
+        const multipliers = { daily: 1, weekly: 5, monthly: 15, alltime: 0 }
+        return baseRewards[category] * multipliers[period]
+      }
+
+      const getRewardGradient = (period: LeaderboardPeriod): string => {
+        if (period === 'daily') return 'from-cyan-500 to-blue-600'
+        if (period === 'weekly') return 'from-yellow-500 to-orange-600'
+        if (period === 'monthly') return 'from-purple-500 to-pink-600'
+        return 'from-gray-600 to-gray-700'
+      }
+
+      const top3 = leaderboardData.slice(0, 3)
+      const rest = leaderboardData.slice(3)
+
       app.innerHTML = `
-        <div class="min-h-screen p-2 sm:p-4 md:p-8">
-          <div class="max-w-2xl mx-auto bg-gray-800 rounded-xl p-4 sm:p-6 shadow-xl">
-            <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2">
-              🏅 ${t('leaderboardTitle')}
-            </h2>
+        <div class="min-h-screen p-2 sm:p-4 md:p-8 overflow-y-auto">
+          <div class="max-w-2xl mx-auto">
+
+            <!-- Header -->
+            <div class="text-center mb-6">
+              <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2">🏅 ${t('leaderboardTitle')}</h1>
+              ${leaderboardPeriod === 'alltime' ? `
+                <p class="text-gray-400">${t('leaderboardLegends')}</p>
+              ` : ''}
+            </div>
 
             <!-- Category Tabs -->
-            <div class="flex gap-2 mb-4 flex-wrap">
-              <button data-category="wins" class="lb-cat-btn flex-1 min-w-[100px] py-2 px-3 rounded-lg font-semibold transition-colors ${leaderboardCategory === 'wins' ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+            <div class="flex gap-2 mb-4">
+              <button data-category="wins" class="lb-cat-btn flex-1 py-3 px-4 rounded-xl font-bold transition-all ${leaderboardCategory === 'wins' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg scale-105' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
                 🏆 ${t('leaderboardWins')}
               </button>
-              <button data-category="playtime" class="lb-cat-btn flex-1 min-w-[100px] py-2 px-3 rounded-lg font-semibold transition-colors ${leaderboardCategory === 'playtime' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+              <button data-category="playtime" class="lb-cat-btn flex-1 py-3 px-4 rounded-xl font-bold transition-all ${leaderboardCategory === 'playtime' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg scale-105' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
                 ⏱️ ${t('leaderboardPlaytime')}
               </button>
-              <button data-category="warbucks" class="lb-cat-btn flex-1 min-w-[100px] py-2 px-3 rounded-lg font-semibold transition-colors ${leaderboardCategory === 'warbucks' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+              <button data-category="warbucks" class="lb-cat-btn flex-1 py-3 px-4 rounded-xl font-bold transition-all ${leaderboardCategory === 'warbucks' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg scale-105' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
                 💰 ${t('leaderboardWarBucks')}
               </button>
             </div>
 
             <!-- Period Tabs -->
-            <div class="flex gap-2 mb-4 flex-wrap">
-              <button data-period="daily" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'daily' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
-                ${t('leaderboardDaily')}
+            <div class="flex gap-2 mb-4 bg-gray-800 p-1 rounded-xl">
+              <button data-period="daily" class="lb-period-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${leaderboardPeriod === 'daily' ? 'bg-cyan-600 text-white' : 'text-gray-400 hover:text-white'}">
+                📅 ${t('leaderboardDaily')}
               </button>
-              <button data-period="weekly" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'weekly' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
-                ${t('leaderboardWeekly')}
+              <button data-period="weekly" class="lb-period-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${leaderboardPeriod === 'weekly' ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}">
+                📆 ${t('leaderboardWeekly')}
               </button>
-              <button data-period="monthly" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'monthly' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
-                ${t('leaderboardMonthly')}
+              <button data-period="monthly" class="lb-period-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${leaderboardPeriod === 'monthly' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}">
+                🗓️ ${t('leaderboardMonthly')}
               </button>
-              <button data-period="alltime" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'alltime' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
-                ${t('leaderboardAllTime')}
+              <button data-period="alltime" class="lb-period-btn flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${leaderboardPeriod === 'alltime' ? 'bg-gradient-to-r from-amber-500 to-red-500 text-white' : 'text-gray-400 hover:text-white'}">
+                ⭐ ${t('leaderboardAllTime')}
               </button>
             </div>
 
-            <!-- Weekly Reward Banner -->
-            ${leaderboardPeriod === 'weekly' ? `
-              <div class="bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg p-4 mb-4 flex items-center gap-3">
-                <span class="text-3xl">🎁</span>
-                <div>
-                  <h3 class="text-white font-bold">${t('leaderboardWeeklyReward')}</h3>
-                  <p class="text-yellow-200 text-sm">${t('leaderboardRewardDesc')}</p>
-                  <p class="text-white font-bold mt-1">💰 ${getPeriodReward()} War Bucks</p>
+            <!-- Reward Banner (not for all-time) -->
+            ${leaderboardPeriod !== 'alltime' ? `
+              <div class="bg-gradient-to-r ${getRewardGradient(leaderboardPeriod)} rounded-xl p-4 mb-4 flex items-center gap-4 shadow-lg">
+                <div class="text-4xl">🎁</div>
+                <div class="flex-1">
+                  <h3 class="text-white font-bold text-lg">
+                    ${leaderboardPeriod === 'daily' ? t('leaderboardDailyReward') : leaderboardPeriod === 'weekly' ? t('leaderboardWeeklyReward') : t('leaderboardMonthlyReward')}
+                  </h3>
+                  <p class="text-white/80 text-sm">
+                    ${leaderboardPeriod === 'daily' ? t('leaderboardDailyRewardDesc') : leaderboardPeriod === 'weekly' ? t('leaderboardRewardDesc') : t('leaderboardMonthlyRewardDesc')}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <div class="text-2xl font-bold text-white">💰 ${getRewardAmount(leaderboardPeriod, leaderboardCategory)}</div>
+                  <div class="text-white/70 text-xs">War Bucks</div>
                 </div>
               </div>
-            ` : ''}
+            ` : `
+              <!-- All-Time Hall of Fame Header -->
+              <div class="bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 rounded-xl p-4 mb-4 text-center shadow-lg">
+                <h3 class="text-2xl font-bold text-white">🏛️ ${t('leaderboardHallOfFame')}</h3>
+                <p class="text-yellow-100 text-sm">${t('leaderboardLegends')}</p>
+              </div>
+            `}
 
-            <!-- Leaderboard Table -->
-            <div class="bg-gray-700 rounded-lg overflow-hidden">
-              ${leaderboardLoading ? `
-                <div class="text-center py-8 text-gray-400">
-                  <div class="animate-spin inline-block w-8 h-8 border-4 border-gray-500 border-t-blue-500 rounded-full mb-2"></div>
-                  <p>Loading...</p>
+            <!-- Loading State -->
+            ${leaderboardLoading ? `
+              <div class="bg-gray-800 rounded-xl p-12 text-center">
+                <div class="animate-spin inline-block w-12 h-12 border-4 border-gray-600 border-t-${getCategoryColor(leaderboardCategory)}-500 rounded-full mb-4"></div>
+                <p class="text-gray-400">Loading...</p>
+              </div>
+            ` : leaderboardData.length === 0 ? `
+              <!-- Empty State -->
+              <div class="bg-gray-800 rounded-xl p-12 text-center">
+                <div class="text-6xl mb-4">🏆</div>
+                <p class="text-gray-400 text-lg">${t('leaderboardNoData')}</p>
+              </div>
+            ` : `
+              <!-- Top 3 Podium -->
+              ${top3.length >= 1 ? `
+                <div class="bg-gray-800 rounded-xl p-4 mb-4">
+                  <h3 class="text-center text-gray-400 text-sm font-semibold mb-4">${t('leaderboardTop3')}</h3>
+                  <div class="flex items-end justify-center gap-2 sm:gap-4">
+                    <!-- 2nd Place -->
+                    ${top3[1] ? `
+                      <div class="flex flex-col items-center w-24 sm:w-28">
+                        <div class="text-3xl mb-1">🥈</div>
+                        <div class="bg-gradient-to-t from-gray-500 to-gray-400 w-full rounded-t-lg pt-4 pb-2 px-2 text-center" style="height: 80px;">
+                          <div class="text-white font-bold text-sm truncate">${top3[1].username}</div>
+                          <div class="text-gray-200 text-xs font-mono">${formatValue(top3[1].value, leaderboardCategory)}</div>
+                          ${top3[1].odataId === currentUserId ? `<div class="text-blue-300 text-xs">${t('leaderboardYou')}</div>` : ''}
+                        </div>
+                      </div>
+                    ` : '<div class="w-24 sm:w-28"></div>'}
+
+                    <!-- 1st Place -->
+                    <div class="flex flex-col items-center w-28 sm:w-32">
+                      <div class="text-4xl mb-1">👑</div>
+                      <div class="bg-gradient-to-t from-yellow-600 to-yellow-400 w-full rounded-t-lg pt-6 pb-2 px-2 text-center shadow-lg" style="height: 100px;">
+                        <div class="text-white font-bold truncate">${top3[0].username}</div>
+                        <div class="text-yellow-100 text-sm font-mono font-bold">${formatValue(top3[0].value, leaderboardCategory)}</div>
+                        ${top3[0].odataId === currentUserId ? `<div class="text-blue-200 text-xs">${t('leaderboardYou')}</div>` : ''}
+                      </div>
+                    </div>
+
+                    <!-- 3rd Place -->
+                    ${top3[2] ? `
+                      <div class="flex flex-col items-center w-24 sm:w-28">
+                        <div class="text-3xl mb-1">🥉</div>
+                        <div class="bg-gradient-to-t from-amber-700 to-amber-600 w-full rounded-t-lg pt-3 pb-2 px-2 text-center" style="height: 65px;">
+                          <div class="text-white font-bold text-sm truncate">${top3[2].username}</div>
+                          <div class="text-amber-200 text-xs font-mono">${formatValue(top3[2].value, leaderboardCategory)}</div>
+                          ${top3[2].odataId === currentUserId ? `<div class="text-blue-300 text-xs">${t('leaderboardYou')}</div>` : ''}
+                        </div>
+                      </div>
+                    ` : '<div class="w-24 sm:w-28"></div>'}
+                  </div>
                 </div>
-              ` : leaderboardData.length === 0 ? `
-                <div class="text-center py-8 text-gray-400">
-                  <p class="text-4xl mb-2">📊</p>
-                  <p>${t('leaderboardNoData')}</p>
-                </div>
-              ` : `
-                <table class="w-full">
-                  <thead class="bg-gray-600">
-                    <tr>
-                      <th class="py-3 px-4 text-left text-gray-300 text-sm font-medium">${t('leaderboardRank')}</th>
-                      <th class="py-3 px-4 text-left text-gray-300 text-sm font-medium">${t('leaderboardPlayer')}</th>
-                      <th class="py-3 px-4 text-right text-gray-300 text-sm font-medium">${getCategoryIcon(leaderboardCategory)}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${leaderboardData.map((entry, index) => {
+              ` : ''}
+
+              <!-- Rest of Leaderboard -->
+              ${rest.length > 0 ? `
+                <div class="bg-gray-800 rounded-xl overflow-hidden">
+                  <div class="divide-y divide-gray-700">
+                    ${rest.map((entry, index) => {
                       const isCurrentUser = entry.odataId === currentUserId
-                      const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : ''
+                      const rank = index + 4
                       return `
-                        <tr class="${isCurrentUser ? 'bg-blue-900/50' : index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} ${index < 3 ? 'font-semibold' : ''}">
-                          <td class="py-3 px-4 text-white">
-                            ${rankIcon || entry.rank}
-                          </td>
-                          <td class="py-3 px-4 text-white">
-                            ${entry.username}
-                            ${isCurrentUser ? `<span class="text-blue-400 text-sm ml-1">${t('leaderboardYou')}</span>` : ''}
-                            ${index === 0 && leaderboardPeriod === 'weekly' ? '<span class="ml-2 text-yellow-400">👑</span>' : ''}
-                          </td>
-                          <td class="py-3 px-4 text-right ${leaderboardCategory === 'warbucks' ? 'text-yellow-400' : leaderboardCategory === 'wins' ? 'text-green-400' : 'text-blue-400'} font-mono">
+                        <div class="flex items-center px-4 py-3 ${isCurrentUser ? 'bg-blue-900/30' : 'hover:bg-gray-750'}">
+                          <div class="w-10 text-gray-400 font-bold">#${rank}</div>
+                          <div class="flex-1">
+                            <span class="text-white font-medium">${entry.username}</span>
+                            ${isCurrentUser ? `<span class="text-blue-400 text-sm ml-2">${t('leaderboardYou')}</span>` : ''}
+                          </div>
+                          <div class="text-${getCategoryColor(leaderboardCategory)}-400 font-mono font-bold">
                             ${formatValue(entry.value, leaderboardCategory)}
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       `
                     }).join('')}
-                  </tbody>
-                </table>
-              `}
-            </div>
+                  </div>
+                </div>
+              ` : ''}
+            `}
 
             <!-- Back Button -->
             <div class="mt-6 flex justify-center">
-              <button id="lb-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg transition-colors">
-                ${t('backButton')}
+              <button id="lb-back-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-xl transition-colors">
+                ← ${t('backButton')}
               </button>
             </div>
           </div>

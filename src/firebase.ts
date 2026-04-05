@@ -5594,50 +5594,71 @@ export async function updatePeriodicStats(
 }
 
 // Get weekly leaderboard winners and distribute rewards
+// Check and distribute rewards for all periods (daily, weekly, monthly)
 export async function checkAndDistributeWeeklyRewards(): Promise<void> {
   if (!db) return
 
   try {
-    // Check if rewards were already distributed this week
-    const rewardsRef = doc(db, 'system', 'weeklyRewards')
+    const rewardsRef = doc(db, 'system', 'leaderboardRewards')
     const rewardsDoc = await getDoc(rewardsRef)
+    const rewardsData = rewardsDoc.exists() ? rewardsDoc.data() : {}
 
     const now = Date.now()
-    const weekMs = 7 * 24 * 60 * 60 * 1000
+    const dayMs = 24 * 60 * 60 * 1000
+    const weekMs = 7 * dayMs
+    const monthMs = 30 * dayMs
 
-    if (rewardsDoc.exists()) {
-      const lastReward = rewardsDoc.data().lastRewardTime || 0
-      if ((now - lastReward) < weekMs) {
-        return // Already distributed this week
-      }
-    }
-
-    // Get weekly leaderboards for all categories
     const categories = ['playtime', 'wins', 'warbucks'] as const
-    const rewards = { playtime: 500, wins: 750, warbucks: 1000 }
 
-    for (const category of categories) {
-      const leaderboard = await getLeaderboard(category, 'weekly')
-      if (leaderboard.length > 0) {
-        const winner = leaderboard[0]
+    // Reward amounts: { period: { category: amount } }
+    const rewardAmounts = {
+      daily: { playtime: 100, wins: 150, warbucks: 200 },
+      weekly: { playtime: 500, wins: 750, warbucks: 1000 },
+      monthly: { playtime: 1500, wins: 2250, warbucks: 3000 }
+    }
 
-        // Award War Bucks to winner
-        const winnerRef = doc(db, 'users', winner.odataId)
-        const winnerDoc = await getDoc(winnerRef)
+    const periods = [
+      { name: 'daily' as const, duration: dayMs, lastKey: 'lastDailyReward' },
+      { name: 'weekly' as const, duration: weekMs, lastKey: 'lastWeeklyReward' },
+      { name: 'monthly' as const, duration: monthMs, lastKey: 'lastMonthlyReward' }
+    ]
 
-        if (winnerDoc.exists()) {
-          const winnerData = winnerDoc.data() as UserData
-          await updateDoc(winnerRef, {
-            warBucks: (winnerData.warBucks || 0) + rewards[category],
-            'stats.totalWarBucksEarned': (winnerData.stats.totalWarBucksEarned || 0) + rewards[category]
-          })
+    for (const period of periods) {
+      const lastReward = rewardsData[period.lastKey] || 0
+
+      // Check if this period's rewards are due
+      if ((now - lastReward) >= period.duration) {
+        console.log(`Distributing ${period.name} rewards...`)
+
+        for (const category of categories) {
+          const leaderboard = await getLeaderboard(category, period.name)
+          if (leaderboard.length > 0) {
+            const winner = leaderboard[0]
+            const rewardAmount = rewardAmounts[period.name][category]
+
+            // Award War Bucks to winner
+            const winnerRef = doc(db, 'users', winner.odataId)
+            const winnerDoc = await getDoc(winnerRef)
+
+            if (winnerDoc.exists()) {
+              const winnerData = winnerDoc.data() as UserData
+              await updateDoc(winnerRef, {
+                warBucks: (winnerData.warBucks || 0) + rewardAmount,
+                'stats.totalWarBucksEarned': (winnerData.stats.totalWarBucksEarned || 0) + rewardAmount
+              })
+              console.log(`Awarded ${rewardAmount} War Bucks to ${winner.username} for ${period.name} ${category} leaderboard`)
+            }
+          }
         }
+
+        // Mark this period's rewards as distributed
+        rewardsData[period.lastKey] = now
       }
     }
 
-    // Mark rewards as distributed
-    await setDoc(rewardsRef, { lastRewardTime: now }, { merge: true })
+    // Save updated reward times
+    await setDoc(rewardsRef, rewardsData, { merge: true })
   } catch (error) {
-    console.error('Error distributing weekly rewards:', error)
+    console.error('Error distributing leaderboard rewards:', error)
   }
 }
