@@ -161,11 +161,16 @@ import {
   listenToConversations,
   stopListeningToConversations,
   getTotalUnreadCount,
-  searchUsersByPrefix
+  searchUsersByPrefix,
+  // Leaderboard
+  getLeaderboard,
+  updatePeriodicStats,
+  checkAndDistributeWeeklyRewards,
+  LeaderboardEntry
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips' | 'friends'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips' | 'friends' | 'leaderboard'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -200,6 +205,14 @@ let friendSearchError = ''
 let conversations: Conversation[] = []
 let friendsStatusMap: Record<string, 'online' | 'offline' | 'playing'> = {}
 let friendsListening = false
+
+// Leaderboard state
+type LeaderboardPeriod = 'daily' | 'weekly' | 'monthly' | 'alltime'
+type LeaderboardCategory = 'playtime' | 'wins' | 'warbucks'
+let leaderboardPeriod: LeaderboardPeriod = 'weekly'
+let leaderboardCategory: LeaderboardCategory = 'wins'
+let leaderboardData: LeaderboardEntry[] = []
+let leaderboardLoading = false
 
 // Multiplayer state
 let onlinePlayers: OnlinePlayer[] = []
@@ -10190,6 +10203,24 @@ const translations: Record<Language, Record<string, string>> = {
     coachGrandExamStep6: 'The hacker can convert enemies! Click both targets.',
     coachGrandExamStep7: 'Protect your Builder from the rocket! Select barricade squares.',
     coachGrandExamStep8: 'Artillery shoots in a straight line. Click ALL targets!',
+    // Leaderboard
+    leaderboardTitle: 'Leaderboard',
+    leaderboardDaily: 'Daily',
+    leaderboardWeekly: 'Weekly',
+    leaderboardMonthly: 'Monthly',
+    leaderboardAllTime: 'All Time',
+    leaderboardPlaytime: 'Most Playtime',
+    leaderboardWins: 'Most Wins',
+    leaderboardWarBucks: 'Most War Bucks Earned',
+    leaderboardRank: 'Rank',
+    leaderboardPlayer: 'Player',
+    leaderboardValue: 'Score',
+    leaderboardNoData: 'No data yet. Be the first!',
+    leaderboardYou: '(You)',
+    leaderboardHours: 'h',
+    leaderboardMinutes: 'm',
+    leaderboardWeeklyReward: 'Weekly Top 1 Reward',
+    leaderboardRewardDesc: 'Win the weekly leaderboard to earn War Bucks!',
   },
   nl: {
     startTitle: 'Oorlog Schaak',
@@ -11493,6 +11524,24 @@ const translations: Record<Language, Record<string, string>> = {
     coachGrandExamStep6: 'De hacker kan vijanden converteren! Klik beide doelen.',
     coachGrandExamStep7: 'Bescherm je Builder tegen de raket! Selecteer barricade vakjes.',
     coachGrandExamStep8: 'Artillerie schiet in een rechte lijn. Klik ALLE doelen!',
+    // Leaderboard
+    leaderboardTitle: 'Ranglijst',
+    leaderboardDaily: 'Dagelijks',
+    leaderboardWeekly: 'Wekelijks',
+    leaderboardMonthly: 'Maandelijks',
+    leaderboardAllTime: 'Altijd',
+    leaderboardPlaytime: 'Meeste Speeltijd',
+    leaderboardWins: 'Meeste Overwinningen',
+    leaderboardWarBucks: 'Meeste War Bucks Verdiend',
+    leaderboardRank: 'Rang',
+    leaderboardPlayer: 'Speler',
+    leaderboardValue: 'Score',
+    leaderboardNoData: 'Nog geen data. Wees de eerste!',
+    leaderboardYou: '(Jij)',
+    leaderboardHours: 'u',
+    leaderboardMinutes: 'm',
+    leaderboardWeeklyReward: 'Wekelijkse Top 1 Beloning',
+    leaderboardRewardDesc: 'Win de wekelijkse ranglijst om War Bucks te verdienen!',
   },
   de: {
     startTitle: 'Kriegsschach',
@@ -12029,6 +12078,24 @@ const translations: Record<Language, Record<string, string>> = {
     coachGrandExamStep6: 'Der Hacker kann Feinde konvertieren! Klicke beide Ziele.',
     coachGrandExamStep7: 'Schütze deinen Builder vor der Rakete! Wähle Barrikaden-Felder.',
     coachGrandExamStep8: 'Artillerie schießt in gerader Linie. Klicke ALLE Ziele!',
+    // Leaderboard
+    leaderboardTitle: 'Bestenliste',
+    leaderboardDaily: 'Täglich',
+    leaderboardWeekly: 'Wöchentlich',
+    leaderboardMonthly: 'Monatlich',
+    leaderboardAllTime: 'Alle Zeit',
+    leaderboardPlaytime: 'Meiste Spielzeit',
+    leaderboardWins: 'Meiste Siege',
+    leaderboardWarBucks: 'Meiste War Bucks Verdient',
+    leaderboardRank: 'Rang',
+    leaderboardPlayer: 'Spieler',
+    leaderboardValue: 'Punkte',
+    leaderboardNoData: 'Noch keine Daten. Sei der Erste!',
+    leaderboardYou: '(Du)',
+    leaderboardHours: 'Std',
+    leaderboardMinutes: 'Min',
+    leaderboardWeeklyReward: 'Wöchentliche Top 1 Belohnung',
+    leaderboardRewardDesc: 'Gewinne die wöchentliche Bestenliste um War Bucks zu verdienen!',
   },
   fr: {
     startTitle: 'Échecs de Guerre',
@@ -12564,6 +12631,24 @@ const translations: Record<Language, Record<string, string>> = {
     coachGrandExamStep6: 'Le hacker peut convertir les ennemis! Clique sur les deux cibles.',
     coachGrandExamStep7: 'Protège ton Builder de la fusée! Sélectionne les cases pour les barricades.',
     coachGrandExamStep8: 'L\'artillerie tire en ligne droite. Clique sur TOUTES les cibles!',
+    // Leaderboard
+    leaderboardTitle: 'Classement',
+    leaderboardDaily: 'Quotidien',
+    leaderboardWeekly: 'Hebdomadaire',
+    leaderboardMonthly: 'Mensuel',
+    leaderboardAllTime: 'Tout Temps',
+    leaderboardPlaytime: 'Plus de Temps de Jeu',
+    leaderboardWins: 'Plus de Victoires',
+    leaderboardWarBucks: 'Plus de War Bucks Gagnés',
+    leaderboardRank: 'Rang',
+    leaderboardPlayer: 'Joueur',
+    leaderboardValue: 'Score',
+    leaderboardNoData: 'Pas encore de données. Soyez le premier!',
+    leaderboardYou: '(Vous)',
+    leaderboardHours: 'h',
+    leaderboardMinutes: 'm',
+    leaderboardWeeklyReward: 'Récompense Hebdo Top 1',
+    leaderboardRewardDesc: 'Gagnez le classement hebdomadaire pour obtenir des War Bucks!',
   },
   es: {
     startTitle: 'Ajedrez de Guerra',
@@ -13099,6 +13184,24 @@ const translations: Record<Language, Record<string, string>> = {
     coachGrandExamStep6: '¡El hacker puede convertir enemigos! Haz clic en ambos objetivos.',
     coachGrandExamStep7: '¡Protege a tu Constructor del cohete! Selecciona casillas para barricadas.',
     coachGrandExamStep8: 'La artillería dispara en línea recta. ¡Haz clic en TODOS los objetivos!',
+    // Leaderboard
+    leaderboardTitle: 'Clasificación',
+    leaderboardDaily: 'Diario',
+    leaderboardWeekly: 'Semanal',
+    leaderboardMonthly: 'Mensual',
+    leaderboardAllTime: 'Todo el Tiempo',
+    leaderboardPlaytime: 'Más Tiempo de Juego',
+    leaderboardWins: 'Más Victorias',
+    leaderboardWarBucks: 'Más War Bucks Ganados',
+    leaderboardRank: 'Rango',
+    leaderboardPlayer: 'Jugador',
+    leaderboardValue: 'Puntuación',
+    leaderboardNoData: '¡Aún no hay datos. Sé el primero!',
+    leaderboardYou: '(Tú)',
+    leaderboardHours: 'h',
+    leaderboardMinutes: 'm',
+    leaderboardWeeklyReward: 'Recompensa Semanal Top 1',
+    leaderboardRewardDesc: '¡Gana la clasificación semanal para obtener War Bucks!',
   }
 }
 
@@ -14480,6 +14583,9 @@ async function saveGameStats() {
   const warBucksEarned = calculateWarBucks(playerWon, pointDifference)
   const newWarBucks = userData.warBucks + warBucksEarned
 
+  // Update totalWarBucksEarned in stats
+  newStats.totalWarBucksEarned = (userData.stats.totalWarBucksEarned || 0) + warBucksEarned
+
   // Check for new badges
   const updatedUserData: UserData = {
     ...userData,
@@ -14495,6 +14601,9 @@ async function saveGameStats() {
     warBucks: newWarBucks,
     badges: allBadges
   })
+
+  // Update periodic stats for leaderboard
+  await updatePeriodicStats(0, playerWon ? 1 : 0, warBucksEarned)
 
   // Show reward notification (could add UI for this later)
   console.log(`Game saved! +${warBucksEarned} War Bucks${newBadges.length > 0 ? `, New badges: ${newBadges.join(', ')}` : ''}`)
@@ -25159,6 +25268,10 @@ function render() {
               <span class="text-3xl sm:text-4xl">💡</span>
               <span class="text-sm sm:text-base">Tips</span>
             </button>
+            <button id="leaderboard-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">🏅</span>
+              <span class="text-sm sm:text-base">${t('leaderboardTitle')}</span>
+            </button>
             ${isCurrentUserAdmin() ? `
             <button id="admin-btn" class="w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
               <span class="text-3xl sm:text-4xl">🔧</span>
@@ -25205,6 +25318,14 @@ function render() {
         })
         document.getElementById('tips-btn')?.addEventListener('click', () => {
           showAuthScreen = 'tips'
+          render()
+        })
+        document.getElementById('leaderboard-btn')?.addEventListener('click', async () => {
+          showAuthScreen = 'leaderboard'
+          leaderboardLoading = true
+          render()
+          leaderboardData = await getLeaderboard(leaderboardCategory, leaderboardPeriod)
+          leaderboardLoading = false
           render()
         })
         document.getElementById('admin-btn')?.addEventListener('click', () => {
@@ -29066,6 +29187,168 @@ function render() {
       document.getElementById('mp-settings-btn')?.addEventListener('click', () => {
         previousAuthScreen = 'multiplayer'
         showSettings = true
+        render()
+      })
+
+      return
+    }
+
+    // Leaderboard screen
+    if (showAuthScreen === 'leaderboard') {
+      const currentUserId = getCurrentUser()?.uid || ''
+
+      const formatValue = (value: number, category: LeaderboardCategory): string => {
+        if (category === 'playtime') {
+          const hours = Math.floor(value / 3600)
+          const minutes = Math.floor((value % 3600) / 60)
+          return `${hours}${t('leaderboardHours')} ${minutes}${t('leaderboardMinutes')}`
+        }
+        return value.toLocaleString()
+      }
+
+      const getCategoryIcon = (cat: LeaderboardCategory): string => {
+        if (cat === 'playtime') return '⏱️'
+        if (cat === 'wins') return '🏆'
+        return '💰'
+      }
+
+      const getPeriodReward = (): number => {
+        if (leaderboardCategory === 'playtime') return 500
+        if (leaderboardCategory === 'wins') return 750
+        return 1000
+      }
+
+      app.innerHTML = `
+        <div class="min-h-screen p-2 sm:p-4 md:p-8">
+          <div class="max-w-2xl mx-auto bg-gray-800 rounded-xl p-4 sm:p-6 shadow-xl">
+            <h2 class="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center gap-2">
+              🏅 ${t('leaderboardTitle')}
+            </h2>
+
+            <!-- Category Tabs -->
+            <div class="flex gap-2 mb-4 flex-wrap">
+              <button data-category="wins" class="lb-cat-btn flex-1 min-w-[100px] py-2 px-3 rounded-lg font-semibold transition-colors ${leaderboardCategory === 'wins' ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                🏆 ${t('leaderboardWins')}
+              </button>
+              <button data-category="playtime" class="lb-cat-btn flex-1 min-w-[100px] py-2 px-3 rounded-lg font-semibold transition-colors ${leaderboardCategory === 'playtime' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                ⏱️ ${t('leaderboardPlaytime')}
+              </button>
+              <button data-category="warbucks" class="lb-cat-btn flex-1 min-w-[100px] py-2 px-3 rounded-lg font-semibold transition-colors ${leaderboardCategory === 'warbucks' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                💰 ${t('leaderboardWarBucks')}
+              </button>
+            </div>
+
+            <!-- Period Tabs -->
+            <div class="flex gap-2 mb-4 flex-wrap">
+              <button data-period="daily" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'daily' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                ${t('leaderboardDaily')}
+              </button>
+              <button data-period="weekly" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'weekly' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                ${t('leaderboardWeekly')}
+              </button>
+              <button data-period="monthly" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'monthly' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                ${t('leaderboardMonthly')}
+              </button>
+              <button data-period="alltime" class="lb-period-btn py-1 px-3 rounded-lg text-sm font-medium transition-colors ${leaderboardPeriod === 'alltime' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}">
+                ${t('leaderboardAllTime')}
+              </button>
+            </div>
+
+            <!-- Weekly Reward Banner -->
+            ${leaderboardPeriod === 'weekly' ? `
+              <div class="bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg p-4 mb-4 flex items-center gap-3">
+                <span class="text-3xl">🎁</span>
+                <div>
+                  <h3 class="text-white font-bold">${t('leaderboardWeeklyReward')}</h3>
+                  <p class="text-yellow-200 text-sm">${t('leaderboardRewardDesc')}</p>
+                  <p class="text-white font-bold mt-1">💰 ${getPeriodReward()} War Bucks</p>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Leaderboard Table -->
+            <div class="bg-gray-700 rounded-lg overflow-hidden">
+              ${leaderboardLoading ? `
+                <div class="text-center py-8 text-gray-400">
+                  <div class="animate-spin inline-block w-8 h-8 border-4 border-gray-500 border-t-blue-500 rounded-full mb-2"></div>
+                  <p>Loading...</p>
+                </div>
+              ` : leaderboardData.length === 0 ? `
+                <div class="text-center py-8 text-gray-400">
+                  <p class="text-4xl mb-2">📊</p>
+                  <p>${t('leaderboardNoData')}</p>
+                </div>
+              ` : `
+                <table class="w-full">
+                  <thead class="bg-gray-600">
+                    <tr>
+                      <th class="py-3 px-4 text-left text-gray-300 text-sm font-medium">${t('leaderboardRank')}</th>
+                      <th class="py-3 px-4 text-left text-gray-300 text-sm font-medium">${t('leaderboardPlayer')}</th>
+                      <th class="py-3 px-4 text-right text-gray-300 text-sm font-medium">${getCategoryIcon(leaderboardCategory)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${leaderboardData.map((entry, index) => {
+                      const isCurrentUser = entry.odataId === currentUserId
+                      const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : ''
+                      return `
+                        <tr class="${isCurrentUser ? 'bg-blue-900/50' : index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'} ${index < 3 ? 'font-semibold' : ''}">
+                          <td class="py-3 px-4 text-white">
+                            ${rankIcon || entry.rank}
+                          </td>
+                          <td class="py-3 px-4 text-white">
+                            ${entry.username}
+                            ${isCurrentUser ? `<span class="text-blue-400 text-sm ml-1">${t('leaderboardYou')}</span>` : ''}
+                            ${index === 0 && leaderboardPeriod === 'weekly' ? '<span class="ml-2 text-yellow-400">👑</span>' : ''}
+                          </td>
+                          <td class="py-3 px-4 text-right ${leaderboardCategory === 'warbucks' ? 'text-yellow-400' : leaderboardCategory === 'wins' ? 'text-green-400' : 'text-blue-400'} font-mono">
+                            ${formatValue(entry.value, leaderboardCategory)}
+                          </td>
+                        </tr>
+                      `
+                    }).join('')}
+                  </tbody>
+                </table>
+              `}
+            </div>
+
+            <!-- Back Button -->
+            <div class="mt-6 flex justify-center">
+              <button id="lb-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+                ${t('backButton')}
+              </button>
+            </div>
+          </div>
+        </div>
+      `
+
+      // Event listeners
+      document.querySelectorAll('.lb-cat-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const cat = (e.currentTarget as HTMLElement).getAttribute('data-category') as LeaderboardCategory
+          leaderboardCategory = cat
+          leaderboardLoading = true
+          render()
+          leaderboardData = await getLeaderboard(leaderboardCategory, leaderboardPeriod)
+          leaderboardLoading = false
+          render()
+        })
+      })
+
+      document.querySelectorAll('.lb-period-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const period = (e.currentTarget as HTMLElement).getAttribute('data-period') as LeaderboardPeriod
+          leaderboardPeriod = period
+          leaderboardLoading = true
+          render()
+          leaderboardData = await getLeaderboard(leaderboardCategory, leaderboardPeriod)
+          leaderboardLoading = false
+          render()
+        })
+      })
+
+      document.getElementById('lb-back-btn')?.addEventListener('click', () => {
+        showAuthScreen = 'profile'
         render()
       })
 

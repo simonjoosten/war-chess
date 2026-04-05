@@ -5441,3 +5441,203 @@ export function getTotalUnreadCount(conversations: Conversation[]): number {
     return total + (conv.unreadCount[currentUser!.uid] || 0)
   }, 0)
 }
+
+// ============ LEADERBOARD FUNCTIONS ============
+
+export interface LeaderboardEntry {
+  odataId: string
+  username: string
+  value: number
+  rank: number
+}
+
+// Get leaderboard data
+export async function getLeaderboard(
+  category: 'playtime' | 'wins' | 'warbucks',
+  period: 'daily' | 'weekly' | 'monthly' | 'alltime'
+): Promise<LeaderboardEntry[]> {
+  if (!db) return []
+
+  try {
+    // Get all users
+    const usersRef = collection(db, 'users')
+    const snapshot = await getDocs(usersRef)
+
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+    const weekMs = 7 * dayMs
+    const monthMs = 30 * dayMs
+
+    // Get period start time
+    let periodStart = 0
+    if (period === 'daily') {
+      periodStart = now - dayMs
+    } else if (period === 'weekly') {
+      periodStart = now - weekMs
+    } else if (period === 'monthly') {
+      periodStart = now - monthMs
+    }
+
+    const entries: LeaderboardEntry[] = []
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as UserData
+      if (!data.username || !data.stats) return
+
+      // For all-time, use lifetime stats
+      // For periods, we need periodic stats (stored in periodStats)
+      let value = 0
+
+      if (period === 'alltime') {
+        // Use all-time stats
+        if (category === 'playtime') {
+          value = data.stats.timePlayed || 0
+        } else if (category === 'wins') {
+          value = data.stats.gamesWon || 0
+        } else if (category === 'warbucks') {
+          value = data.stats.totalWarBucksEarned || 0
+        }
+      } else {
+        // Use periodic stats if available
+        const periodStats = (data as unknown as { periodStats?: Record<string, { playtime: number; wins: number; warbucks: number; lastReset: number }> }).periodStats
+        const periodKey = period
+
+        if (periodStats && periodStats[periodKey]) {
+          const ps = periodStats[periodKey]
+          // Check if period is still valid
+          if (ps.lastReset >= periodStart) {
+            if (category === 'playtime') {
+              value = ps.playtime || 0
+            } else if (category === 'wins') {
+              value = ps.wins || 0
+            } else if (category === 'warbucks') {
+              value = ps.warbucks || 0
+            }
+          }
+        }
+      }
+
+      // Only include users with value > 0
+      if (value > 0) {
+        entries.push({
+          odataId: docSnap.id,
+          username: data.username,
+          value,
+          rank: 0
+        })
+      }
+    })
+
+    // Sort by value descending
+    entries.sort((a, b) => b.value - a.value)
+
+    // Assign ranks
+    entries.forEach((entry, index) => {
+      entry.rank = index + 1
+    })
+
+    // Return top 50
+    return entries.slice(0, 50)
+  } catch (error) {
+    console.error('Error getting leaderboard:', error)
+    return []
+  }
+}
+
+// Update periodic stats for a user (call this when game ends or stats change)
+export async function updatePeriodicStats(
+  playtimeAdded: number,
+  winsAdded: number,
+  warbucksAdded: number
+): Promise<void> {
+  if (!db || !currentUser) return
+
+  try {
+    const userRef = doc(db, 'users', currentUser.uid)
+    const userDoc = await getDoc(userRef)
+
+    if (!userDoc.exists()) return
+
+    const data = userDoc.data() as UserData
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+    const weekMs = 7 * dayMs
+    const monthMs = 30 * dayMs
+
+    // Initialize or update periodic stats
+    const periodStats = ((data as unknown as { periodStats?: Record<string, { playtime: number; wins: number; warbucks: number; lastReset: number }> }).periodStats) || {}
+
+    const periods = ['daily', 'weekly', 'monthly'] as const
+    const periodDurations = { daily: dayMs, weekly: weekMs, monthly: monthMs }
+
+    for (const period of periods) {
+      if (!periodStats[period] || (now - periodStats[period].lastReset) > periodDurations[period]) {
+        // Reset period
+        periodStats[period] = {
+          playtime: playtimeAdded,
+          wins: winsAdded,
+          warbucks: warbucksAdded,
+          lastReset: now
+        }
+      } else {
+        // Add to existing period
+        periodStats[period].playtime += playtimeAdded
+        periodStats[period].wins += winsAdded
+        periodStats[period].warbucks += warbucksAdded
+      }
+    }
+
+    await updateDoc(userRef, { periodStats })
+  } catch (error) {
+    console.error('Error updating periodic stats:', error)
+  }
+}
+
+// Get weekly leaderboard winners and distribute rewards
+export async function checkAndDistributeWeeklyRewards(): Promise<void> {
+  if (!db) return
+
+  try {
+    // Check if rewards were already distributed this week
+    const rewardsRef = doc(db, 'system', 'weeklyRewards')
+    const rewardsDoc = await getDoc(rewardsRef)
+
+    const now = Date.now()
+    const weekMs = 7 * 24 * 60 * 60 * 1000
+
+    if (rewardsDoc.exists()) {
+      const lastReward = rewardsDoc.data().lastRewardTime || 0
+      if ((now - lastReward) < weekMs) {
+        return // Already distributed this week
+      }
+    }
+
+    // Get weekly leaderboards for all categories
+    const categories = ['playtime', 'wins', 'warbucks'] as const
+    const rewards = { playtime: 500, wins: 750, warbucks: 1000 }
+
+    for (const category of categories) {
+      const leaderboard = await getLeaderboard(category, 'weekly')
+      if (leaderboard.length > 0) {
+        const winner = leaderboard[0]
+
+        // Award War Bucks to winner
+        const winnerRef = doc(db, 'users', winner.odataId)
+        const winnerDoc = await getDoc(winnerRef)
+
+        if (winnerDoc.exists()) {
+          const winnerData = winnerDoc.data() as UserData
+          await updateDoc(winnerRef, {
+            warBucks: (winnerData.warBucks || 0) + rewards[category],
+            'stats.totalWarBucksEarned': (winnerData.stats.totalWarBucksEarned || 0) + rewards[category]
+          })
+        }
+      }
+    }
+
+    // Mark rewards as distributed
+    await setDoc(rewardsRef, { lastRewardTime: now }, { merge: true })
+  } catch (error) {
+    console.error('Error distributing weekly rewards:', error)
+  }
+}
