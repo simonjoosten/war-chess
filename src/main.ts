@@ -17721,6 +17721,14 @@ function completMove(col: string, row: number, capturedPiece: Piece | null) {
   actionMode = null
   showSoldierActions = false
 
+  // If soldier is leaving trench, clear inTrench flag BEFORE animation
+  // This prevents render() from re-selecting the soldier as a forced trench exit
+  if (piece.type === 'soldier' && piece.inTrench && !isTrenchSquare(col, row)) {
+    piece.inTrench = false
+    piece.trenchEnteredOnTurn = undefined
+    message = t('leftTrench')
+  }
+
   render()
 
   const moveDuration = getAnimationDuration()
