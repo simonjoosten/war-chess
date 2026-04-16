@@ -28277,32 +28277,88 @@ function render() {
 
                       <!-- Effect Options -->
                       <div id="si-effect-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
-                        <h4 class="text-white font-bold text-sm">✨ Effect Type</h4>
-                        <select id="si-effect-type" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
-                          <option value="fire">🔥 Fire Trail</option>
-                          <option value="lightning">⚡ Lightning</option>
-                          <option value="sparkle">✨ Sparkle</option>
-                          <option value="smoke">💨 Smoke</option>
-                          <option value="hearts">❤️ Hearts</option>
-                          <option value="stars">⭐ Stars</option>
-                          <option value="explosion">💥 Explosion</option>
-                          <option value="ghost">👻 Ghost</option>
-                        </select>
+                        <h4 class="text-white font-bold text-sm">✨ Advanced Effect Designer</h4>
+                        <div>
+                          <label class="text-gray-300 text-xs block mb-1">Particle Type</label>
+                          <select id="si-effect-type" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                            <option value="fire">🔥 Fire Trail - Flames follow pieces</option>
+                            <option value="lightning">⚡ Lightning - Electric bolts on captures</option>
+                            <option value="sparkle">✨ Sparkle - Shimmering star particles</option>
+                            <option value="smoke">💨 Smoke - Misty trail behind pieces</option>
+                            <option value="hearts">❤️ Hearts - Love particles on moves</option>
+                            <option value="stars">⭐ Stars - Stardust on all actions</option>
+                            <option value="explosion">💥 Explosion - Extra boom on captures</option>
+                            <option value="ghost">👻 Ghost - Ghostly afterimages</option>
+                          </select>
+                        </div>
+                        <!-- Effect Customization -->
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Primary Color</label>
+                            <input type="color" id="si-effect-color1" value="#ff6600" class="w-full h-8 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Secondary Color</label>
+                            <input type="color" id="si-effect-color2" value="#ffcc00" class="w-full h-8 rounded cursor-pointer">
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Size</label>
+                            <select id="si-effect-size" class="w-full bg-gray-600 text-white px-2 py-1 rounded border border-gray-500 text-xs">
+                              <option value="small">Small</option>
+                              <option value="medium" selected>Medium</option>
+                              <option value="large">Large</option>
+                              <option value="massive">Massive</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Speed</label>
+                            <select id="si-effect-speed" class="w-full bg-gray-600 text-white px-2 py-1 rounded border border-gray-500 text-xs">
+                              <option value="slow">Slow</option>
+                              <option value="normal" selected>Normal</option>
+                              <option value="fast">Fast</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Density</label>
+                            <select id="si-effect-density" class="w-full bg-gray-600 text-white px-2 py-1 rounded border border-gray-500 text-xs">
+                              <option value="sparse">Sparse</option>
+                              <option value="normal" selected>Normal</option>
+                              <option value="dense">Dense</option>
+                              <option value="extreme">Extreme</option>
+                            </select>
+                          </div>
+                        </div>
+                        <!-- Effect Preview -->
+                        <div class="bg-gray-800 rounded-lg p-3 relative overflow-hidden h-20" id="si-effect-preview">
+                          <div class="absolute inset-0 flex items-center justify-center">
+                            <div id="si-effect-preview-particles" class="relative w-full h-full"></div>
+                          </div>
+                          <div class="absolute bottom-1 left-2 text-gray-500 text-xs">Effect Preview</div>
+                        </div>
+                        <div class="flex gap-2">
+                          <button id="si-effect-preview-btn" class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-1.5 px-3 rounded">▶ Preview Effect</button>
+                          <button id="si-effect-random-btn" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-1.5 px-3 rounded">🎲 Random Effect</button>
+                        </div>
                       </div>
 
                       <!-- Skin Options -->
                       <div id="si-skin-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
-                        <h4 class="text-white font-bold text-sm">⚔️ Skin Style</h4>
-                        <select id="si-skin-style" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
-                          <option value="robot">🤖 Robot</option>
-                          <option value="medieval">⚔️ Medieval</option>
-                          <option value="scifi">🚀 Sci-Fi</option>
-                          <option value="pixel">👾 Pixel</option>
-                          <option value="minimal">⬜ Minimal</option>
-                          <option value="cartoon">😊 Cartoon</option>
-                          <option value="military">🎖️ Military</option>
-                          <option value="fantasy">🧙 Fantasy</option>
-                        </select>
+                        <h4 class="text-white font-bold text-sm">⚔️ Advanced Skin Designer</h4>
+                        <div>
+                          <label class="text-gray-300 text-xs block mb-1">Base Style</label>
+                          <select id="si-skin-style" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                            <option value="robot">🤖 Robot - Chrome automatons with glowing eyes</option>
+                            <option value="medieval">⚔️ Medieval - Knights with swords and shields</option>
+                            <option value="scifi">🚀 Sci-Fi - Space soldiers with laser weapons</option>
+                            <option value="pixel">👾 Pixel - 8-bit retro game characters</option>
+                            <option value="minimal">⬜ Minimal - Clean geometric shapes</option>
+                            <option value="cartoon">😊 Cartoon - Fun bouncy characters</option>
+                            <option value="military">🎖️ Military - Realistic camouflage gear</option>
+                            <option value="fantasy">🧙 Fantasy - Wizards dragons and elves</option>
+                          </select>
+                        </div>
                         <div class="grid grid-cols-3 gap-2">
                           <div>
                             <label class="text-gray-300 text-xs block mb-1">Yellow Team</label>
@@ -28317,17 +28373,55 @@ function render() {
                             <input type="color" id="si-skin-accent" value="#ffffff" class="w-full h-8 rounded cursor-pointer">
                           </div>
                         </div>
+                        <!-- Skin Visual Details -->
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Helmet Color</label>
+                            <input type="color" id="si-skin-helmet" value="#888888" class="w-full h-8 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Glow Effect</label>
+                            <select id="si-skin-glow" class="w-full bg-gray-600 text-white px-2 py-1 rounded border border-gray-500 text-xs">
+                              <option value="none">None</option>
+                              <option value="subtle">Subtle Glow</option>
+                              <option value="strong">Strong Glow</option>
+                              <option value="pulse">Pulsing Glow</option>
+                              <option value="rainbow">Rainbow Glow</option>
+                            </select>
+                          </div>
+                        </div>
+                        <!-- Skin Preview -->
+                        <div class="bg-gray-800 rounded-lg p-3 h-20">
+                          <div class="flex items-center justify-around h-full" id="si-skin-preview">
+                            <div class="text-center">
+                              <div class="text-2xl">🎖️</div>
+                              <div class="text-xs text-yellow-400">Yellow</div>
+                            </div>
+                            <div class="text-center">
+                              <div class="text-2xl">🎖️</div>
+                              <div class="text-xs text-green-400">Green</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="flex gap-2">
+                          <button id="si-skin-random-btn" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-1.5 px-3 rounded">🎲 Random Colors</button>
+                          <button id="si-skin-complement-btn" class="bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold py-1.5 px-3 rounded">🔄 Complementary</button>
+                          <button id="si-skin-contrast-btn" class="bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold py-1.5 px-3 rounded">⚡ High Contrast</button>
+                        </div>
                       </div>
 
                       <!-- Sound Pack Options -->
                       <div id="si-sound-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
-                        <h4 class="text-white font-bold text-sm">🔊 Sound Filter</h4>
-                        <select id="si-sound-filter" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
-                          <option value="lowpass">🔈 Lowpass (Muffled/Warm)</option>
-                          <option value="highpass">🔊 Highpass (Bright/Tinny)</option>
-                          <option value="bandpass">📻 Bandpass (Radio/Walkie-Talkie)</option>
-                          <option value="peaking">🎸 Peaking (Resonant)</option>
-                        </select>
+                        <h4 class="text-white font-bold text-sm">🔊 Advanced Sound Designer</h4>
+                        <div>
+                          <label class="text-gray-300 text-xs block mb-1">Filter Type</label>
+                          <select id="si-sound-filter" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                            <option value="lowpass">🔈 Lowpass - Muffled, warm, bassy</option>
+                            <option value="highpass">🔊 Highpass - Bright, tinny, sharp</option>
+                            <option value="bandpass">📻 Bandpass - Radio, walkie-talkie</option>
+                            <option value="peaking">🎸 Peaking - Resonant, metallic ring</option>
+                          </select>
+                        </div>
                         <div class="grid grid-cols-2 gap-2">
                           <div>
                             <label class="text-gray-300 text-xs block mb-1">Filter Freq (Hz)</label>
@@ -28335,7 +28429,7 @@ function render() {
                             <span id="si-sound-freq-val" class="text-gray-400 text-xs">2000 Hz</span>
                           </div>
                           <div>
-                            <label class="text-gray-300 text-xs block mb-1">Filter Q</label>
+                            <label class="text-gray-300 text-xs block mb-1">Filter Q (Resonance)</label>
                             <input type="range" id="si-sound-q" min="0.1" max="15" step="0.1" value="1" class="w-full">
                             <span id="si-sound-q-val" class="text-gray-400 text-xs">1.0</span>
                           </div>
@@ -28352,6 +28446,22 @@ function render() {
                             <span id="si-sound-distortion-val" class="text-gray-400 text-xs">0</span>
                           </div>
                         </div>
+                        <!-- Sound Presets -->
+                        <div class="grid grid-cols-4 gap-1">
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="underwater">🌊 Underwater</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="radio">📻 Radio</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="megaphone">📢 Megaphone</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="cave">🦇 Cave</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="telephone">📞 Phone</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="robot">🤖 Robot</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="thunder">⛈️ Thunder</button>
+                          <button class="si-sound-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-1 rounded" data-preset="alien">👽 Alien</button>
+                        </div>
+                        <!-- Sound EQ Visualizer -->
+                        <div class="bg-gray-800 rounded p-2 h-12 flex items-end gap-px" id="si-sound-eq-viz">
+                          ${Array.from({length: 24}, (_, i) => `<div class="flex-1 bg-green-500 rounded-t transition-all" style="height:${20 + Math.sin(i * 0.5) * 15}px;opacity:${0.4 + Math.sin(i * 0.3) * 0.3}"></div>`).join('')}
+                        </div>
+                        <button id="si-sound-random-btn" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold py-1.5 px-3 rounded">🎲 Random Sound Profile</button>
                       </div>
 
                       <!-- Music Pack Options -->
@@ -28944,6 +29054,193 @@ function render() {
               const val = document.getElementById(valId)
               if (slider && val) val.textContent = slider.value + (suffix || '')
             })
+          })
+
+          // Sound preset handlers
+          const soundPresets: Record<string, { filter: string; freq: number; q: number; gain: number; dist: number }> = {
+            underwater: { filter: 'lowpass', freq: 600, q: 3, gain: 0, dist: 0 },
+            radio: { filter: 'bandpass', freq: 1200, q: 8, gain: 0, dist: 15 },
+            megaphone: { filter: 'peaking', freq: 2000, q: 6, gain: 8, dist: 25 },
+            cave: { filter: 'lowpass', freq: 1500, q: 5, gain: 4, dist: 0 },
+            telephone: { filter: 'bandpass', freq: 1800, q: 12, gain: 0, dist: 10 },
+            robot: { filter: 'peaking', freq: 800, q: 10, gain: 6, dist: 40 },
+            thunder: { filter: 'lowpass', freq: 400, q: 2, gain: 8, dist: 30 },
+            alien: { filter: 'highpass', freq: 3000, q: 8, gain: 0, dist: 50 }
+          }
+
+          document.querySelectorAll('.si-sound-preset').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const preset = (e.target as HTMLElement).dataset.preset
+              if (!preset || !soundPresets[preset]) return
+              const p = soundPresets[preset]
+              ;(document.getElementById('si-sound-filter') as HTMLSelectElement).value = p.filter
+              ;(document.getElementById('si-sound-freq') as HTMLInputElement).value = String(p.freq)
+              ;(document.getElementById('si-sound-q') as HTMLInputElement).value = String(p.q)
+              ;(document.getElementById('si-sound-gain') as HTMLInputElement).value = String(p.gain)
+              ;(document.getElementById('si-sound-distortion') as HTMLInputElement).value = String(p.dist)
+              sliderUpdaters.forEach(([sliderId, valId, suffix]) => {
+                const slider = document.getElementById(sliderId) as HTMLInputElement
+                const val = document.getElementById(valId)
+                if (slider && val) val.textContent = slider.value + (suffix || '')
+              })
+              // Update EQ visualizer
+              const viz = document.getElementById('si-sound-eq-viz')
+              if (viz) {
+                const bars = viz.children
+                for (let i = 0; i < bars.length; i++) {
+                  const bar = bars[i] as HTMLElement
+                  const freq = (i / bars.length) * 8000
+                  let height = 20
+                  if (p.filter === 'lowpass') height = freq < p.freq ? 30 + p.q * 2 : 5
+                  else if (p.filter === 'highpass') height = freq > p.freq ? 30 + p.q * 2 : 5
+                  else if (p.filter === 'bandpass') height = Math.abs(freq - p.freq) < p.freq / p.q ? 35 : 8
+                  else height = Math.abs(freq - p.freq) < 500 ? 30 + p.gain : 18
+                  bar.style.height = `${Math.min(44, Math.max(2, height))}px`
+                  bar.style.background = p.dist > 20 ? '#ef4444' : p.dist > 0 ? '#f59e0b' : '#22c55e'
+                }
+              }
+            })
+          })
+
+          // Sound random profile
+          document.getElementById('si-sound-random-btn')?.addEventListener('click', () => {
+            const presetKeys = Object.keys(soundPresets)
+            const randomPreset = presetKeys[Math.floor(Math.random() * presetKeys.length)]
+            const btn = document.querySelector(`.si-sound-preset[data-preset="${randomPreset}"]`) as HTMLElement
+            btn?.click()
+          })
+
+          // Effect preview animation
+          document.getElementById('si-effect-preview-btn')?.addEventListener('click', () => {
+            const container = document.getElementById('si-effect-preview-particles')
+            if (!container) return
+            container.innerHTML = ''
+            const color1 = (document.getElementById('si-effect-color1') as HTMLInputElement)?.value || '#ff6600'
+            const color2 = (document.getElementById('si-effect-color2') as HTMLInputElement)?.value || '#ffcc00'
+            const effectType = (document.getElementById('si-effect-type') as HTMLSelectElement)?.value
+            const density = (document.getElementById('si-effect-density') as HTMLSelectElement)?.value
+            const size = (document.getElementById('si-effect-size') as HTMLSelectElement)?.value
+
+            const particleCount = density === 'sparse' ? 8 : density === 'dense' ? 25 : density === 'extreme' ? 40 : 15
+            const particleSize = size === 'small' ? 4 : size === 'large' ? 12 : size === 'massive' ? 18 : 8
+
+            const symbols: Record<string, string> = { fire: '●', lightning: '⚡', sparkle: '✦', smoke: '●', hearts: '♥', stars: '★', explosion: '●', ghost: '●' }
+            const symbol = symbols[effectType] || '●'
+
+            for (let i = 0; i < particleCount; i++) {
+              const particle = document.createElement('div')
+              particle.className = 'absolute pointer-events-none'
+              particle.style.cssText = `left:${20 + Math.random() * 60}%;top:${10 + Math.random() * 60}%;color:${Math.random() > 0.5 ? color1 : color2};font-size:${particleSize}px;opacity:0;animation:deal-slide-in 0.3s ${i * 0.05}s forwards;`
+              particle.textContent = symbol
+              container.appendChild(particle)
+              setTimeout(() => { particle.style.opacity = '0'; particle.style.transition = 'opacity 0.5s'; }, 1000 + i * 50)
+              setTimeout(() => particle.remove(), 1600 + i * 50)
+            }
+          })
+
+          // Random effect generator
+          document.getElementById('si-effect-random-btn')?.addEventListener('click', () => {
+            const types = ['fire', 'lightning', 'sparkle', 'smoke', 'hearts', 'stars', 'explosion', 'ghost']
+            const sizes = ['small', 'medium', 'large', 'massive']
+            const speeds = ['slow', 'normal', 'fast']
+            const densities = ['sparse', 'normal', 'dense', 'extreme']
+            ;(document.getElementById('si-effect-type') as HTMLSelectElement).value = types[Math.floor(Math.random() * types.length)]
+            ;(document.getElementById('si-effect-size') as HTMLSelectElement).value = sizes[Math.floor(Math.random() * sizes.length)]
+            ;(document.getElementById('si-effect-speed') as HTMLSelectElement).value = speeds[Math.floor(Math.random() * speeds.length)]
+            ;(document.getElementById('si-effect-density') as HTMLSelectElement).value = densities[Math.floor(Math.random() * densities.length)]
+            const randColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+            ;(document.getElementById('si-effect-color1') as HTMLInputElement).value = randColor()
+            ;(document.getElementById('si-effect-color2') as HTMLInputElement).value = randColor()
+            // Auto-preview
+            document.getElementById('si-effect-preview-btn')?.click()
+          })
+
+          // Skin preview updater
+          const updateSkinPreview = () => {
+            const preview = document.getElementById('si-skin-preview')
+            if (!preview) return
+            const yellow = (document.getElementById('si-skin-yellow') as HTMLInputElement)?.value || '#eab308'
+            const green = (document.getElementById('si-skin-green') as HTMLInputElement)?.value || '#22c55e'
+            const accent = (document.getElementById('si-skin-accent') as HTMLInputElement)?.value || '#ffffff'
+            const helmet = (document.getElementById('si-skin-helmet') as HTMLInputElement)?.value || '#888888'
+            const glow = (document.getElementById('si-skin-glow') as HTMLSelectElement)?.value || 'none'
+            const style = (document.getElementById('si-skin-style') as HTMLSelectElement)?.value || 'robot'
+            const styleIcons: Record<string, string> = { robot: '🤖', medieval: '⚔️', scifi: '🚀', pixel: '👾', minimal: '⬜', cartoon: '😊', military: '🎖️', fantasy: '🧙' }
+            const icon = styleIcons[style] || '🎖️'
+
+            const glowStyle = glow === 'subtle' ? `filter:drop-shadow(0 0 4px ${accent})` :
+              glow === 'strong' ? `filter:drop-shadow(0 0 8px ${accent}) drop-shadow(0 0 16px ${accent})` :
+              glow === 'pulse' ? `filter:drop-shadow(0 0 8px ${accent});animation:deal-badge-pulse 1s infinite` :
+              glow === 'rainbow' ? `filter:drop-shadow(0 0 8px ${accent});animation:bundle-rainbow 2s linear infinite` : ''
+
+            preview.innerHTML = `
+              <div class="text-center flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:${yellow};border:2px solid ${helmet};${glowStyle}">${icon}</div>
+                <div class="text-xs mt-1" style="color:${yellow}">Yellow</div>
+              </div>
+              <div class="text-center text-gray-500 text-xs">VS</div>
+              <div class="text-center flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background:${green};border:2px solid ${helmet};${glowStyle}">${icon}</div>
+                <div class="text-xs mt-1" style="color:${green}">Green</div>
+              </div>
+              <div class="text-center flex flex-col items-center">
+                <div class="w-6 h-6 rounded flex items-center justify-center text-xs" style="background:${accent};border:1px solid ${helmet}">✦</div>
+                <div class="text-xs mt-1 text-gray-400">Accent</div>
+              </div>
+            `
+          }
+          document.getElementById('si-skin-yellow')?.addEventListener('input', updateSkinPreview)
+          document.getElementById('si-skin-green')?.addEventListener('input', updateSkinPreview)
+          document.getElementById('si-skin-accent')?.addEventListener('input', updateSkinPreview)
+          document.getElementById('si-skin-helmet')?.addEventListener('input', updateSkinPreview)
+          document.getElementById('si-skin-glow')?.addEventListener('change', updateSkinPreview)
+          document.getElementById('si-skin-style')?.addEventListener('change', updateSkinPreview)
+          updateSkinPreview()
+
+          // Skin random colors
+          document.getElementById('si-skin-random-btn')?.addEventListener('click', () => {
+            const randColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+            ;(document.getElementById('si-skin-yellow') as HTMLInputElement).value = randColor()
+            ;(document.getElementById('si-skin-green') as HTMLInputElement).value = randColor()
+            ;(document.getElementById('si-skin-accent') as HTMLInputElement).value = randColor()
+            ;(document.getElementById('si-skin-helmet') as HTMLInputElement).value = randColor()
+            updateSkinPreview()
+          })
+
+          // Skin complementary colors
+          document.getElementById('si-skin-complement-btn')?.addEventListener('click', () => {
+            const hue = Math.random() * 360
+            const hslToHex3 = (h: number, s: number, l: number): string => {
+              const el = document.createElement('div')
+              el.style.color = `hsl(${h}, ${s}%, ${l}%)`
+              document.body.appendChild(el)
+              const c = getComputedStyle(el).color
+              document.body.removeChild(el)
+              const m = c.match(/(\d+)/g)
+              return m ? '#' + m.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('') : '#888888'
+            }
+            ;(document.getElementById('si-skin-yellow') as HTMLInputElement).value = hslToHex3(hue, 80, 55)
+            ;(document.getElementById('si-skin-green') as HTMLInputElement).value = hslToHex3((hue + 150) % 360, 75, 45)
+            ;(document.getElementById('si-skin-accent') as HTMLInputElement).value = hslToHex3((hue + 60) % 360, 90, 70)
+            ;(document.getElementById('si-skin-helmet') as HTMLInputElement).value = hslToHex3((hue + 200) % 360, 30, 40)
+            updateSkinPreview()
+          })
+
+          // Skin high contrast
+          document.getElementById('si-skin-contrast-btn')?.addEventListener('click', () => {
+            const schemes = [
+              { y: '#ff0000', g: '#00ff00', a: '#ffffff', h: '#000000' },
+              { y: '#ffff00', g: '#0000ff', a: '#ff00ff', h: '#333333' },
+              { y: '#ff6600', g: '#0066ff', a: '#00ffcc', h: '#1a1a1a' },
+              { y: '#ff1493', g: '#00ced1', a: '#ffd700', h: '#2f2f2f' },
+              { y: '#ff4500', g: '#7cfc00', a: '#ffffff', h: '#000000' }
+            ]
+            const s = schemes[Math.floor(Math.random() * schemes.length)]
+            ;(document.getElementById('si-skin-yellow') as HTMLInputElement).value = s.y
+            ;(document.getElementById('si-skin-green') as HTMLInputElement).value = s.g
+            ;(document.getElementById('si-skin-accent') as HTMLInputElement).value = s.a
+            ;(document.getElementById('si-skin-helmet') as HTMLInputElement).value = s.h
+            updateSkinPreview()
           })
 
           // Sequencer grid click handlers
