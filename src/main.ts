@@ -9350,6 +9350,19 @@ const translations: Record<Language, Record<string, string>> = {
     shopEffects: 'Effects',
     shopSounds: 'Sound Packs',
     shopMusic: 'Music Packs',
+    // Daily Deals
+    dailyDeals: 'DAILY DEALS',
+    dailyDealsDesc: 'Fresh deals every day - 20% OFF!',
+    remaining: 'remaining',
+    hotDeals: "Today's Hot Deals",
+    bundleDeals: 'Bundle Deals',
+    noBundles: 'No bundles available right now. Check back soon!',
+    buyNow: 'BUY NOW',
+    buyBundle: 'BUY BUNDLE',
+    completeBundle: 'COMPLETE BUNDLE',
+    allOwned: 'All Owned',
+    youSave: 'You save',
+    bundlePurchased: 'Bundle purchased! All items added to your collection.',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Challenges',
@@ -10680,6 +10693,18 @@ const translations: Record<Language, Record<string, string>> = {
     shopEffects: 'Effecten',
     shopSounds: 'Geluidspakketten',
     shopMusic: 'Muziekpakketten',
+    dailyDeals: 'DAGELIJKSE DEALS',
+    dailyDealsDesc: 'Elke dag nieuwe deals - 20% KORTING!',
+    remaining: 'resterend',
+    hotDeals: "Vandaag's Hot Deals",
+    bundleDeals: 'Bundel Deals',
+    noBundles: 'Geen bundels beschikbaar. Kijk later nog eens!',
+    buyNow: 'KOOP NU',
+    buyBundle: 'KOOP BUNDEL',
+    completeBundle: 'COMPLEET BUNDEL',
+    allOwned: 'Alles in bezit',
+    youSave: 'Je bespaart',
+    bundlePurchased: 'Bundel gekocht! Alle items zijn toegevoegd aan je collectie.',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Uitdagingen',
@@ -12010,6 +12035,18 @@ const translations: Record<Language, Record<string, string>> = {
     shopEffects: 'Effekte',
     shopSounds: 'Soundpakete',
     shopMusic: 'Musikpakete',
+    dailyDeals: 'TAGESANGEBOTE',
+    dailyDealsDesc: 'Jeden Tag neue Angebote - 20% RABATT!',
+    remaining: 'verbleibend',
+    hotDeals: 'Heutige Angebote',
+    bundleDeals: 'Paket-Angebote',
+    noBundles: 'Keine Pakete verfügbar. Schau später nochmal!',
+    buyNow: 'JETZT KAUFEN',
+    buyBundle: 'PAKET KAUFEN',
+    completeBundle: 'PAKET VERVOLLSTÄNDIGEN',
+    allOwned: 'Alles im Besitz',
+    youSave: 'Du sparst',
+    bundlePurchased: 'Paket gekauft! Alle Items wurden hinzugefügt.',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Herausforderungen',
@@ -12573,6 +12610,18 @@ const translations: Record<Language, Record<string, string>> = {
     shopEffects: 'Effets',
     shopSounds: 'Packs de sons',
     shopMusic: 'Packs de musique',
+    dailyDeals: 'OFFRES DU JOUR',
+    dailyDealsDesc: 'Nouvelles offres chaque jour - 20% DE RÉDUCTION!',
+    remaining: 'restant',
+    hotDeals: 'Offres du jour',
+    bundleDeals: 'Offres groupées',
+    noBundles: 'Aucun pack disponible. Revenez bientôt!',
+    buyNow: 'ACHETER',
+    buyBundle: 'ACHETER LE PACK',
+    completeBundle: 'COMPLÉTER LE PACK',
+    allOwned: 'Tout possédé',
+    youSave: 'Vous économisez',
+    bundlePurchased: 'Pack acheté! Tous les articles ont été ajoutés.',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Défis',
@@ -13135,6 +13184,18 @@ const translations: Record<Language, Record<string, string>> = {
     shopEffects: 'Efectos',
     shopSounds: 'Paquetes de sonido',
     shopMusic: 'Paquetes de música',
+    dailyDeals: 'OFERTAS DIARIAS',
+    dailyDealsDesc: '¡Nuevas ofertas cada día - 20% DE DESCUENTO!',
+    remaining: 'restante',
+    hotDeals: 'Ofertas de hoy',
+    bundleDeals: 'Ofertas de paquetes',
+    noBundles: '¡No hay paquetes disponibles. Vuelve pronto!',
+    buyNow: 'COMPRAR',
+    buyBundle: 'COMPRAR PAQUETE',
+    completeBundle: 'COMPLETAR PAQUETE',
+    allOwned: 'Todo en posesión',
+    youSave: 'Ahorras',
+    bundlePurchased: '¡Paquete comprado! Todos los artículos han sido añadidos.',
     // War Pass
     warPassTitle: 'War Pass',
     warPassChallenges: 'Desafíos',
@@ -25716,14 +25777,14 @@ function render() {
               <div class="relative z-10">
                 <h2 class="text-2xl sm:text-3xl font-black text-white mb-1">
                   <span class="star-decoration inline-block" style="animation-delay: 0s">⭐</span>
-                  DAILY DEALS
+                  ${t('dailyDeals')}
                   <span class="star-decoration inline-block" style="animation-delay: 0.7s">⭐</span>
                 </h2>
-                <p class="text-yellow-200 text-sm mb-2">Fresh deals every day - 20% OFF!</p>
+                <p class="text-yellow-200 text-sm mb-2">${t('dailyDealsDesc')}</p>
                 <div class="deal-timer inline-flex items-center gap-2 bg-black/30 px-4 py-1.5 rounded-full">
                   <span class="text-red-400 font-bold text-lg">⏰</span>
                   <span class="text-white font-mono font-bold">${hoursLeft}h ${minutesLeft}m</span>
-                  <span class="text-yellow-300 text-sm">remaining</span>
+                  <span class="text-yellow-300 text-sm">${t('remaining')}</span>
                 </div>
               </div>
             </div>
@@ -25731,7 +25792,7 @@ function render() {
             <!-- Daily Deal Items -->
             <div class="mb-6">
               <h3 class="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-2">
-                <span class="text-2xl">🔥</span> Today's Hot Deals
+                <span class="text-2xl">🔥</span> ${t('hotDeals')}
               </h3>
               ${shopDeals.length === 0 ? `
                 <div class="text-gray-400 text-center py-8">Loading deals...</div>
@@ -25759,7 +25820,7 @@ function render() {
                           ${owned
                             ? `<span class="text-green-400 font-bold text-sm px-4 py-2 bg-green-900/30 rounded-lg">✓ Owned</span>`
                             : `<button class="buy-deal-btn bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-all hover:scale-105 shadow-lg shadow-orange-600/30" data-item="${item.id}" data-price="${item.dealPrice}">
-                                BUY NOW
+                                ${t('buyNow')}
                               </button>`
                           }
                         </div>
@@ -25773,12 +25834,12 @@ function render() {
             <!-- Bundles -->
             <div>
               <h3 class="text-lg font-bold text-purple-400 mb-3 flex items-center gap-2">
-                <span class="text-2xl">📦</span> Bundle Deals
+                <span class="text-2xl">📦</span> ${t('bundleDeals')}
               </h3>
               ${shopBundles.length === 0 ? `
                 <div class="text-gray-400 text-center py-8 bg-gray-800/50 rounded-xl">
                   <span class="text-4xl block mb-2">📦</span>
-                  No bundles available right now. Check back soon!
+                  ${t('noBundles')}
                 </div>
               ` : `
                 <div class="flex flex-col gap-4">
@@ -25817,12 +25878,12 @@ function render() {
                           <div class="flex flex-col">
                             <span class="original-price text-gray-500 text-sm">💰 ${bundle.originalPrice}</span>
                             <span class="deal-price text-purple-400 font-black text-xl">💰 ${bundle.bundlePrice}</span>
-                            <span class="text-green-400 text-xs font-bold">You save 💰 ${bundle.originalPrice - bundle.bundlePrice}!</span>
+                            <span class="text-green-400 text-xs font-bold">${t('youSave')} 💰 ${bundle.originalPrice - bundle.bundlePrice}!</span>
                           </div>
                           ${allOwned
-                            ? `<span class="text-green-400 font-bold text-sm px-4 py-2 bg-green-900/30 rounded-lg">✓ All Owned</span>`
+                            ? `<span class="text-green-400 font-bold text-sm px-4 py-2 bg-green-900/30 rounded-lg">✓ ${t('allOwned')}</span>`
                             : `<button class="buy-bundle-btn bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-all hover:scale-105 shadow-lg shadow-purple-600/30" data-bundle-id="${bundle.id}" data-price="${bundle.bundlePrice}">
-                                ${someOwned ? 'COMPLETE BUNDLE' : 'BUY BUNDLE'}
+                                ${someOwned ? t('completeBundle') : t('buyBundle')}
                               </button>`
                           }
                         </div>
@@ -25943,7 +26004,7 @@ function render() {
             const success = await purchaseBundle(bundle)
             if (success) {
               await loadUserData()
-              alert('Bundle purchased! All items have been added to your collection.')
+              alert(t('bundlePurchased'))
               render()
             } else {
               alert(t('shopNotEnough'))
@@ -28968,19 +29029,82 @@ function render() {
 
             const rand = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
             const randInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min))
+            const lang = currentLanguage
+
+            // Localized description templates per mood
+            const localDesc: Record<string, Record<string, string[]>> = {
+              fire: { en: ['A scorching battlefield engulfed in flames and lava', 'Where the earth cracks open with molten fury'], nl: ['Een verschroeiend slagveld overspoeld met vlammen en lava', 'Waar de aarde openbarst met gloeiende woede'], de: ['Ein versengendes Schlachtfeld in Flammen und Lava gehüllt', 'Wo die Erde vor glühender Wut aufbricht'], fr: ['Un champ de bataille brûlant englouti par les flammes', 'Où la terre s\'ouvre avec une fureur ardente'], es: ['Un campo de batalla abrasador envuelto en llamas y lava', 'Donde la tierra se abre con furia ardiente'] },
+              ice: { en: ['A frozen wasteland where breath turns to ice crystals', 'Sub-zero battlefield covered in permafrost'], nl: ['Een bevroren woestenij waar adem tot ijskristallen wordt', 'Een ijskoud slagveld bedekt met permafrost'], de: ['Eine gefrorene Einöde wo der Atem zu Eiskristallen wird', 'Ein Schlachtfeld unter Null bedeckt mit Permafrost'], fr: ['Un désert gelé où le souffle se transforme en cristaux', 'Un champ de bataille sous zéro couvert de permafrost'], es: ['Un páramo helado donde el aliento se convierte en cristales', 'Campo de batalla bajo cero cubierto de permafrost'] },
+              nature: { en: ['An ancient forest where nature has reclaimed the battlefield', 'Battle beneath a canopy of ancient magical trees'], nl: ['Een oeroud bos waar de natuur het slagveld heeft teruggewonnen', 'Vecht onder een bladerdak van magische bomen'], de: ['Ein uralter Wald wo die Natur das Schlachtfeld zurückerobert hat', 'Kämpfe unter dem Blätterdach magischer Bäume'], fr: ['Une forêt ancienne où la nature a reconquis le terrain', 'Combattez sous la canopée d\'arbres magiques anciens'], es: ['Un bosque antiguo donde la naturaleza ha reclamado el campo', 'Lucha bajo el dosel de árboles mágicos ancestrales'] },
+              ocean: { en: ['Fight in the depths of an underwater kingdom', 'A coral reef battlefield teeming with life'], nl: ['Vecht in de diepten van een onderwaterkoninkrijk', 'Een koraalrif slagveld vol bioluminescentie'], de: ['Kämpfe in den Tiefen eines Unterwasserkönigreichs', 'Ein Korallenriff-Schlachtfeld voller Leben'], fr: ['Combattez dans les profondeurs d\'un royaume sous-marin', 'Un récif corallien grouillant de bioluminescence'], es: ['Lucha en las profundidades de un reino submarino', 'Un arrecife de coral rebosante de bioluminiscencia'] },
+              space: { en: ['A battlefield floating among the stars and nebulae', 'Zero-gravity combat in the cosmic void'], nl: ['Een slagveld zwevend tussen de sterren en nevels', 'Zwaartekrachtloos gevecht in de kosmische leegte'], de: ['Ein Schlachtfeld schwebend zwischen Sternen und Nebeln', 'Schwereloser Kampf in der kosmischen Leere'], fr: ['Un champ de bataille flottant parmi les étoiles', 'Combat en apesanteur dans le vide cosmique'], es: ['Un campo de batalla flotando entre las estrellas', 'Combate sin gravedad en el vacío cósmico'] },
+              neon: { en: ['A glitching cyberpunk arena bathed in neon light', 'Digital warfare in a holographic combat zone'], nl: ['Een glitchende cyberpunk arena badend in neonlicht', 'Digitale oorlog in een holografische gevechtszone'], de: ['Eine glitchende Cyberpunk-Arena in Neonlicht getaucht', 'Digitale Kriegsführung in einer holografischen Zone'], fr: ['Une arène cyberpunk baignée de lumière néon', 'Guerre numérique dans une zone holographique'], es: ['Una arena cyberpunk bañada en luz neón', 'Guerra digital en una zona de combate holográfica'] },
+              dark: { en: ['A cursed battlefield shrouded in eternal darkness', 'Where shadows come alive and whispers fill the air'], nl: ['Een vervloekt slagveld gehuld in eeuwige duisternis', 'Waar schaduwen tot leven komen en fluisteringen de lucht vullen'], de: ['Ein verfluchtes Schlachtfeld in ewiger Dunkelheit gehüllt', 'Wo Schatten lebendig werden und Flüstern die Luft füllt'], fr: ['Un champ de bataille maudit enveloppé de ténèbres', 'Où les ombres prennent vie et les murmures remplissent l\'air'], es: ['Un campo de batalla maldito envuelto en oscuridad eterna', 'Donde las sombras cobran vida y los susurros llenan el aire'] },
+              gold: { en: ['A magnificent golden palace turned into a battlefield', 'Where warriors fight for the ultimate crown'], nl: ['Een prachtig gouden paleis omgetoverd tot slagveld', 'Waar strijders vechten om de ultieme kroon'], de: ['Ein prächtiger goldener Palast zum Schlachtfeld geworden', 'Wo Krieger um die ultimative Krone kämpfen'], fr: ['Un magnifique palais doré transformé en champ de bataille', 'Où les guerriers se battent pour la couronne ultime'], es: ['Un magnífico palacio dorado convertido en campo de batalla', 'Donde los guerreros luchan por la corona definitiva'] },
+              cherry: { en: ['A peaceful garden where cherry blossoms fall like snow', 'Battle among ancient temples draped in pink petals'], nl: ['Een vredige tuin waar kersenbloesems vallen als sneeuw', 'Vecht tussen oude tempels gedrapeerd in roze bloemblaadjes'], de: ['Ein friedlicher Garten wo Kirschblüten wie Schnee fallen', 'Kämpfe zwischen alten Tempeln in rosa Blütenblättern'], fr: ['Un jardin paisible où les fleurs de cerisier tombent comme neige', 'Combat parmi d\'anciens temples drapés de pétales roses'], es: ['Un jardín pacífico donde los cerezos caen como nieve', 'Batalla entre templos antiguos cubiertos de pétalos rosas'] },
+              steampunk: { en: ['A Victorian-era battlefield powered by steam and gears', 'Clockwork automatons clash in a brass-lined arena'], nl: ['Een Victoriaans slagveld aangedreven door stoom en tandwielen', 'Uurwerk-automaten botsen in een koperen arena'], de: ['Ein viktorianisches Schlachtfeld angetrieben von Dampf und Zahnrädern', 'Uhrwerk-Automaten kämpfen in einer Messing-Arena'], fr: ['Un champ de bataille victorien alimenté par la vapeur', 'Des automates s\'affrontent dans une arène de laiton'], es: ['Un campo de batalla victoriano impulsado por vapor y engranajes', 'Autómatas de relojería chocan en una arena de latón'] }
+            }
+
+            // Localized AI reactions
+            const localAiReactions: Record<string, Record<string, string[]>> = {
+              en: { theme: ['🤖 AI: "I love this color palette! The ambient effects will look amazing."', '🤖 AI: "This theme concept is fire! Players will love the atmosphere."'], effect: ['🤖 AI: "These particle effects will look epic in battle!"', '🤖 AI: "This effect will make every capture feel 10x more satisfying."'], piece_skin: ['🤖 AI: "These colors will make both teams look amazing!"', '🤖 AI: "This skin style is *chef\'s kiss*"'], sound_pack: ['🤖 AI: "The filter settings give this a unique character!"', '🤖 AI: "This sound profile will transform every battle."'], music_pack: ['🤖 AI: "This melody will be stuck in players\' heads all day!"', '🤖 AI: "The tempo and scale create the perfect battle mood."'] },
+              nl: { theme: ['🤖 AI: "Wauw, dit kleurenpalet is prachtig! De effecten gaan er geweldig uitzien."', '🤖 AI: "Dit thema-concept is echt top! Spelers gaan dit fantastisch vinden."'], effect: ['🤖 AI: "Deze deeltjes-effecten worden episch in de strijd!"', '🤖 AI: "Dit effect maakt elke verovering 10x bevredigender."'], piece_skin: ['🤖 AI: "Deze kleuren maken beide teams er geweldig uit!"', '🤖 AI: "Deze skin-stijl is perfect samengesteld."'], sound_pack: ['🤖 AI: "De filterinstellingen geven dit een uniek karakter!"', '🤖 AI: "Dit geluidsprofiel transformeert elk gevecht."'], music_pack: ['🤖 AI: "Deze melodie blijft de hele dag in je hoofd hangen!"', '🤖 AI: "Het tempo en de toonladder creëren de perfecte sfeer."'] },
+              de: { theme: ['🤖 AI: "Diese Farbpalette ist wunderschön! Die Effekte werden großartig aussehen."', '🤖 AI: "Dieses Thema ist der Hammer! Spieler werden die Atmosphäre lieben."'], effect: ['🤖 AI: "Diese Partikeleffekte werden im Kampf episch aussehen!"', '🤖 AI: "Dieser Effekt macht jede Eroberung 10x befriedigender."'], piece_skin: ['🤖 AI: "Diese Farben lassen beide Teams fantastisch aussehen!"', '🤖 AI: "Dieser Skin-Stil ist perfekt zusammengestellt."'], sound_pack: ['🤖 AI: "Die Filtereinstellungen geben diesem einen einzigartigen Charakter!"', '🤖 AI: "Dieses Klangprofil wird jeden Kampf verwandeln."'], music_pack: ['🤖 AI: "Diese Melodie wird den ganzen Tag im Kopf bleiben!"', '🤖 AI: "Tempo und Tonleiter erzeugen die perfekte Stimmung."'] },
+              fr: { theme: ['🤖 AI: "J\'adore cette palette de couleurs! Les effets seront magnifiques."', '🤖 AI: "Ce concept de thème est génial! Les joueurs vont adorer."'], effect: ['🤖 AI: "Ces effets de particules seront épiques au combat!"', '🤖 AI: "Cet effet rendra chaque capture 10x plus satisfaisante."'], piece_skin: ['🤖 AI: "Ces couleurs feront briller les deux équipes!"', '🤖 AI: "Ce style de skin est parfaitement composé."'], sound_pack: ['🤖 AI: "Les filtres donnent un caractère unique à ce pack!"', '🤖 AI: "Ce profil sonore transformera chaque bataille."'], music_pack: ['🤖 AI: "Cette mélodie restera dans la tête toute la journée!"', '🤖 AI: "Le tempo et la gamme créent l\'ambiance parfaite."'] },
+              es: { theme: ['🤖 AI: "¡Me encanta esta paleta de colores! Los efectos se verán increíbles."', '🤖 AI: "¡Este concepto de tema es genial! A los jugadores les encantará."'], effect: ['🤖 AI: "¡Estos efectos de partículas serán épicos en batalla!"', '🤖 AI: "Este efecto hará cada captura 10x más satisfactoria."'], piece_skin: ['🤖 AI: "¡Estos colores harán que ambos equipos se vean increíbles!"', '🤖 AI: "Este estilo de skin está perfectamente compuesto."'], sound_pack: ['🤖 AI: "¡Los filtros le dan un carácter único a este pack!"', '🤖 AI: "Este perfil de sonido transformará cada batalla."'], music_pack: ['🤖 AI: "¡Esta melodía se quedará en la cabeza todo el día!"', '🤖 AI: "El tempo y la escala crean el ambiente perfecto."'] }
+            }
+
+            // Also add effect/skin/sound/music descriptions per language
+            const localDescExtra: Record<string, Record<string, string[]>> = {
+              // Effects
+              effect_fire: { en: ['Devastating flames consume the battlefield on every move'], nl: ['Verwoestende vlammen verslinden het slagveld bij elke zet'], de: ['Verheerende Flammen verschlingen das Schlachtfeld'], fr: ['Des flammes dévastatrices engloutissent le champ de bataille'], es: ['Llamas devastadoras consumen el campo de batalla'] },
+              effect_electric: { en: ['Electric arcs chain between pieces as they move'], nl: ['Elektrische bogen ketenen tussen stukken bij elke zet'], de: ['Elektrische Bögen zwischen den Figuren bei jeder Bewegung'], fr: ['Des arcs électriques enchaînent les pièces en mouvement'], es: ['Arcos eléctricos encadenan las piezas al moverse'] },
+              effect_magic: { en: ['Mystical energy swirls around your pieces in combat'], nl: ['Mystieke energie wervelt rond je stukken in gevecht'], de: ['Mystische Energie wirbelt um deine Figuren im Kampf'], fr: ['L\'énergie mystique tourbillonne autour de vos pièces'], es: ['Energía mística gira alrededor de tus piezas en combate'] },
+              effect_dark: { en: ['Ghostly afterimages trail behind your pieces'], nl: ['Spookachtige nabeelden volgen je stukken'], de: ['Geisterhafte Nachbilder folgen deinen Figuren'], fr: ['Des images fantomatiques suivent vos pièces'], es: ['Imágenes fantasmales siguen a tus piezas'] },
+              effect_love: { en: ['Hearts burst from every move spreading love'], nl: ['Harten barsten uit elke zet en verspreiden liefde'], de: ['Herzen platzen bei jeder Bewegung und verbreiten Liebe'], fr: ['Des coeurs jaillissent de chaque mouvement'], es: ['Corazones brotan de cada movimiento'] },
+              effect_cosmic: { en: ['Stardust rains down with every victorious capture'], nl: ['Sterrenstof regent neer bij elke verovering'], de: ['Sternenstaub regnet bei jeder Eroberung herab'], fr: ['La poussière d\'étoiles pleut à chaque capture'], es: ['Polvo estelar llueve con cada captura victoriosa'] },
+              effect_boom: { en: ['Massive explosions rock the battlefield on every capture'], nl: ['Enorme explosies schudden het slagveld bij elke verovering'], de: ['Massive Explosionen erschüttern das Schlachtfeld'], fr: ['Des explosions massives secouent le champ de bataille'], es: ['Explosiones masivas sacuden el campo de batalla'] },
+              effect_mist: { en: ['A mysterious fog follows your pieces across the board'], nl: ['Een mysterieuze mist volgt je stukken over het bord'], de: ['Ein mysteriöser Nebel folgt deinen Figuren'], fr: ['Un brouillard mystérieux suit vos pièces'], es: ['Una niebla misteriosa sigue a tus piezas'] },
+              // Skins
+              skin_robot: { en: ['Gleaming chrome automatons with glowing core reactors'], nl: ['Glimmende chromen automaten met gloeiende kernreactoren'], de: ['Glänzende Chrom-Automaten mit leuchtenden Reaktoren'], fr: ['Des automates chromés avec des réacteurs lumineux'], es: ['Autómatas cromados brillantes con reactores luminosos'] },
+              skin_medieval: { en: ['Noble knights in enchanted armor forged by ancient smiths'], nl: ['Edele ridders in betoverd harnas gesmeed door oude smeden'], de: ['Edle Ritter in verzauberter Rüstung alter Schmiede'], fr: ['De nobles chevaliers en armure enchantée'], es: ['Nobles caballeros con armadura encantada'] },
+              skin_scifi: { en: ['Elite space marines armed with plasma rifles'], nl: ['Elite ruimte-mariniers bewapend met plasmageweren'], de: ['Elite-Weltraum-Marines mit Plasmagewehren'], fr: ['Des marines d\'élite armés de fusils à plasma'], es: ['Marines espaciales de élite con rifles de plasma'] },
+              skin_pixel: { en: ['Nostalgic 8-bit warriors from the golden age of gaming'], nl: ['Nostalgische 8-bit strijders uit het gouden tijdperk'], de: ['Nostalgische 8-Bit-Krieger aus dem goldenen Zeitalter'], fr: ['Des guerriers 8-bit de l\'âge d\'or du jeu vidéo'], es: ['Guerreros 8-bit de la edad dorada de los videojuegos'] },
+              skin_fantasy: { en: ['Mythical beings wielding ancient elemental magic'], nl: ['Mythische wezens die oude elementaire magie gebruiken'], de: ['Mythische Wesen mit uralter Elementarmagie'], fr: ['Des êtres mythiques maniant la magie élémentaire'], es: ['Seres míticos que manejan magia elemental antigua'] },
+              skin_cartoon: { en: ['Hilariously expressive characters with over-the-top reactions'], nl: ['Hilarisch expressieve karakters met overdreven reacties'], de: ['Urkomisch ausdrucksstarke Charaktere'], fr: ['Des personnages hilarants avec des réactions exagérées'], es: ['Personajes hilarantes con reacciones exageradas'] },
+              // Sound
+              sound_lowpass: { en: ['Deep rumbling bass that shakes the ground'], nl: ['Diep rommende bas die de grond laat trillen'], de: ['Tiefer dröhnender Bass der den Boden erzittern lässt'], fr: ['Des basses profondes qui font trembler le sol'], es: ['Bajos profundos que hacen temblar el suelo'] },
+              sound_highpass: { en: ['Crystal-clear high tones that sparkle and shine'], nl: ['Kristalheldere hoge tonen die schitteren en glanzen'], de: ['Kristallklare hohe Töne die funkeln und glänzen'], fr: ['Des tons aigus cristallins qui étincellent'], es: ['Tonos cristalinos que brillan y resplandecen'] },
+              sound_bandpass: { en: ['Raw distorted audio crackling with energy'], nl: ['Rauw vervormd geluid knisperend van energie'], de: ['Roher verzerrter Sound der vor Energie knistert'], fr: ['Audio distordu brut crépitant d\'énergie'], es: ['Audio distorsionado crudo crepitante de energía'] },
+              sound_peaking: { en: ['Metallic ringing that echoes across the battlefield'], nl: ['Metaalachtig gerinkel dat over het slagveld echoot'], de: ['Metallisches Klingeln das über das Schlachtfeld hallt'], fr: ['Un tintement métallique qui résonne sur le terrain'], es: ['Un tintineo metálico que resuena en el campo de batalla'] },
+              // Music
+              music_chill: { en: ['Peaceful flowing melodies for strategic planning'], nl: ['Vredige vloeiende melodieën voor strategisch plannen'], de: ['Friedliche fließende Melodien für strategisches Planen'], fr: ['Des mélodies paisibles pour la planification stratégique'], es: ['Melodías pacíficas para la planificación estratégica'] },
+              music_intense: { en: ['Aggressive high-energy music that pumps up battles'], nl: ['Agressieve energieke muziek die gevechten opblaast'], de: ['Aggressive energiegeladene Musik für intensive Kämpfe'], fr: ['Musique agressive qui amplifie chaque combat'], es: ['Música agresiva de alta energía para las batallas'] },
+              music_retro: { en: ['Nostalgic chiptune melodies from the arcade era'], nl: ['Nostalgische chiptune melodieën uit het arcade-tijdperk'], de: ['Nostalgische Chiptune-Melodien aus der Arcade-Ära'], fr: ['Des mélodies chiptune nostalgiques de l\'ère arcade'], es: ['Melodías chiptune nostálgicas de la era arcade'] },
+              music_mysterious: { en: ['Echoing whispers of ancient musical patterns'], nl: ['Echoënde fluisteringen van oude muzikale patronen'], de: ['Echode Flüstern alter musikalischer Muster'], fr: ['Des murmures d\'anciens motifs musicaux'], es: ['Susurros de patrones musicales ancestrales'] },
+              music_epic: { en: ['Heroic fanfares that make you feel legendary'], nl: ['Heroïsche fanfares die je legendarisch laten voelen'], de: ['Heroische Fanfaren die dich legendär fühlen lassen'], fr: ['Des fanfares héroïques qui vous rendent légendaire'], es: ['Fanfarrias heroicas que te hacen sentir legendario'] },
+              music_funky: { en: ['A funky groove that makes you bob your head'], nl: ['Een funky groove die je hoofd laat bewegen'], de: ['Ein funkiger Groove der deinen Kopf wippen lässt'], fr: ['Un groove funky qui fait bouger la tête'], es: ['Un groove funky que te hace mover la cabeza'] }
+            }
+
+            const getDesc = (mood: string) => {
+              const pool = localDesc[mood] || localDescExtra[mood]
+              if (pool && pool[lang]) return rand(pool[lang])
+              if (pool && pool.en) return rand(pool.en)
+              return 'A unique battlefield experience'
+            }
 
             // Theme concept pools - each concept has matching name parts, colors, ambient, icon, and description templates
             const themeConcepts = [
-              { mood: 'fire', adj: ['Blazing', 'Infernal', 'Volcanic', 'Scorched', 'Molten'], noun: ['Fury', 'Forge', 'Hellscape', 'Crater', 'Pyre'], icon: ['🔥', '🌋', '☀️'], ambient: 'ember', hue: [0, 30], desc: ['A scorching battlefield engulfed in flames and lava', 'Where the earth cracks open with molten fury', 'Fight on the edge of an active volcano'] },
-              { mood: 'ice', adj: ['Frozen', 'Glacial', 'Arctic', 'Crystalline', 'Frostbitten'], noun: ['Tundra', 'Glacier', 'Permafrost', 'Icecap', 'Blizzard'], icon: ['❄️', '🧊', '⛄'], ambient: 'snow', hue: [190, 220], desc: ['A frozen wasteland where breath turns to ice crystals', 'Sub-zero battlefield covered in permafrost', 'The howling wind carries snowflakes across a frozen arena'] },
-              { mood: 'nature', adj: ['Enchanted', 'Ancient', 'Mystical', 'Overgrown', 'Wild'], noun: ['Grove', 'Canopy', 'Thicket', 'Wilds', 'Sanctuary'], icon: ['🌿', '🌲', '🍃'], ambient: 'leaf', hue: [90, 150], desc: ['An ancient forest where nature has reclaimed the battlefield', 'Moss-covered ruins surrounded by towering trees', 'Battle beneath a canopy of ancient magical trees'] },
-              { mood: 'ocean', adj: ['Abyssal', 'Tidal', 'Sunken', 'Coral', 'Deep'], noun: ['Depths', 'Reef', 'Abyss', 'Trench', 'Lagoon'], icon: ['🌊', '🐠', '🫧'], ambient: 'bubble', hue: [180, 210], desc: ['Fight in the depths of an underwater kingdom', 'A coral reef battlefield teeming with bioluminescence', 'Sunken ruins where sea creatures watch the battle unfold'] },
-              { mood: 'space', adj: ['Cosmic', 'Stellar', 'Nebular', 'Void', 'Galactic'], noun: ['Expanse', 'Rift', 'Anomaly', 'Horizon', 'Singularity'], icon: ['🌌', '🚀', '💫'], ambient: 'star', hue: [250, 300], desc: ['A battlefield floating among the stars and nebulae', 'Zero-gravity combat in the cosmic void', 'Where starlight illuminates an interstellar arena'] },
-              { mood: 'neon', adj: ['Neon', 'Cyber', 'Digital', 'Holographic', 'Synthwave'], noun: ['Grid', 'Circuit', 'Mainframe', 'Matrix', 'Datastream'], icon: ['💜', '🌃', '🤖'], ambient: 'neon', hue: [280, 330], desc: ['A glitching cyberpunk arena bathed in neon light', 'Digital warfare in a holographic combat zone', 'Fight through a maze of neon circuits and laser grids'] },
-              { mood: 'dark', adj: ['Shadow', 'Cursed', 'Haunted', 'Phantom', 'Void'], noun: ['Realm', 'Crypt', 'Eclipse', 'Abyss', 'Sanctum'], icon: ['🌑', '💀', '🦇'], ambient: 'sparkle', hue: [260, 290], desc: ['A cursed battlefield shrouded in eternal darkness', 'Where shadows come alive and the dead walk again', 'An eerie arena where ghostly whispers fill the air'] },
-              { mood: 'gold', adj: ['Golden', 'Royal', 'Imperial', 'Gilded', 'Majestic'], noun: ['Palace', 'Throne', 'Dynasty', 'Crown', 'Treasury'], icon: ['👑', '💎', '🏆'], ambient: 'sparkle', hue: [40, 55], desc: ['A magnificent golden palace turned into a battlefield', 'Where warriors fight for the ultimate crown', 'Gilded halls echo with the clash of legendary weapons'] },
-              { mood: 'cherry', adj: ['Sakura', 'Blossom', 'Spring', 'Petal', 'Dawn'], noun: ['Garden', 'Temple', 'Meadow', 'Valley', 'Haven'], icon: ['🌸', '🎀', '🌺'], ambient: 'sparkle', hue: [330, 350], desc: ['A peaceful garden where cherry blossoms fall like snow', 'Battle among ancient temples draped in pink petals', 'A serene valley where beauty meets warfare'] },
-              { mood: 'steampunk', adj: ['Steam', 'Clockwork', 'Brass', 'Victorian', 'Industrial'], noun: ['Engine', 'Foundry', 'Workshop', 'Contraption', 'Furnace'], icon: ['⚙️', '🔧', '🏭'], ambient: 'gear', hue: [25, 45], desc: ['A Victorian-era battlefield powered by steam and gears', 'Clockwork automatons clash in a brass-lined arena', 'Fight in a world of cogs, pistons and copper pipes'] }
+              { mood: 'fire', adj: ['Blazing', 'Infernal', 'Volcanic', 'Scorched', 'Molten'], noun: ['Fury', 'Forge', 'Hellscape', 'Crater', 'Pyre'], icon: ['🔥', '🌋', '☀️'], ambient: 'ember', hue: [0, 30] },
+              { mood: 'ice', adj: ['Frozen', 'Glacial', 'Arctic', 'Crystalline', 'Frostbitten'], noun: ['Tundra', 'Glacier', 'Permafrost', 'Icecap', 'Blizzard'], icon: ['❄️', '🧊', '⛄'], ambient: 'snow', hue: [190, 220] },
+              { mood: 'nature', adj: ['Enchanted', 'Ancient', 'Mystical', 'Overgrown', 'Wild'], noun: ['Grove', 'Canopy', 'Thicket', 'Wilds', 'Sanctuary'], icon: ['🌿', '🌲', '🍃'], ambient: 'leaf', hue: [90, 150] },
+              { mood: 'ocean', adj: ['Abyssal', 'Tidal', 'Sunken', 'Coral', 'Deep'], noun: ['Depths', 'Reef', 'Abyss', 'Trench', 'Lagoon'], icon: ['🌊', '🐠', '🫧'], ambient: 'bubble', hue: [180, 210] },
+              { mood: 'space', adj: ['Cosmic', 'Stellar', 'Nebular', 'Void', 'Galactic'], noun: ['Expanse', 'Rift', 'Anomaly', 'Horizon', 'Singularity'], icon: ['🌌', '🚀', '💫'], ambient: 'star', hue: [250, 300] },
+              { mood: 'neon', adj: ['Neon', 'Cyber', 'Digital', 'Holographic', 'Synthwave'], noun: ['Grid', 'Circuit', 'Mainframe', 'Matrix', 'Datastream'], icon: ['💜', '🌃', '🤖'], ambient: 'neon', hue: [280, 330] },
+              { mood: 'dark', adj: ['Shadow', 'Cursed', 'Haunted', 'Phantom', 'Void'], noun: ['Realm', 'Crypt', 'Eclipse', 'Abyss', 'Sanctum'], icon: ['🌑', '💀', '🦇'], ambient: 'sparkle', hue: [260, 290] },
+              { mood: 'gold', adj: ['Golden', 'Royal', 'Imperial', 'Gilded', 'Majestic'], noun: ['Palace', 'Throne', 'Dynasty', 'Crown', 'Treasury'], icon: ['👑', '💎', '🏆'], ambient: 'sparkle', hue: [40, 55] },
+              { mood: 'cherry', adj: ['Sakura', 'Blossom', 'Spring', 'Petal', 'Dawn'], noun: ['Garden', 'Temple', 'Meadow', 'Valley', 'Haven'], icon: ['🌸', '🎀', '🌺'], ambient: 'sparkle', hue: [330, 350] },
+              { mood: 'steampunk', adj: ['Steam', 'Clockwork', 'Brass', 'Victorian', 'Industrial'], noun: ['Engine', 'Foundry', 'Workshop', 'Contraption', 'Furnace'], icon: ['⚙️', '🔧', '🏭'], ambient: 'gear', hue: [25, 45] }
             ]
 
             const effectConcepts = [
@@ -29045,7 +29169,7 @@ function render() {
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
-                descInput.value = rand(concept.desc)
+                descInput.value = getDesc(concept.mood)
                 priceInput.value = String(randInt(125, 325))
 
                 // Generate palette based on concept hue range
@@ -29073,7 +29197,7 @@ function render() {
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
-                descInput.value = rand(concept.desc)
+                descInput.value = getDesc('effect_' + concept.mood)
                 priceInput.value = String(randInt(150, 350))
                 ;(document.getElementById('si-effect-type') as HTMLSelectElement).value = concept.type
                 break
@@ -29083,7 +29207,7 @@ function render() {
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
-                descInput.value = rand(concept.desc)
+                descInput.value = getDesc('skin_' + concept.style)
                 priceInput.value = String(randInt(250, 500))
                 ;(document.getElementById('si-skin-style') as HTMLSelectElement).value = concept.style
                 // Generate complementary team colors
@@ -29108,7 +29232,7 @@ function render() {
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
-                descInput.value = rand(concept.desc)
+                descInput.value = getDesc('sound_' + concept.filter)
                 priceInput.value = String(randInt(125, 250))
                 ;(document.getElementById('si-sound-filter') as HTMLSelectElement).value = concept.filter
                 ;(document.getElementById('si-sound-freq') as HTMLInputElement).value = String(randInt(concept.freq[0], concept.freq[1]))
@@ -29127,7 +29251,7 @@ function render() {
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
-                descInput.value = rand(concept.desc)
+                descInput.value = getDesc('music_' + concept.mood)
                 priceInput.value = String(randInt(175, 325))
                 ;(document.getElementById('si-music-tempo') as HTMLInputElement).value = String(randInt(concept.tempo[0], concept.tempo[1]))
                 ;(document.getElementById('si-music-scale') as HTMLSelectElement).value = concept.scale
@@ -29146,9 +29270,10 @@ function render() {
               }
             }
 
-            // Show AI reaction
+            // Show AI reaction (localized)
             setTimeout(() => {
-              const reactions = aiReactions[type || 'theme']
+              const langReactions = localAiReactions[lang] || localAiReactions.en
+              const reactions = langReactions[type || 'theme'] || langReactions.theme
               const reaction = rand(reactions)
               const aiBtn2 = document.getElementById('si-ai-generate')
               if (aiBtn2) {
