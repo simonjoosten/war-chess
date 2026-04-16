@@ -25627,10 +25627,6 @@ function render() {
 
     // Shop screen
     if (showAuthScreen === 'shop') {
-      const userData = getCurrentUserData()
-      const purchasedItems = userData?.purchasedItems || []
-      const equipped = userData?.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }
-
       // Shop tab state (persisted via closure)
       let shopTab: 'deals' | 'themes' | 'skins' | 'effects' | 'sounds' | 'music' = 'deals'
       let shopDeals: Array<ShopItem & { dealPrice: number; originalPrice: number }> = []
@@ -25638,6 +25634,10 @@ function render() {
       let shopDataLoaded = false
 
       const renderShopItems = (items: ShopItem[], itemType: 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack') => {
+        // Re-read user data fresh each render so equip/buy state is current
+        const freshData = getCurrentUserData()
+        const purchasedItems = freshData?.purchasedItems || []
+        const equipped = freshData?.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }
         return items.map(item => {
           const owned = purchasedItems.includes(item.id)
           const isEquipped = (itemType === 'theme' && equipped.theme === item.id) ||
@@ -25702,6 +25702,8 @@ function render() {
 
         // Render deals tab content
         const renderDealsContent = () => {
+          const freshUserData = getCurrentUserData()
+          const purchasedItems = freshUserData?.purchasedItems || []
           const sparkles = Array.from({length: 6}, (_, i) => {
             const positions = ['top-2 left-3', 'top-4 right-5', 'bottom-3 left-8', 'top-6 right-2', 'bottom-5 right-8', 'top-1 left-12']
             return `<span class="deal-sparkle ${positions[i]}" style="animation-delay: ${i * 0.4}s">✨</span>`
@@ -25843,7 +25845,7 @@ function render() {
         app.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
             <h1 class="text-2xl sm:text-4xl font-bold text-white">🛒 ${t('shopTitle')}</h1>
-            <div class="text-yellow-400 font-bold text-xl">${t('shopBalance')}: 💰 ${userData?.warBucks || 0}</div>
+            <div class="text-yellow-400 font-bold text-xl">${t('shopBalance')}: 💰 ${getCurrentUserData()?.warBucks || 0}</div>
 
             <!-- Shop Tabs -->
             <div class="flex flex-wrap gap-2 justify-center">
@@ -25898,15 +25900,16 @@ function render() {
             const itemId = target.dataset.item
             const price = parseInt(target.dataset.price || '0')
 
-            if (!userData || !itemId) return
+            const ud = getCurrentUserData()
+            if (!ud || !itemId) return
 
-            if (userData.warBucks < price) {
+            if (ud.warBucks < price) {
               alert(t('shopNotEnough'))
               return
             }
 
-            const newWarBucks = userData.warBucks - price
-            const newPurchasedItems = [...(userData.purchasedItems || []), itemId]
+            const newWarBucks = ud.warBucks - price
+            const newPurchasedItems = [...(ud.purchasedItems || []), itemId]
 
             await saveUserData({
               warBucks: newWarBucks,
@@ -25926,9 +25929,10 @@ function render() {
             const bundleId = target.dataset.bundleId
             const price = parseInt(target.dataset.price || '0')
 
-            if (!userData || !bundleId) return
+            const ud = getCurrentUserData()
+            if (!ud || !bundleId) return
 
-            if (userData.warBucks < price) {
+            if (ud.warBucks < price) {
               alert(t('shopNotEnough'))
               return
             }
@@ -25954,15 +25958,16 @@ function render() {
             const itemId = target.dataset.item
             const price = parseInt(target.dataset.price || '0')
 
-            if (!userData || !itemId) return
+            const ud = getCurrentUserData()
+            if (!ud || !itemId) return
 
-            if (userData.warBucks < price) {
+            if (ud.warBucks < price) {
               alert(t('shopNotEnough'))
               return
             }
 
-            const newWarBucks = userData.warBucks - price
-            const newPurchasedItems = [...(userData.purchasedItems || []), itemId]
+            const newWarBucks = ud.warBucks - price
+            const newPurchasedItems = [...(ud.purchasedItems || []), itemId]
 
             await saveUserData({
               warBucks: newWarBucks,
@@ -25982,9 +25987,10 @@ function render() {
             const itemId = target.dataset.item
             const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
 
-            if (!userData || !itemId) return
+            const ud = getCurrentUserData()
+            if (!ud || !itemId) return
 
-            const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+            const newEquipped = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
             if (itemType === 'theme') {
               newEquipped.theme = itemId
               equippedTheme = itemId
@@ -26018,9 +26024,10 @@ function render() {
             const target = e.target as HTMLElement
             const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
 
-            if (!userData) return
+            const ud = getCurrentUserData()
+            if (!ud) return
 
-            const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+            const newEquipped = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
             if (itemType === 'theme') {
               newEquipped.theme = null
               equippedTheme = null
@@ -28138,11 +28145,73 @@ function render() {
                             <option value="ray">☀️ Light Rays</option>
                           </select>
                         </div>
-                        <button id="si-gen-palette" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
-                          🎲 Random Palette
-                        </button>
-                        <!-- Theme Preview -->
+                        <div class="flex gap-2">
+                          <button id="si-gen-palette" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
+                            🎲 Random Palette
+                          </button>
+                          <button id="si-gen-complementary" class="bg-teal-600 hover:bg-teal-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
+                            🔄 Complementary
+                          </button>
+                        </div>
+                        <!-- Theme Preview with board -->
                         <div id="si-theme-preview" class="grid grid-cols-6 gap-0.5 rounded overflow-hidden h-16"></div>
+
+                        <!-- Visual Board Edge Particle Designer -->
+                        <div class="bg-gray-700/50 p-2 rounded">
+                          <label class="text-gray-300 text-xs font-bold block mb-1">🖌️ Board Edge Particle Designer</label>
+                          <p class="text-gray-500 text-xs mb-2">Place colored shapes around the board edges. Click to place, click again to remove.</p>
+                          <div class="flex gap-2 mb-2">
+                            <div>
+                              <label class="text-gray-400 text-xs">Shape</label>
+                              <select id="si-particle-shape" class="bg-gray-600 text-white px-2 py-1 rounded text-xs border border-gray-500">
+                                <option value="circle">⚫ Circle</option>
+                                <option value="square">⬛ Square</option>
+                                <option value="diamond">💠 Diamond</option>
+                                <option value="star">⭐ Star</option>
+                                <option value="heart">❤️ Heart</option>
+                                <option value="dot">● Dot</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label class="text-gray-400 text-xs">Color</label>
+                              <input type="color" id="si-particle-color" value="#ff6600" class="w-8 h-7 rounded cursor-pointer">
+                            </div>
+                            <div>
+                              <label class="text-gray-400 text-xs">Size</label>
+                              <select id="si-particle-size" class="bg-gray-600 text-white px-2 py-1 rounded text-xs border border-gray-500">
+                                <option value="small">S</option>
+                                <option value="medium" selected>M</option>
+                                <option value="large">L</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label class="text-gray-400 text-xs">Speed</label>
+                              <select id="si-particle-speed" class="bg-gray-600 text-white px-2 py-1 rounded text-xs border border-gray-500">
+                                <option value="slow">Slow</option>
+                                <option value="medium" selected>Med</option>
+                                <option value="fast">Fast</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div id="si-particle-canvas" class="relative bg-gray-900 rounded border border-gray-600 overflow-hidden" style="height:140px">
+                            <!-- Board preview area -->
+                            <div class="absolute inset-4 grid grid-cols-6 grid-rows-3 gap-px rounded overflow-hidden opacity-30" id="si-particle-board-bg"></div>
+                            <!-- Particle placement zones -->
+                            <div class="absolute inset-0 grid grid-cols-8 grid-rows-5 gap-0">
+                              ${Array.from({length: 40}, (_, i) => {
+                                const row = Math.floor(i / 8)
+                                const col = i % 8
+                                const isEdge = row === 0 || row === 4 || col === 0 || col === 7
+                                return `<div class="particle-zone ${isEdge ? 'hover:bg-white/10 cursor-pointer' : 'pointer-events-none'} border border-transparent hover:border-gray-500/30 flex items-center justify-center transition-colors" data-zone="${i}" data-row="${row}" data-col="${col}" ${!isEdge ? 'data-inner="true"' : ''}></div>`
+                              }).join('')}
+                            </div>
+                          </div>
+                          <div class="flex gap-2 mt-1">
+                            <button id="si-particle-clear" class="bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">🗑️ Clear</button>
+                            <button id="si-particle-scatter" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1 px-2 rounded">🎲 Random Scatter</button>
+                            <span class="text-gray-500 text-xs flex items-center">Particles: <span id="si-particle-count" class="text-white ml-1">0</span></span>
+                          </div>
+                        </div>
                       </div>
 
                       <!-- Effect Options -->
@@ -28226,7 +28295,19 @@ function render() {
 
                       <!-- Music Pack Options -->
                       <div id="si-music-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
-                        <h4 class="text-white font-bold text-sm">🎵 Music Generator Settings</h4>
+                        <h4 class="text-white font-bold text-sm">🎵 Advanced Music Studio</h4>
+
+                        <!-- Stem Controls -->
+                        <div class="bg-gray-700/50 p-2 rounded">
+                          <label class="text-gray-300 text-xs font-bold block mb-1">🎚️ Stems</label>
+                          <div class="grid grid-cols-4 gap-1">
+                            <label class="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" id="si-stem-bass" checked class="accent-blue-500"> 🎸 Bass</label>
+                            <label class="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" id="si-stem-chords" checked class="accent-purple-500"> 🎹 Chords</label>
+                            <label class="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" id="si-stem-melody" checked class="accent-yellow-500"> 🎵 Melody</label>
+                            <label class="flex items-center gap-1 text-xs text-gray-300"><input type="checkbox" id="si-stem-perc" checked class="accent-red-500"> 🥁 Perc</label>
+                          </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-2">
                           <div>
                             <label class="text-gray-300 text-xs block mb-1">Tempo (BPM)</label>
@@ -28283,15 +28364,57 @@ function render() {
                           <input type="range" id="si-music-swing" min="0" max="50" value="0" class="w-full">
                           <span id="si-music-swing-val" class="text-gray-400 text-xs">0%</span>
                         </div>
-                        <div class="flex gap-2">
+
+                        <!-- Visual Note Sequencer -->
+                        <div class="bg-gray-700/50 p-2 rounded">
+                          <label class="text-gray-300 text-xs font-bold block mb-1">🎹 Note Sequencer (click to toggle notes)</label>
+                          <div class="text-gray-500 text-xs mb-1">Rows = notes (high to low), Columns = 16 steps</div>
+                          <div id="si-sequencer-grid" class="grid gap-px" style="grid-template-columns: 20px repeat(16, 1fr)">
+                            ${['B4', 'A4', 'G4', 'F4', 'E4', 'D4', 'C4', 'B3'].map((note, noteIdx) => {
+                              const noteColors = ['bg-purple-500', 'bg-blue-500', 'bg-cyan-500', 'bg-green-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500', 'bg-pink-500']
+                              return `<div class="text-gray-400 text-xs flex items-center justify-end pr-1 h-5">${note}</div>` +
+                                Array.from({length: 16}, (_, step) =>
+                                  `<div class="seq-cell bg-gray-800 hover:bg-gray-600 h-5 cursor-pointer rounded-sm border border-gray-700 transition-colors ${step % 4 === 0 ? 'border-l-gray-500' : ''}" data-note="${noteIdx}" data-step="${step}" data-color="${noteColors[noteIdx]}"></div>`
+                                ).join('')
+                            }).join('')}
+                          </div>
+                          <div class="flex justify-between mt-1">
+                            <span class="text-gray-500 text-xs">Beat 1</span>
+                            <span class="text-gray-500 text-xs">Beat 2</span>
+                            <span class="text-gray-500 text-xs">Beat 3</span>
+                            <span class="text-gray-500 text-xs">Beat 4</span>
+                          </div>
+                        </div>
+
+                        <!-- Beat Pattern Editor -->
+                        <div class="bg-gray-700/50 p-2 rounded">
+                          <label class="text-gray-300 text-xs font-bold block mb-1">🥁 Beat Pattern</label>
+                          <div class="grid gap-px" style="grid-template-columns: 28px repeat(16, 1fr)">
+                            ${['Kick', 'Snr', 'Hat'].map((drum, drumIdx) => {
+                              const drumColors = ['bg-red-600', 'bg-yellow-600', 'bg-blue-600']
+                              return `<div class="text-gray-400 text-xs flex items-center justify-end pr-1 h-5">${drum}</div>` +
+                                Array.from({length: 16}, (_, step) =>
+                                  `<div class="beat-cell bg-gray-800 hover:bg-gray-600 h-5 cursor-pointer rounded-sm border border-gray-700 transition-colors ${step % 4 === 0 ? 'border-l-gray-500' : ''}" data-drum="${drumIdx}" data-step="${step}" data-color="${drumColors[drumIdx]}"></div>`
+                                ).join('')
+                            }).join('')}
+                          </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
                           <button id="si-music-preview" class="bg-green-600 hover:bg-green-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
-                            ▶ Preview Music
+                            ▶ Preview
                           </button>
                           <button id="si-music-stop" class="bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
                             ■ Stop
                           </button>
                           <button id="si-music-randomize" class="bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
                             🎲 Randomize
+                          </button>
+                          <button id="si-seq-clear" class="bg-gray-600 hover:bg-gray-500 text-white text-xs font-bold py-1.5 px-3 rounded">
+                            🗑️ Clear Grid
+                          </button>
+                          <button id="si-seq-random" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-1.5 px-3 rounded">
+                            🎲 Random Pattern
                           </button>
                         </div>
                         <div class="grid grid-cols-3 gap-1">
@@ -28577,6 +28700,104 @@ function render() {
             updateThemePreview()
           })
 
+          // Complementary palette - generate from light color
+          document.getElementById('si-gen-complementary')?.addEventListener('click', () => {
+            const light = (document.getElementById('si-color-light') as HTMLInputElement)?.value || '#86a876'
+            // Parse hex to RGB, then create complementary scheme
+            const r = parseInt(light.slice(1, 3), 16)
+            const g = parseInt(light.slice(3, 5), 16)
+            const b = parseInt(light.slice(5, 7), 16)
+            // Complementary = invert, darkened for dark square
+            const compR = 255 - r, compG = 255 - g, compB = 255 - b
+            const dark = '#' + [Math.floor(compR * 0.4), Math.floor(compG * 0.4), Math.floor(compB * 0.4)].map(v => v.toString(16).padStart(2, '0')).join('')
+            const accent = '#' + [Math.floor((r + compR) / 2), Math.floor((g + compG) / 2), Math.floor((b + compB) / 2)].map(v => v.toString(16).padStart(2, '0')).join('')
+            const water = '#' + [Math.floor(compR * 0.5), Math.floor(compG * 0.5), Math.floor(compB * 0.7)].map(v => Math.min(255, v).toString(16).padStart(2, '0')).join('')
+            ;(document.getElementById('si-color-dark') as HTMLInputElement).value = dark
+            ;(document.getElementById('si-color-accent') as HTMLInputElement).value = accent
+            ;(document.getElementById('si-color-water') as HTMLInputElement).value = water
+            updateThemePreview()
+          })
+
+          // Particle designer - zone click handlers
+          let particlePlacements: Array<{zone: number; shape: string; color: string; size: string}> = []
+
+          const updateParticleBoard = () => {
+            const boardBg = document.getElementById('si-particle-board-bg')
+            if (boardBg) {
+              const light = (document.getElementById('si-color-light') as HTMLInputElement)?.value || '#86a876'
+              const dark = (document.getElementById('si-color-dark') as HTMLInputElement)?.value || '#d4c87a'
+              const water = (document.getElementById('si-color-water') as HTMLInputElement)?.value || '#4a90a4'
+              let html = ''
+              for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 6; c++) {
+                  const isWater = c === 0 || c === 5
+                  html += `<div style="background:${isWater ? water : (r + c) % 2 === 0 ? light : dark}"></div>`
+                }
+              }
+              boardBg.innerHTML = html
+            }
+            const countEl = document.getElementById('si-particle-count')
+            if (countEl) countEl.textContent = String(particlePlacements.length)
+          }
+          updateParticleBoard()
+          document.getElementById('si-color-light')?.addEventListener('input', updateParticleBoard)
+          document.getElementById('si-color-dark')?.addEventListener('input', updateParticleBoard)
+          document.getElementById('si-color-water')?.addEventListener('input', updateParticleBoard)
+
+          const shapeSymbols: Record<string, string> = { circle: '●', square: '■', diamond: '◆', star: '★', heart: '♥', dot: '•' }
+
+          document.querySelectorAll('.particle-zone').forEach(zone => {
+            zone.addEventListener('click', () => {
+              const el = zone as HTMLElement
+              if (el.dataset.inner === 'true') return
+              const zoneIdx = parseInt(el.dataset.zone || '0')
+              const existing = particlePlacements.findIndex(p => p.zone === zoneIdx)
+              if (existing >= 0) {
+                particlePlacements.splice(existing, 1)
+                el.innerHTML = ''
+                el.style.background = ''
+              } else {
+                const shape = (document.getElementById('si-particle-shape') as HTMLSelectElement)?.value || 'circle'
+                const color = (document.getElementById('si-particle-color') as HTMLInputElement)?.value || '#ff6600'
+                const size = (document.getElementById('si-particle-size') as HTMLSelectElement)?.value || 'medium'
+                particlePlacements.push({ zone: zoneIdx, shape, color, size })
+                const sizeClass = size === 'small' ? 'text-xs' : size === 'large' ? 'text-lg' : 'text-sm'
+                el.innerHTML = `<span class="${sizeClass}" style="color:${color}">${shapeSymbols[shape] || '●'}</span>`
+              }
+              updateParticleBoard()
+            })
+          })
+
+          document.getElementById('si-particle-clear')?.addEventListener('click', () => {
+            particlePlacements = []
+            document.querySelectorAll('.particle-zone').forEach(z => {
+              (z as HTMLElement).innerHTML = '';
+              (z as HTMLElement).style.background = ''
+            })
+            updateParticleBoard()
+          })
+
+          document.getElementById('si-particle-scatter')?.addEventListener('click', () => {
+            particlePlacements = []
+            const color = (document.getElementById('si-particle-color') as HTMLInputElement)?.value || '#ff6600'
+            const shape = (document.getElementById('si-particle-shape') as HTMLSelectElement)?.value || 'circle'
+            const sizes = ['small', 'medium', 'large']
+
+            document.querySelectorAll('.particle-zone').forEach(zone => {
+              const el = zone as HTMLElement
+              el.innerHTML = ''
+              if (el.dataset.inner === 'true') return
+              if (Math.random() < 0.35) {
+                const size = sizes[Math.floor(Math.random() * sizes.length)]
+                const zoneIdx = parseInt(el.dataset.zone || '0')
+                particlePlacements.push({ zone: zoneIdx, shape, color, size })
+                const sizeClass = size === 'small' ? 'text-xs' : size === 'large' ? 'text-lg' : 'text-sm'
+                el.innerHTML = `<span class="${sizeClass}" style="color:${color}">${shapeSymbols[shape] || '●'}</span>`
+              }
+            })
+            updateParticleBoard()
+          })
+
           // Slider value displays
           const sliderUpdaters: Array<[string, string, string?]> = [
             ['si-sound-freq', 'si-sound-freq-val', ' Hz'],
@@ -28664,78 +28885,281 @@ function render() {
             })
           })
 
-          // AI Auto-Generate
+          // Sequencer grid click handlers
+          document.querySelectorAll('.seq-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+              const el = cell as HTMLElement
+              const isActive = el.dataset.active === 'true'
+              el.dataset.active = isActive ? 'false' : 'true'
+              const color = el.dataset.color || 'bg-green-500'
+              if (isActive) {
+                el.className = el.className.replace(color, 'bg-gray-800')
+              } else {
+                el.className = el.className.replace('bg-gray-800', color)
+              }
+            })
+          })
+
+          // Beat grid click handlers
+          document.querySelectorAll('.beat-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+              const el = cell as HTMLElement
+              const isActive = el.dataset.active === 'true'
+              el.dataset.active = isActive ? 'false' : 'true'
+              const color = el.dataset.color || 'bg-red-600'
+              if (isActive) {
+                el.className = el.className.replace(color, 'bg-gray-800')
+              } else {
+                el.className = el.className.replace('bg-gray-800', color)
+              }
+            })
+          })
+
+          // Clear sequencer
+          document.getElementById('si-seq-clear')?.addEventListener('click', () => {
+            document.querySelectorAll('.seq-cell, .beat-cell').forEach(cell => {
+              const el = cell as HTMLElement
+              el.dataset.active = 'false'
+              const color = el.dataset.color || 'bg-green-500'
+              el.className = el.className.replace(color, 'bg-gray-800')
+            })
+          })
+
+          // Random sequencer pattern
+          document.getElementById('si-seq-random')?.addEventListener('click', () => {
+            // Clear first
+            document.querySelectorAll('.seq-cell, .beat-cell').forEach(cell => {
+              const el = cell as HTMLElement
+              el.dataset.active = 'false'
+              const color = el.dataset.color || 'bg-green-500'
+              el.className = el.className.replace(color, 'bg-gray-800')
+            })
+            // Random notes - sparse melody
+            document.querySelectorAll('.seq-cell').forEach(cell => {
+              if (Math.random() < 0.15) {
+                const el = cell as HTMLElement
+                el.dataset.active = 'true'
+                el.className = el.className.replace('bg-gray-800', el.dataset.color || 'bg-green-500')
+              }
+            })
+            // Random beat pattern - more structured
+            document.querySelectorAll('.beat-cell').forEach(cell => {
+              const el = cell as HTMLElement
+              const drum = parseInt(el.dataset.drum || '0')
+              const step = parseInt(el.dataset.step || '0')
+              let chance = 0
+              if (drum === 0) chance = step % 4 === 0 ? 0.9 : (step % 2 === 0 ? 0.3 : 0.05)  // Kick
+              else if (drum === 1) chance = step % 8 === 4 ? 0.85 : (step % 4 === 2 ? 0.2 : 0.03)  // Snare
+              else chance = step % 2 === 0 ? 0.7 : 0.4  // Hi-hat
+              if (Math.random() < chance) {
+                el.dataset.active = 'true'
+                el.className = el.className.replace('bg-gray-800', el.dataset.color || 'bg-red-600')
+              }
+            })
+          })
+
+          // AI Auto-Generate - Smart themed generation with AI reactions
           document.getElementById('si-ai-generate')?.addEventListener('click', () => {
             const type = siType?.value
-            const themeWords = ['Mystic', 'Crystal', 'Nebula', 'Phoenix', 'Shadow', 'Aurora', 'Frost', 'Ember', 'Cosmic', 'Prism', 'Twilight', 'Lunar', 'Solar', 'Storm', 'Coral', 'Jade', 'Ruby', 'Sapphire', 'Void', 'Bloom']
-            const effectWords = ['Flash', 'Burst', 'Wave', 'Pulse', 'Glow', 'Surge', 'Swirl', 'Blast', 'Shimmer', 'Ripple']
-            const musicWords = ['Beats', 'Groove', 'Melody', 'Rhythm', 'Anthem', 'Vibe', 'Flow', 'Symphony', 'Remix', 'Pulse']
-            const adjectives = ['Epic', 'Blazing', 'Frozen', 'Golden', 'Neon', 'Toxic', 'Royal', 'Wild', 'Mystic', 'Ancient', 'Digital', 'Phantom']
-
-            const randWord = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
             const nameInput = document.getElementById('si-name') as HTMLInputElement
             const descInput = document.getElementById('si-description') as HTMLInputElement
             const priceInput = document.getElementById('si-price') as HTMLInputElement
+            const iconInput = document.getElementById('si-icon') as HTMLInputElement
+
+            const rand = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
+            const randInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min))
+
+            // Theme concept pools - each concept has matching name parts, colors, ambient, icon, and description templates
+            const themeConcepts = [
+              { mood: 'fire', adj: ['Blazing', 'Infernal', 'Volcanic', 'Scorched', 'Molten'], noun: ['Fury', 'Forge', 'Hellscape', 'Crater', 'Pyre'], icon: ['🔥', '🌋', '☀️'], ambient: 'ember', hue: [0, 30], desc: ['A scorching battlefield engulfed in flames and lava', 'Where the earth cracks open with molten fury', 'Fight on the edge of an active volcano'] },
+              { mood: 'ice', adj: ['Frozen', 'Glacial', 'Arctic', 'Crystalline', 'Frostbitten'], noun: ['Tundra', 'Glacier', 'Permafrost', 'Icecap', 'Blizzard'], icon: ['❄️', '🧊', '⛄'], ambient: 'snow', hue: [190, 220], desc: ['A frozen wasteland where breath turns to ice crystals', 'Sub-zero battlefield covered in permafrost', 'The howling wind carries snowflakes across a frozen arena'] },
+              { mood: 'nature', adj: ['Enchanted', 'Ancient', 'Mystical', 'Overgrown', 'Wild'], noun: ['Grove', 'Canopy', 'Thicket', 'Wilds', 'Sanctuary'], icon: ['🌿', '🌲', '🍃'], ambient: 'leaf', hue: [90, 150], desc: ['An ancient forest where nature has reclaimed the battlefield', 'Moss-covered ruins surrounded by towering trees', 'Battle beneath a canopy of ancient magical trees'] },
+              { mood: 'ocean', adj: ['Abyssal', 'Tidal', 'Sunken', 'Coral', 'Deep'], noun: ['Depths', 'Reef', 'Abyss', 'Trench', 'Lagoon'], icon: ['🌊', '🐠', '🫧'], ambient: 'bubble', hue: [180, 210], desc: ['Fight in the depths of an underwater kingdom', 'A coral reef battlefield teeming with bioluminescence', 'Sunken ruins where sea creatures watch the battle unfold'] },
+              { mood: 'space', adj: ['Cosmic', 'Stellar', 'Nebular', 'Void', 'Galactic'], noun: ['Expanse', 'Rift', 'Anomaly', 'Horizon', 'Singularity'], icon: ['🌌', '🚀', '💫'], ambient: 'star', hue: [250, 300], desc: ['A battlefield floating among the stars and nebulae', 'Zero-gravity combat in the cosmic void', 'Where starlight illuminates an interstellar arena'] },
+              { mood: 'neon', adj: ['Neon', 'Cyber', 'Digital', 'Holographic', 'Synthwave'], noun: ['Grid', 'Circuit', 'Mainframe', 'Matrix', 'Datastream'], icon: ['💜', '🌃', '🤖'], ambient: 'neon', hue: [280, 330], desc: ['A glitching cyberpunk arena bathed in neon light', 'Digital warfare in a holographic combat zone', 'Fight through a maze of neon circuits and laser grids'] },
+              { mood: 'dark', adj: ['Shadow', 'Cursed', 'Haunted', 'Phantom', 'Void'], noun: ['Realm', 'Crypt', 'Eclipse', 'Abyss', 'Sanctum'], icon: ['🌑', '💀', '🦇'], ambient: 'sparkle', hue: [260, 290], desc: ['A cursed battlefield shrouded in eternal darkness', 'Where shadows come alive and the dead walk again', 'An eerie arena where ghostly whispers fill the air'] },
+              { mood: 'gold', adj: ['Golden', 'Royal', 'Imperial', 'Gilded', 'Majestic'], noun: ['Palace', 'Throne', 'Dynasty', 'Crown', 'Treasury'], icon: ['👑', '💎', '🏆'], ambient: 'sparkle', hue: [40, 55], desc: ['A magnificent golden palace turned into a battlefield', 'Where warriors fight for the ultimate crown', 'Gilded halls echo with the clash of legendary weapons'] },
+              { mood: 'cherry', adj: ['Sakura', 'Blossom', 'Spring', 'Petal', 'Dawn'], noun: ['Garden', 'Temple', 'Meadow', 'Valley', 'Haven'], icon: ['🌸', '🎀', '🌺'], ambient: 'sparkle', hue: [330, 350], desc: ['A peaceful garden where cherry blossoms fall like snow', 'Battle among ancient temples draped in pink petals', 'A serene valley where beauty meets warfare'] },
+              { mood: 'steampunk', adj: ['Steam', 'Clockwork', 'Brass', 'Victorian', 'Industrial'], noun: ['Engine', 'Foundry', 'Workshop', 'Contraption', 'Furnace'], icon: ['⚙️', '🔧', '🏭'], ambient: 'gear', hue: [25, 45], desc: ['A Victorian-era battlefield powered by steam and gears', 'Clockwork automatons clash in a brass-lined arena', 'Fight in a world of cogs, pistons and copper pipes'] }
+            ]
+
+            const effectConcepts = [
+              { mood: 'fire', type: 'fire', adj: ['Inferno', 'Phoenix', 'Hellfire', 'Dragon'], noun: ['Blaze', 'Eruption', 'Flare', 'Ignition'], icon: ['🔥', '🐉', '☄️'], desc: ['Unleash devastating flames that consume the battlefield', 'Your pieces erupt in phoenix fire with every move', 'A trail of dragonfire follows your army into battle'] },
+              { mood: 'electric', type: 'lightning', adj: ['Thunder', 'Voltage', 'Plasma', 'Tesla'], noun: ['Strike', 'Surge', 'Discharge', 'Arc'], icon: ['⚡', '🔋', '💡'], desc: ['Electric arcs chain between pieces as they move', 'High-voltage plasma bolts crackle on every capture', 'Lightning dances across the board with each turn'] },
+              { mood: 'magic', type: 'sparkle', adj: ['Arcane', 'Mystic', 'Celestial', 'Enchanted'], noun: ['Shimmer', 'Cascade', 'Aurora', 'Radiance'], icon: ['✨', '🔮', '💫'], desc: ['Mystical energy swirls around your pieces in combat', 'Celestial particles cascade from every move you make', 'An enchanted glow emanates from your entire army'] },
+              { mood: 'dark', type: 'ghost', adj: ['Phantom', 'Wraith', 'Shadow', 'Specter'], noun: ['Echo', 'Haunting', 'Veil', 'Whisper'], icon: ['👻', '💀', '🌑'], desc: ['Ghostly afterimages trail behind your pieces', 'Phantom echoes haunt every square you pass through', 'Shadow wraiths emerge from the darkness of each capture'] },
+              { mood: 'love', type: 'hearts', adj: ['Cupid', 'Valentine', 'Heart', 'Lovely'], noun: ['Charm', 'Embrace', 'Kiss', 'Devotion'], icon: ['❤️', '💕', '💝'], desc: ['Hearts burst from every move spreading love across the battlefield', 'Your army radiates an aura of charm and devotion', 'Love conquers all - hearts trail your victorious pieces'] },
+              { mood: 'cosmic', type: 'stars', adj: ['Stellar', 'Cosmic', 'Astral', 'Supernova'], noun: ['Dust', 'Storm', 'Shower', 'Constellation'], icon: ['⭐', '🌟', '💫'], desc: ['Stardust rains down with every victorious capture', 'Your pieces leave constellations in their wake', 'A cosmic storm of particles follows your army'] },
+              { mood: 'boom', type: 'explosion', adj: ['Nuclear', 'Mega', 'Devastating', 'Cataclysmic'], noun: ['Detonation', 'Impact', 'Shockwave', 'Annihilation'], icon: ['💥', '💣', '🎆'], desc: ['Massive explosions rock the battlefield on every capture', 'Each elimination triggers a cataclysmic detonation', 'Shockwaves ripple across the board with devastating force'] },
+              { mood: 'mist', type: 'smoke', adj: ['Fog', 'Mist', 'Cloud', 'Vapor'], noun: ['Shroud', 'Veil', 'Haze', 'Cover'], icon: ['💨', '🌫️', '☁️'], desc: ['A mysterious fog follows your pieces across the board', 'Thick smoke clouds obscure your army\'s movements', 'Your pieces vanish into a mystical vapor trail'] }
+            ]
+
+            const skinConcepts = [
+              { style: 'robot', adj: ['Chrome', 'Mecha', 'Titanium', 'Cyber'], noun: ['Legion', 'Battalion', 'Syndicate', 'Force'], icon: ['🤖', '⚙️', '🔩'], desc: ['Gleaming chrome automatons with glowing core reactors', 'A mechanized army of advanced AI-driven war machines', 'Titanium-plated robots with laser targeting systems'] },
+              { style: 'medieval', adj: ['Royal', 'Knight', 'Dragon', 'Crusader'], noun: ['Guard', 'Order', 'Vanguard', 'Legion'], icon: ['⚔️', '🛡️', '🏰'], desc: ['Noble knights in enchanted armor forged by ancient smiths', 'A royal order wielding legendary weapons of power', 'Crusaders blessed with divine protection and sacred swords'] },
+              { style: 'scifi', adj: ['Quantum', 'Plasma', 'Xenon', 'Nova'], noun: ['Marines', 'Rangers', 'Sentinels', 'Vanguard'], icon: ['🚀', '🛸', '👽'], desc: ['Elite space marines armed with plasma rifles and energy shields', 'Interdimensional soldiers who phase through quantum barriers', 'Advanced alien technology powers these fearsome warriors'] },
+              { style: 'pixel', adj: ['8-Bit', 'Retro', 'Arcade', 'Classic'], noun: ['Heroes', 'Warriors', 'Champions', 'Legends'], icon: ['👾', '🕹️', '🎮'], desc: ['Nostalgic 8-bit warriors straight from the golden age of gaming', 'Pixel-perfect retro heroes with chunky charm and power', 'Classic arcade fighters brought to life on the modern battlefield'] },
+              { style: 'fantasy', adj: ['Arcane', 'Mythical', 'Ethereal', 'Legendary'], noun: ['Wizards', 'Guardians', 'Seekers', 'Mystics'], icon: ['🧙', '🐉', '🧝'], desc: ['Mythical beings wielding ancient elemental magic', 'Legendary guardians from the realm of dreams and wonder', 'Ethereal mystics who bend reality with every move'] },
+              { style: 'cartoon', adj: ['Wacky', 'Zany', 'Bouncy', 'Goofy'], noun: ['Squad', 'Crew', 'Gang', 'Team'], icon: ['😊', '🤪', '🎪'], desc: ['Hilariously expressive characters with over-the-top reactions', 'A zany squad of cartoon warriors with rubber physics', 'Bouncy, colorful fighters that squash and stretch into battle'] }
+            ]
+
+            const soundConcepts = [
+              { filter: 'lowpass', freq: [300, 1500], q: [1, 5], dist: [0, 20], adj: ['Muffled', 'Deep', 'Subterranean', 'Rumbling'], noun: ['Thunder', 'Bass', 'Tremor', 'Depths'], icon: ['🔈', '🎵', '🥁'], desc: ['Deep rumbling bass that shakes the ground beneath your feet', 'Subterranean sound effects echoing through underground caverns', 'Every move resonates with the power of deep earth tremors'] },
+              { filter: 'highpass', freq: [2000, 6000], q: [2, 8], dist: [0, 10], adj: ['Crystal', 'Shimmering', 'Ethereal', 'Bright'], noun: ['Chimes', 'Bells', 'Resonance', 'Clarity'], icon: ['🔔', '✨', '🎶'], desc: ['Crystal-clear high-frequency tones that sparkle and shine', 'Shimmering ethereal sound effects from another dimension', 'Bright bell-like audio that rings with celestial clarity'] },
+              { filter: 'bandpass', freq: [400, 2000], q: [3, 12], dist: [20, 60], adj: ['Distorted', 'Gritty', 'Raw', 'Crunchy'], noun: ['Static', 'Noise', 'Grind', 'Feedback'], icon: ['📻', '🔊', '⚡'], desc: ['Raw distorted audio that crackles with electric energy', 'Gritty feedback-drenched sounds from a broken radio', 'Crunchy lo-fi audio effects with heavy signal degradation'] },
+              { filter: 'peaking', freq: [800, 3000], q: [5, 15], dist: [0, 30], adj: ['Metallic', 'Resonant', 'Ringing', 'Harmonic'], noun: ['Echo', 'Ring', 'Vibration', 'Tone'], icon: ['🔔', '🎵', '🔊'], desc: ['Metallic ringing that echoes across the battlefield', 'Resonant harmonic overtones on every sound effect', 'A distinctive ringing character on all battle sounds'] }
+            ]
+
+            const musicConcepts = [
+              { mood: 'chill', tempo: [70, 95], scale: 'pentatonic', base: [180, 280], wave: 'sine', filter: [2000, 4000], reverb: [50, 80], density: [1, 3], swing: [10, 30], adj: ['Serene', 'Tranquil', 'Mellow', 'Zen'], noun: ['Waves', 'Breeze', 'Stream', 'Drift'], icon: ['😌', '🌅', '🍃'], desc: ['Peaceful, flowing melodies that calm the mind during strategic planning', 'Gentle waves of sound that wash over you between turns', 'A zen-like soundscape perfect for thoughtful gameplay'] },
+              { mood: 'intense', tempo: [150, 190], scale: 'minor', base: [100, 165], wave: 'sawtooth', filter: [4000, 7000], reverb: [10, 30], density: [5, 8], swing: [0, 5], adj: ['Savage', 'Furious', 'Relentless', 'Berserker'], noun: ['Assault', 'Onslaught', 'Rampage', 'Fury'], icon: ['⚡', '🔥', '💥'], desc: ['Aggressive high-energy music that pumps up every battle', 'Relentless beats that drive you to victory at breakneck speed', 'Heart-pounding intensity that makes every move feel explosive'] },
+              { mood: 'retro', tempo: [120, 145], scale: 'major', base: [220, 350], wave: 'square', filter: [3000, 5500], reverb: [5, 15], density: [3, 5], swing: [0, 0], adj: ['8-Bit', 'Arcade', 'Pixel', 'Classic'], noun: ['Quest', 'Adventure', 'Saga', 'Journey'], icon: ['🕹️', '👾', '🎮'], desc: ['Nostalgic chiptune melodies from the golden age of gaming', 'Pixel-perfect retro beats that take you back to the arcade', 'Classic 8-bit music with catchy hooks and memorable melodies'] },
+              { mood: 'mysterious', tempo: [65, 85], scale: 'dorian', base: [130, 200], wave: 'triangle', filter: [1500, 3000], reverb: [60, 90], density: [1, 3], swing: [20, 40], adj: ['Enigmatic', 'Shadowy', 'Cryptic', 'Arcane'], noun: ['Whispers', 'Secrets', 'Echoes', 'Riddle'], icon: ['🌙', '🔮', '🌌'], desc: ['Mysterious melodies that hint at hidden strategies and dark secrets', 'Echoing whispers of ancient musical patterns from forgotten lands', 'A cryptic soundscape that deepens with every turn'] },
+              { mood: 'epic', tempo: [100, 130], scale: 'mixolydian', base: [130, 220], wave: 'sawtooth', filter: [3000, 6000], reverb: [30, 50], density: [3, 5], swing: [5, 15], adj: ['Legendary', 'Heroic', 'Triumphant', 'Glorious'], noun: ['Anthem', 'March', 'Fanfare', 'Overture'], icon: ['⚔️', '🏆', '🎺'], desc: ['An epic orchestral-style anthem that celebrates every victory', 'Heroic fanfares that make you feel like a legendary commander', 'Triumphant music that builds with intensity as the battle unfolds'] },
+              { mood: 'funky', tempo: [110, 135], scale: 'blues', base: [165, 260], wave: 'sawtooth', filter: [3000, 5000], reverb: [15, 35], density: [4, 6], swing: [25, 45], adj: ['Groovy', 'Funky', 'Soulful', 'Smooth'], noun: ['Jam', 'Groove', 'Funk', 'Session'], icon: ['🕺', '🎸', '🎷'], desc: ['A funky groove that makes you bob your head between moves', 'Soulful blues-infused beats with swagger and style', 'Smooth jazz-funk fusion that keeps the energy flowing'] }
+            ]
+
+            // AI reaction messages
+            const aiReactions: Record<string, string[]> = {
+              theme: ['🤖 AI: "Ooh, I love this color palette! The ambient effects will look amazing with these tones."', '🤖 AI: "This theme concept is fire! Players are going to love the atmosphere."', '🤖 AI: "Great combination! The board preview shows beautiful contrast."', '🤖 AI: "I matched the ambient particles to complement the color scheme perfectly!"'],
+              effect: ['🤖 AI: "These particle effects are going to look absolutely epic in battle!"', '🤖 AI: "Nice! This effect will make every capture feel 10x more satisfying."', '🤖 AI: "I designed this effect to really pop against any board theme."', '🤖 AI: "The particles will trail beautifully behind moving pieces!"'],
+              piece_skin: ['🤖 AI: "These colors will make both teams look amazing and distinct!"', '🤖 AI: "I picked complementary team colors for maximum visual impact."', '🤖 AI: "This skin style combined with these colors? *chef\'s kiss*"', '🤖 AI: "Players will look so cool with this skin equipped!"'],
+              sound_pack: ['🤖 AI: "The filter settings give this pack a really unique character!"', '🤖 AI: "I tuned the audio processing for maximum impact and clarity."', '🤖 AI: "This sound profile will make every battle feel completely different."', '🤖 AI: "The distortion level adds just the right amount of grit!"'],
+              music_pack: ['🤖 AI: "This melody is going to be stuck in players\' heads all day!"', '🤖 AI: "The tempo and scale combo creates the perfect mood for battle."', '🤖 AI: "I designed the note density for maximum groove potential."', '🤖 AI: "The reverb and swing give this pack a really professional feel!"']
+            }
+
+            // Show AI thinking animation on button
+            const aiBtn = document.getElementById('si-ai-generate')
+            if (aiBtn) {
+              aiBtn.textContent = '🤖 AI Thinking...'
+              aiBtn.classList.add('animate-pulse')
+              setTimeout(() => {
+                aiBtn.textContent = '🤖 AI Auto-Generate'
+                aiBtn.classList.remove('animate-pulse')
+              }, 1500)
+            }
 
             switch (type) {
               case 'theme': {
-                const name = `${randWord(adjectives)} ${randWord(themeWords)}`
+                const concept = themeConcepts[Math.floor(Math.random() * themeConcepts.length)]
+                const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
-                descInput.value = `A beautiful ${name.toLowerCase()} themed battlefield`
-                priceInput.value = String(100 + Math.floor(Math.random() * 200))
-                // Auto-generate palette
-                document.getElementById('si-gen-palette')?.click()
-                // Auto-pick ambient effect
-                const ambients = ['snow', 'ember', 'bubble', 'leaf', 'star', 'firefly', 'neon', 'sparkle', 'autumn']
-                ;(document.getElementById('si-ambient') as HTMLSelectElement).value = randWord(ambients)
+                iconInput.value = rand(concept.icon)
+                descInput.value = rand(concept.desc)
+                priceInput.value = String(randInt(125, 325))
+
+                // Generate palette based on concept hue range
+                const baseHue = concept.hue[0] + Math.random() * (concept.hue[1] - concept.hue[0])
+                const hslToHex = (h: number, s: number, l: number): string => {
+                  const el = document.createElement('div')
+                  el.style.color = `hsl(${h}, ${s}%, ${l}%)`
+                  document.body.appendChild(el)
+                  const computed = getComputedStyle(el).color
+                  document.body.removeChild(el)
+                  const match = computed.match(/(\d+)/g)
+                  if (!match) return '#888888'
+                  return '#' + match.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('')
+                }
+                ;(document.getElementById('si-color-light') as HTMLInputElement).value = hslToHex(baseHue, 40 + Math.random() * 25, 60 + Math.random() * 20)
+                ;(document.getElementById('si-color-dark') as HTMLInputElement).value = hslToHex((baseHue + 15) % 360, 45 + Math.random() * 25, 25 + Math.random() * 15)
+                ;(document.getElementById('si-color-accent') as HTMLInputElement).value = hslToHex((baseHue + 40) % 360, 55 + Math.random() * 25, 40 + Math.random() * 20)
+                ;(document.getElementById('si-color-water') as HTMLInputElement).value = hslToHex((baseHue + 160) % 360, 50 + Math.random() * 25, 30 + Math.random() * 20)
+                ;(document.getElementById('si-ambient') as HTMLSelectElement).value = concept.ambient
+                updateThemePreview()
                 break
               }
               case 'effect': {
-                const name = `${randWord(adjectives)} ${randWord(effectWords)}`
+                const concept = effectConcepts[Math.floor(Math.random() * effectConcepts.length)]
+                const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
-                const effects: Array<'fire' | 'lightning' | 'sparkle' | 'smoke' | 'hearts' | 'stars' | 'explosion' | 'ghost'> = ['fire', 'lightning', 'sparkle', 'smoke', 'hearts', 'stars', 'explosion', 'ghost']
-                const effectType = effects[Math.floor(Math.random() * effects.length)]
-                ;(document.getElementById('si-effect-type') as HTMLSelectElement).value = effectType
-                descInput.value = `${effectType.charAt(0).toUpperCase() + effectType.slice(1)} particles with a ${name.toLowerCase()} twist`
-                priceInput.value = String(150 + Math.floor(Math.random() * 200))
+                iconInput.value = rand(concept.icon)
+                descInput.value = rand(concept.desc)
+                priceInput.value = String(randInt(150, 350))
+                ;(document.getElementById('si-effect-type') as HTMLSelectElement).value = concept.type
                 break
               }
               case 'piece_skin': {
-                const name = `${randWord(adjectives)} Warriors`
+                const concept = skinConcepts[Math.floor(Math.random() * skinConcepts.length)]
+                const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
-                descInput.value = `Unique ${name.toLowerCase()} styled pieces`
-                priceInput.value = String(250 + Math.floor(Math.random() * 250))
-                const styles = ['robot', 'medieval', 'scifi', 'pixel', 'minimal', 'cartoon', 'military', 'fantasy']
-                ;(document.getElementById('si-skin-style') as HTMLSelectElement).value = randWord(styles)
-                // Random colors
-                const randColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
-                ;(document.getElementById('si-skin-yellow') as HTMLInputElement).value = randColor()
-                ;(document.getElementById('si-skin-green') as HTMLInputElement).value = randColor()
-                ;(document.getElementById('si-skin-accent') as HTMLInputElement).value = randColor()
+                iconInput.value = rand(concept.icon)
+                descInput.value = rand(concept.desc)
+                priceInput.value = String(randInt(250, 500))
+                ;(document.getElementById('si-skin-style') as HTMLSelectElement).value = concept.style
+                // Generate complementary team colors
+                const teamHue = Math.random() * 360
+                const hslToHex2 = (h: number, s: number, l: number): string => {
+                  const el = document.createElement('div')
+                  el.style.color = `hsl(${h}, ${s}%, ${l}%)`
+                  document.body.appendChild(el)
+                  const computed = getComputedStyle(el).color
+                  document.body.removeChild(el)
+                  const match = computed.match(/(\d+)/g)
+                  if (!match) return '#888888'
+                  return '#' + match.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('')
+                }
+                ;(document.getElementById('si-skin-yellow') as HTMLInputElement).value = hslToHex2(teamHue, 70, 55)
+                ;(document.getElementById('si-skin-green') as HTMLInputElement).value = hslToHex2((teamHue + 120) % 360, 70, 45)
+                ;(document.getElementById('si-skin-accent') as HTMLInputElement).value = hslToHex2((teamHue + 60) % 360, 80, 70)
                 break
               }
               case 'sound_pack': {
-                const name = `${randWord(adjectives)} Sounds`
+                const concept = soundConcepts[Math.floor(Math.random() * soundConcepts.length)]
+                const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
-                descInput.value = `${name} audio effects for your battles`
-                priceInput.value = String(125 + Math.floor(Math.random() * 125))
-                const filters = ['lowpass', 'highpass', 'bandpass', 'peaking']
-                ;(document.getElementById('si-sound-filter') as HTMLSelectElement).value = randWord(filters)
-                ;(document.getElementById('si-sound-freq') as HTMLInputElement).value = String(500 + Math.floor(Math.random() * 4000))
-                ;(document.getElementById('si-sound-q') as HTMLInputElement).value = String((Math.random() * 10).toFixed(1))
-                ;(document.getElementById('si-sound-distortion') as HTMLInputElement).value = String(Math.floor(Math.random() * 60))
+                iconInput.value = rand(concept.icon)
+                descInput.value = rand(concept.desc)
+                priceInput.value = String(randInt(125, 250))
+                ;(document.getElementById('si-sound-filter') as HTMLSelectElement).value = concept.filter
+                ;(document.getElementById('si-sound-freq') as HTMLInputElement).value = String(randInt(concept.freq[0], concept.freq[1]))
+                ;(document.getElementById('si-sound-q') as HTMLInputElement).value = String((concept.q[0] + Math.random() * (concept.q[1] - concept.q[0])).toFixed(1))
+                ;(document.getElementById('si-sound-distortion') as HTMLInputElement).value = String(randInt(concept.dist[0], concept.dist[1]))
+                // Update slider displays
+                sliderUpdaters.forEach(([sliderId, valId, suffix]) => {
+                  const slider = document.getElementById(sliderId) as HTMLInputElement
+                  const val = document.getElementById(valId)
+                  if (slider && val) val.textContent = slider.value + (suffix || '')
+                })
                 break
               }
               case 'music_pack': {
-                const name = `${randWord(adjectives)} ${randWord(musicWords)}`
+                const concept = musicConcepts[Math.floor(Math.random() * musicConcepts.length)]
+                const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
-                descInput.value = `Custom ${name.toLowerCase()} music pack`
-                priceInput.value = String(175 + Math.floor(Math.random() * 150))
-                // Apply random music preset
-                document.getElementById('si-music-randomize')?.click()
+                iconInput.value = rand(concept.icon)
+                descInput.value = rand(concept.desc)
+                priceInput.value = String(randInt(175, 325))
+                ;(document.getElementById('si-music-tempo') as HTMLInputElement).value = String(randInt(concept.tempo[0], concept.tempo[1]))
+                ;(document.getElementById('si-music-scale') as HTMLSelectElement).value = concept.scale
+                ;(document.getElementById('si-music-base') as HTMLInputElement).value = String(randInt(concept.base[0], concept.base[1]))
+                ;(document.getElementById('si-music-wave') as HTMLSelectElement).value = concept.wave
+                ;(document.getElementById('si-music-filter') as HTMLInputElement).value = String(randInt(concept.filter[0], concept.filter[1]))
+                ;(document.getElementById('si-music-reverb') as HTMLInputElement).value = String(randInt(concept.reverb[0], concept.reverb[1]))
+                ;(document.getElementById('si-music-density') as HTMLInputElement).value = String(randInt(concept.density[0], concept.density[1]))
+                ;(document.getElementById('si-music-swing') as HTMLInputElement).value = String(randInt(concept.swing[0], concept.swing[1]))
+                sliderUpdaters.forEach(([sliderId, valId, suffix]) => {
+                  const slider = document.getElementById(sliderId) as HTMLInputElement
+                  const val = document.getElementById(valId)
+                  if (slider && val) val.textContent = slider.value + (suffix || '')
+                })
                 break
               }
             }
+
+            // Show AI reaction
+            setTimeout(() => {
+              const reactions = aiReactions[type || 'theme']
+              const reaction = rand(reactions)
+              const aiBtn2 = document.getElementById('si-ai-generate')
+              if (aiBtn2) {
+                const reactionDiv = document.createElement('div')
+                reactionDiv.className = 'mt-2 p-2 bg-purple-900/50 border border-purple-500/30 rounded-lg text-purple-300 text-sm animate-pulse'
+                reactionDiv.textContent = reaction
+                aiBtn2.parentElement?.insertBefore(reactionDiv, aiBtn2.nextSibling)
+                // Remove after 4 seconds
+                setTimeout(() => reactionDiv.remove(), 4000)
+              }
+            }, 500)
           })
 
           // Create item button
