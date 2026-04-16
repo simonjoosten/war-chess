@@ -176,7 +176,12 @@ import {
   adminDeleteBundle,
   adminToggleBundle,
   adminSetDailyDeals,
-  purchaseBundle
+  purchaseBundle,
+  // Custom Shop Items
+  loadCustomShopItems,
+  adminCreateShopItem,
+  adminDeleteShopItem,
+  adminGetCustomShopItems
 } from './firebase'
 
 // Auth state
@@ -1417,8 +1422,29 @@ function spawnThemeParticle(totalWidth: number, totalHeight: number, themeId: st
       vx = 0.3 + Math.random() * 0.3
       vy = 0.4 + Math.random() * 0.3
       break
-    default:
-      return // No effect for unknown themes
+    default: {
+      // Check for custom theme with ambientEffect
+      const customTheme = SHOP_ITEMS.find(i => i.id === themeId && i.ambientEffect)
+      if (customTheme?.ambientEffect && customTheme.ambientEffect !== 'none') {
+        type = customTheme.ambientEffect
+        // Set reasonable defaults for movement based on particle type
+        switch (type) {
+          case 'snow': vx = Math.random() * 0.5 - 0.25; vy = 0.5 + Math.random() * 0.5; break
+          case 'ember': vx = Math.random() * 0.6 - 0.3; vy = -0.5 - Math.random() * 0.5; break
+          case 'bubble': vx = Math.random() * 0.3 - 0.15; vy = -0.3 - Math.random() * 0.3; break
+          case 'leaf': case 'autumn': vx = 0.3 + Math.random() * 0.3; vy = 0.4 + Math.random() * 0.3; break
+          case 'sand': vx = 1 + Math.random(); vy = 0.2 + Math.random() * 0.3; break
+          case 'star': case 'firefly': vx = 0; vy = 0; x = Math.random() * totalWidth; y = Math.random() * totalHeight; size = 1 + Math.random() * 2; break
+          case 'neon': vx = Math.random() - 0.5; vy = Math.random() - 0.5; break
+          case 'gear': vx = 0; vy = 0; x = 10 + Math.random() * 30; y = 10 + Math.random() * 30; size = 5 + Math.random() * 10; break
+          case 'ray': vx = 0.5; vy = 0.3; x = 0; y = Math.random() * totalHeight * 0.5; break
+          default: vx = Math.random() - 0.5; vy = Math.random() - 0.5; break
+        }
+      } else {
+        return // No effect for unknown themes
+      }
+      break
+    }
   }
 
   themeParticles.push({ x, y, vx, vy, size, life: 1 + Math.random() * 2, type })
@@ -2044,10 +2070,175 @@ async function startMusic() {
     case 'synthwave':
       startSynthwaveMusic()
       break
-    default:
-      startEpicMusic()
+    default: {
+      // Check if it's a custom music pack with musicParams
+      const customItem = SHOP_ITEMS.find(i => i.id === equippedMusicPack && i.musicParams)
+      if (customItem?.musicParams) {
+        startParametricMusic(customItem.musicParams)
+      } else {
+        startEpicMusic()
+      }
       break
+    }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARAMETRIC MUSIC - Configurable music generator for custom music packs
+// ═══════════════════════════════════════════════════════════════════════════
+function startParametricMusic(params: { tempo: number; scale: string; baseNote: number; waveform: OscillatorType; filterFreq: number; reverb: number; swing: number; density: number }) {
+  if (!audioContext || !musicGainNode) return
+
+  // Scale intervals in semitones
+  const scales: Record<string, number[]> = {
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    pentatonic: [0, 2, 4, 7, 9],
+    blues: [0, 3, 5, 6, 7, 10],
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10]
+  }
+
+  const scaleIntervals = scales[params.scale] || scales.pentatonic
+  const baseFreq = params.baseNote || 220
+
+  // Generate frequencies for 3 octaves
+  const freqs: number[] = []
+  for (let oct = 0; oct < 3; oct++) {
+    for (const interval of scaleIntervals) {
+      freqs.push(baseFreq * Math.pow(2, oct + interval / 12))
+    }
+  }
+
+  // Create reverb
+  const convolver = audioContext.createConvolver()
+  const rate = audioContext.sampleRate
+  const reverbLength = rate * (1 + params.reverb * 3)
+  const impulse = audioContext.createBuffer(2, reverbLength, rate)
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch)
+    for (let i = 0; i < reverbLength; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / reverbLength, 2)
+    }
+  }
+  convolver.buffer = impulse
+  const reverbGain = audioContext.createGain()
+  reverbGain.gain.value = params.reverb * 0.5
+  convolver.connect(reverbGain)
+  reverbGain.connect(musicGainNode)
+
+  // Master filter
+  const masterFilter = audioContext.createBiquadFilter()
+  masterFilter.type = 'lowpass'
+  masterFilter.frequency.value = params.filterFreq
+  masterFilter.Q.value = 1
+  masterFilter.connect(musicGainNode)
+  masterFilter.connect(convolver)
+
+  const beatDuration = 60 / params.tempo
+
+  // Chord progressions based on scale
+  const chordProgressions: number[][] = params.scale === 'minor' || params.scale === 'dorian'
+    ? [[0, 2, 4], [3, 5, 0], [4, 6, 1], [3, 5, 0]]  // i - iv - v - iv
+    : [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]]   // I - IV - V - I
+
+  function playNote(freq: number, startTime: number, duration: number, velocity: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
+    const noteGain = audioContext.createGain()
+
+    osc.type = params.waveform
+    osc2.type = params.waveform === 'sawtooth' ? 'square' : 'sine'
+    osc.frequency.value = freq
+    osc2.frequency.value = freq * 1.005  // Chorus detune
+
+    const oscGain2 = audioContext.createGain()
+    oscGain2.gain.value = 0.3
+
+    osc.connect(noteGain)
+    osc2.connect(oscGain2)
+    oscGain2.connect(noteGain)
+
+    noteGain.gain.setValueAtTime(0.001, startTime)
+    noteGain.gain.linearRampToValueAtTime(velocity * 0.08, startTime + 0.01)
+    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.04, startTime + duration * 0.3)
+    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    noteGain.connect(masterFilter)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+    osc2.start(startTime)
+    osc2.stop(startTime + duration + 0.1)
+  }
+
+  function playBassNote(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const osc = audioContext.createOscillator()
+    const noteGain = audioContext.createGain()
+    const bassFilter = audioContext.createBiquadFilter()
+
+    osc.type = 'sine'
+    osc.frequency.value = freq / 2  // One octave down
+
+    bassFilter.type = 'lowpass'
+    bassFilter.frequency.value = 300
+    bassFilter.Q.value = 2
+
+    noteGain.gain.setValueAtTime(0.001, startTime)
+    noteGain.gain.linearRampToValueAtTime(0.1, startTime + 0.02)
+    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+    osc.connect(bassFilter)
+    bassFilter.connect(noteGain)
+    noteGain.connect(masterFilter)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration + 0.1)
+  }
+
+  let barCount = 0
+
+  function playBar() {
+    if (!audioContext || !musicEnabled || !musicGainNode) return
+
+    const now = audioContext.currentTime
+    const chordIdx = barCount % chordProgressions.length
+    const chord = chordProgressions[chordIdx]
+    const barDuration = beatDuration * 4
+
+    // Play bass note on beat 1
+    const bassFreq = freqs[chord[0]] || baseFreq
+    playBassNote(bassFreq, now, barDuration * 0.9)
+
+    // Play chord pad
+    chord.forEach((noteIdx, i) => {
+      const freq = freqs[noteIdx + scaleIntervals.length] || baseFreq * 2
+      playNote(freq, now + i * 0.02, barDuration * 0.8, 0.4)
+    })
+
+    // Play melody notes based on density
+    const notesPerBar = Math.floor(params.density * 4)
+    for (let i = 0; i < notesPerBar; i++) {
+      const beatPos = i / notesPerBar
+      const swingOffset = (i % 2 === 1) ? params.swing * beatDuration : 0
+      const noteTime = now + beatPos * barDuration + swingOffset
+      const noteIdx = scaleIntervals.length + Math.floor(Math.random() * scaleIntervals.length)
+      const freq = freqs[noteIdx] || baseFreq * 2
+      const noteDuration = beatDuration / params.density * 0.8
+      const velocity = 0.5 + Math.random() * 0.5
+
+      playNote(freq, noteTime, noteDuration, velocity)
+    }
+
+    barCount++
+  }
+
+  playBar()
+  musicInterval = window.setInterval(playBar, beatDuration * 4 * 1000)
 }
 
 // Get the active music style (shop item overrides settings)
@@ -7184,6 +7375,19 @@ function getSfxGain(): GainNode | null {
           sfxPackFilter.Q.value = 8
           sfxPackFilter.gain.value = 4
           break
+        default: {
+          // Check for custom sound pack with soundConfig
+          const customSoundItem = SHOP_ITEMS.find(i => i.packId === pack && i.soundConfig)
+          if (customSoundItem?.soundConfig) {
+            const cfg = customSoundItem.soundConfig
+            sfxPackFilter.type = cfg.filterType
+            sfxPackFilter.frequency.value = cfg.filterFreq
+            sfxPackFilter.Q.value = cfg.filterQ
+            if (cfg.filterGain) sfxPackFilter.gain.value = cfg.filterGain
+            if (cfg.distortion > 0) sfxPackDistortion.curve = createDistortionCurve(cfg.distortion)
+          }
+          break
+        }
       }
 
       // Connect: sfxGainNode -> filter -> distortion -> destination
@@ -27279,7 +27483,7 @@ function render() {
       }
 
       // Admin panel state
-      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'feedback' | 'system' | 'deals' = 'users'
+      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'feedback' | 'system' | 'deals' | 'shopitems' = 'users'
       let adminSearchQuery = ''
       let showCreateEvent = false
       let expandedUserId: string | null = null
@@ -27370,6 +27574,9 @@ function render() {
               </button>
               <button id="tab-deals" class="${tabClass('deals')} font-bold py-2 px-4 rounded transition-colors">
                 🔥 Deals
+              </button>
+              <button id="tab-shopitems" class="${tabClass('shopitems')} font-bold py-2 px-4 rounded transition-colors">
+                🛍️ Shop Items
               </button>
               <button id="tab-system" class="${tabClass('system')} font-bold py-2 px-4 rounded transition-colors">
                 🖥️ System
@@ -27844,6 +28051,275 @@ function render() {
                 </div>
               ` : ''}
 
+              ${adminTab === 'shopitems' ? `
+                <!-- Shop Items Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">🛍️ Create Shop Item</h2>
+                  </div>
+
+                  <div class="bg-gray-700 p-4 rounded-lg mb-4">
+                    <div class="grid gap-3">
+                      <!-- Item Type -->
+                      <div>
+                        <label class="text-gray-300 text-sm mb-1 block">Item Type</label>
+                        <select id="si-type" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="theme">🎨 Theme (Board Colors)</option>
+                          <option value="piece_skin">⚔️ Piece Skin</option>
+                          <option value="effect">✨ Effect</option>
+                          <option value="sound_pack">🔊 Sound Pack</option>
+                          <option value="music_pack">🎵 Music Pack</option>
+                        </select>
+                      </div>
+
+                      <!-- Basic Info -->
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="text-gray-300 text-sm mb-1 block">Name</label>
+                          <input type="text" id="si-name" placeholder="Item name..." class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-sm mb-1 block">Icon</label>
+                            <input type="text" id="si-icon" value="✨" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500 text-center text-xl">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-sm mb-1 block">Price 💰</label>
+                            <input type="number" id="si-price" value="200" min="1" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-sm mb-1 block">Description</label>
+                        <input type="text" id="si-description" placeholder="Item description..." class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                      </div>
+
+                      <!-- AI Generate Button -->
+                      <button id="si-ai-generate" class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-all">
+                        🤖 AI Auto-Generate
+                      </button>
+
+                      <!-- Theme Options -->
+                      <div id="si-theme-options" class="bg-gray-600/50 p-3 rounded-lg grid gap-3">
+                        <h4 class="text-white font-bold text-sm">🎨 Theme Colors</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Light Square</label>
+                            <input type="color" id="si-color-light" value="#86a876" class="w-full h-10 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Dark Square</label>
+                            <input type="color" id="si-color-dark" value="#d4c87a" class="w-full h-10 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Accent</label>
+                            <input type="color" id="si-color-accent" value="#558b2f" class="w-full h-10 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Water</label>
+                            <input type="color" id="si-color-water" value="#4a90a4" class="w-full h-10 rounded cursor-pointer">
+                          </div>
+                        </div>
+                        <div>
+                          <label class="text-gray-300 text-xs block mb-1">Ambient Effect</label>
+                          <select id="si-ambient" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500 text-sm">
+                            <option value="none">None</option>
+                            <option value="snow">❄️ Snow</option>
+                            <option value="ember">🔥 Embers</option>
+                            <option value="bubble">🫧 Bubbles</option>
+                            <option value="leaf">🍃 Leaves</option>
+                            <option value="sand">🏜️ Sand</option>
+                            <option value="star">⭐ Stars</option>
+                            <option value="firefly">✨ Fireflies</option>
+                            <option value="neon">💜 Neon</option>
+                            <option value="gear">⚙️ Gears</option>
+                            <option value="sparkle">💫 Sparkles</option>
+                            <option value="autumn">🍂 Autumn Leaves</option>
+                            <option value="ray">☀️ Light Rays</option>
+                          </select>
+                        </div>
+                        <button id="si-gen-palette" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
+                          🎲 Random Palette
+                        </button>
+                        <!-- Theme Preview -->
+                        <div id="si-theme-preview" class="grid grid-cols-6 gap-0.5 rounded overflow-hidden h-16"></div>
+                      </div>
+
+                      <!-- Effect Options -->
+                      <div id="si-effect-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
+                        <h4 class="text-white font-bold text-sm">✨ Effect Type</h4>
+                        <select id="si-effect-type" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="fire">🔥 Fire Trail</option>
+                          <option value="lightning">⚡ Lightning</option>
+                          <option value="sparkle">✨ Sparkle</option>
+                          <option value="smoke">💨 Smoke</option>
+                          <option value="hearts">❤️ Hearts</option>
+                          <option value="stars">⭐ Stars</option>
+                          <option value="explosion">💥 Explosion</option>
+                          <option value="ghost">👻 Ghost</option>
+                        </select>
+                      </div>
+
+                      <!-- Skin Options -->
+                      <div id="si-skin-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
+                        <h4 class="text-white font-bold text-sm">⚔️ Skin Style</h4>
+                        <select id="si-skin-style" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="robot">🤖 Robot</option>
+                          <option value="medieval">⚔️ Medieval</option>
+                          <option value="scifi">🚀 Sci-Fi</option>
+                          <option value="pixel">👾 Pixel</option>
+                          <option value="minimal">⬜ Minimal</option>
+                          <option value="cartoon">😊 Cartoon</option>
+                          <option value="military">🎖️ Military</option>
+                          <option value="fantasy">🧙 Fantasy</option>
+                        </select>
+                        <div class="grid grid-cols-3 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Yellow Team</label>
+                            <input type="color" id="si-skin-yellow" value="#eab308" class="w-full h-8 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Green Team</label>
+                            <input type="color" id="si-skin-green" value="#22c55e" class="w-full h-8 rounded cursor-pointer">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Accent</label>
+                            <input type="color" id="si-skin-accent" value="#ffffff" class="w-full h-8 rounded cursor-pointer">
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Sound Pack Options -->
+                      <div id="si-sound-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
+                        <h4 class="text-white font-bold text-sm">🔊 Sound Filter</h4>
+                        <select id="si-sound-filter" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="lowpass">🔈 Lowpass (Muffled/Warm)</option>
+                          <option value="highpass">🔊 Highpass (Bright/Tinny)</option>
+                          <option value="bandpass">📻 Bandpass (Radio/Walkie-Talkie)</option>
+                          <option value="peaking">🎸 Peaking (Resonant)</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Filter Freq (Hz)</label>
+                            <input type="range" id="si-sound-freq" min="100" max="8000" value="2000" class="w-full">
+                            <span id="si-sound-freq-val" class="text-gray-400 text-xs">2000 Hz</span>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Filter Q</label>
+                            <input type="range" id="si-sound-q" min="0.1" max="15" step="0.1" value="1" class="w-full">
+                            <span id="si-sound-q-val" class="text-gray-400 text-xs">1.0</span>
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Gain (dB)</label>
+                            <input type="range" id="si-sound-gain" min="-10" max="10" step="0.5" value="0" class="w-full">
+                            <span id="si-sound-gain-val" class="text-gray-400 text-xs">0 dB</span>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Distortion</label>
+                            <input type="range" id="si-sound-distortion" min="0" max="100" value="0" class="w-full">
+                            <span id="si-sound-distortion-val" class="text-gray-400 text-xs">0</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Music Pack Options -->
+                      <div id="si-music-options" class="hidden bg-gray-600/50 p-3 rounded-lg grid gap-3">
+                        <h4 class="text-white font-bold text-sm">🎵 Music Generator Settings</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Tempo (BPM)</label>
+                            <input type="range" id="si-music-tempo" min="60" max="200" value="120" class="w-full">
+                            <span id="si-music-tempo-val" class="text-gray-400 text-xs">120 BPM</span>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Scale</label>
+                            <select id="si-music-scale" class="w-full bg-gray-600 text-white px-2 py-1.5 rounded border border-gray-500 text-sm">
+                              <option value="major">Major (Happy)</option>
+                              <option value="minor">Minor (Sad)</option>
+                              <option value="pentatonic">Pentatonic (Eastern)</option>
+                              <option value="blues">Blues (Soulful)</option>
+                              <option value="dorian">Dorian (Jazzy)</option>
+                              <option value="mixolydian">Mixolydian (Rock)</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Base Note (Hz)</label>
+                            <input type="range" id="si-music-base" min="65" max="520" value="220" class="w-full">
+                            <span id="si-music-base-val" class="text-gray-400 text-xs">A3 (220 Hz)</span>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Waveform</label>
+                            <select id="si-music-wave" class="w-full bg-gray-600 text-white px-2 py-1.5 rounded border border-gray-500 text-sm">
+                              <option value="sine">🔵 Sine (Smooth)</option>
+                              <option value="triangle">🔺 Triangle (Soft)</option>
+                              <option value="square">⬛ Square (Chippy)</option>
+                              <option value="sawtooth">📐 Sawtooth (Buzzy)</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Filter</label>
+                            <input type="range" id="si-music-filter" min="200" max="8000" value="4000" class="w-full">
+                            <span id="si-music-filter-val" class="text-gray-400 text-xs">4000 Hz</span>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Reverb</label>
+                            <input type="range" id="si-music-reverb" min="0" max="100" value="30" class="w-full">
+                            <span id="si-music-reverb-val" class="text-gray-400 text-xs">30%</span>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-xs block mb-1">Density</label>
+                            <input type="range" id="si-music-density" min="1" max="8" value="3" class="w-full">
+                            <span id="si-music-density-val" class="text-gray-400 text-xs">3</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label class="text-gray-300 text-xs block mb-1">Swing</label>
+                          <input type="range" id="si-music-swing" min="0" max="50" value="0" class="w-full">
+                          <span id="si-music-swing-val" class="text-gray-400 text-xs">0%</span>
+                        </div>
+                        <div class="flex gap-2">
+                          <button id="si-music-preview" class="bg-green-600 hover:bg-green-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
+                            ▶ Preview Music
+                          </button>
+                          <button id="si-music-stop" class="bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
+                            ■ Stop
+                          </button>
+                          <button id="si-music-randomize" class="bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold py-1.5 px-3 rounded flex items-center gap-1">
+                            🎲 Randomize
+                          </button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1">
+                          <button class="si-music-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-2 rounded" data-preset="chill">😌 Chill</button>
+                          <button class="si-music-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-2 rounded" data-preset="intense">⚡ Intense</button>
+                          <button class="si-music-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-2 rounded" data-preset="retro">🕹️ Retro</button>
+                          <button class="si-music-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-2 rounded" data-preset="mysterious">🌙 Mystery</button>
+                          <button class="si-music-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-2 rounded" data-preset="happy">☀️ Happy</button>
+                          <button class="si-music-preset bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-2 rounded" data-preset="dark">🖤 Dark</button>
+                        </div>
+                      </div>
+
+                      <button id="si-create-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 px-4 rounded text-lg transition-all hover:scale-[1.02]">
+                        ✅ Create Item
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Existing Custom Items -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">📋 Custom Items (${SHOP_ITEMS.filter(i => i.isCustom).length})</h2>
+                  <div id="admin-custom-items" class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+                    <div class="text-gray-400 text-center py-4">Loading...</div>
+                  </div>
+                </div>
+              ` : ''}
+
               ${adminTab === 'deals' ? `
                 <!-- Bundles & Deals Tab -->
                 <div class="bg-gray-800 p-4 rounded-lg">
@@ -28016,6 +28492,7 @@ function render() {
         document.getElementById('tab-tournaments')?.addEventListener('click', () => { adminTab = 'tournaments'; renderAdminPanel() })
         document.getElementById('tab-feedback')?.addEventListener('click', () => { adminTab = 'feedback'; renderAdminPanel() })
         document.getElementById('tab-deals')?.addEventListener('click', () => { adminTab = 'deals'; renderAdminPanel() })
+        document.getElementById('tab-shopitems')?.addEventListener('click', () => { adminTab = 'shopitems'; renderAdminPanel() })
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
         // Refresh button - force reload data
@@ -28026,6 +28503,362 @@ function render() {
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
         document.getElementById('admin-debug-btn')?.addEventListener('click', () => { showDebugPanel() })
+
+        // Shop Items tab handlers
+        if (adminTab === 'shopitems') {
+          // Show/hide type-specific options based on selected type
+          const siType = document.getElementById('si-type') as HTMLSelectElement
+          const showTypeOptions = () => {
+            const type = siType?.value
+            document.getElementById('si-theme-options')?.classList.toggle('hidden', type !== 'theme')
+            document.getElementById('si-effect-options')?.classList.toggle('hidden', type !== 'effect')
+            document.getElementById('si-skin-options')?.classList.toggle('hidden', type !== 'piece_skin')
+            document.getElementById('si-sound-options')?.classList.toggle('hidden', type !== 'sound_pack')
+            document.getElementById('si-music-options')?.classList.toggle('hidden', type !== 'music_pack')
+
+            // Auto-set icon based on type
+            const iconInput = document.getElementById('si-icon') as HTMLInputElement
+            if (iconInput) {
+              const icons: Record<string, string> = { theme: '🎨', piece_skin: '⚔️', effect: '✨', sound_pack: '🔊', music_pack: '🎵' }
+              iconInput.value = icons[type] || '✨'
+            }
+          }
+          siType?.addEventListener('change', showTypeOptions)
+          showTypeOptions()
+
+          // Theme preview updater
+          const updateThemePreview = () => {
+            const preview = document.getElementById('si-theme-preview')
+            if (!preview) return
+            const light = (document.getElementById('si-color-light') as HTMLInputElement)?.value || '#86a876'
+            const dark = (document.getElementById('si-color-dark') as HTMLInputElement)?.value || '#d4c87a'
+            const water = (document.getElementById('si-color-water') as HTMLInputElement)?.value || '#4a90a4'
+
+            let html = ''
+            for (let r = 0; r < 3; r++) {
+              for (let c = 0; c < 6; c++) {
+                const isWater = c === 0 || c === 5
+                const color = isWater ? water : (r + c) % 2 === 0 ? light : dark
+                html += `<div style="background:${color}" class="aspect-square"></div>`
+              }
+            }
+            preview.innerHTML = html
+          }
+          document.getElementById('si-color-light')?.addEventListener('input', updateThemePreview)
+          document.getElementById('si-color-dark')?.addEventListener('input', updateThemePreview)
+          document.getElementById('si-color-water')?.addEventListener('input', updateThemePreview)
+          updateThemePreview()
+
+          // Random palette generator
+          document.getElementById('si-gen-palette')?.addEventListener('click', () => {
+            // Generate harmonious colors using HSL
+            const baseHue = Math.random() * 360
+            const light = `hsl(${baseHue}, ${40 + Math.random() * 30}%, ${60 + Math.random() * 20}%)`
+            const dark = `hsl(${(baseHue + 30) % 360}, ${40 + Math.random() * 30}%, ${30 + Math.random() * 20}%)`
+            const accent = `hsl(${(baseHue + 60) % 360}, ${50 + Math.random() * 30}%, ${45 + Math.random() * 20}%)`
+            const water = `hsl(${(baseHue + 180) % 360}, ${50 + Math.random() * 30}%, ${35 + Math.random() * 20}%)`
+
+            // Convert HSL to hex
+            const hslToHex = (hsl: string): string => {
+              const el = document.createElement('div')
+              el.style.color = hsl
+              document.body.appendChild(el)
+              const computed = getComputedStyle(el).color
+              document.body.removeChild(el)
+              const match = computed.match(/(\d+)/g)
+              if (!match) return '#888888'
+              return '#' + match.slice(0, 3).map(n => parseInt(n).toString(16).padStart(2, '0')).join('')
+            }
+
+            ;(document.getElementById('si-color-light') as HTMLInputElement).value = hslToHex(light)
+            ;(document.getElementById('si-color-dark') as HTMLInputElement).value = hslToHex(dark)
+            ;(document.getElementById('si-color-accent') as HTMLInputElement).value = hslToHex(accent)
+            ;(document.getElementById('si-color-water') as HTMLInputElement).value = hslToHex(water)
+            updateThemePreview()
+          })
+
+          // Slider value displays
+          const sliderUpdaters: Array<[string, string, string?]> = [
+            ['si-sound-freq', 'si-sound-freq-val', ' Hz'],
+            ['si-sound-q', 'si-sound-q-val'],
+            ['si-sound-gain', 'si-sound-gain-val', ' dB'],
+            ['si-sound-distortion', 'si-sound-distortion-val'],
+            ['si-music-tempo', 'si-music-tempo-val', ' BPM'],
+            ['si-music-filter', 'si-music-filter-val', ' Hz'],
+            ['si-music-reverb', 'si-music-reverb-val', '%'],
+            ['si-music-density', 'si-music-density-val'],
+            ['si-music-swing', 'si-music-swing-val', '%'],
+          ]
+          sliderUpdaters.forEach(([sliderId, valId, suffix]) => {
+            const slider = document.getElementById(sliderId) as HTMLInputElement
+            const val = document.getElementById(valId)
+            if (slider && val) {
+              slider.addEventListener('input', () => { val.textContent = slider.value + (suffix || '') })
+            }
+          })
+
+          // Music base note display with note name
+          const baseFrqSlider = document.getElementById('si-music-base') as HTMLInputElement
+          const baseFrqVal = document.getElementById('si-music-base-val')
+          if (baseFrqSlider && baseFrqVal) {
+            baseFrqSlider.addEventListener('input', () => {
+              const hz = parseInt(baseFrqSlider.value)
+              const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+              const midi = 12 * Math.log2(hz / 440) + 69
+              const noteName = noteNames[Math.round(midi) % 12]
+              const octave = Math.floor(Math.round(midi) / 12) - 1
+              baseFrqVal.textContent = `${noteName}${octave} (${hz} Hz)`
+            })
+          }
+
+          // Music presets
+          const musicPresets: Record<string, { tempo: number; scale: string; base: number; wave: string; filter: number; reverb: number; density: number; swing: number }> = {
+            chill: { tempo: 85, scale: 'pentatonic', base: 220, wave: 'sine', filter: 3000, reverb: 60, density: 2, swing: 20 },
+            intense: { tempo: 170, scale: 'minor', base: 130, wave: 'sawtooth', filter: 6000, reverb: 20, density: 6, swing: 0 },
+            retro: { tempo: 130, scale: 'major', base: 262, wave: 'square', filter: 5000, reverb: 10, density: 4, swing: 0 },
+            mysterious: { tempo: 75, scale: 'dorian', base: 165, wave: 'triangle', filter: 2000, reverb: 80, density: 2, swing: 30 },
+            happy: { tempo: 128, scale: 'major', base: 330, wave: 'triangle', filter: 6000, reverb: 30, density: 4, swing: 10 },
+            dark: { tempo: 90, scale: 'minor', base: 110, wave: 'sawtooth', filter: 1500, reverb: 70, density: 3, swing: 15 }
+          }
+
+          document.querySelectorAll('.si-music-preset').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const preset = (e.target as HTMLElement).dataset.preset
+              if (!preset || !musicPresets[preset]) return
+              const p = musicPresets[preset]
+              ;(document.getElementById('si-music-tempo') as HTMLInputElement).value = String(p.tempo)
+              ;(document.getElementById('si-music-scale') as HTMLSelectElement).value = p.scale
+              ;(document.getElementById('si-music-base') as HTMLInputElement).value = String(p.base)
+              ;(document.getElementById('si-music-wave') as HTMLSelectElement).value = p.wave
+              ;(document.getElementById('si-music-filter') as HTMLInputElement).value = String(p.filter)
+              ;(document.getElementById('si-music-reverb') as HTMLInputElement).value = String(p.reverb)
+              ;(document.getElementById('si-music-density') as HTMLInputElement).value = String(p.density)
+              ;(document.getElementById('si-music-swing') as HTMLInputElement).value = String(p.swing)
+              // Update displays
+              sliderUpdaters.forEach(([sliderId, valId, suffix]) => {
+                const slider = document.getElementById(sliderId) as HTMLInputElement
+                const val = document.getElementById(valId)
+                if (slider && val) val.textContent = slider.value + (suffix || '')
+              })
+            })
+          })
+
+          // Music randomize
+          document.getElementById('si-music-randomize')?.addEventListener('click', () => {
+            const presetKeys = Object.keys(musicPresets)
+            const randomPreset = presetKeys[Math.floor(Math.random() * presetKeys.length)]
+            const p = musicPresets[randomPreset]
+            // Apply with some randomization
+            ;(document.getElementById('si-music-tempo') as HTMLInputElement).value = String(p.tempo + Math.floor(Math.random() * 40 - 20))
+            ;(document.getElementById('si-music-scale') as HTMLSelectElement).value = p.scale
+            ;(document.getElementById('si-music-base') as HTMLInputElement).value = String(Math.floor(p.base * (0.7 + Math.random() * 0.6)))
+            ;(document.getElementById('si-music-wave') as HTMLSelectElement).value = p.wave
+            ;(document.getElementById('si-music-filter') as HTMLInputElement).value = String(Math.floor(p.filter * (0.5 + Math.random())))
+            ;(document.getElementById('si-music-reverb') as HTMLInputElement).value = String(Math.floor(Math.random() * 100))
+            ;(document.getElementById('si-music-density') as HTMLInputElement).value = String(1 + Math.floor(Math.random() * 7))
+            ;(document.getElementById('si-music-swing') as HTMLInputElement).value = String(Math.floor(Math.random() * 50))
+            sliderUpdaters.forEach(([sliderId, valId, suffix]) => {
+              const slider = document.getElementById(sliderId) as HTMLInputElement
+              const val = document.getElementById(valId)
+              if (slider && val) val.textContent = slider.value + (suffix || '')
+            })
+          })
+
+          // AI Auto-Generate
+          document.getElementById('si-ai-generate')?.addEventListener('click', () => {
+            const type = siType?.value
+            const themeWords = ['Mystic', 'Crystal', 'Nebula', 'Phoenix', 'Shadow', 'Aurora', 'Frost', 'Ember', 'Cosmic', 'Prism', 'Twilight', 'Lunar', 'Solar', 'Storm', 'Coral', 'Jade', 'Ruby', 'Sapphire', 'Void', 'Bloom']
+            const effectWords = ['Flash', 'Burst', 'Wave', 'Pulse', 'Glow', 'Surge', 'Swirl', 'Blast', 'Shimmer', 'Ripple']
+            const musicWords = ['Beats', 'Groove', 'Melody', 'Rhythm', 'Anthem', 'Vibe', 'Flow', 'Symphony', 'Remix', 'Pulse']
+            const adjectives = ['Epic', 'Blazing', 'Frozen', 'Golden', 'Neon', 'Toxic', 'Royal', 'Wild', 'Mystic', 'Ancient', 'Digital', 'Phantom']
+
+            const randWord = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
+            const nameInput = document.getElementById('si-name') as HTMLInputElement
+            const descInput = document.getElementById('si-description') as HTMLInputElement
+            const priceInput = document.getElementById('si-price') as HTMLInputElement
+
+            switch (type) {
+              case 'theme': {
+                const name = `${randWord(adjectives)} ${randWord(themeWords)}`
+                nameInput.value = name
+                descInput.value = `A beautiful ${name.toLowerCase()} themed battlefield`
+                priceInput.value = String(100 + Math.floor(Math.random() * 200))
+                // Auto-generate palette
+                document.getElementById('si-gen-palette')?.click()
+                // Auto-pick ambient effect
+                const ambients = ['snow', 'ember', 'bubble', 'leaf', 'star', 'firefly', 'neon', 'sparkle', 'autumn']
+                ;(document.getElementById('si-ambient') as HTMLSelectElement).value = randWord(ambients)
+                break
+              }
+              case 'effect': {
+                const name = `${randWord(adjectives)} ${randWord(effectWords)}`
+                nameInput.value = name
+                const effects: Array<'fire' | 'lightning' | 'sparkle' | 'smoke' | 'hearts' | 'stars' | 'explosion' | 'ghost'> = ['fire', 'lightning', 'sparkle', 'smoke', 'hearts', 'stars', 'explosion', 'ghost']
+                const effectType = effects[Math.floor(Math.random() * effects.length)]
+                ;(document.getElementById('si-effect-type') as HTMLSelectElement).value = effectType
+                descInput.value = `${effectType.charAt(0).toUpperCase() + effectType.slice(1)} particles with a ${name.toLowerCase()} twist`
+                priceInput.value = String(150 + Math.floor(Math.random() * 200))
+                break
+              }
+              case 'piece_skin': {
+                const name = `${randWord(adjectives)} Warriors`
+                nameInput.value = name
+                descInput.value = `Unique ${name.toLowerCase()} styled pieces`
+                priceInput.value = String(250 + Math.floor(Math.random() * 250))
+                const styles = ['robot', 'medieval', 'scifi', 'pixel', 'minimal', 'cartoon', 'military', 'fantasy']
+                ;(document.getElementById('si-skin-style') as HTMLSelectElement).value = randWord(styles)
+                // Random colors
+                const randColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+                ;(document.getElementById('si-skin-yellow') as HTMLInputElement).value = randColor()
+                ;(document.getElementById('si-skin-green') as HTMLInputElement).value = randColor()
+                ;(document.getElementById('si-skin-accent') as HTMLInputElement).value = randColor()
+                break
+              }
+              case 'sound_pack': {
+                const name = `${randWord(adjectives)} Sounds`
+                nameInput.value = name
+                descInput.value = `${name} audio effects for your battles`
+                priceInput.value = String(125 + Math.floor(Math.random() * 125))
+                const filters = ['lowpass', 'highpass', 'bandpass', 'peaking']
+                ;(document.getElementById('si-sound-filter') as HTMLSelectElement).value = randWord(filters)
+                ;(document.getElementById('si-sound-freq') as HTMLInputElement).value = String(500 + Math.floor(Math.random() * 4000))
+                ;(document.getElementById('si-sound-q') as HTMLInputElement).value = String((Math.random() * 10).toFixed(1))
+                ;(document.getElementById('si-sound-distortion') as HTMLInputElement).value = String(Math.floor(Math.random() * 60))
+                break
+              }
+              case 'music_pack': {
+                const name = `${randWord(adjectives)} ${randWord(musicWords)}`
+                nameInput.value = name
+                descInput.value = `Custom ${name.toLowerCase()} music pack`
+                priceInput.value = String(175 + Math.floor(Math.random() * 150))
+                // Apply random music preset
+                document.getElementById('si-music-randomize')?.click()
+                break
+              }
+            }
+          })
+
+          // Create item button
+          document.getElementById('si-create-btn')?.addEventListener('click', async () => {
+            const type = (document.getElementById('si-type') as HTMLSelectElement)?.value as ShopItem['type']
+            const name = (document.getElementById('si-name') as HTMLInputElement)?.value?.trim()
+            const icon = (document.getElementById('si-icon') as HTMLInputElement)?.value?.trim() || '✨'
+            const description = (document.getElementById('si-description') as HTMLInputElement)?.value?.trim()
+            const price = parseInt((document.getElementById('si-price') as HTMLInputElement)?.value || '200')
+
+            if (!name) { alert('Please enter a name!'); return }
+            if (!description) { alert('Please enter a description!'); return }
+
+            const item: Omit<ShopItem, 'id' | 'isCustom'> = { name, icon, description, price, type }
+
+            // Type-specific data
+            switch (type) {
+              case 'theme':
+                item.colors = {
+                  light: (document.getElementById('si-color-light') as HTMLInputElement)?.value || '#86a876',
+                  dark: (document.getElementById('si-color-dark') as HTMLInputElement)?.value || '#d4c87a',
+                  accent: (document.getElementById('si-color-accent') as HTMLInputElement)?.value || '#558b2f',
+                  water: (document.getElementById('si-color-water') as HTMLInputElement)?.value || '#4a90a4'
+                }
+                item.ambientEffect = ((document.getElementById('si-ambient') as HTMLSelectElement)?.value || 'none') as ShopItem['ambientEffect']
+                break
+              case 'effect':
+                item.effectType = (document.getElementById('si-effect-type') as HTMLSelectElement)?.value as ShopItem['effectType']
+                break
+              case 'piece_skin':
+                item.skinStyle = (document.getElementById('si-skin-style') as HTMLSelectElement)?.value as ShopItem['skinStyle']
+                item.pieceColor = {
+                  yellow: (document.getElementById('si-skin-yellow') as HTMLInputElement)?.value || '#eab308',
+                  green: (document.getElementById('si-skin-green') as HTMLInputElement)?.value || '#22c55e',
+                  accent: (document.getElementById('si-skin-accent') as HTMLInputElement)?.value || '#ffffff'
+                }
+                break
+              case 'sound_pack': {
+                const packId = 'custom_sound_' + Date.now()
+                item.packId = packId
+                item.soundConfig = {
+                  filterType: (document.getElementById('si-sound-filter') as HTMLSelectElement)?.value as BiquadFilterType,
+                  filterFreq: parseInt((document.getElementById('si-sound-freq') as HTMLInputElement)?.value || '2000'),
+                  filterQ: parseFloat((document.getElementById('si-sound-q') as HTMLInputElement)?.value || '1'),
+                  filterGain: parseFloat((document.getElementById('si-sound-gain') as HTMLInputElement)?.value || '0'),
+                  distortion: parseInt((document.getElementById('si-sound-distortion') as HTMLInputElement)?.value || '0')
+                }
+                break
+              }
+              case 'music_pack': {
+                const packId = 'custom_music_' + Date.now()
+                item.packId = packId
+                item.musicParams = {
+                  tempo: parseInt((document.getElementById('si-music-tempo') as HTMLInputElement)?.value || '120'),
+                  scale: (document.getElementById('si-music-scale') as HTMLSelectElement)?.value as 'major' | 'minor' | 'pentatonic' | 'blues' | 'dorian' | 'mixolydian',
+                  baseNote: parseInt((document.getElementById('si-music-base') as HTMLInputElement)?.value || '220'),
+                  waveform: (document.getElementById('si-music-wave') as HTMLSelectElement)?.value as OscillatorType,
+                  filterFreq: parseInt((document.getElementById('si-music-filter') as HTMLInputElement)?.value || '4000'),
+                  reverb: parseInt((document.getElementById('si-music-reverb') as HTMLInputElement)?.value || '30') / 100,
+                  swing: parseInt((document.getElementById('si-music-swing') as HTMLInputElement)?.value || '0') / 100,
+                  density: parseInt((document.getElementById('si-music-density') as HTMLInputElement)?.value || '3')
+                }
+                break
+              }
+            }
+
+            const itemId = await adminCreateShopItem(item)
+            if (itemId) {
+              alert(`Item "${name}" created successfully!`)
+              adminDataLoaded = false
+              renderAdminPanel()
+            } else {
+              alert('Failed to create item.')
+            }
+          })
+
+          // Load and display custom items list
+          ;(async () => {
+            const customItems = await adminGetCustomShopItems()
+            const listEl = document.getElementById('admin-custom-items')
+            if (!listEl) return
+
+            if (customItems.length === 0) {
+              listEl.innerHTML = '<div class="text-gray-400 text-center py-4">No custom items created yet. Use the form above!</div>'
+              return
+            }
+
+            listEl.innerHTML = customItems.map(item => {
+              const typeLabels: Record<string, string> = { theme: '🎨 Theme', piece_skin: '⚔️ Skin', effect: '✨ Effect', sound_pack: '🔊 Sound', music_pack: '🎵 Music' }
+              return `
+                <div class="bg-gray-700 p-3 rounded-lg flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <span class="text-2xl">${item.icon}</span>
+                    <div>
+                      <span class="text-white font-bold">${item.name}</span>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-xs bg-gray-600 px-2 py-0.5 rounded text-gray-300">${typeLabels[item.type] || item.type}</span>
+                        <span class="text-yellow-400 text-xs font-bold">💰${item.price}</span>
+                      </div>
+                      <p class="text-gray-400 text-xs mt-0.5">${item.description}</p>
+                    </div>
+                  </div>
+                  <button class="delete-custom-item bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-1.5 px-3 rounded" data-item-id="${item.id}">
+                    🗑️ Delete
+                  </button>
+                </div>
+              `
+            }).join('')
+
+            // Delete buttons
+            listEl.querySelectorAll('.delete-custom-item').forEach(btn => {
+              btn.addEventListener('click', async (e) => {
+                const target = e.target as HTMLElement
+                const itemId = target.dataset.itemId
+                if (itemId && confirm('Delete this custom item? Users who purchased it will keep it.')) {
+                  await adminDeleteShopItem(itemId)
+                  adminDataLoaded = false
+                  renderAdminPanel()
+                }
+              })
+            })
+          })()
+        }
 
         // Bundles & Deals tab handlers
         if (adminTab === 'deals') {
@@ -30646,6 +31479,8 @@ if (firebaseInitialized) {
       }
       showAuthScreen = 'none'
       checkGlobalMessages()
+      // Load custom shop items from Firestore
+      loadCustomShopItems()
     }
     render()
   })

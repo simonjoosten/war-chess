@@ -156,6 +156,7 @@ export interface ShopItem {
   price: number
   type: 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
   icon: string
+  isCustom?: boolean  // Admin-created items
   // Theme colors (for themes)
   colors?: {
     light: string
@@ -163,6 +164,8 @@ export interface ShopItem {
     accent: string
     water: string
   }
+  // Theme ambient particle type
+  ambientEffect?: 'sand' | 'snow' | 'leaf' | 'star' | 'bubble' | 'ember' | 'sparkle' | 'firefly' | 'ray' | 'neon' | 'gear' | 'autumn' | 'none'
   // Piece skin style (for skins) - changes actual piece appearance
   skinStyle?: 'robot' | 'medieval' | 'scifi' | 'pixel' | 'minimal' | 'cartoon' | 'military' | 'fantasy'
   // Piece color modifier (for skins)
@@ -175,6 +178,25 @@ export interface ShopItem {
   effectType?: 'fire' | 'lightning' | 'sparkle' | 'smoke' | 'hearts' | 'stars' | 'explosion' | 'ghost'
   // Sound/music pack ID
   packId?: string
+  // Custom music parameters (for admin-created music packs)
+  musicParams?: {
+    tempo: number         // BPM (60-200)
+    scale: 'major' | 'minor' | 'pentatonic' | 'blues' | 'dorian' | 'mixolydian'
+    baseNote: number      // Base frequency in Hz (130-520)
+    waveform: OscillatorType  // 'sine' | 'square' | 'sawtooth' | 'triangle'
+    filterFreq: number    // Lowpass filter cutoff (200-8000)
+    reverb: number        // Reverb amount (0-1)
+    swing: number         // Swing amount (0-0.5)
+    density: number       // Note density (1-8 notes per beat)
+  }
+  // Custom sound pack filter config
+  soundConfig?: {
+    filterType: BiquadFilterType  // 'lowpass' | 'highpass' | 'bandpass' | 'peaking'
+    filterFreq: number
+    filterQ: number
+    filterGain: number
+    distortion: number    // 0-100
+  }
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
@@ -5886,5 +5908,85 @@ export async function purchaseBundle(bundle: Bundle): Promise<boolean> {
   } catch (error) {
     console.error('Error purchasing bundle:', error)
     return false
+  }
+}
+
+// ==================== CUSTOM SHOP ITEMS ====================
+
+// Load custom shop items from Firestore and merge into SHOP_ITEMS
+export async function loadCustomShopItems(): Promise<number> {
+  if (!db) return 0
+
+  try {
+    const customRef = collection(db, 'customShopItems')
+    const snapshot = await getDocs(customRef)
+    let count = 0
+
+    snapshot.docs.forEach(docSnap => {
+      const data = docSnap.data() as ShopItem
+      const item: ShopItem = { ...data, id: docSnap.id, isCustom: true }
+
+      // Don't add duplicates
+      if (!SHOP_ITEMS.find(i => i.id === item.id)) {
+        SHOP_ITEMS.push(item)
+        count++
+      }
+    })
+
+    return count
+  } catch (error) {
+    console.error('Error loading custom shop items:', error)
+    return 0
+  }
+}
+
+// Admin: Create a custom shop item
+export async function adminCreateShopItem(item: Omit<ShopItem, 'id' | 'isCustom'>): Promise<string | null> {
+  if (!db || !currentUser) return null
+
+  try {
+    const itemData = { ...item, isCustom: true, createdAt: Date.now(), createdBy: currentUserData?.username || 'admin' }
+    const docRef = await addDoc(collection(db, 'customShopItems'), itemData)
+
+    // Add to local SHOP_ITEMS array immediately
+    const newItem: ShopItem = { ...item, id: docRef.id, isCustom: true }
+    SHOP_ITEMS.push(newItem)
+
+    return docRef.id
+  } catch (error) {
+    console.error('Error creating shop item:', error)
+    return null
+  }
+}
+
+// Admin: Delete a custom shop item
+export async function adminDeleteShopItem(itemId: string): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    await deleteDoc(doc(db, 'customShopItems', itemId))
+
+    // Remove from local SHOP_ITEMS array
+    const idx = SHOP_ITEMS.findIndex(i => i.id === itemId)
+    if (idx >= 0) SHOP_ITEMS.splice(idx, 1)
+
+    return true
+  } catch (error) {
+    console.error('Error deleting shop item:', error)
+    return false
+  }
+}
+
+// Admin: Get all custom shop items
+export async function adminGetCustomShopItems(): Promise<ShopItem[]> {
+  if (!db) return []
+
+  try {
+    const customRef = collection(db, 'customShopItems')
+    const snapshot = await getDocs(customRef)
+    return snapshot.docs.map(docSnap => ({ ...docSnap.data(), id: docSnap.id, isCustom: true } as ShopItem))
+  } catch (error) {
+    console.error('Error getting custom shop items:', error)
+    return []
   }
 }
