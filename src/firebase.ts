@@ -5662,3 +5662,229 @@ export async function checkAndDistributeWeeklyRewards(): Promise<void> {
     console.error('Error distributing leaderboard rewards:', error)
   }
 }
+
+// ==================== BUNDLES & DAILY DEALS ====================
+
+export interface Bundle {
+  id: string
+  name: string
+  icon: string
+  description: string
+  itemIds: string[]  // 3 shop item IDs
+  originalPrice: number  // Sum of individual prices
+  bundlePrice: number  // Discounted price (20% off)
+  active: boolean
+  createdAt: number
+  createdBy: string
+}
+
+export interface DailyDeal {
+  id: string
+  itemId: string  // Shop item ID
+  originalPrice: number
+  dealPrice: number  // 20% off
+  date: string  // YYYY-MM-DD format
+  createdBy: string
+}
+
+export interface DailyDealsConfig {
+  deals: Array<{ itemId: string }>  // 2 items
+  lastUpdated: number
+  updatedBy: string
+}
+
+// Get today's date string
+function getTodayString(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+// Get daily deals - auto-generates 2 random deals if none set for today
+export async function getDailyDeals(): Promise<Array<ShopItem & { dealPrice: number; originalPrice: number }>> {
+  if (!db) return []
+
+  try {
+    const today = getTodayString()
+    const dealsRef = doc(db, 'dailyDeals', today)
+    const dealsDoc = await getDoc(dealsRef)
+
+    let dealItemIds: string[] = []
+
+    if (dealsDoc.exists()) {
+      const data = dealsDoc.data() as DailyDealsConfig
+      dealItemIds = data.deals.map(d => d.itemId)
+    } else {
+      // Auto-generate 2 random deals for today
+      const availableItems = [...SHOP_ITEMS]
+      const shuffled = availableItems.sort(() => Math.random() - 0.5)
+      dealItemIds = shuffled.slice(0, 2).map(item => item.id)
+
+      // Save auto-generated deals
+      await setDoc(dealsRef, {
+        deals: dealItemIds.map(id => ({ itemId: id })),
+        lastUpdated: Date.now(),
+        updatedBy: 'auto'
+      })
+    }
+
+    // Map to shop items with deal prices
+    return dealItemIds
+      .map(id => {
+        const item = SHOP_ITEMS.find(i => i.id === id)
+        if (!item) return null
+        return {
+          ...item,
+          originalPrice: item.price,
+          dealPrice: Math.floor(item.price * 0.8)  // 20% off
+        }
+      })
+      .filter((item): item is ShopItem & { dealPrice: number; originalPrice: number } => item !== null)
+  } catch (error) {
+    console.error('Error getting daily deals:', error)
+    return []
+  }
+}
+
+// Admin: Set daily deals for today
+export async function adminSetDailyDeals(itemIds: string[]): Promise<boolean> {
+  if (!db || !currentUser) return false
+
+  try {
+    const today = getTodayString()
+    const dealsRef = doc(db, 'dailyDeals', today)
+    await setDoc(dealsRef, {
+      deals: itemIds.map(id => ({ itemId: id })),
+      lastUpdated: Date.now(),
+      updatedBy: currentUserData?.username || 'admin'
+    })
+    return true
+  } catch (error) {
+    console.error('Error setting daily deals:', error)
+    return false
+  }
+}
+
+// Get all bundles
+export async function getAllBundles(): Promise<Bundle[]> {
+  if (!db) return []
+
+  try {
+    const bundlesRef = collection(db, 'bundles')
+    const snapshot = await getDocs(bundlesRef)
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Bundle))
+  } catch (error) {
+    console.error('Error getting bundles:', error)
+    return []
+  }
+}
+
+// Get active bundles only
+export async function getActiveBundles(): Promise<Bundle[]> {
+  if (!db) return []
+
+  try {
+    const bundlesRef = collection(db, 'bundles')
+    const q = query(bundlesRef, where('active', '==', true))
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Bundle))
+  } catch (error) {
+    console.error('Error getting active bundles:', error)
+    return []
+  }
+}
+
+// Admin: Create a new bundle
+export async function adminCreateBundle(bundle: {
+  name: string
+  icon: string
+  description: string
+  itemIds: string[]
+}): Promise<string | null> {
+  if (!db || !currentUser) return null
+
+  try {
+    // Calculate prices from items
+    const items = bundle.itemIds.map(id => SHOP_ITEMS.find(i => i.id === id)).filter(Boolean) as ShopItem[]
+    const originalPrice = items.reduce((sum, item) => sum + item.price, 0)
+    const bundlePrice = Math.floor(originalPrice * 0.8)  // 20% off
+
+    const bundleData: Omit<Bundle, 'id'> = {
+      name: bundle.name,
+      icon: bundle.icon,
+      description: bundle.description,
+      itemIds: bundle.itemIds,
+      originalPrice,
+      bundlePrice,
+      active: true,
+      createdAt: Date.now(),
+      createdBy: currentUserData?.username || 'admin'
+    }
+
+    const docRef = await addDoc(collection(db, 'bundles'), bundleData)
+    return docRef.id
+  } catch (error) {
+    console.error('Error creating bundle:', error)
+    return null
+  }
+}
+
+// Admin: Delete a bundle
+export async function adminDeleteBundle(bundleId: string): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    await deleteDoc(doc(db, 'bundles', bundleId))
+    return true
+  } catch (error) {
+    console.error('Error deleting bundle:', error)
+    return false
+  }
+}
+
+// Admin: Toggle bundle active status
+export async function adminToggleBundle(bundleId: string, active: boolean): Promise<boolean> {
+  if (!db) return false
+
+  try {
+    await updateDoc(doc(db, 'bundles', bundleId), { active })
+    return true
+  } catch (error) {
+    console.error('Error toggling bundle:', error)
+    return false
+  }
+}
+
+// Purchase a bundle - gives all items in the bundle
+export async function purchaseBundle(bundle: Bundle): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+
+  try {
+    if (currentUserData.warBucks < bundle.bundlePrice) return false
+
+    const newWarBucks = currentUserData.warBucks - bundle.bundlePrice
+    const newPurchasedItems = [...(currentUserData.purchasedItems || [])]
+
+    // Add all bundle items that aren't already owned
+    for (const itemId of bundle.itemIds) {
+      if (!newPurchasedItems.includes(itemId)) {
+        newPurchasedItems.push(itemId)
+      }
+    }
+
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      warBucks: newWarBucks,
+      purchasedItems: newPurchasedItems,
+      'stats.totalWarBucksSpent': (currentUserData.stats.totalWarBucksSpent || 0) + bundle.bundlePrice
+    })
+
+    if (currentUserData) {
+      currentUserData.warBucks = newWarBucks
+      currentUserData.purchasedItems = newPurchasedItems
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error purchasing bundle:', error)
+    return false
+  }
+}

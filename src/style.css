@@ -304,3 +304,159 @@
 .animate-fire {
   animation: fire-flicker 0.15s ease-in-out infinite;
 }
+
+/* ==================== DAILY DEALS ANIMATIONS ==================== */
+
+@keyframes deal-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes deal-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.3), 0 0 10px rgba(255, 215, 0, 0.1); }
+  50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 215, 0, 0.3), 0 0 45px rgba(255, 215, 0, 0.1); }
+}
+
+@keyframes deal-badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes deal-price-flash {
+  0%, 100% { color: #fbbf24; }
+  50% { color: #f59e0b; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+}
+
+@keyframes deal-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes deal-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes deal-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+}
+
+@keyframes countdown-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes deal-slide-in {
+  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bundle-rainbow {
+  0% { border-color: #ef4444; }
+  16% { border-color: #f97316; }
+  33% { border-color: #eab308; }
+  50% { border-color: #22c55e; }
+  66% { border-color: #3b82f6; }
+  83% { border-color: #8b5cf6; }
+  100% { border-color: #ef4444; }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.deal-card {
+  animation: deal-slide-in 0.5s ease-out forwards, deal-glow 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.deal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.05), transparent);
+  background-size: 200% 100%;
+  animation: deal-shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.deal-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.deal-badge {
+  animation: deal-badge-pulse 2s ease-in-out infinite;
+}
+
+.deal-price {
+  animation: deal-price-flash 2s ease-in-out infinite;
+}
+
+.deal-icon {
+  animation: deal-float 3s ease-in-out infinite;
+}
+
+.deal-sparkle {
+  position: absolute;
+  animation: deal-sparkle 2s ease-in-out infinite;
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.deal-timer {
+  animation: countdown-pulse 1.5s ease-in-out infinite;
+}
+
+.bundle-card {
+  animation: deal-slide-in 0.6s ease-out forwards;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.bundle-card:hover {
+  animation: bundle-rainbow 3s linear infinite;
+}
+
+.bundle-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(59, 130, 246, 0.05), rgba(16, 185, 129, 0.05));
+  background-size: 400% 400%;
+  animation: deal-gradient 6s ease infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bundle-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.deals-header {
+  background: linear-gradient(135deg, #92400e, #b45309, #d97706, #b45309, #92400e);
+  background-size: 300% 100%;
+  animation: deal-gradient 4s ease infinite;
+}
+
+.star-decoration {
+  animation: star-twinkle 1.5s ease-in-out infinite;
+}
+
+.original-price {
+  text-decoration: line-through;
+  opacity: 0.6;
+}

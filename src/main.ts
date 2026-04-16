@@ -166,7 +166,17 @@ import {
   getLeaderboard,
   updatePeriodicStats,
   checkAndDistributeWeeklyRewards,
-  LeaderboardEntry
+  LeaderboardEntry,
+  // Bundles & Deals
+  Bundle,
+  getDailyDeals,
+  getActiveBundles,
+  getAllBundles,
+  adminCreateBundle,
+  adminDeleteBundle,
+  adminToggleBundle,
+  adminSetDailyDeals,
+  purchaseBundle
 } from './firebase'
 
 // Auth state
@@ -25417,6 +25427,12 @@ function render() {
       const purchasedItems = userData?.purchasedItems || []
       const equipped = userData?.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }
 
+      // Shop tab state (persisted via closure)
+      let shopTab: 'deals' | 'themes' | 'skins' | 'effects' | 'sounds' | 'music' = 'deals'
+      let shopDeals: Array<ShopItem & { dealPrice: number; originalPrice: number }> = []
+      let shopBundles: Bundle[] = []
+      let shopDataLoaded = false
+
       const renderShopItems = (items: ShopItem[], itemType: 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack') => {
         return items.map(item => {
           const owned = purchasedItems.includes(item.id)
@@ -25460,163 +25476,376 @@ function render() {
       const sounds = SHOP_ITEMS.filter(i => i.type === 'sound_pack')
       const music = SHOP_ITEMS.filter(i => i.type === 'music_pack')
 
-      app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
-          <h1 class="text-2xl sm:text-4xl font-bold text-white">🛒 ${t('shopTitle')}</h1>
-          <div class="text-yellow-400 font-bold text-xl">${t('shopBalance')}: 💰 ${userData?.warBucks || 0}</div>
+      // Calculate time until midnight for deals timer
+      const now = new Date()
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      const msUntilMidnight = midnight.getTime() - now.getTime()
+      const hoursLeft = Math.floor(msUntilMidnight / (1000 * 60 * 60))
+      const minutesLeft = Math.floor((msUntilMidnight % (1000 * 60 * 60)) / (1000 * 60))
 
-          <div class="w-full max-w-[600px] flex flex-col gap-6">
-            <div>
-              <h2 class="text-lg font-bold text-white mb-3">🎨 ${t('shopThemes')}</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                ${renderShopItems(themes, 'theme')}
+      const renderShop = async () => {
+        // Load deals data on first render
+        if (!shopDataLoaded) {
+          shopDeals = await getDailyDeals()
+          shopBundles = await getActiveBundles()
+          shopDataLoaded = true
+        }
+
+        const shopTabClass = (tab: string) => shopTab === tab
+          ? 'bg-yellow-600 text-white shadow-lg shadow-yellow-600/30'
+          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+
+        // Render deals tab content
+        const renderDealsContent = () => {
+          const sparkles = Array.from({length: 6}, (_, i) => {
+            const positions = ['top-2 left-3', 'top-4 right-5', 'bottom-3 left-8', 'top-6 right-2', 'bottom-5 right-8', 'top-1 left-12']
+            return `<span class="deal-sparkle ${positions[i]}" style="animation-delay: ${i * 0.4}s">✨</span>`
+          }).join('')
+
+          return `
+            <!-- Deals Header -->
+            <div class="deals-header rounded-xl p-4 sm:p-6 text-center mb-6 relative overflow-hidden">
+              ${sparkles}
+              <div class="relative z-10">
+                <h2 class="text-2xl sm:text-3xl font-black text-white mb-1">
+                  <span class="star-decoration inline-block" style="animation-delay: 0s">⭐</span>
+                  DAILY DEALS
+                  <span class="star-decoration inline-block" style="animation-delay: 0.7s">⭐</span>
+                </h2>
+                <p class="text-yellow-200 text-sm mb-2">Fresh deals every day - 20% OFF!</p>
+                <div class="deal-timer inline-flex items-center gap-2 bg-black/30 px-4 py-1.5 rounded-full">
+                  <span class="text-red-400 font-bold text-lg">⏰</span>
+                  <span class="text-white font-mono font-bold">${hoursLeft}h ${minutesLeft}m</span>
+                  <span class="text-yellow-300 text-sm">remaining</span>
+                </div>
               </div>
             </div>
 
-            <div>
-              <h2 class="text-lg font-bold text-white mb-3">⚔️ ${t('shopSkins')}</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                ${renderShopItems(skins, 'piece_skin')}
-              </div>
+            <!-- Daily Deal Items -->
+            <div class="mb-6">
+              <h3 class="text-lg font-bold text-yellow-400 mb-3 flex items-center gap-2">
+                <span class="text-2xl">🔥</span> Today's Hot Deals
+              </h3>
+              ${shopDeals.length === 0 ? `
+                <div class="text-gray-400 text-center py-8">Loading deals...</div>
+              ` : `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  ${shopDeals.map((item, idx) => {
+                    const owned = purchasedItems.includes(item.id)
+                    return `
+                      <div class="deal-card bg-gradient-to-br from-gray-700 via-gray-750 to-gray-800 p-5 rounded-xl flex flex-col gap-3 border border-yellow-600/30" style="animation-delay: ${idx * 0.15}s">
+                        <div class="flex justify-between items-start">
+                          <div class="deal-icon text-4xl">${item.icon}</div>
+                          <div class="deal-badge bg-red-600 text-white text-xs font-black px-3 py-1 rounded-full shadow-lg shadow-red-600/30">
+                            -20% OFF
+                          </div>
+                        </div>
+                        <div>
+                          <span class="text-white font-bold text-lg">${item.name}</span>
+                          <p class="text-gray-400 text-sm mt-1">${item.description}</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-600/50">
+                          <div class="flex flex-col">
+                            <span class="original-price text-gray-500 text-sm">💰 ${item.originalPrice}</span>
+                            <span class="deal-price text-yellow-400 font-black text-xl">💰 ${item.dealPrice}</span>
+                          </div>
+                          ${owned
+                            ? `<span class="text-green-400 font-bold text-sm px-4 py-2 bg-green-900/30 rounded-lg">✓ Owned</span>`
+                            : `<button class="buy-deal-btn bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-all hover:scale-105 shadow-lg shadow-orange-600/30" data-item="${item.id}" data-price="${item.dealPrice}">
+                                BUY NOW
+                              </button>`
+                          }
+                        </div>
+                      </div>
+                    `
+                  }).join('')}
+                </div>
+              `}
             </div>
 
+            <!-- Bundles -->
             <div>
-              <h2 class="text-lg font-bold text-white mb-3">✨ ${t('shopEffects')}</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                ${renderShopItems(effects, 'effect')}
-              </div>
+              <h3 class="text-lg font-bold text-purple-400 mb-3 flex items-center gap-2">
+                <span class="text-2xl">📦</span> Bundle Deals
+              </h3>
+              ${shopBundles.length === 0 ? `
+                <div class="text-gray-400 text-center py-8 bg-gray-800/50 rounded-xl">
+                  <span class="text-4xl block mb-2">📦</span>
+                  No bundles available right now. Check back soon!
+                </div>
+              ` : `
+                <div class="flex flex-col gap-4">
+                  ${shopBundles.map((bundle, idx) => {
+                    const bundleItems = bundle.itemIds.map(id => SHOP_ITEMS.find(i => i.id === id)).filter(Boolean) as ShopItem[]
+                    const allOwned = bundle.itemIds.every(id => purchasedItems.includes(id))
+                    const someOwned = bundle.itemIds.some(id => purchasedItems.includes(id))
+                    return `
+                      <div class="bundle-card bg-gradient-to-br from-gray-800 via-purple-900/20 to-gray-800 p-5 rounded-xl border border-purple-500/30" style="animation-delay: ${idx * 0.2}s">
+                        <div class="flex justify-between items-start mb-3">
+                          <div class="flex items-center gap-3">
+                            <span class="text-3xl">${bundle.icon}</span>
+                            <div>
+                              <h4 class="text-white font-bold text-lg">${bundle.name}</h4>
+                              <p class="text-gray-400 text-sm">${bundle.description}</p>
+                            </div>
+                          </div>
+                          <div class="deal-badge bg-purple-600 text-white text-xs font-black px-3 py-1 rounded-full shadow-lg shadow-purple-600/30">
+                            BUNDLE -20%
+                          </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mb-4">
+                          ${bundleItems.map(item => {
+                            const itemOwned = purchasedItems.includes(item.id)
+                            return `
+                              <div class="bg-gray-700/80 p-3 rounded-lg text-center ${itemOwned ? 'ring-1 ring-green-500/50' : ''}">
+                                <span class="text-2xl block mb-1">${item.icon}</span>
+                                <span class="text-white text-xs font-medium block">${item.name}</span>
+                                <span class="text-gray-400 text-xs">💰 ${item.price}</span>
+                                ${itemOwned ? '<div class="text-green-400 text-xs mt-1">✓</div>' : ''}
+                              </div>
+                            `
+                          }).join('')}
+                        </div>
+                        <div class="flex items-center justify-between pt-3 border-t border-purple-500/20">
+                          <div class="flex flex-col">
+                            <span class="original-price text-gray-500 text-sm">💰 ${bundle.originalPrice}</span>
+                            <span class="deal-price text-purple-400 font-black text-xl">💰 ${bundle.bundlePrice}</span>
+                            <span class="text-green-400 text-xs font-bold">You save 💰 ${bundle.originalPrice - bundle.bundlePrice}!</span>
+                          </div>
+                          ${allOwned
+                            ? `<span class="text-green-400 font-bold text-sm px-4 py-2 bg-green-900/30 rounded-lg">✓ All Owned</span>`
+                            : `<button class="buy-bundle-btn bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-all hover:scale-105 shadow-lg shadow-purple-600/30" data-bundle-id="${bundle.id}" data-price="${bundle.bundlePrice}">
+                                ${someOwned ? 'COMPLETE BUNDLE' : 'BUY BUNDLE'}
+                              </button>`
+                          }
+                        </div>
+                      </div>
+                    `
+                  }).join('')}
+                </div>
+              `}
+            </div>
+          `
+        }
+
+        const shopContent = shopTab === 'deals' ? renderDealsContent() :
+          shopTab === 'themes' ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${renderShopItems(themes, 'theme')}</div>` :
+          shopTab === 'skins' ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${renderShopItems(skins, 'piece_skin')}</div>` :
+          shopTab === 'effects' ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${renderShopItems(effects, 'effect')}</div>` :
+          shopTab === 'sounds' ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${renderShopItems(sounds, 'sound_pack')}</div>` :
+          `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${renderShopItems(music, 'music_pack')}</div>`
+
+        app.innerHTML = `
+          <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white">🛒 ${t('shopTitle')}</h1>
+            <div class="text-yellow-400 font-bold text-xl">${t('shopBalance')}: 💰 ${userData?.warBucks || 0}</div>
+
+            <!-- Shop Tabs -->
+            <div class="flex flex-wrap gap-2 justify-center">
+              <button id="shop-tab-deals" class="${shopTabClass('deals')} font-bold py-2 px-4 rounded-lg transition-all text-sm">
+                🔥 Daily Deals
+              </button>
+              <button id="shop-tab-themes" class="${shopTabClass('themes')} font-bold py-2 px-4 rounded-lg transition-all text-sm">
+                🎨 ${t('shopThemes')}
+              </button>
+              <button id="shop-tab-skins" class="${shopTabClass('skins')} font-bold py-2 px-4 rounded-lg transition-all text-sm">
+                ⚔️ ${t('shopSkins')}
+              </button>
+              <button id="shop-tab-effects" class="${shopTabClass('effects')} font-bold py-2 px-4 rounded-lg transition-all text-sm">
+                ✨ ${t('shopEffects')}
+              </button>
+              <button id="shop-tab-sounds" class="${shopTabClass('sounds')} font-bold py-2 px-4 rounded-lg transition-all text-sm">
+                🔊 ${t('shopSounds')}
+              </button>
+              <button id="shop-tab-music" class="${shopTabClass('music')} font-bold py-2 px-4 rounded-lg transition-all text-sm">
+                🎵 ${t('shopMusic')}
+              </button>
             </div>
 
-            <div>
-              <h2 class="text-lg font-bold text-white mb-3">🔊 ${t('shopSounds')}</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                ${renderShopItems(sounds, 'sound_pack')}
-              </div>
+            <div class="w-full max-w-[650px] flex flex-col gap-6">
+              ${shopContent}
             </div>
 
-            <div>
-              <h2 class="text-lg font-bold text-white mb-3">🎵 ${t('shopMusic')}</h2>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                ${renderShopItems(music, 'music_pack')}
-              </div>
-            </div>
+            <button id="shop-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
+              ${t('backButton')}
+            </button>
           </div>
+        `
 
-          <button id="shop-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors mt-4">
-            ${t('backButton')}
-          </button>
-        </div>
-      `
+        // Tab navigation
+        document.getElementById('shop-tab-deals')?.addEventListener('click', () => { shopTab = 'deals'; renderShop() })
+        document.getElementById('shop-tab-themes')?.addEventListener('click', () => { shopTab = 'themes'; renderShop() })
+        document.getElementById('shop-tab-skins')?.addEventListener('click', () => { shopTab = 'skins'; renderShop() })
+        document.getElementById('shop-tab-effects')?.addEventListener('click', () => { shopTab = 'effects'; renderShop() })
+        document.getElementById('shop-tab-sounds')?.addEventListener('click', () => { shopTab = 'sounds'; renderShop() })
+        document.getElementById('shop-tab-music')?.addEventListener('click', () => { shopTab = 'music'; renderShop() })
 
-      document.getElementById('shop-back-btn')?.addEventListener('click', () => {
-        showAuthScreen = previousAuthScreen === 'multiplayer' ? 'multiplayer' : 'profile'
-        previousAuthScreen = 'none'
-        render()
-      })
+        document.getElementById('shop-back-btn')?.addEventListener('click', () => {
+          showAuthScreen = previousAuthScreen === 'multiplayer' ? 'multiplayer' : 'profile'
+          previousAuthScreen = 'none'
+          render()
+        })
 
-      // Handle buy buttons
-      document.querySelectorAll('.buy-item-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const target = e.target as HTMLElement
-          const itemId = target.dataset.item
-          const price = parseInt(target.dataset.price || '0')
+        // Handle deal buy buttons
+        document.querySelectorAll('.buy-deal-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const itemId = target.dataset.item
+            const price = parseInt(target.dataset.price || '0')
 
-          if (!userData || !itemId) return
+            if (!userData || !itemId) return
 
-          if (userData.warBucks < price) {
-            alert(t('shopNotEnough'))
-            return
-          }
+            if (userData.warBucks < price) {
+              alert(t('shopNotEnough'))
+              return
+            }
 
-          // Purchase the item
-          const newWarBucks = userData.warBucks - price
-          const newPurchasedItems = [...(userData.purchasedItems || []), itemId]
+            const newWarBucks = userData.warBucks - price
+            const newPurchasedItems = [...(userData.purchasedItems || []), itemId]
 
-          await saveUserData({
-            warBucks: newWarBucks,
-            purchasedItems: newPurchasedItems
+            await saveUserData({
+              warBucks: newWarBucks,
+              purchasedItems: newPurchasedItems
+            })
+
+            await loadUserData()
+            alert(t('shopPurchased'))
+            render()
           })
-
-          await loadUserData()
-          alert(t('shopPurchased'))
-          render()
         })
-      })
 
-      // Handle equip buttons
-      document.querySelectorAll('.equip-item-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const target = e.target as HTMLElement
-          const itemId = target.dataset.item
-          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
+        // Handle bundle buy buttons
+        document.querySelectorAll('.buy-bundle-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const bundleId = target.dataset.bundleId
+            const price = parseInt(target.dataset.price || '0')
 
-          if (!userData || !itemId) return
+            if (!userData || !bundleId) return
 
-          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
-          if (itemType === 'theme') {
-            newEquipped.theme = itemId
-            equippedTheme = itemId
-          } else if (itemType === 'piece_skin') {
-            newEquipped.pieceSkin = itemId
-            equippedPieceSkin = itemId
-          } else if (itemType === 'effect') {
-            newEquipped.effect = itemId
-            equippedEffect = itemId
-          } else if (itemType === 'sound_pack') {
-            newEquipped.soundPack = itemId
-            equippedSoundPack = itemId
-          } else if (itemType === 'music_pack') {
-            newEquipped.musicPack = itemId
-            equippedMusicPack = itemId
-            // Restart music with new pack if music is playing
-            if (musicEnabled && musicInterval) {
-              stopMusic()
-              startMusic()
+            if (userData.warBucks < price) {
+              alert(t('shopNotEnough'))
+              return
             }
-          }
 
-          await saveUserData({ equippedItems: newEquipped })
-          await loadUserData()
-          render()
-        })
-      })
+            const bundle = shopBundles.find(b => b.id === bundleId)
+            if (!bundle) return
 
-      // Handle unequip buttons
-      document.querySelectorAll('.unequip-item-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const target = e.target as HTMLElement
-          const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
-
-          if (!userData) return
-
-          const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
-          if (itemType === 'theme') {
-            newEquipped.theme = null
-            equippedTheme = null
-          } else if (itemType === 'piece_skin') {
-            newEquipped.pieceSkin = null
-            equippedPieceSkin = null
-          } else if (itemType === 'effect') {
-            newEquipped.effect = null
-            equippedEffect = null
-          } else if (itemType === 'sound_pack') {
-            newEquipped.soundPack = null
-            equippedSoundPack = null
-          } else if (itemType === 'music_pack') {
-            newEquipped.musicPack = null
-            equippedMusicPack = null
-            // Restart music with settings style if music is playing
-            if (musicEnabled && musicInterval) {
-              stopMusic()
-              startMusic()
+            const success = await purchaseBundle(bundle)
+            if (success) {
+              await loadUserData()
+              alert('Bundle purchased! All items have been added to your collection.')
+              render()
+            } else {
+              alert(t('shopNotEnough'))
             }
-          }
-
-          await saveUserData({ equippedItems: newEquipped })
-          await loadUserData()
-          render()
+          })
         })
-      })
+
+        // Handle buy buttons (regular items)
+        document.querySelectorAll('.buy-item-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const itemId = target.dataset.item
+            const price = parseInt(target.dataset.price || '0')
+
+            if (!userData || !itemId) return
+
+            if (userData.warBucks < price) {
+              alert(t('shopNotEnough'))
+              return
+            }
+
+            const newWarBucks = userData.warBucks - price
+            const newPurchasedItems = [...(userData.purchasedItems || []), itemId]
+
+            await saveUserData({
+              warBucks: newWarBucks,
+              purchasedItems: newPurchasedItems
+            })
+
+            await loadUserData()
+            alert(t('shopPurchased'))
+            render()
+          })
+        })
+
+        // Handle equip buttons
+        document.querySelectorAll('.equip-item-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const itemId = target.dataset.item
+            const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
+
+            if (!userData || !itemId) return
+
+            const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+            if (itemType === 'theme') {
+              newEquipped.theme = itemId
+              equippedTheme = itemId
+            } else if (itemType === 'piece_skin') {
+              newEquipped.pieceSkin = itemId
+              equippedPieceSkin = itemId
+            } else if (itemType === 'effect') {
+              newEquipped.effect = itemId
+              equippedEffect = itemId
+            } else if (itemType === 'sound_pack') {
+              newEquipped.soundPack = itemId
+              equippedSoundPack = itemId
+            } else if (itemType === 'music_pack') {
+              newEquipped.musicPack = itemId
+              equippedMusicPack = itemId
+              if (musicEnabled && musicInterval) {
+                stopMusic()
+                startMusic()
+              }
+            }
+
+            await saveUserData({ equippedItems: newEquipped })
+            await loadUserData()
+            renderShop()
+          })
+        })
+
+        // Handle unequip buttons
+        document.querySelectorAll('.unequip-item-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const target = e.target as HTMLElement
+            const itemType = target.dataset.type as 'theme' | 'piece_skin' | 'effect' | 'sound_pack' | 'music_pack'
+
+            if (!userData) return
+
+            const newEquipped = { ...(userData.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+            if (itemType === 'theme') {
+              newEquipped.theme = null
+              equippedTheme = null
+            } else if (itemType === 'piece_skin') {
+              newEquipped.pieceSkin = null
+              equippedPieceSkin = null
+            } else if (itemType === 'effect') {
+              newEquipped.effect = null
+              equippedEffect = null
+            } else if (itemType === 'sound_pack') {
+              newEquipped.soundPack = null
+              equippedSoundPack = null
+            } else if (itemType === 'music_pack') {
+              newEquipped.musicPack = null
+              equippedMusicPack = null
+              if (musicEnabled && musicInterval) {
+                stopMusic()
+                startMusic()
+              }
+            }
+
+            await saveUserData({ equippedItems: newEquipped })
+            await loadUserData()
+            renderShop()
+          })
+        })
+      }
+
+      renderShop()
       return
     }
 
@@ -27050,7 +27279,7 @@ function render() {
       }
 
       // Admin panel state
-      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'feedback' | 'system' = 'users'
+      let adminTab: 'users' | 'events' | 'puzzles' | 'tournaments' | 'feedback' | 'system' | 'deals' = 'users'
       let adminSearchQuery = ''
       let showCreateEvent = false
       let expandedUserId: string | null = null
@@ -27138,6 +27367,9 @@ function render() {
               </button>
               <button id="tab-feedback" class="${tabClass('feedback')} font-bold py-2 px-4 rounded transition-colors">
                 💬 Feedback
+              </button>
+              <button id="tab-deals" class="${tabClass('deals')} font-bold py-2 px-4 rounded transition-colors">
+                🔥 Deals
               </button>
               <button id="tab-system" class="${tabClass('system')} font-bold py-2 px-4 rounded transition-colors">
                 🖥️ System
@@ -27612,6 +27844,78 @@ function render() {
                 </div>
               ` : ''}
 
+              ${adminTab === 'deals' ? `
+                <!-- Bundles & Deals Tab -->
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <h2 class="text-lg font-bold text-white mb-4">🔥 Daily Deals Management</h2>
+                  <p class="text-gray-400 text-sm mb-4">Set which 2 items appear as daily deals today (20% off). If not set, random items are picked automatically.</p>
+                  <div class="grid gap-3 mb-4">
+                    <div>
+                      <label class="text-gray-300 text-sm mb-1 block">Deal Item 1</label>
+                      <select id="deal-item-1" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600">
+                        <option value="">Select item...</option>
+                        ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name} (💰${item.price} → 💰${Math.floor(item.price * 0.8)})</option>`).join('')}
+                      </select>
+                    </div>
+                    <div>
+                      <label class="text-gray-300 text-sm mb-1 block">Deal Item 2</label>
+                      <select id="deal-item-2" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600">
+                        <option value="">Select item...</option>
+                        ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name} (💰${item.price} → 💰${Math.floor(item.price * 0.8)})</option>`).join('')}
+                      </select>
+                    </div>
+                    <button id="save-daily-deals" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded">
+                      💾 Save Daily Deals
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-gray-800 p-4 rounded-lg">
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">📦 Bundle Management</h2>
+                    <button id="toggle-create-bundle" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm">
+                      + New Bundle
+                    </button>
+                  </div>
+
+                  <div id="create-bundle-form" class="hidden bg-gray-700 p-4 rounded-lg mb-4">
+                    <h3 class="text-white font-bold mb-3">Create New Bundle</h3>
+                    <div class="grid gap-3">
+                      <input type="text" id="bundle-name" placeholder="Bundle name..." class="bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                      <input type="text" id="bundle-icon" placeholder="Icon (emoji)..." class="bg-gray-600 text-white px-3 py-2 rounded border border-gray-500" value="📦">
+                      <input type="text" id="bundle-description" placeholder="Description..." class="bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                      <div>
+                        <label class="text-gray-300 text-sm mb-1 block">Item 1</label>
+                        <select id="bundle-item-1" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="">Select item...</option>
+                          ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name} (💰${item.price})</option>`).join('')}
+                        </select>
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-sm mb-1 block">Item 2</label>
+                        <select id="bundle-item-2" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="">Select item...</option>
+                          ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name} (💰${item.price})</option>`).join('')}
+                        </select>
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-sm mb-1 block">Item 3</label>
+                        <select id="bundle-item-3" class="w-full bg-gray-600 text-white px-3 py-2 rounded border border-gray-500">
+                          <option value="">Select item...</option>
+                          ${SHOP_ITEMS.map(item => `<option value="${item.id}">${item.icon} ${item.name} (💰${item.price})</option>`).join('')}
+                        </select>
+                      </div>
+                      <div id="bundle-price-preview" class="text-gray-300 text-sm"></div>
+                      <button id="create-bundle-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded">Create Bundle</button>
+                    </div>
+                  </div>
+
+                  <div id="admin-bundles-list" class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto">
+                    <div class="text-gray-400 text-center py-4">Loading bundles...</div>
+                  </div>
+                </div>
+              ` : ''}
+
               ${adminTab === 'system' ? `
                 <!-- System Tab -->
                 <div class="bg-gray-800 p-4 rounded-lg">
@@ -27711,6 +28015,7 @@ function render() {
         document.getElementById('tab-puzzles')?.addEventListener('click', () => { adminTab = 'puzzles'; renderAdminPanel() })
         document.getElementById('tab-tournaments')?.addEventListener('click', () => { adminTab = 'tournaments'; renderAdminPanel() })
         document.getElementById('tab-feedback')?.addEventListener('click', () => { adminTab = 'feedback'; renderAdminPanel() })
+        document.getElementById('tab-deals')?.addEventListener('click', () => { adminTab = 'deals'; renderAdminPanel() })
         document.getElementById('tab-system')?.addEventListener('click', () => { adminTab = 'system'; renderAdminPanel() })
 
         // Refresh button - force reload data
@@ -27721,6 +28026,162 @@ function render() {
 
         document.getElementById('admin-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
         document.getElementById('admin-debug-btn')?.addEventListener('click', () => { showDebugPanel() })
+
+        // Bundles & Deals tab handlers
+        if (adminTab === 'deals') {
+          // Save daily deals
+          document.getElementById('save-daily-deals')?.addEventListener('click', async () => {
+            const item1 = (document.getElementById('deal-item-1') as HTMLSelectElement)?.value
+            const item2 = (document.getElementById('deal-item-2') as HTMLSelectElement)?.value
+
+            if (!item1 || !item2) {
+              alert('Please select both deal items!')
+              return
+            }
+            if (item1 === item2) {
+              alert('Please select two different items!')
+              return
+            }
+
+            const success = await adminSetDailyDeals([item1, item2])
+            if (success) {
+              alert('Daily deals saved!')
+            } else {
+              alert('Failed to save daily deals.')
+            }
+          })
+
+          // Toggle create bundle form
+          document.getElementById('toggle-create-bundle')?.addEventListener('click', () => {
+            const form = document.getElementById('create-bundle-form')
+            if (form) form.classList.toggle('hidden')
+          })
+
+          // Bundle price preview on item select change
+          const updateBundlePreview = () => {
+            const item1Id = (document.getElementById('bundle-item-1') as HTMLSelectElement)?.value
+            const item2Id = (document.getElementById('bundle-item-2') as HTMLSelectElement)?.value
+            const item3Id = (document.getElementById('bundle-item-3') as HTMLSelectElement)?.value
+            const preview = document.getElementById('bundle-price-preview')
+            if (!preview) return
+
+            const ids = [item1Id, item2Id, item3Id].filter(Boolean)
+            if (ids.length === 0) {
+              preview.innerHTML = ''
+              return
+            }
+            const items = ids.map(id => SHOP_ITEMS.find(i => i.id === id)).filter(Boolean) as ShopItem[]
+            const total = items.reduce((sum, i) => sum + i.price, 0)
+            const bundlePrice = Math.floor(total * 0.8)
+            preview.innerHTML = `<span class="text-gray-400">Original: 💰${total}</span> → <span class="text-green-400 font-bold">Bundle: 💰${bundlePrice}</span> <span class="text-yellow-400">(save 💰${total - bundlePrice})</span>`
+          }
+
+          document.getElementById('bundle-item-1')?.addEventListener('change', updateBundlePreview)
+          document.getElementById('bundle-item-2')?.addEventListener('change', updateBundlePreview)
+          document.getElementById('bundle-item-3')?.addEventListener('change', updateBundlePreview)
+
+          // Create bundle
+          document.getElementById('create-bundle-btn')?.addEventListener('click', async () => {
+            const name = (document.getElementById('bundle-name') as HTMLInputElement)?.value?.trim()
+            const icon = (document.getElementById('bundle-icon') as HTMLInputElement)?.value?.trim() || '📦'
+            const description = (document.getElementById('bundle-description') as HTMLInputElement)?.value?.trim()
+            const item1 = (document.getElementById('bundle-item-1') as HTMLSelectElement)?.value
+            const item2 = (document.getElementById('bundle-item-2') as HTMLSelectElement)?.value
+            const item3 = (document.getElementById('bundle-item-3') as HTMLSelectElement)?.value
+
+            if (!name) { alert('Please enter a bundle name!'); return }
+            if (!item1 || !item2 || !item3) { alert('Please select all 3 items!'); return }
+            if (new Set([item1, item2, item3]).size !== 3) { alert('Please select 3 different items!'); return }
+
+            const bundleId = await adminCreateBundle({
+              name,
+              icon,
+              description: description || `${name} bundle deal`,
+              itemIds: [item1, item2, item3]
+            })
+
+            if (bundleId) {
+              alert('Bundle created!')
+              adminDataLoaded = false
+              renderAdminPanel()
+            } else {
+              alert('Failed to create bundle.')
+            }
+          })
+
+          // Load and render bundles list
+          ;(async () => {
+            const bundles = await getAllBundles()
+            const listEl = document.getElementById('admin-bundles-list')
+            if (!listEl) return
+
+            if (bundles.length === 0) {
+              listEl.innerHTML = '<div class="text-gray-400 text-center py-4">No bundles created yet.</div>'
+              return
+            }
+
+            listEl.innerHTML = bundles.map(bundle => {
+              const bundleItems = bundle.itemIds.map(id => SHOP_ITEMS.find(i => i.id === id)).filter(Boolean) as ShopItem[]
+              return `
+                <div class="bg-gray-700 p-4 rounded-lg">
+                  <div class="flex justify-between items-start mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-2xl">${bundle.icon}</span>
+                      <div>
+                        <span class="text-white font-bold">${bundle.name}</span>
+                        <span class="text-xs ${bundle.active ? 'text-green-400' : 'text-red-400'} ml-2">${bundle.active ? 'Active' : 'Inactive'}</span>
+                      </div>
+                    </div>
+                    <div class="flex gap-2">
+                      <button class="toggle-bundle-btn bg-${bundle.active ? 'orange' : 'green'}-600 hover:bg-${bundle.active ? 'orange' : 'green'}-500 text-white text-xs font-bold py-1 px-3 rounded" data-bundle-id="${bundle.id}" data-active="${bundle.active ? 'false' : 'true'}">
+                        ${bundle.active ? 'Disable' : 'Enable'}
+                      </button>
+                      <button class="delete-bundle-btn bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-1 px-3 rounded" data-bundle-id="${bundle.id}">
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                  <p class="text-gray-400 text-sm mb-2">${bundle.description}</p>
+                  <div class="flex gap-2 mb-2">
+                    ${bundleItems.map(item => `<span class="bg-gray-600 px-2 py-1 rounded text-xs text-white">${item.icon} ${item.name}</span>`).join('')}
+                  </div>
+                  <div class="text-sm">
+                    <span class="text-gray-400 line-through">💰${bundle.originalPrice}</span>
+                    <span class="text-green-400 font-bold ml-2">💰${bundle.bundlePrice}</span>
+                    <span class="text-yellow-400 text-xs ml-1">(save ${Math.round((1 - bundle.bundlePrice / bundle.originalPrice) * 100)}%)</span>
+                  </div>
+                </div>
+              `
+            }).join('')
+
+            // Toggle bundle buttons
+            listEl.querySelectorAll('.toggle-bundle-btn').forEach(btn => {
+              btn.addEventListener('click', async (e) => {
+                const target = e.target as HTMLElement
+                const bundleId = target.dataset.bundleId
+                const active = target.dataset.active === 'true'
+                if (bundleId) {
+                  await adminToggleBundle(bundleId, active)
+                  adminDataLoaded = false
+                  renderAdminPanel()
+                }
+              })
+            })
+
+            // Delete bundle buttons
+            listEl.querySelectorAll('.delete-bundle-btn').forEach(btn => {
+              btn.addEventListener('click', async (e) => {
+                const target = e.target as HTMLElement
+                const bundleId = target.dataset.bundleId
+                if (bundleId && confirm('Delete this bundle?')) {
+                  await adminDeleteBundle(bundleId)
+                  adminDataLoaded = false
+                  renderAdminPanel()
+                }
+              })
+            })
+          })()
+        }
 
         // Puzzles tab
         document.getElementById('toggle-puzzles-enabled')?.addEventListener('click', () => {
