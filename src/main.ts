@@ -2084,12 +2084,11 @@ async function startMusic() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PARAMETRIC MUSIC - Configurable music generator for custom music packs
+// PARAMETRIC MUSIC - Advanced configurable music generator with phases
 // ═══════════════════════════════════════════════════════════════════════════
 function startParametricMusic(params: { tempo: number; scale: string; baseNote: number; waveform: OscillatorType; filterFreq: number; reverb: number; swing: number; density: number }) {
   if (!audioContext || !musicGainNode) return
 
-  // Scale intervals in semitones
   const scales: Record<string, number[]> = {
     major: [0, 2, 4, 5, 7, 9, 11],
     minor: [0, 2, 3, 5, 7, 8, 10],
@@ -2101,8 +2100,9 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
 
   const scaleIntervals = scales[params.scale] || scales.pentatonic
   const baseFreq = params.baseNote || 220
+  const beatDur = 60 / params.tempo
 
-  // Generate frequencies for 3 octaves
+  // Generate 3 octaves of frequencies
   const freqs: number[] = []
   for (let oct = 0; oct < 3; oct++) {
     for (const interval of scaleIntervals) {
@@ -2110,135 +2110,268 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
     }
   }
 
-  // Create reverb
+  // Create reverb with better quality
   const convolver = audioContext.createConvolver()
   const rate = audioContext.sampleRate
-  const reverbLength = rate * (1 + params.reverb * 3)
-  const impulse = audioContext.createBuffer(2, reverbLength, rate)
+  const reverbLen = rate * (0.5 + params.reverb * 4)
+  const impulse = audioContext.createBuffer(2, reverbLen, rate)
   for (let ch = 0; ch < 2; ch++) {
     const data = impulse.getChannelData(ch)
-    for (let i = 0; i < reverbLength; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / reverbLength, 2)
+    for (let i = 0; i < reverbLen; i++) {
+      const t = i / rate
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-3 * t / (params.reverb + 0.1)) * (1 + Math.sin(t * 200) * 0.1)
     }
   }
   convolver.buffer = impulse
   const reverbGain = audioContext.createGain()
-  reverbGain.gain.value = params.reverb * 0.5
+  reverbGain.gain.value = Math.min(0.6, params.reverb * 0.7)
   convolver.connect(reverbGain)
   reverbGain.connect(musicGainNode)
 
-  // Master filter
+  // Master filter with automation
   const masterFilter = audioContext.createBiquadFilter()
   masterFilter.type = 'lowpass'
   masterFilter.frequency.value = params.filterFreq
-  masterFilter.Q.value = 1
+  masterFilter.Q.value = 1.5
   masterFilter.connect(musicGainNode)
   masterFilter.connect(convolver)
 
-  const beatDuration = 60 / params.tempo
+  // Chord progressions - multiple progressions for variety
+  const progressions = params.scale === 'minor' || params.scale === 'dorian'
+    ? { intro: [[0, 2, 4], [0, 2, 4]], verse: [[0, 2, 4], [5, 0, 2], [3, 5, 0], [4, 6, 1]], chorus: [[0, 2, 4], [3, 5, 0], [5, 0, 2], [4, 6, 1]], bridge: [[3, 5, 0], [4, 6, 1], [5, 0, 2], [0, 2, 4]] }
+    : { intro: [[0, 2, 4], [0, 2, 4]], verse: [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]], chorus: [[0, 2, 4], [4, 6, 1], [3, 5, 0], [0, 2, 4]], bridge: [[3, 5, 0], [0, 2, 4], [4, 6, 1], [3, 5, 0]] }
 
-  // Chord progressions based on scale
-  const chordProgressions: number[][] = params.scale === 'minor' || params.scale === 'dorian'
-    ? [[0, 2, 4], [3, 5, 0], [4, 6, 1], [3, 5, 0]]  // i - iv - v - iv
-    : [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]]   // I - IV - V - I
+  // Song structure: phases with different energy levels
+  const phases = ['intro', 'verse', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'chorus']
 
-  function playNote(freq: number, startTime: number, duration: number, velocity: number) {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
+  // Noise buffer for drums
+  function createNoise(duration: number): AudioBuffer {
+    const len = Math.floor(rate * duration)
+    const buf = audioContext!.createBuffer(1, len, rate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1
+    return buf
+  }
+  const noiseBuf = createNoise(0.15)
 
+  function playNote(freq: number, startTime: number, duration: number, velocity: number, wave?: OscillatorType) {
+    if (!audioContext || !musicGainNode) return
     const osc = audioContext.createOscillator()
     const osc2 = audioContext.createOscillator()
     const noteGain = audioContext.createGain()
-
-    osc.type = params.waveform
-    osc2.type = params.waveform === 'sawtooth' ? 'square' : 'sine'
+    osc.type = wave || params.waveform
+    osc2.type = 'sine'
     osc.frequency.value = freq
-    osc2.frequency.value = freq * 1.005  // Chorus detune
-
-    const oscGain2 = audioContext.createGain()
-    oscGain2.gain.value = 0.3
-
-    osc.connect(noteGain)
-    osc2.connect(oscGain2)
-    oscGain2.connect(noteGain)
-
+    osc2.frequency.value = freq * 1.003
+    const og2 = audioContext.createGain()
+    og2.gain.value = 0.25
+    osc.connect(noteGain); osc2.connect(og2); og2.connect(noteGain)
     noteGain.gain.setValueAtTime(0.001, startTime)
-    noteGain.gain.linearRampToValueAtTime(velocity * 0.08, startTime + 0.01)
-    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.04, startTime + duration * 0.3)
+    noteGain.gain.linearRampToValueAtTime(velocity * 0.07, startTime + 0.008)
+    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.03, startTime + duration * 0.4)
     noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-
     noteGain.connect(masterFilter)
-
-    osc.start(startTime)
-    osc.stop(startTime + duration + 0.1)
-    osc2.start(startTime)
-    osc2.stop(startTime + duration + 0.1)
+    osc.start(startTime); osc.stop(startTime + duration + 0.1)
+    osc2.start(startTime); osc2.stop(startTime + duration + 0.1)
   }
 
-  function playBassNote(freq: number, startTime: number, duration: number) {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
-
+  function playBass(freq: number, startTime: number, duration: number) {
+    if (!audioContext || !musicGainNode) return
     const osc = audioContext.createOscillator()
+    const osc2 = audioContext.createOscillator()
     const noteGain = audioContext.createGain()
-    const bassFilter = audioContext.createBiquadFilter()
-
-    osc.type = 'sine'
-    osc.frequency.value = freq / 2  // One octave down
-
-    bassFilter.type = 'lowpass'
-    bassFilter.frequency.value = 300
-    bassFilter.Q.value = 2
-
+    const flt = audioContext.createBiquadFilter()
+    osc.type = 'sine'; osc2.type = 'triangle'
+    osc.frequency.value = freq / 2; osc2.frequency.value = freq / 2 * 1.001
+    flt.type = 'lowpass'; flt.frequency.value = 250; flt.Q.value = 3
+    const og2 = audioContext.createGain(); og2.gain.value = 0.15
+    osc.connect(flt); osc2.connect(og2); og2.connect(flt)
     noteGain.gain.setValueAtTime(0.001, startTime)
-    noteGain.gain.linearRampToValueAtTime(0.1, startTime + 0.02)
+    noteGain.gain.linearRampToValueAtTime(0.12, startTime + 0.015)
+    noteGain.gain.setValueAtTime(0.1, startTime + 0.1)
     noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+    flt.connect(noteGain); noteGain.connect(masterFilter)
+    osc.start(startTime); osc.stop(startTime + duration + 0.1)
+    osc2.start(startTime); osc2.stop(startTime + duration + 0.1)
+  }
 
-    osc.connect(bassFilter)
-    bassFilter.connect(noteGain)
-    noteGain.connect(masterFilter)
+  function playKick(startTime: number) {
+    if (!audioContext || !musicGainNode) return
+    const osc = audioContext.createOscillator()
+    const g = audioContext.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(150, startTime)
+    osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.12)
+    g.gain.setValueAtTime(0.15, startTime)
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25)
+    osc.connect(g); g.connect(musicGainNode!)
+    osc.start(startTime); osc.stop(startTime + 0.3)
+  }
 
-    osc.start(startTime)
-    osc.stop(startTime + duration + 0.1)
+  function playHihat(startTime: number, open: boolean) {
+    if (!audioContext || !musicGainNode) return
+    const src = audioContext.createBufferSource()
+    const g = audioContext.createGain()
+    const flt = audioContext.createBiquadFilter()
+    src.buffer = noiseBuf
+    flt.type = 'highpass'; flt.frequency.value = open ? 6000 : 8000; flt.Q.value = 1
+    g.gain.setValueAtTime(open ? 0.04 : 0.03, startTime)
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + (open ? 0.15 : 0.05))
+    src.connect(flt); flt.connect(g); g.connect(musicGainNode!)
+    src.start(startTime); src.stop(startTime + 0.2)
+  }
+
+  function playSnare(startTime: number) {
+    if (!audioContext || !musicGainNode) return
+    const osc = audioContext.createOscillator()
+    const src = audioContext.createBufferSource()
+    const g = audioContext.createGain()
+    const g2 = audioContext.createGain()
+    const flt = audioContext.createBiquadFilter()
+    osc.type = 'triangle'; osc.frequency.value = 180
+    src.buffer = noiseBuf
+    flt.type = 'bandpass'; flt.frequency.value = 3000; flt.Q.value = 1.5
+    g.gain.setValueAtTime(0.08, startTime)
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15)
+    g2.gain.setValueAtTime(0.06, startTime)
+    g2.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1)
+    osc.connect(g2); g2.connect(musicGainNode!)
+    src.connect(flt); flt.connect(g); g.connect(musicGainNode!)
+    osc.start(startTime); osc.stop(startTime + 0.2)
+    src.start(startTime); src.stop(startTime + 0.2)
   }
 
   let barCount = 0
+  let lastMelodyNote = Math.floor(freqs.length / 2)
 
   function playBar() {
-    if (!audioContext || !musicEnabled || !musicGainNode) return
-
+    if (!audioContext || !musicGainNode) return
     const now = audioContext.currentTime
-    const chordIdx = barCount % chordProgressions.length
-    const chord = chordProgressions[chordIdx]
-    const barDuration = beatDuration * 4
+    const barDur = beatDur * 4
 
-    // Play bass note on beat 1
+    // Determine phase
+    const phaseIdx = Math.floor(barCount / 4) % phases.length
+    const phase = phases[phaseIdx]
+    const prog = progressions[phase as keyof typeof progressions] || progressions.verse
+    const chordIdx = barCount % prog.length
+    const chord = prog[chordIdx]
+    const energy = phase === 'intro' ? 0.3 : phase === 'verse' ? 0.6 : phase === 'bridge' ? 0.7 : 1.0
+
+    // Filter sweep based on energy
+    masterFilter.frequency.linearRampToValueAtTime(params.filterFreq * (0.5 + energy * 0.5), now + barDur)
+
+    // === BASS ===
     const bassFreq = freqs[chord[0]] || baseFreq
-    playBassNote(bassFreq, now, barDuration * 0.9)
+    if (phase === 'intro') {
+      playBass(bassFreq, now, barDur * 0.9)
+    } else {
+      // Rhythmic bass pattern
+      playBass(bassFreq, now, beatDur * 0.8)
+      if (energy > 0.5) playBass(bassFreq, now + beatDur * 2, beatDur * 0.8)
+      if (energy > 0.7) {
+        playBass(freqs[chord[1]] || bassFreq, now + beatDur * 2.5, beatDur * 0.5)
+      }
+    }
 
-    // Play chord pad
-    chord.forEach((noteIdx, i) => {
-      const freq = freqs[noteIdx + scaleIntervals.length] || baseFreq * 2
-      playNote(freq, now + i * 0.02, barDuration * 0.8, 0.4)
-    })
+    // === CHORDS ===
+    if (phase !== 'intro' || barCount % 2 === 0) {
+      const chordVel = 0.25 + energy * 0.2
+      chord.forEach((noteIdx, i) => {
+        const freq = freqs[noteIdx + scaleIntervals.length] || baseFreq * 2
+        if (phase === 'chorus') {
+          // Arpeggiated chords in chorus
+          playNote(freq, now + i * beatDur * 0.25, beatDur * 1.5, chordVel)
+        } else {
+          playNote(freq, now + i * 0.015, barDur * 0.7, chordVel * 0.8)
+        }
+      })
+    }
 
-    // Play melody notes based on density
-    const notesPerBar = Math.floor(params.density * 4)
-    for (let i = 0; i < notesPerBar; i++) {
-      const beatPos = i / notesPerBar
-      const swingOffset = (i % 2 === 1) ? params.swing * beatDuration : 0
-      const noteTime = now + beatPos * barDuration + swingOffset
-      const noteIdx = scaleIntervals.length + Math.floor(Math.random() * scaleIntervals.length)
-      const freq = freqs[noteIdx] || baseFreq * 2
-      const noteDuration = beatDuration / params.density * 0.8
-      const velocity = 0.5 + Math.random() * 0.5
+    // === MELODY ===
+    const melodyNotes = Math.floor(params.density * 2 * energy)
+    for (let i = 0; i < melodyNotes; i++) {
+      const beatPos = i / Math.max(1, melodyNotes)
+      const swingOff = (i % 2 === 1) ? params.swing * beatDur : 0
+      const noteTime = now + beatPos * barDur + swingOff
 
-      playNote(freq, noteTime, noteDuration, velocity)
+      // Stepwise motion with occasional leaps for more musical melodies
+      const step = Math.random() < 0.7 ? (Math.random() < 0.5 ? 1 : -1) : (Math.random() < 0.5 ? 2 : -2)
+      lastMelodyNote = Math.max(scaleIntervals.length, Math.min(freqs.length - 1, lastMelodyNote + step))
+      const freq = freqs[lastMelodyNote]
+      const dur = beatDur / Math.max(1, params.density) * (0.6 + Math.random() * 0.4)
+      const vel = (0.4 + Math.random() * 0.4) * energy
+
+      // Vary waveform occasionally in chorus
+      const wave = phase === 'chorus' && Math.random() < 0.3 ? 'triangle' as OscillatorType : undefined
+      playNote(freq, noteTime, dur, vel, wave)
+    }
+
+    // === DRUMS ===
+    if (phase !== 'intro' || barCount > 1) {
+      // Kick pattern
+      playKick(now)
+      if (energy > 0.5) playKick(now + beatDur * 2)
+      if (phase === 'chorus') {
+        playKick(now + beatDur * 1)
+        playKick(now + beatDur * 3)
+      }
+
+      // Snare on 2 and 4
+      if (energy > 0.4) {
+        playSnare(now + beatDur)
+        playSnare(now + beatDur * 3)
+      }
+
+      // Hi-hats
+      for (let i = 0; i < (energy > 0.7 ? 8 : 4); i++) {
+        const hTime = now + i * (barDur / (energy > 0.7 ? 8 : 4))
+        const isOpen = i % 4 === 2 && energy > 0.6
+        playHihat(hTime, isOpen)
+      }
+
+      // Extra fills at end of 4-bar phrases
+      if (barCount % 4 === 3 && energy > 0.5) {
+        playSnare(now + beatDur * 3.25)
+        playSnare(now + beatDur * 3.5)
+        playKick(now + beatDur * 3.75)
+      }
     }
 
     barCount++
   }
 
   playBar()
-  musicInterval = window.setInterval(playBar, beatDuration * 4 * 1000)
+  musicInterval = window.setInterval(playBar, beatDur * 4 * 1000)
+}
+
+// Preview music from admin panel
+let previewMusicPlaying = false
+async function previewParametricMusic(params: { tempo: number; scale: string; baseNote: number; waveform: OscillatorType; filterFreq: number; reverb: number; swing: number; density: number }) {
+  await ensureAudioReady()
+  if (!audioContext) return
+
+  // Stop any existing music
+  stopMusic()
+
+  // Create temporary gain node for preview
+  musicGainNode = audioContext.createGain()
+  musicGainNode.gain.value = 0.15 * masterVolume
+  musicGainNode.connect(audioContext.destination)
+
+  previewMusicPlaying = true
+  measureCount = 0
+  musicPhase = 0
+
+  startParametricMusic(params)
+}
+
+function stopPreviewMusic() {
+  stopMusic()
+  previewMusicPlaying = false
+  if (musicGainNode) {
+    try { musicGainNode.disconnect() } catch (_e) { /* ignore */ }
+    musicGainNode = null
+  }
 }
 
 // Get the active music style (shop item overrides settings)
@@ -28219,58 +28352,84 @@ function render() {
 
                         <!-- Visual Board Edge Particle Designer -->
                         <div class="bg-gray-700/50 p-2 rounded">
-                          <label class="text-gray-300 text-xs font-bold block mb-1">🖌️ Board Edge Particle Designer</label>
-                          <p class="text-gray-500 text-xs mb-2">Place colored shapes around the board edges. Click to place, click again to remove.</p>
-                          <div class="flex gap-2 mb-2">
+                          <label class="text-gray-300 text-xs font-bold block mb-1">🖌️ Board Ambient Particle Designer</label>
+                          <p class="text-gray-500 text-xs mb-2">Design animated particles that float around the board edges during gameplay.</p>
+
+                          <!-- Drawing Tools -->
+                          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                             <div>
-                              <label class="text-gray-400 text-xs">Shape</label>
-                              <select id="si-particle-shape" class="bg-gray-600 text-white px-2 py-1 rounded text-xs border border-gray-500">
+                              <label class="text-gray-400 text-xs block mb-0.5">Shape</label>
+                              <select id="si-particle-shape" class="w-full bg-gray-600 text-white px-2 py-1.5 rounded text-xs border border-gray-500">
                                 <option value="circle">⚫ Circle</option>
                                 <option value="square">⬛ Square</option>
                                 <option value="diamond">💠 Diamond</option>
                                 <option value="star">⭐ Star</option>
                                 <option value="heart">❤️ Heart</option>
                                 <option value="dot">● Dot</option>
+                                <option value="triangle">▲ Triangle</option>
+                                <option value="ring">◯ Ring</option>
                               </select>
                             </div>
                             <div>
-                              <label class="text-gray-400 text-xs">Color</label>
-                              <input type="color" id="si-particle-color" value="#ff6600" class="w-8 h-7 rounded cursor-pointer">
+                              <label class="text-gray-400 text-xs block mb-0.5">Color</label>
+                              <div class="flex gap-1">
+                                <input type="color" id="si-particle-color" value="#ff6600" class="w-10 h-7 rounded cursor-pointer">
+                                <input type="color" id="si-particle-color2" value="#ffcc00" class="w-10 h-7 rounded cursor-pointer" title="Secondary color">
+                              </div>
                             </div>
                             <div>
-                              <label class="text-gray-400 text-xs">Size</label>
-                              <select id="si-particle-size" class="bg-gray-600 text-white px-2 py-1 rounded text-xs border border-gray-500">
+                              <label class="text-gray-400 text-xs block mb-0.5">Size</label>
+                              <select id="si-particle-size" class="w-full bg-gray-600 text-white px-2 py-1.5 rounded text-xs border border-gray-500">
+                                <option value="tiny">XS</option>
                                 <option value="small">S</option>
                                 <option value="medium" selected>M</option>
                                 <option value="large">L</option>
+                                <option value="huge">XL</option>
                               </select>
                             </div>
                             <div>
-                              <label class="text-gray-400 text-xs">Speed</label>
-                              <select id="si-particle-speed" class="bg-gray-600 text-white px-2 py-1 rounded text-xs border border-gray-500">
-                                <option value="slow">Slow</option>
-                                <option value="medium" selected>Med</option>
-                                <option value="fast">Fast</option>
+                              <label class="text-gray-400 text-xs block mb-0.5">Motion</label>
+                              <select id="si-particle-speed" class="w-full bg-gray-600 text-white px-2 py-1.5 rounded text-xs border border-gray-500">
+                                <option value="float">🌊 Float</option>
+                                <option value="fall" selected>⬇️ Fall</option>
+                                <option value="rise">⬆️ Rise</option>
+                                <option value="spin">🔄 Spin</option>
+                                <option value="drift">💨 Drift</option>
+                                <option value="pulse">💫 Pulse</option>
                               </select>
                             </div>
                           </div>
-                          <div id="si-particle-canvas" class="relative bg-gray-900 rounded border border-gray-600 overflow-hidden" style="height:140px">
-                            <!-- Board preview area -->
-                            <div class="absolute inset-4 grid grid-cols-6 grid-rows-3 gap-px rounded overflow-hidden opacity-30" id="si-particle-board-bg"></div>
-                            <!-- Particle placement zones -->
-                            <div class="absolute inset-0 grid grid-cols-8 grid-rows-5 gap-0">
-                              ${Array.from({length: 40}, (_, i) => {
-                                const row = Math.floor(i / 8)
-                                const col = i % 8
-                                const isEdge = row === 0 || row === 4 || col === 0 || col === 7
-                                return `<div class="particle-zone ${isEdge ? 'hover:bg-white/10 cursor-pointer' : 'pointer-events-none'} border border-transparent hover:border-gray-500/30 flex items-center justify-center transition-colors" data-zone="${i}" data-row="${row}" data-col="${col}" ${!isEdge ? 'data-inner="true"' : ''}></div>`
+
+                          <!-- Live SVG Animated Preview -->
+                          <div id="si-particle-canvas" class="relative bg-gray-900 rounded-lg border-2 border-gray-600 overflow-hidden" style="height:200px">
+                            <!-- Board in center -->
+                            <div class="absolute inset-0 flex items-center justify-center">
+                              <div class="grid grid-cols-6 grid-rows-4 gap-px rounded overflow-hidden opacity-40" style="width:55%;height:70%" id="si-particle-board-bg"></div>
+                            </div>
+                            <!-- SVG overlay for animated particles -->
+                            <svg id="si-particle-svg" class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 200"></svg>
+                            <!-- Click zones on edges -->
+                            <div class="absolute inset-0 grid grid-cols-10 grid-rows-6 gap-0">
+                              ${Array.from({length: 60}, (_, i) => {
+                                const row = Math.floor(i / 10)
+                                const col = i % 10
+                                const isEdge = row === 0 || row === 5 || col === 0 || col === 9 || row === 1 || row === 4
+                                const isInner = row >= 2 && row <= 3 && col >= 2 && col <= 7
+                                return `<div class="particle-zone ${isEdge && !isInner ? 'hover:bg-white/10 cursor-crosshair' : 'pointer-events-none'} flex items-center justify-center transition-colors" data-zone="${i}" data-row="${row}" data-col="${col}" ${isInner ? 'data-inner="true"' : ''}></div>`
                               }).join('')}
                             </div>
                           </div>
-                          <div class="flex gap-2 mt-1">
-                            <button id="si-particle-clear" class="bg-gray-600 hover:bg-gray-500 text-white text-xs py-1 px-2 rounded">🗑️ Clear</button>
-                            <button id="si-particle-scatter" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1 px-2 rounded">🎲 Random Scatter</button>
-                            <span class="text-gray-500 text-xs flex items-center">Particles: <span id="si-particle-count" class="text-white ml-1">0</span></span>
+
+                          <!-- Action Buttons -->
+                          <div class="flex flex-wrap gap-2 mt-2">
+                            <button id="si-particle-clear" class="bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-3 rounded">🗑️ Clear All</button>
+                            <button id="si-particle-scatter" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 px-3 rounded">🎲 Random Scatter</button>
+                            <button id="si-particle-animate" class="bg-green-600 hover:bg-green-500 text-white text-xs py-1.5 px-3 rounded">▶ Animate Preview</button>
+                            <button id="si-particle-preset-snow" class="bg-blue-600 hover:bg-blue-500 text-white text-xs py-1.5 px-2 rounded">❄️</button>
+                            <button id="si-particle-preset-fire" class="bg-red-600 hover:bg-red-500 text-white text-xs py-1.5 px-2 rounded">🔥</button>
+                            <button id="si-particle-preset-magic" class="bg-purple-600 hover:bg-purple-500 text-white text-xs py-1.5 px-2 rounded">✨</button>
+                            <button id="si-particle-preset-leaves" class="bg-green-700 hover:bg-green-600 text-white text-xs py-1.5 px-2 rounded">🍃</button>
+                            <span class="text-gray-500 text-xs flex items-center ml-auto">Particles: <span id="si-particle-count" class="text-white font-bold ml-1">0</span></span>
                           </div>
                         </div>
                       </div>
@@ -28331,11 +28490,14 @@ function render() {
                           </div>
                         </div>
                         <!-- Effect Preview -->
-                        <div class="bg-gray-800 rounded-lg p-3 relative overflow-hidden h-20" id="si-effect-preview">
-                          <div class="absolute inset-0 flex items-center justify-center">
-                            <div id="si-effect-preview-particles" class="relative w-full h-full"></div>
-                          </div>
-                          <div class="absolute bottom-1 left-2 text-gray-500 text-xs">Effect Preview</div>
+                        <div class="bg-gray-900 rounded-lg relative overflow-hidden border border-gray-700" style="height:120px" id="si-effect-preview">
+                          <!-- Grid background -->
+                          <div class="absolute inset-0 opacity-10" style="background-image:linear-gradient(rgba(255,255,255,0.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.1) 1px,transparent 1px);background-size:20px 20px"></div>
+                          <!-- Piece icon in center -->
+                          <div class="absolute" style="left:47%;top:40%;font-size:24px;z-index:2">🎖️</div>
+                          <!-- Particle container -->
+                          <div id="si-effect-preview-particles" class="absolute inset-0"></div>
+                          <div class="absolute bottom-1 left-2 text-gray-600 text-xs z-10">Click preview to start/stop</div>
                         </div>
                         <div class="flex gap-2">
                           <button id="si-effect-preview-btn" class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-1.5 px-3 rounded">▶ Preview Effect</button>
@@ -28889,8 +29051,11 @@ function render() {
             updateThemePreview()
           })
 
-          // Particle designer - zone click handlers
-          let particlePlacements: Array<{zone: number; shape: string; color: string; size: string}> = []
+          // Particle designer - enhanced with SVG animation
+          let particlePlacements: Array<{zone: number; shape: string; color: string; color2: string; size: string; motion: string}> = []
+          let particleAnimInterval: number | null = null
+
+          const shapeSymbols: Record<string, string> = { circle: '●', square: '■', diamond: '◆', star: '★', heart: '♥', dot: '•', triangle: '▲', ring: '◯' }
 
           const updateParticleBoard = () => {
             const boardBg = document.getElementById('si-particle-board-bg')
@@ -28899,7 +29064,7 @@ function render() {
               const dark = (document.getElementById('si-color-dark') as HTMLInputElement)?.value || '#d4c87a'
               const water = (document.getElementById('si-color-water') as HTMLInputElement)?.value || '#4a90a4'
               let html = ''
-              for (let r = 0; r < 3; r++) {
+              for (let r = 0; r < 4; r++) {
                 for (let c = 0; c < 6; c++) {
                   const isWater = c === 0 || c === 5
                   html += `<div style="background:${isWater ? water : (r + c) % 2 === 0 ? light : dark}"></div>`
@@ -28909,14 +29074,50 @@ function render() {
             }
             const countEl = document.getElementById('si-particle-count')
             if (countEl) countEl.textContent = String(particlePlacements.length)
+
+            // Update SVG with static particles
+            renderParticleSVG(false)
           }
           updateParticleBoard()
           document.getElementById('si-color-light')?.addEventListener('input', updateParticleBoard)
           document.getElementById('si-color-dark')?.addEventListener('input', updateParticleBoard)
           document.getElementById('si-color-water')?.addEventListener('input', updateParticleBoard)
 
-          const shapeSymbols: Record<string, string> = { circle: '●', square: '■', diamond: '◆', star: '★', heart: '♥', dot: '•' }
+          // Render SVG particles
+          function renderParticleSVG(animated: boolean) {
+            const svg = document.getElementById('si-particle-svg')
+            if (!svg) return
 
+            const svgShapes: Record<string, (x: number, y: number, s: number, color: string, id: number) => string> = {
+              circle: (x, y, s, c, id) => `<circle cx="${x}" cy="${y}" r="${s}" fill="${c}" opacity="0.8">${animated ? `<animate attributeName="cy" values="${y};${y - 10};${y}" dur="${2 + id % 3}s" repeatCount="indefinite"/>` : ''}</circle>`,
+              square: (x, y, s, c, id) => `<rect x="${x - s}" y="${y - s}" width="${s * 2}" height="${s * 2}" fill="${c}" opacity="0.8" rx="1">${animated ? `<animateTransform attributeName="transform" type="rotate" values="0 ${x} ${y};360 ${x} ${y}" dur="${3 + id % 4}s" repeatCount="indefinite"/>` : ''}</rect>`,
+              diamond: (x, y, s, c, id) => `<polygon points="${x},${y - s} ${x + s},${y} ${x},${y + s} ${x - s},${y}" fill="${c}" opacity="0.8">${animated ? `<animate attributeName="opacity" values="0.8;0.3;0.8" dur="${2 + id % 2}s" repeatCount="indefinite"/>` : ''}</polygon>`,
+              star: (x, y, s, c, id) => { const pts = Array.from({length: 10}, (_, i) => { const r = i % 2 === 0 ? s : s * 0.4; const a = (i * 36 - 90) * Math.PI / 180; return `${x + r * Math.cos(a)},${y + r * Math.sin(a)}` }).join(' '); return `<polygon points="${pts}" fill="${c}" opacity="0.9">${animated ? `<animateTransform attributeName="transform" type="rotate" values="0 ${x} ${y};360 ${x} ${y}" dur="${4 + id % 3}s" repeatCount="indefinite"/>` : ''}</polygon>` },
+              heart: (x, y, s, c) => `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="${s * 2.5}" fill="${c}" opacity="0.85">♥</text>`,
+              dot: (x, y, s, c, id) => `<circle cx="${x}" cy="${y}" r="${s * 0.5}" fill="${c}" opacity="0.9">${animated ? `<animate attributeName="r" values="${s * 0.3};${s * 0.7};${s * 0.3}" dur="${1.5 + id % 2}s" repeatCount="indefinite"/>` : ''}</circle>`,
+              triangle: (x, y, s, c, id) => `<polygon points="${x},${y - s} ${x + s},${y + s} ${x - s},${y + s}" fill="${c}" opacity="0.8">${animated ? `<animate attributeName="opacity" values="0.8;0.4;0.8" dur="${2 + id % 3}s" repeatCount="indefinite"/>` : ''}</polygon>`,
+              ring: (x, y, s, c, id) => `<circle cx="${x}" cy="${y}" r="${s}" fill="none" stroke="${c}" stroke-width="1.5" opacity="0.7">${animated ? `<animate attributeName="r" values="${s};${s * 1.5};${s}" dur="${2.5 + id % 2}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;0.2;0.7" dur="${2.5 + id % 2}s" repeatCount="indefinite"/>` : ''}</circle>`
+            }
+
+            const sizeMap: Record<string, number> = { tiny: 2, small: 3, medium: 5, large: 8, huge: 12 }
+
+            let svgContent = ''
+            particlePlacements.forEach((p, idx) => {
+              const cols = 10, rows = 6
+              const zoneRow = Math.floor(p.zone / cols)
+              const zoneCol = p.zone % cols
+              const x = (zoneCol + 0.5) * (400 / cols)
+              const y = (zoneRow + 0.5) * (200 / rows)
+              const s = sizeMap[p.size] || 5
+              const color = Math.random() > 0.5 ? p.color : p.color2
+              const shapeFn = svgShapes[p.shape] || svgShapes.circle
+              svgContent += shapeFn(x, y, s, color, idx)
+            })
+
+            svg.innerHTML = svgContent
+          }
+
+          // Zone click handler
           document.querySelectorAll('.particle-zone').forEach(zone => {
             zone.addEventListener('click', () => {
               const el = zone as HTMLElement
@@ -28926,48 +29127,82 @@ function render() {
               if (existing >= 0) {
                 particlePlacements.splice(existing, 1)
                 el.innerHTML = ''
-                el.style.background = ''
               } else {
                 const shape = (document.getElementById('si-particle-shape') as HTMLSelectElement)?.value || 'circle'
                 const color = (document.getElementById('si-particle-color') as HTMLInputElement)?.value || '#ff6600'
+                const color2 = (document.getElementById('si-particle-color2') as HTMLInputElement)?.value || '#ffcc00'
                 const size = (document.getElementById('si-particle-size') as HTMLSelectElement)?.value || 'medium'
-                particlePlacements.push({ zone: zoneIdx, shape, color, size })
-                const sizeClass = size === 'small' ? 'text-xs' : size === 'large' ? 'text-lg' : 'text-sm'
-                el.innerHTML = `<span class="${sizeClass}" style="color:${color}">${shapeSymbols[shape] || '●'}</span>`
+                const motion = (document.getElementById('si-particle-speed') as HTMLSelectElement)?.value || 'fall'
+                particlePlacements.push({ zone: zoneIdx, shape, color, color2, size, motion })
+                const sizeClass = size === 'tiny' || size === 'small' ? 'text-xs' : size === 'large' || size === 'huge' ? 'text-lg' : 'text-sm'
+                el.innerHTML = `<span class="${sizeClass}" style="color:${color};text-shadow:0 0 4px ${color}">${shapeSymbols[shape] || '●'}</span>`
               }
               updateParticleBoard()
             })
           })
 
+          // Clear
           document.getElementById('si-particle-clear')?.addEventListener('click', () => {
             particlePlacements = []
-            document.querySelectorAll('.particle-zone').forEach(z => {
-              (z as HTMLElement).innerHTML = '';
-              (z as HTMLElement).style.background = ''
-            })
+            document.querySelectorAll('.particle-zone').forEach(z => { (z as HTMLElement).innerHTML = '' })
+            if (particleAnimInterval) { clearInterval(particleAnimInterval); particleAnimInterval = null }
             updateParticleBoard()
           })
 
+          // Random scatter with both colors
           document.getElementById('si-particle-scatter')?.addEventListener('click', () => {
             particlePlacements = []
             const color = (document.getElementById('si-particle-color') as HTMLInputElement)?.value || '#ff6600'
+            const color2 = (document.getElementById('si-particle-color2') as HTMLInputElement)?.value || '#ffcc00'
             const shape = (document.getElementById('si-particle-shape') as HTMLSelectElement)?.value || 'circle'
-            const sizes = ['small', 'medium', 'large']
+            const motion = (document.getElementById('si-particle-speed') as HTMLSelectElement)?.value || 'fall'
+            const sizes = ['tiny', 'small', 'medium', 'large']
 
             document.querySelectorAll('.particle-zone').forEach(zone => {
               const el = zone as HTMLElement
               el.innerHTML = ''
               if (el.dataset.inner === 'true') return
-              if (Math.random() < 0.35) {
+              if (Math.random() < 0.3) {
                 const size = sizes[Math.floor(Math.random() * sizes.length)]
                 const zoneIdx = parseInt(el.dataset.zone || '0')
-                particlePlacements.push({ zone: zoneIdx, shape, color, size })
-                const sizeClass = size === 'small' ? 'text-xs' : size === 'large' ? 'text-lg' : 'text-sm'
-                el.innerHTML = `<span class="${sizeClass}" style="color:${color}">${shapeSymbols[shape] || '●'}</span>`
+                particlePlacements.push({ zone: zoneIdx, shape, color, color2, size, motion })
+                const sizeClass = size === 'tiny' || size === 'small' ? 'text-xs' : size === 'large' ? 'text-lg' : 'text-sm'
+                el.innerHTML = `<span class="${sizeClass}" style="color:${Math.random() > 0.5 ? color : color2};text-shadow:0 0 4px ${color}">${shapeSymbols[shape] || '●'}</span>`
               }
             })
             updateParticleBoard()
           })
+
+          // Animate preview toggle
+          document.getElementById('si-particle-animate')?.addEventListener('click', () => {
+            const btn = document.getElementById('si-particle-animate')
+            if (particleAnimInterval) {
+              clearInterval(particleAnimInterval)
+              particleAnimInterval = null
+              renderParticleSVG(false)
+              if (btn) btn.textContent = '▶ Animate Preview'
+            } else {
+              renderParticleSVG(true)
+              if (btn) btn.textContent = '■ Stop Animation'
+            }
+          })
+
+          // Particle presets
+          const applyParticlePreset = (shape: string, color: string, color2: string, size: string, motion: string, ambient: string) => {
+            ;(document.getElementById('si-particle-shape') as HTMLSelectElement).value = shape
+            ;(document.getElementById('si-particle-color') as HTMLInputElement).value = color
+            ;(document.getElementById('si-particle-color2') as HTMLInputElement).value = color2
+            ;(document.getElementById('si-particle-size') as HTMLSelectElement).value = size
+            ;(document.getElementById('si-particle-speed') as HTMLSelectElement).value = motion
+            ;(document.getElementById('si-ambient') as HTMLSelectElement).value = ambient
+            // Auto scatter
+            document.getElementById('si-particle-scatter')?.click()
+          }
+
+          document.getElementById('si-particle-preset-snow')?.addEventListener('click', () => applyParticlePreset('dot', '#ffffff', '#e0f0ff', 'small', 'fall', 'snow'))
+          document.getElementById('si-particle-preset-fire')?.addEventListener('click', () => applyParticlePreset('circle', '#ff4400', '#ff8800', 'medium', 'rise', 'ember'))
+          document.getElementById('si-particle-preset-magic')?.addEventListener('click', () => applyParticlePreset('star', '#aa00ff', '#ffdd00', 'small', 'pulse', 'sparkle'))
+          document.getElementById('si-particle-preset-leaves')?.addEventListener('click', () => applyParticlePreset('diamond', '#228b22', '#daa520', 'medium', 'drift', 'autumn'))
 
           // Slider value displays
           const sliderUpdaters: Array<[string, string, string?]> = [
@@ -29056,6 +29291,29 @@ function render() {
             })
           })
 
+          // Music preview/stop handlers
+          document.getElementById('si-music-preview')?.addEventListener('click', async () => {
+            const musicParams = {
+              tempo: parseInt((document.getElementById('si-music-tempo') as HTMLInputElement)?.value || '120'),
+              scale: (document.getElementById('si-music-scale') as HTMLSelectElement)?.value || 'pentatonic',
+              baseNote: parseInt((document.getElementById('si-music-base') as HTMLInputElement)?.value || '220'),
+              waveform: ((document.getElementById('si-music-wave') as HTMLSelectElement)?.value || 'sine') as OscillatorType,
+              filterFreq: parseInt((document.getElementById('si-music-filter') as HTMLInputElement)?.value || '4000'),
+              reverb: parseInt((document.getElementById('si-music-reverb') as HTMLInputElement)?.value || '30') / 100,
+              swing: parseInt((document.getElementById('si-music-swing') as HTMLInputElement)?.value || '0') / 100,
+              density: parseInt((document.getElementById('si-music-density') as HTMLInputElement)?.value || '3')
+            }
+            await previewParametricMusic(musicParams)
+            const btn = document.getElementById('si-music-preview')
+            if (btn) { btn.textContent = '▶ Playing...'; btn.classList.add('bg-green-400') }
+          })
+
+          document.getElementById('si-music-stop')?.addEventListener('click', () => {
+            stopPreviewMusic()
+            const btn = document.getElementById('si-music-preview')
+            if (btn) { btn.textContent = '▶ Preview'; btn.classList.remove('bg-green-400') }
+          })
+
           // Sound preset handlers
           const soundPresets: Record<string, { filter: string; freq: number; q: number; gain: number; dist: number }> = {
             underwater: { filter: 'lowpass', freq: 600, q: 3, gain: 0, dist: 0 },
@@ -29111,31 +29369,99 @@ function render() {
           })
 
           // Effect preview animation
+          // Effect preview - continuous animated particles with physics
+          let effectPreviewInterval: number | null = null
+
           document.getElementById('si-effect-preview-btn')?.addEventListener('click', () => {
             const container = document.getElementById('si-effect-preview-particles')
             if (!container) return
-            container.innerHTML = ''
+
+            // Toggle - stop if already running
+            if (effectPreviewInterval) {
+              clearInterval(effectPreviewInterval)
+              effectPreviewInterval = null
+              container.innerHTML = ''
+              const btn = document.getElementById('si-effect-preview-btn')
+              if (btn) btn.textContent = '▶ Preview Effect'
+              return
+            }
+
+            const btn = document.getElementById('si-effect-preview-btn')
+            if (btn) btn.textContent = '■ Stop Preview'
+
             const color1 = (document.getElementById('si-effect-color1') as HTMLInputElement)?.value || '#ff6600'
             const color2 = (document.getElementById('si-effect-color2') as HTMLInputElement)?.value || '#ffcc00'
             const effectType = (document.getElementById('si-effect-type') as HTMLSelectElement)?.value
-            const density = (document.getElementById('si-effect-density') as HTMLSelectElement)?.value
-            const size = (document.getElementById('si-effect-size') as HTMLSelectElement)?.value
+            const densityVal = (document.getElementById('si-effect-density') as HTMLSelectElement)?.value
+            const sizeVal = (document.getElementById('si-effect-size') as HTMLSelectElement)?.value
+            const speedVal = (document.getElementById('si-effect-speed') as HTMLSelectElement)?.value
 
-            const particleCount = density === 'sparse' ? 8 : density === 'dense' ? 25 : density === 'extreme' ? 40 : 15
-            const particleSize = size === 'small' ? 4 : size === 'large' ? 12 : size === 'massive' ? 18 : 8
+            const spawnRate = densityVal === 'sparse' ? 4 : densityVal === 'dense' ? 12 : densityVal === 'extreme' ? 20 : 7
+            const pSize = sizeVal === 'small' ? 6 : sizeVal === 'large' ? 16 : sizeVal === 'massive' ? 24 : 10
+            const speedMult = speedVal === 'slow' ? 0.5 : speedVal === 'fast' ? 2 : 1
 
-            const symbols: Record<string, string> = { fire: '●', lightning: '⚡', sparkle: '✦', smoke: '●', hearts: '♥', stars: '★', explosion: '●', ghost: '●' }
-            const symbol = symbols[effectType] || '●'
+            interface EffectP { x: number; y: number; vx: number; vy: number; size: number; color: string; life: number; maxLife: number; symbol: string; rotation: number }
+            const particles: EffectP[] = []
 
-            for (let i = 0; i < particleCount; i++) {
-              const particle = document.createElement('div')
-              particle.className = 'absolute pointer-events-none'
-              particle.style.cssText = `left:${20 + Math.random() * 60}%;top:${10 + Math.random() * 60}%;color:${Math.random() > 0.5 ? color1 : color2};font-size:${particleSize}px;opacity:0;animation:deal-slide-in 0.3s ${i * 0.05}s forwards;`
-              particle.textContent = symbol
-              container.appendChild(particle)
-              setTimeout(() => { particle.style.opacity = '0'; particle.style.transition = 'opacity 0.5s'; }, 1000 + i * 50)
-              setTimeout(() => particle.remove(), 1600 + i * 50)
+            const symbols: Record<string, string[]> = {
+              fire: ['🔥', '●', '●'], lightning: ['⚡', '⚡', '✦'], sparkle: ['✦', '✧', '✨'],
+              smoke: ['●', '●', '○'], hearts: ['♥', '♥', '❤'], stars: ['★', '✦', '⭐'],
+              explosion: ['💥', '●', '✦'], ghost: ['👻', '●', '○']
             }
+            const typeSymbols = symbols[effectType] || symbols.sparkle
+
+            // Spawn center point (where piece would be)
+            const cx = 50, cy = 50
+
+            function spawnParticle() {
+              const angle = Math.random() * Math.PI * 2
+              const speed = (0.5 + Math.random() * 2) * speedMult
+              const life = 1 + Math.random() * 2
+              particles.push({
+                x: cx + (Math.random() - 0.5) * 15,
+                y: cy + (Math.random() - 0.5) * 10,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed + (effectType === 'fire' || effectType === 'smoke' ? -1.5 : 0),
+                size: pSize * (0.5 + Math.random() * 0.8),
+                color: Math.random() > 0.4 ? color1 : color2,
+                life, maxLife: life,
+                symbol: typeSymbols[Math.floor(Math.random() * typeSymbols.length)],
+                rotation: Math.random() * 360
+              })
+            }
+
+            function updatePreview() {
+              // Spawn new particles
+              for (let i = 0; i < Math.ceil(spawnRate / 5); i++) spawnParticle()
+
+              // Update existing
+              for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i]
+                p.x += p.vx * 0.5
+                p.y += p.vy * 0.5
+                p.life -= 0.05
+                p.rotation += p.vx * 3
+
+                // Gravity for some types
+                if (effectType === 'explosion') p.vy += 0.08
+                if (effectType === 'ghost') { p.vx += Math.sin(Date.now() / 500 + i) * 0.05; p.vy -= 0.02 }
+                if (effectType === 'hearts') p.vy -= 0.04
+
+                if (p.life <= 0) particles.splice(i, 1)
+              }
+
+              // Render
+              container!.innerHTML = particles.map(p => {
+                const opacity = Math.min(1, p.life / p.maxLife * 2)
+                const scale = p.life / p.maxLife
+                return `<div class="absolute pointer-events-none" style="left:${p.x}%;top:${p.y}%;font-size:${p.size * scale}px;color:${p.color};opacity:${opacity};transform:rotate(${p.rotation}deg);text-shadow:0 0 ${p.size / 2}px ${p.color};transition:none">${p.symbol}</div>`
+              }).join('')
+
+              // Keep max particles
+              while (particles.length > 60) particles.shift()
+            }
+
+            effectPreviewInterval = window.setInterval(updatePreview, 50)
           })
 
           // Random effect generator
