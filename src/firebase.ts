@@ -351,7 +351,29 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'effect_bluefire', name: 'Blue Inferno', description: 'Scorching blue flames erupt when tanks, rockets and ships fire their weapons', price: 300, type: 'effect', icon: '🔥', effectType: 'fire' },
   { id: 'effect_warp', name: 'Warp Drive', description: 'Space-warping streaks trail behind helicopters and fighters at high speed', price: 275, type: 'effect', icon: '💫', effectType: 'stars' },
 
-  // NEW: More Music Packs
+  // Sound Packs - Wave 2
+  { id: 'sound_underwater', name: 'Underwater', description: 'Muffled bubbly sounds as if fighting beneath the waves', price: 175, type: 'sound_pack', icon: '🤿', packId: 'underwater',
+    soundConfig: { filterType: 'lowpass' as BiquadFilterType, filterFreq: 600, filterQ: 3, filterGain: 0, distortion: 0 } },
+  { id: 'sound_walkietalkie', name: 'Walkie-Talkie', description: 'Crackling radio transmissions for your battlefield commands', price: 200, type: 'sound_pack', icon: '📡', packId: 'walkietalkie',
+    soundConfig: { filterType: 'bandpass' as BiquadFilterType, filterFreq: 1500, filterQ: 6, filterGain: 0, distortion: 25 } },
+  { id: 'sound_arcade2', name: 'Retro Arcade 2.0', description: 'Extra crunchy 8-bit bleeps and bloops for maximum nostalgia', price: 175, type: 'sound_pack', icon: '🎮', packId: 'arcade2',
+    soundConfig: { filterType: 'lowpass' as BiquadFilterType, filterFreq: 1800, filterQ: 4, filterGain: 0, distortion: 35 } },
+  { id: 'sound_stadium', name: 'Stadium', description: 'Massive echo and reverb as if playing in a huge arena', price: 225, type: 'sound_pack', icon: '🏟️', packId: 'stadium',
+    soundConfig: { filterType: 'peaking' as BiquadFilterType, filterFreq: 1000, filterQ: 2, filterGain: 6, distortion: 0 } },
+  { id: 'sound_alien', name: 'Alien Invasion', description: 'Strange extraterrestrial frequencies and otherworldly tones', price: 225, type: 'sound_pack', icon: '👾', packId: 'alien',
+    soundConfig: { filterType: 'highpass' as BiquadFilterType, filterFreq: 3500, filterQ: 10, filterGain: 0, distortion: 15 } },
+  { id: 'sound_cinematic', name: 'Cinematic', description: 'Deep dramatic bass and movie-quality impact sounds', price: 250, type: 'sound_pack', icon: '🎬', packId: 'cinematic',
+    soundConfig: { filterType: 'lowpass' as BiquadFilterType, filterFreq: 800, filterQ: 1.5, filterGain: 8, distortion: 5 } },
+  { id: 'sound_toybox', name: 'Toy Box', description: 'High-pitched squeaky toy sounds that are adorably funny', price: 150, type: 'sound_pack', icon: '🧸', packId: 'toybox',
+    soundConfig: { filterType: 'highpass' as BiquadFilterType, filterFreq: 4000, filterQ: 3, filterGain: 6, distortion: 0 } },
+  { id: 'sound_industrial', name: 'Industrial', description: 'Raw metal-on-metal grinding with heavy distortion', price: 225, type: 'sound_pack', icon: '⛓️', packId: 'industrial',
+    soundConfig: { filterType: 'peaking' as BiquadFilterType, filterFreq: 900, filterQ: 12, filterGain: 4, distortion: 60 } },
+  { id: 'sound_zen', name: 'Zen Garden', description: 'Ultra soft and calming filtered sounds for peaceful play', price: 175, type: 'sound_pack', icon: '🌿', packId: 'zen',
+    soundConfig: { filterType: 'lowpass' as BiquadFilterType, filterFreq: 2500, filterQ: 0.3, filterGain: -4, distortion: 0 } },
+  { id: 'sound_telephone', name: 'Telephone', description: 'Everything sounds like it comes through an old rotary phone', price: 175, type: 'sound_pack', icon: '📞', packId: 'telephone',
+    soundConfig: { filterType: 'bandpass' as BiquadFilterType, filterFreq: 1800, filterQ: 15, filterGain: 0, distortion: 10 } },
+
+  // Music Packs - Wave 2
   { id: 'music_tropical', name: 'Tropical Vibes', description: 'Chill beach music with steel drums', price: 200, type: 'music_pack', icon: '🏖️', packId: 'tropical' },
   { id: 'music_dark', name: 'Dark Orchestra', description: 'Ominous strings and brass', price: 275, type: 'music_pack', icon: '🦇', packId: 'dark' },
   { id: 'music_cyberpunk', name: 'Cyberpunk', description: 'Glitchy synths and heavy bass', price: 250, type: 'music_pack', icon: '🤖', packId: 'cyberpunk' },
@@ -359,6 +381,38 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'music_funk', name: 'Funky Groove', description: 'Slap bass and wah guitar', price: 225, type: 'music_pack', icon: '🕺', packId: 'funk' },
   { id: 'music_metal', name: 'Heavy Metal', description: 'Crushing riffs and double bass', price: 275, type: 'music_pack', icon: '🤘', packId: 'metal' },
   { id: 'music_synthwave', name: 'Synthwave', description: '80s synths and arpeggios', price: 250, type: 'music_pack', icon: '🌆', packId: 'synthwave' },
+
+  // Music Packs - Wave 3 (Advanced with phases)
+  { id: 'music_acoustic_heart', name: 'Acoustic Heartstrings', description: 'Warm acoustic guitar fingerpicking with gentle strings - intimate and emotional', price: 275, type: 'music_pack', icon: '🎸',
+    packId: 'acoustic_heart', musicParams: { tempo: 92, scale: 'major', baseNote: 165, waveform: 'triangle' as OscillatorType, filterFreq: 3500, reverb: 0.6, swing: 0.15, density: 3 } },
+  { id: 'music_campfire_songs', name: 'Campfire Songs', description: 'Cozy folk melodies around a crackling campfire - sing-along vibes', price: 225, type: 'music_pack', icon: '🔥',
+    packId: 'campfire', musicParams: { tempo: 105, scale: 'major', baseNote: 196, waveform: 'triangle' as OscillatorType, filterFreq: 4000, reverb: 0.4, swing: 0.2, density: 4 } },
+  { id: 'music_sunset_ballad', name: 'Sunset Ballad', description: 'Gentle fingerstyle guitar with soft harmonics - perfect for a golden sunset', price: 250, type: 'music_pack', icon: '🌅',
+    packId: 'sunset_ballad', musicParams: { tempo: 78, scale: 'pentatonic', baseNote: 220, waveform: 'sine' as OscillatorType, filterFreq: 3000, reverb: 0.7, swing: 0.1, density: 2 } },
+  { id: 'music_drill_sergeant', name: 'Drill Sergeant', description: 'Aggressive marching drums with shouted commands - military intensity', price: 275, type: 'music_pack', icon: '🪖',
+    packId: 'drill', musicParams: { tempo: 140, scale: 'minor', baseNote: 110, waveform: 'sawtooth' as OscillatorType, filterFreq: 5000, reverb: 0.15, swing: 0, density: 6 } },
+  { id: 'music_pirate_shanty', name: 'Pirate Shanty', description: 'Rowdy sea shanty with accordion and fiddle - yo ho ho!', price: 250, type: 'music_pack', icon: '🏴‍☠️',
+    packId: 'shanty', musicParams: { tempo: 125, scale: 'mixolydian', baseNote: 196, waveform: 'sawtooth' as OscillatorType, filterFreq: 4500, reverb: 0.3, swing: 0.35, density: 5 } },
+  { id: 'music_midnight_jazz', name: 'Midnight Jazz Club', description: 'Smoky late-night jazz with walking bass and brushed drums', price: 275, type: 'music_pack', icon: '🌃',
+    packId: 'midnight_jazz', musicParams: { tempo: 88, scale: 'dorian', baseNote: 175, waveform: 'triangle' as OscillatorType, filterFreq: 3000, reverb: 0.55, swing: 0.4, density: 3 } },
+  { id: 'music_neon_nights', name: 'Neon Nights', description: 'Pulsing synth-pop with dreamy pads and crisp beats - city lights', price: 250, type: 'music_pack', icon: '💜',
+    packId: 'neon_nights', musicParams: { tempo: 118, scale: 'minor', baseNote: 220, waveform: 'sawtooth' as OscillatorType, filterFreq: 4000, reverb: 0.45, swing: 0.05, density: 4 } },
+  { id: 'music_viking_war', name: 'Viking War Drums', description: 'Thundering Nordic war drums with deep chanting - prepare for battle!', price: 300, type: 'music_pack', icon: '⚔️',
+    packId: 'viking', musicParams: { tempo: 95, scale: 'minor', baseNote: 98, waveform: 'sawtooth' as OscillatorType, filterFreq: 2500, reverb: 0.5, swing: 0, density: 3 } },
+  { id: 'music_space_odyssey', name: 'Space Odyssey', description: 'Ethereal space ambient with cosmic pads and distant stars - infinite void', price: 250, type: 'music_pack', icon: '🌌',
+    packId: 'space_odyssey', musicParams: { tempo: 65, scale: 'pentatonic', baseNote: 130, waveform: 'sine' as OscillatorType, filterFreq: 2000, reverb: 0.9, swing: 0.1, density: 1 } },
+  { id: 'music_reggae_island', name: 'Reggae Island', description: 'Laid-back reggae rhythms with off-beat guitar and warm bass', price: 225, type: 'music_pack', icon: '🇯🇲',
+    packId: 'reggae', musicParams: { tempo: 82, scale: 'major', baseNote: 147, waveform: 'triangle' as OscillatorType, filterFreq: 3500, reverb: 0.35, swing: 0.3, density: 4 } },
+  { id: 'music_horror_ambient', name: 'Horror Ambient', description: 'Creepy dissonant drones with sudden stings - pure nightmare fuel', price: 275, type: 'music_pack', icon: '👹',
+    packId: 'horror_ambient', musicParams: { tempo: 55, scale: 'minor', baseNote: 87, waveform: 'sawtooth' as OscillatorType, filterFreq: 1500, reverb: 0.85, swing: 0.2, density: 2 } },
+  { id: 'music_edm_drop', name: 'EDM Festival', description: 'Build-up tension into massive drops with pounding bass and synths', price: 300, type: 'music_pack', icon: '🎆',
+    packId: 'edm', musicParams: { tempo: 128, scale: 'minor', baseNote: 220, waveform: 'sawtooth' as OscillatorType, filterFreq: 6000, reverb: 0.2, swing: 0, density: 6 } },
+  { id: 'music_celtic_winds', name: 'Celtic Winds', description: 'Mystical Irish melodies with tin whistle and harp - enchanting and ancient', price: 250, type: 'music_pack', icon: '🍀',
+    packId: 'celtic', musicParams: { tempo: 110, scale: 'dorian', baseNote: 294, waveform: 'triangle' as OscillatorType, filterFreq: 5000, reverb: 0.5, swing: 0.15, density: 5 } },
+  { id: 'music_bollywood', name: 'Bollywood Drama', description: 'Dramatic Indian-inspired melodies with tablas and sitars - colorful and intense', price: 275, type: 'music_pack', icon: '🪷',
+    packId: 'bollywood', musicParams: { tempo: 115, scale: 'pentatonic', baseNote: 262, waveform: 'sawtooth' as OscillatorType, filterFreq: 4500, reverb: 0.4, swing: 0.25, density: 5 } },
+  { id: 'music_samurai', name: 'Way of the Samurai', description: 'Traditional Japanese koto and shakuhachi with taiko drums - honor and discipline', price: 275, type: 'music_pack', icon: '⛩️',
+    packId: 'samurai', musicParams: { tempo: 85, scale: 'pentatonic', baseNote: 330, waveform: 'triangle' as OscillatorType, filterFreq: 3500, reverb: 0.6, swing: 0.1, density: 3 } },
 
   // Board Themes - Wave 2
   { id: 'theme_cherry_blossom', name: 'Cherry Blossom Temple', description: 'A peaceful Japanese temple surrounded by falling sakura petals', price: 225, type: 'theme', icon: '🌸',
@@ -2222,6 +2276,35 @@ export async function adminCreateSampleEvents(): Promise<number> {
     { type: 'poll', title: 'Favorite Game Mode?', message: 'Vote for your favorite!', icon: '📊', active: true, pollOptions: ['Disco 🪩', 'Matrix 💊', 'Chaos 🌀', 'Rainbow 🌈'] },
     { type: 'poll', title: 'Next Feature?', message: 'What should we add next?', icon: '🗳️', active: true, pollOptions: ['More maps', 'New pieces', 'Chat system', 'Tournaments'] },
     { type: 'poll', title: 'Best Team?', message: 'Which team do you prefer?', icon: '⚔️', active: false, pollOptions: ['Yellow 💛', 'Green 💚'] },
+
+    // === NEW: 20 Extra Events ===
+    // Rewards
+    { type: 'reward', title: 'New Player Gift!', message: 'Welcome to War Chess! Here are some War Bucks to get you started.', icon: '🎉', active: true, rewardType: 'warBucks', rewardAmount: 200 },
+    { type: 'reward', title: 'Holiday Special!', message: 'Happy holidays! Enjoy this special bonus!', icon: '🎄', active: false, rewardType: 'warBucks', rewardAmount: 500 },
+    { type: 'reward', title: 'Bug Reporter Reward', message: 'Thanks for reporting bugs! Here is your reward.', icon: '🐛', active: false, rewardType: 'warBucks', rewardAmount: 150 },
+    { type: 'reward', title: 'Free Fire Trail!', message: 'Claim a free Fire Trail effect!', icon: '🔥', active: false, rewardType: 'item', rewardItemId: 'effect_fire' },
+    { type: 'reward', title: 'Loyalty Bonus', message: 'You have been playing for a while! Thanks for sticking around.', icon: '💎', active: false, rewardType: 'warBucks', rewardAmount: 300 },
+
+    // Announcements
+    { type: 'announcement', title: 'New Shop Items!', message: '10 new board themes, 12 new skins, 10 new effects, 10 sound packs and 15 music packs just dropped!', icon: '🛒', active: true },
+    { type: 'announcement', title: 'Daily Deals Are Live!', message: 'Check the shop every day for 2 items at 20% off plus exclusive bundles!', icon: '🔥', active: true },
+    { type: 'announcement', title: 'Puzzle Mode Updated!', message: 'New daily puzzles with better rewards. Can you solve them all?', icon: '🧩', active: false },
+    { type: 'announcement', title: 'Leaderboard Season Reset', message: 'A new season has begun! Climb the ranks and earn weekly rewards.', icon: '📊', active: false },
+    { type: 'announcement', title: 'Community Milestone!', message: 'We just hit 100 registered players! Thanks to everyone!', icon: '🎊', active: false },
+
+    // Events
+    { type: 'event', title: 'Double War Bucks Weekend!', message: 'Earn double War Bucks from all games this weekend!', icon: '💰', active: false },
+    { type: 'event', title: 'Skin Showcase Week', message: 'All skins are 25% off this week only!', icon: '⚔️', active: false },
+    { type: 'event', title: 'Speed Run Challenge', message: 'Win a game in under 3 minutes for a special badge!', icon: '⏱️', active: false },
+    { type: 'event', title: 'Hacker Showdown', message: 'Use your hacker pieces to dominate! Most hacks wins a prize.', icon: '💻', active: false },
+    { type: 'event', title: 'Builder Marathon', message: 'Build the most structures in one game for bonus War Bucks!', icon: '🏗️', active: false },
+
+    // Updates & Maintenance
+    { type: 'update', title: 'Admin Panel Upgraded!', message: 'New Shop Items creator, AI generation, music studio and more for admins.', icon: '🔧', active: true },
+    { type: 'update', title: 'Purchase Popups!', message: 'Beautiful new purchase popups with Equip Now button!', icon: '✨', active: true },
+    { type: 'update', title: 'Bundles System!', message: 'Buy 3 items together and save 20%! Check the Daily Deals tab.', icon: '📦', active: true },
+    { type: 'maintenance', title: 'Scheduled Maintenance', message: 'Quick server restart tonight at 3 AM. Should take 5 minutes.', icon: '🔧', active: false },
+    { type: 'maintenance', title: 'Database Optimization', message: 'We are optimizing the database for faster load times.', icon: '⚡', active: false },
   ]
 
   let count = 0
