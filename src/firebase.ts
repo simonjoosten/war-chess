@@ -321,6 +321,28 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'music_funk', name: 'Funky Groove', description: 'Slap bass and wah guitar', price: 225, type: 'music_pack', icon: '🕺', packId: 'funk' },
   { id: 'music_metal', name: 'Heavy Metal', description: 'Crushing riffs and double bass', price: 275, type: 'music_pack', icon: '🤘', packId: 'metal' },
   { id: 'music_synthwave', name: 'Synthwave', description: '80s synths and arpeggios', price: 250, type: 'music_pack', icon: '🌆', packId: 'synthwave' },
+
+  // Board Themes - Wave 2
+  { id: 'theme_cherry_blossom', name: 'Cherry Blossom Temple', description: 'A peaceful Japanese temple surrounded by falling sakura petals', price: 225, type: 'theme', icon: '🌸',
+    colors: { light: '#fce4ec', dark: '#f48fb1', accent: '#ad1457', water: '#7b1fa2' }, ambientEffect: 'sparkle' },
+  { id: 'theme_crystal_cavern', name: 'Crystal Cavern', description: 'A deep underground cavern glittering with magical crystals', price: 275, type: 'theme', icon: '🔮',
+    colors: { light: '#ce93d8', dark: '#4a148c', accent: '#00bcd4', water: '#311b92' }, ambientEffect: 'sparkle' },
+  { id: 'theme_obsidian', name: 'Obsidian Hellfire', description: 'Black obsidian cracked open with rivers of glowing magma', price: 300, type: 'theme', icon: '🌋',
+    colors: { light: '#424242', dark: '#1a1a1a', accent: '#ff3d00', water: '#b71c1c' }, ambientEffect: 'ember' },
+  { id: 'theme_castle', name: 'Ancient Castle', description: 'Weathered stone walls overgrown with moss and lit by fireflies', price: 200, type: 'theme', icon: '🏰',
+    colors: { light: '#bcaaa4', dark: '#5d4037', accent: '#8d6e63', water: '#33691e' }, ambientEffect: 'firefly' },
+  { id: 'theme_arcade', name: 'Neon Arcade', description: 'A retro arcade floor pulsing with electric neon lights', price: 250, type: 'theme', icon: '🎪',
+    colors: { light: '#ff4081', dark: '#1a237e', accent: '#00e5ff', water: '#aa00ff' }, ambientEffect: 'neon' },
+  { id: 'theme_toxic', name: 'Toxic Wasteland', description: 'A radioactive wasteland where toxic bubbles rise from the ground', price: 225, type: 'theme', icon: '🌿',
+    colors: { light: '#76ff03', dark: '#33691e', accent: '#aeea00', water: '#1b5e20' }, ambientEffect: 'bubble' },
+  { id: 'theme_bloodmoon', name: 'Blood Moon', description: 'A cursed battlefield under the glow of a crimson blood moon', price: 275, type: 'theme', icon: '🌅',
+    colors: { light: '#c62828', dark: '#1a0000', accent: '#ff5252', water: '#4a0000' }, ambientEffect: 'ember' },
+  { id: 'theme_thunderstorm', name: 'Thunder Storm', description: 'Dark storm clouds crackle with lightning across the battlefield', price: 250, type: 'theme', icon: '⚡',
+    colors: { light: '#546e7a', dark: '#263238', accent: '#b0bec5', water: '#1a237e' }, ambientEffect: 'sparkle' },
+  { id: 'theme_chocolate', name: 'Chocolate Factory', description: 'A warm and sweet battlefield made of melting chocolate and gold', price: 175, type: 'theme', icon: '🍫',
+    colors: { light: '#d7ccc8', dark: '#4e342e', accent: '#a1887f', water: '#6d4c41' }, ambientEffect: 'sparkle' },
+  { id: 'theme_dragon', name: "Dragon's Lair", description: 'A treasure-filled dragon cave glowing with fire and ancient gold', price: 300, type: 'theme', icon: '🐉',
+    colors: { light: '#2e7d32', dark: '#1b5e20', accent: '#ffd600', water: '#e65100' }, ambientEffect: 'ember' },
 ]
 
 // War Pass Challenges
