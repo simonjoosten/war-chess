@@ -414,6 +414,24 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'music_samurai', name: 'Way of the Samurai', description: 'Traditional Japanese koto and shakuhachi with taiko drums - honor and discipline', price: 275, type: 'music_pack', icon: '⛩️',
     packId: 'samurai', musicParams: { tempo: 85, scale: 'pentatonic', baseNote: 330, waveform: 'triangle' as OscillatorType, filterFreq: 3500, reverb: 0.6, swing: 0.1, density: 3 } },
 
+  // Music Packs - Artist-Inspired Styles
+  { id: 'music_acoustic_love', name: 'Acoustic Love Letters', description: 'Warm fingerpicked guitar with heartfelt melodies - pure acoustic emotion', price: 250, type: 'music_pack', icon: '💌',
+    packId: 'acoustic_love', musicParams: { tempo: 96, scale: 'major', baseNote: 165, waveform: 'triangle' as OscillatorType, filterFreq: 3200, reverb: 0.55, swing: 0.12, density: 3 } },
+  { id: 'music_loop_station', name: 'Loop Station Live', description: 'Layered loop-pedal style with beatbox percussion and stacking harmonies', price: 275, type: 'music_pack', icon: '🎤',
+    packId: 'loop_station', musicParams: { tempo: 104, scale: 'major', baseNote: 196, waveform: 'triangle' as OscillatorType, filterFreq: 4200, reverb: 0.4, swing: 0.18, density: 5 } },
+  { id: 'music_ginger_folk', name: 'Ginger Folk Sessions', description: 'Soulful folk-pop with clapping rhythms and sing-along energy', price: 250, type: 'music_pack', icon: '🍂',
+    packId: 'ginger_folk', musicParams: { tempo: 112, scale: 'major', baseNote: 220, waveform: 'triangle' as OscillatorType, filterFreq: 4500, reverb: 0.35, swing: 0.2, density: 4 } },
+  { id: 'music_trap_king', name: 'Trap Kingdom', description: 'Hard-hitting 808 bass drops with dark hi-hats and aggressive energy', price: 275, type: 'music_pack', icon: '👑',
+    packId: 'trap_king', musicParams: { tempo: 145, scale: 'minor', baseNote: 110, waveform: 'sawtooth' as OscillatorType, filterFreq: 3000, reverb: 0.2, swing: 0.05, density: 5 } },
+  { id: 'music_piano_ballad', name: 'Piano Ballad', description: 'Beautiful emotional piano with orchestral swells - brings tears to your eyes', price: 300, type: 'music_pack', icon: '🎹',
+    packId: 'piano_ballad', musicParams: { tempo: 72, scale: 'major', baseNote: 262, waveform: 'sine' as OscillatorType, filterFreq: 4000, reverb: 0.75, swing: 0.08, density: 2 } },
+  { id: 'music_latin_fire', name: 'Latin Fire', description: 'Spicy reggaeton and latin rhythms with pulsing bass and tropical percussion', price: 250, type: 'music_pack', icon: '💃',
+    packId: 'latin_fire', musicParams: { tempo: 95, scale: 'minor', baseNote: 196, waveform: 'sawtooth' as OscillatorType, filterFreq: 4500, reverb: 0.25, swing: 0.3, density: 6 } },
+  { id: 'music_bedroom_pop', name: 'Bedroom Pop', description: 'Dreamy lo-fi indie vibes with soft vocals and fuzzy guitars', price: 225, type: 'music_pack', icon: '🛏️',
+    packId: 'bedroom_pop', musicParams: { tempo: 108, scale: 'major', baseNote: 247, waveform: 'triangle' as OscillatorType, filterFreq: 2800, reverb: 0.6, swing: 0.15, density: 3 } },
+  { id: 'music_drill_beats', name: 'Drill Beats', description: 'Dark sliding 808s with aggressive hi-hat patterns and menacing melodies', price: 275, type: 'music_pack', icon: '🔫',
+    packId: 'drill_beats', musicParams: { tempo: 140, scale: 'minor', baseNote: 98, waveform: 'sawtooth' as OscillatorType, filterFreq: 2500, reverb: 0.15, swing: 0.1, density: 7 } },
+
   // Board Themes - Wave 2
   { id: 'theme_cherry_blossom', name: 'Cherry Blossom Temple', description: 'A peaceful Japanese temple surrounded by falling sakura petals', price: 225, type: 'theme', icon: '🌸',
     colors: { light: '#fce4ec', dark: '#f48fb1', accent: '#ad1457', water: '#7b1fa2' }, ambientEffect: 'sparkle' },
@@ -6167,30 +6185,40 @@ export async function adminCreateSampleBundles(): Promise<number> {
   if (!db || !currentUser) return 0
 
   const bundles = [
-    {
-      name: 'Shadow Ops Bundle',
-      icon: '🌑',
-      description: 'Dominate from the darkness - stealth theme, ghostly effects and creepy sounds for the ultimate night warrior',
-      itemIds: ['theme_night', 'effect_ghost', 'sound_horror']
-    },
-    {
-      name: 'Space Commander Bundle',
-      icon: '🚀',
-      description: 'Command the galaxy - cosmic visuals, stardust particles and sci-fi audio for interstellar battles',
-      itemIds: ['theme_space', 'effect_stars', 'sound_scifi']
-    },
-    {
-      name: 'Medieval Kingdom Bundle',
-      icon: '⚔️',
-      description: 'Rule the realm - enchanted forests, legendary knight skins and the clash of swords and shields',
-      itemIds: ['theme_forest', 'skin_medieval', 'sound_medieval']
-    },
-    {
-      name: 'Cyber Warfare Bundle',
-      icon: '💜',
-      description: 'Hack the battlefield - neon cyberpunk visuals, chrome robot army and glitchy synth beats',
-      itemIds: ['theme_neon', 'skin_robot', 'music_cyberpunk']
-    }
+    // Original 4
+    { name: 'Shadow Ops Bundle', icon: '🌑', description: 'Dominate from the darkness - stealth theme, ghostly effects and creepy sounds', itemIds: ['theme_night', 'effect_ghost', 'sound_horror'] },
+    { name: 'Space Commander Bundle', icon: '🚀', description: 'Command the galaxy - cosmic visuals, stardust particles and sci-fi audio', itemIds: ['theme_space', 'effect_stars', 'sound_scifi'] },
+    { name: 'Medieval Kingdom Bundle', icon: '⚔️', description: 'Rule the realm - enchanted forests, legendary knight skins and clashing swords', itemIds: ['theme_forest', 'skin_medieval', 'sound_medieval'] },
+    { name: 'Cyber Warfare Bundle', icon: '💜', description: 'Hack the battlefield - neon cyberpunk visuals, chrome robots and glitchy synths', itemIds: ['theme_neon', 'skin_robot', 'music_cyberpunk'] },
+
+    // New themed bundles using Wave 2 items
+    { name: 'Vampire Castle Bundle', icon: '🧛', description: 'Eternal night awaits - cursed blood moon, vampire legions and soul-reaping effects', itemIds: ['theme_bloodmoon', 'skin_vampire', 'effect_soul'] },
+    { name: 'Pirate Adventure Bundle', icon: '🏴‍☠️', description: 'Set sail for treasure - ocean assault, fearsome pirate crew and a roaring shanty', itemIds: ['theme_ocean', 'skin_pirate', 'music_pirate_shanty'] },
+    { name: 'Arctic Explorer Bundle', icon: '🧊', description: 'Survive the frozen north - icy caves, frost giants and zen tranquility', itemIds: ['theme_ice', 'skin_frost', 'sound_zen'] },
+    { name: 'Ninja Stealth Bundle', icon: '🥷', description: 'Strike from the shadows - obsidian darkness, ninja warriors and plasma attacks', itemIds: ['theme_obsidian', 'skin_ninja', 'effect_plasma'] },
+    { name: 'Dragon Slayer Bundle', icon: '🐉', description: 'Enter the dragon lair with fantasy heroes and blue inferno flames', itemIds: ['theme_dragon', 'skin_fantasy', 'effect_bluefire'] },
+    { name: 'Retro Gamer Bundle', icon: '🎮', description: 'Pure nostalgia - neon arcade, pixel warriors and crunchy 8-bit sounds', itemIds: ['theme_arcade', 'skin_pixel', 'sound_arcade2'] },
+    { name: 'Halloween Horror Bundle', icon: '🎃', description: 'Spooky scary - haunted battlefield, pumpkin army and toxic drips', itemIds: ['theme_haunted', 'skin_pumpkin', 'effect_toxic'] },
+    { name: 'Crystal Mage Bundle', icon: '🔮', description: 'Mystical power - crystal caverns, diamond elite pieces and prisma burst effects', itemIds: ['theme_crystal_cavern', 'skin_diamond', 'effect_prisma'] },
+    { name: 'Wild West Bundle', icon: '🤠', description: 'Saddle up partner - desert camo, outlaw cowboys and dusty western tunes', itemIds: ['theme_desert', 'skin_cowboy', 'music_western'] },
+    { name: 'Deep Sea Bundle', icon: '🌊', description: 'Dive into the abyss - underwater theme, sea creatures and bubbly sounds', itemIds: ['theme_underwater', 'skin_deepsea', 'sound_underwater'] },
+    { name: 'World War Bundle', icon: '🪖', description: 'Historical warfare - ancient castle, WW1 trench fighters and cinematic sounds', itemIds: ['theme_castle', 'skin_ww1', 'sound_cinematic'] },
+    { name: 'Cold War Spy Bundle', icon: '🕵️', description: 'Classified operations - night ops, cold war agents and walkie-talkie comms', itemIds: ['theme_night', 'skin_coldwar', 'sound_walkietalkie'] },
+    { name: 'Zen Master Bundle', icon: '⛩️', description: 'Inner peace and discipline - cherry blossoms, samurai music and zen sounds', itemIds: ['theme_cherry_blossom', 'music_samurai', 'sound_zen'] },
+    { name: 'EDM Party Bundle', icon: '🎆', description: 'Drop the bass - neon arcade, tornado spin effects and EDM festival beats', itemIds: ['theme_arcade', 'effect_tornado', 'music_edm_drop'] },
+    { name: 'Chocolate Dream Bundle', icon: '🍫', description: 'Sweet indulgence - chocolate factory, butterfly effects and campfire songs', itemIds: ['theme_chocolate', 'effect_butterfly', 'music_campfire'] },
+    { name: 'Viking Conquest Bundle', icon: '⚔️', description: 'For Valhalla! - lava battlefield, medieval knights and thundering war drums', itemIds: ['theme_lava', 'skin_medieval', 'music_viking'] },
+    { name: 'Sci-Fi Explorer Bundle', icon: '🛸', description: 'Beyond the stars - space odyssey music, exo-suit soldiers and warp drive effects', itemIds: ['skin_exosuit', 'effect_warp', 'music_space_odyssey'] },
+    { name: 'Stormy Night Bundle', icon: '⚡', description: 'Thunder and lightning - storm battlefield, lightning effects and stadium echo', itemIds: ['theme_thunderstorm', 'effect_lightning', 'sound_stadium'] },
+    { name: 'Alchemist Lab Bundle', icon: '⚗️', description: 'Transmute the battlefield - gold rush theme, alchemist pieces and magic rune effects', itemIds: ['theme_gold', 'skin_alchemist', 'effect_runes'] },
+    { name: 'Moonlight Serenade Bundle', icon: '🌙', description: 'Romance under the stars - sunset ballad, moonlight glow and acoustic heartstrings', itemIds: ['effect_moonlight', 'music_sunset_ballad', 'music_acoustic_heart'] },
+    { name: 'Acoustic Session Bundle', icon: '🎸', description: 'Intimate acoustic vibes - campfire folk, love letters guitar and warm sunset colors', itemIds: ['music_acoustic_love', 'music_campfire', 'theme_sunset'] },
+    { name: 'Loop Artist Bundle', icon: '🎤', description: 'Layer your sounds - loop station beats, ginger folk sessions and music note effects', itemIds: ['music_loop_station', 'music_ginger_folk', 'effect_musicnotes'] },
+    { name: 'Street Heat Bundle', icon: '👑', description: 'Dominate the streets - trap beats, drill sounds and industrial audio', itemIds: ['music_trap_king', 'music_drill_beats', 'sound_industrial'] },
+    { name: 'Latin Summer Bundle', icon: '💃', description: 'Hot summer vibes - latin fire beats, tropical beach and butterfly effects', itemIds: ['music_latin_fire', 'theme_tropical', 'effect_butterfly'] },
+    { name: 'Dreamer Bundle', icon: '🛏️', description: 'Soft and dreamy - bedroom pop, piano ballad and moonlight particles', itemIds: ['music_bedroom_pop', 'music_piano_ballad', 'effect_moonlight'] },
+    { name: 'Toxic Warfare Bundle', icon: '☢️', description: 'Radioactive destruction - toxic wasteland, toxic drip effects and alien sounds', itemIds: ['theme_toxic', 'effect_toxic', 'sound_alien'] },
+    { name: 'Samurai Honor Bundle', icon: '⛩️', description: 'The way of the warrior - cherry blossoms, samurai melodies and ninja stealth', itemIds: ['theme_cherry_blossom', 'music_samurai', 'skin_ninja'] },
   ]
 
   let created = 0
