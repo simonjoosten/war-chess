@@ -181,7 +181,8 @@ import {
   loadCustomShopItems,
   adminCreateShopItem,
   adminDeleteShopItem,
-  adminGetCustomShopItems
+  adminGetCustomShopItems,
+  adminCreateSampleBundles
 } from './firebase'
 
 // Auth state
@@ -28813,9 +28814,14 @@ function render() {
                 <div class="bg-gray-800 p-4 rounded-lg">
                   <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-white">📦 Bundle Management</h2>
-                    <button id="toggle-create-bundle" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm">
-                      + New Bundle
-                    </button>
+                    <div class="flex gap-2">
+                      <button id="create-sample-bundles" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        🎁 Sample Bundles
+                      </button>
+                      <button id="toggle-create-bundle" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm">
+                        + New Bundle
+                      </button>
+                    </div>
                   </div>
 
                   <div id="create-bundle-form" class="hidden bg-gray-700 p-4 rounded-lg mb-4">
@@ -30187,6 +30193,16 @@ function render() {
           })
 
           // Toggle create bundle form
+          // Create sample bundles
+          document.getElementById('create-sample-bundles')?.addEventListener('click', async () => {
+            if (confirm('Create 4 sample bundles? (Shadow Ops, Space Commander, Medieval Kingdom, Cyber Warfare)')) {
+              const count = await adminCreateSampleBundles()
+              alert(`${count} bundles created!`)
+              adminDataLoaded = false
+              renderAdminPanel()
+            }
+          })
+
           document.getElementById('toggle-create-bundle')?.addEventListener('click', () => {
             const form = document.getElementById('create-bundle-form')
             if (form) form.classList.toggle('hidden')

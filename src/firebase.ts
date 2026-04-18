@@ -5990,3 +5990,42 @@ export async function adminGetCustomShopItems(): Promise<ShopItem[]> {
     return []
   }
 }
+
+// Admin: Create 4 pre-designed bundles
+export async function adminCreateSampleBundles(): Promise<number> {
+  if (!db || !currentUser) return 0
+
+  const bundles = [
+    {
+      name: 'Shadow Ops Bundle',
+      icon: '🌑',
+      description: 'Dominate from the darkness - stealth theme, ghostly effects and creepy sounds for the ultimate night warrior',
+      itemIds: ['theme_night', 'effect_ghost', 'sound_horror']
+    },
+    {
+      name: 'Space Commander Bundle',
+      icon: '🚀',
+      description: 'Command the galaxy - cosmic visuals, stardust particles and sci-fi audio for interstellar battles',
+      itemIds: ['theme_space', 'effect_stars', 'sound_scifi']
+    },
+    {
+      name: 'Medieval Kingdom Bundle',
+      icon: '⚔️',
+      description: 'Rule the realm - enchanted forests, legendary knight skins and the clash of swords and shields',
+      itemIds: ['theme_forest', 'skin_medieval', 'sound_medieval']
+    },
+    {
+      name: 'Cyber Warfare Bundle',
+      icon: '💜',
+      description: 'Hack the battlefield - neon cyberpunk visuals, chrome robot army and glitchy synth beats',
+      itemIds: ['theme_neon', 'skin_robot', 'music_cyberpunk']
+    }
+  ]
+
+  let created = 0
+  for (const bundle of bundles) {
+    const id = await adminCreateBundle(bundle)
+    if (id) created++
+  }
+  return created
+}
