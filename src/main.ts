@@ -25820,6 +25820,54 @@ function render() {
       return
     }
 
+    // Shop purchase popup
+    function showShopPopup(options: { title: string; subtitle?: string; icon: string; itemId?: string; itemType?: string; isBundle?: boolean; onEquip?: () => void }) {
+      const existing = document.getElementById('shop-popup-overlay')
+      if (existing) existing.remove()
+
+      const overlay = document.createElement('div')
+      overlay.id = 'shop-popup-overlay'
+      overlay.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50'
+      overlay.style.animation = 'deal-slide-in 0.3s ease-out'
+
+      const canEquip = options.itemId && options.itemType && !options.isBundle
+
+      overlay.innerHTML = `
+        <div class="bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 text-center border border-green-500/30 shadow-2xl shadow-green-500/20" style="animation: deal-slide-in 0.3s ease-out">
+          <div class="text-5xl mb-3" style="animation: deal-float 2s ease-in-out infinite">${options.icon}</div>
+          <h3 class="text-xl font-black text-green-400 mb-1">${options.title}</h3>
+          ${options.subtitle ? `<p class="text-gray-400 text-sm mb-4">${options.subtitle}</p>` : '<div class="mb-4"></div>'}
+          <div class="flex gap-3 justify-center">
+            ${canEquip ? `
+              <button id="shop-popup-equip" class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 px-6 rounded-xl transition-all hover:scale-105 shadow-lg shadow-green-600/30">
+                ✅ ${t('shopEquip')}
+              </button>
+            ` : ''}
+            <button id="shop-popup-close" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 px-6 rounded-xl transition-all">
+              ${canEquip ? 'Later' : 'OK'}
+            </button>
+          </div>
+        </div>
+      `
+
+      document.body.appendChild(overlay)
+
+      // Close button
+      document.getElementById('shop-popup-close')?.addEventListener('click', () => overlay.remove())
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove() })
+
+      // Equip button
+      if (canEquip && options.onEquip) {
+        document.getElementById('shop-popup-equip')?.addEventListener('click', () => {
+          overlay.remove()
+          options.onEquip!()
+        })
+      }
+
+      // Auto-close after 8 seconds
+      setTimeout(() => { if (document.getElementById('shop-popup-overlay')) overlay.remove() }, 8000)
+    }
+
     // Shop screen
     if (showAuthScreen === 'shop') {
       // Shop tab state (persisted via closure)
@@ -26088,6 +26136,26 @@ function render() {
           render()
         })
 
+        // Equip helper for popup
+        const equipItem = async (itemId: string, itemType: string) => {
+          const ud2 = getCurrentUserData()
+          if (!ud2) return
+          const newEquipped = { ...(ud2.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+          if (itemType === 'theme') { newEquipped.theme = itemId; equippedTheme = itemId }
+          else if (itemType === 'piece_skin') { newEquipped.pieceSkin = itemId; equippedPieceSkin = itemId }
+          else if (itemType === 'effect') { newEquipped.effect = itemId; equippedEffect = itemId }
+          else if (itemType === 'sound_pack') { newEquipped.soundPack = itemId; equippedSoundPack = itemId }
+          else if (itemType === 'music_pack') { newEquipped.musicPack = itemId; equippedMusicPack = itemId }
+          await saveUserData({ equippedItems: newEquipped })
+          await loadUserData()
+          renderShop()
+        }
+
+        // Not enough bucks popup
+        const showNotEnoughPopup = () => {
+          showShopPopup({ title: t('shopNotEnough'), icon: '😢', subtitle: t('shopBalance') + ': 💰 ' + (getCurrentUserData()?.warBucks || 0) })
+        }
+
         // Handle deal buy buttons
         document.querySelectorAll('.buy-deal-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
@@ -26097,23 +26165,22 @@ function render() {
 
             const ud = getCurrentUserData()
             if (!ud || !itemId) return
-
-            if (ud.warBucks < price) {
-              alert(t('shopNotEnough'))
-              return
-            }
+            if (ud.warBucks < price) { showNotEnoughPopup(); return }
 
             const newWarBucks = ud.warBucks - price
             const newPurchasedItems = [...(ud.purchasedItems || []), itemId]
-
-            await saveUserData({
-              warBucks: newWarBucks,
-              purchasedItems: newPurchasedItems
-            })
-
+            await saveUserData({ warBucks: newWarBucks, purchasedItems: newPurchasedItems })
             await loadUserData()
-            alert(t('shopPurchased'))
-            render()
+
+            const item = SHOP_ITEMS.find(i => i.id === itemId)
+            showShopPopup({
+              title: t('shopPurchased'),
+              subtitle: item ? `${item.name} - ${t('youSave')} 💰${item.price - price}!` : undefined,
+              icon: item?.icon || '🎉',
+              itemId, itemType: item?.type,
+              onEquip: () => { equipItem(itemId, item?.type || ''); renderShop() }
+            })
+            renderShop()
           })
         })
 
@@ -26126,11 +26193,7 @@ function render() {
 
             const ud = getCurrentUserData()
             if (!ud || !bundleId) return
-
-            if (ud.warBucks < price) {
-              alert(t('shopNotEnough'))
-              return
-            }
+            if (ud.warBucks < price) { showNotEnoughPopup(); return }
 
             const bundle = shopBundles.find(b => b.id === bundleId)
             if (!bundle) return
@@ -26138,10 +26201,15 @@ function render() {
             const success = await purchaseBundle(bundle)
             if (success) {
               await loadUserData()
-              alert(t('bundlePurchased'))
-              render()
+              showShopPopup({
+                title: t('bundlePurchased'),
+                subtitle: `${bundle.name} - ${bundle.itemIds.length} items!`,
+                icon: bundle.icon,
+                isBundle: true
+              })
+              renderShop()
             } else {
-              alert(t('shopNotEnough'))
+              showNotEnoughPopup()
             }
           })
         })
@@ -26155,23 +26223,22 @@ function render() {
 
             const ud = getCurrentUserData()
             if (!ud || !itemId) return
-
-            if (ud.warBucks < price) {
-              alert(t('shopNotEnough'))
-              return
-            }
+            if (ud.warBucks < price) { showNotEnoughPopup(); return }
 
             const newWarBucks = ud.warBucks - price
             const newPurchasedItems = [...(ud.purchasedItems || []), itemId]
-
-            await saveUserData({
-              warBucks: newWarBucks,
-              purchasedItems: newPurchasedItems
-            })
-
+            await saveUserData({ warBucks: newWarBucks, purchasedItems: newPurchasedItems })
             await loadUserData()
-            alert(t('shopPurchased'))
-            render()
+
+            const item = SHOP_ITEMS.find(i => i.id === itemId)
+            showShopPopup({
+              title: t('shopPurchased'),
+              subtitle: item?.name,
+              icon: item?.icon || '🎉',
+              itemId, itemType: item?.type,
+              onEquip: () => { equipItem(itemId, item?.type || ''); renderShop() }
+            })
+            renderShop()
           })
         })
 
