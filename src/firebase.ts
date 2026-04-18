@@ -2323,6 +2323,37 @@ export async function adminCreateSampleEvents(): Promise<number> {
     { type: 'update', title: 'Bundles System!', message: 'Buy 3 items together and save 20%! Check the Daily Deals tab.', icon: '📦', active: true },
     { type: 'maintenance', title: 'Scheduled Maintenance', message: 'Quick server restart tonight at 3 AM. Should take 5 minutes.', icon: '🔧', active: false },
     { type: 'maintenance', title: 'Database Optimization', message: 'We are optimizing the database for faster load times.', icon: '⚡', active: false },
+
+    // === Wave 2: 20 More Events ===
+    // Rewards
+    { type: 'reward', title: 'First Blood Bonus!', message: 'Win your first game today and claim bonus War Bucks!', icon: '🩸', active: true, rewardType: 'warBucks', rewardAmount: 150 },
+    { type: 'reward', title: 'Puzzle Solver Reward', message: 'Complete 3 puzzles and claim this reward!', icon: '🧩', active: false, rewardType: 'warBucks', rewardAmount: 100 },
+    { type: 'reward', title: 'Free Sparkle Effect!', message: 'Everyone gets a free Sparkle effect! Claim now!', icon: '✨', active: false, rewardType: 'item', rewardItemId: 'effect_sparkle' },
+    { type: 'reward', title: 'Mega Jackpot!', message: 'A rare mega reward drop! Be fast before it expires!', icon: '🎰', active: false, rewardType: 'warBucks', rewardAmount: 1000 },
+    { type: 'reward', title: 'Veteran Appreciation', message: 'For players who have been with us since the beginning. Thank you!', icon: '🎖️', active: false, rewardType: 'warBucks', rewardAmount: 400 },
+
+    // Announcements
+    { type: 'announcement', title: 'Artist Music Packs!', message: 'New music packs inspired by popular styles: Acoustic, Trap, Latin, Drill and more!', icon: '🎵', active: true },
+    { type: 'announcement', title: 'New Skins Wave!', message: 'Vampire, Pirate, Ninja, Frost Giant and 8 more skins available now!', icon: '⚔️', active: true },
+    { type: 'announcement', title: '30 Bundles Available!', message: 'Huge bundle collection! Save 20% on themed item packs in the Daily Deals tab.', icon: '📦', active: true },
+    { type: 'announcement', title: 'Sound Packs Dropped!', message: 'Underwater, Stadium, Alien, Industrial and 6 more sound packs in the shop!', icon: '🔊', active: true },
+    { type: 'announcement', title: 'Friends System!', message: 'Add friends, chat directly and see who is online! Check the Friends tab.', icon: '👥', active: false },
+
+    // Game Events
+    { type: 'event', title: 'Capture Marathon!', message: 'The player with the most captures this week wins 500 War Bucks!', icon: '🎯', active: false },
+    { type: 'event', title: 'Tank Destroyer Event', message: 'Destroy 10 tanks in one game for a special reward!', icon: '💣', active: false },
+    { type: 'event', title: 'Puzzle Sprint!', message: 'Solve 5 puzzles in a row without mistakes for 200 bonus War Bucks!', icon: '🧠', active: false },
+    { type: 'event', title: 'Multiplayer Madness!', message: 'Play 5 multiplayer games this weekend for triple War Bucks!', icon: '🌐', active: false },
+    { type: 'event', title: 'Collection Challenge', message: 'Buy 3 items from the shop this week and get 100 War Bucks back!', icon: '🛍️', active: false },
+
+    // Updates
+    { type: 'update', title: 'AI Shop Creator!', message: 'Admins can now create items with AI prompts! Type what you want and AI generates it.', icon: '🤖', active: true },
+    { type: 'update', title: 'Music Studio!', message: 'New music creator with note sequencer, beat patterns and live preview!', icon: '🎵', active: true },
+    { type: 'update', title: 'Effect Designer!', message: 'Create custom particle effects with live animated preview!', icon: '✨', active: false },
+
+    // Polls
+    { type: 'poll', title: 'Best New Theme?', message: 'Which new theme is your favorite?', icon: '🎨', active: true, pollOptions: ['Dragon Lair 🐉', 'Crystal Cavern 🔮', 'Blood Moon 🌅', 'Neon Arcade 🎪'] },
+    { type: 'poll', title: 'Favorite Music Style?', message: 'What music do you play with?', icon: '🎶', active: false, pollOptions: ['Acoustic 🎸', 'EDM 🎆', 'Lo-Fi 🛏️', 'Epic Battle ⚔️'] },
   ]
 
   let count = 0
