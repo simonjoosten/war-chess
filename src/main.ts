@@ -182,6 +182,20 @@ import {
   BANNERS,
   getEarnedTitles,
   getEarnedBanners,
+  // Clans
+  Clan,
+  createClan,
+  getClan,
+  searchClans,
+  requestJoinClan,
+  getClanRequests,
+  acceptClanRequest,
+  rejectClanRequest,
+  leaveClan,
+  kickFromClan,
+  promoteClanMember,
+  getClanMembers,
+  addClanCoins,
   // Custom Shop Items
   loadCustomShopItems,
   adminCreateShopItem,
@@ -191,7 +205,7 @@ import {
 } from './firebase'
 
 // Auth state
-type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips' | 'friends' | 'leaderboard'
+type AuthScreen = 'none' | 'login' | 'register' | 'profile' | 'multiplayer' | 'shop' | 'warpass' | 'events' | 'admin' | 'tournaments' | 'puzzles' | 'tips' | 'friends' | 'leaderboard' | 'clan'
 let showAuthScreen: AuthScreen = 'none'
 let previousAuthScreen: AuthScreen = 'none' // Track where we came from for back button
 let authError = ''
@@ -26334,6 +26348,11 @@ function render() {
               <span class="text-3xl sm:text-4xl">🏆</span>
               <span class="text-sm sm:text-base">Tournaments</span>
             </button>
+            <button id="clan-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-rose-500 to-rose-700 hover:from-rose-400 hover:to-rose-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
+              <span class="text-3xl sm:text-4xl">👥</span>
+              <span class="text-sm sm:text-base">Clan</span>
+              ${userData?.clanId ? '<span class="text-xs bg-green-500 px-2 rounded-full">Joined</span>' : ''}
+            </button>
             <button id="tips-btn" class="relative w-28 h-28 sm:w-32 sm:h-32 bg-gradient-to-br from-pink-500 to-pink-700 hover:from-pink-400 hover:to-pink-600 text-white font-bold rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-2">
               <span class="text-3xl sm:text-4xl">💡</span>
               <span class="text-sm sm:text-base">Tips</span>
@@ -26381,6 +26400,10 @@ function render() {
         })
         document.getElementById('puzzles-btn')?.addEventListener('click', () => {
           showAuthScreen = 'puzzles'
+          render()
+        })
+        document.getElementById('clan-btn')?.addEventListener('click', () => {
+          showAuthScreen = 'clan'
           render()
         })
         document.getElementById('tournaments-btn')?.addEventListener('click', () => {
@@ -27069,6 +27092,359 @@ function render() {
       }
 
       renderShop()
+      return
+    }
+
+    // Clan screen
+    if (showAuthScreen === 'clan') {
+      const userData = getCurrentUserData()
+      let clanTab: 'info' | 'members' | 'requests' | 'browse' | 'create' = userData?.clanId ? 'info' : 'browse'
+
+      const renderClanScreen = async () => {
+        const ud = getCurrentUserData()
+        const myClanId = ud?.clanId
+
+        if (myClanId) {
+          // User is in a clan - show clan info
+          const clan = await getClan(myClanId)
+          if (!clan) { clanTab = 'browse'; renderClanScreen(); return }
+
+          const isLeader = clan.leaderIds.includes(getCurrentUser()?.uid || '')
+          const members = clanTab === 'members' ? await getClanMembers(clan.memberIds) : []
+          const requests = clanTab === 'requests' && isLeader ? await getClanRequests(myClanId) : []
+
+          const tabCls = (t2: string) => clanTab === t2 ? 'bg-rose-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+
+          app.innerHTML = `
+            <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+              <!-- Clan Banner -->
+              <div class="w-full max-w-[600px] bg-gradient-to-r ${clan.bannerColor} rounded-xl p-6 text-center relative overflow-hidden">
+                <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle,white 1px,transparent 1px);background-size:30px 30px"></div>
+                <div class="relative z-10">
+                  <div class="text-5xl mb-2">${clan.icon}</div>
+                  <h1 class="text-2xl font-black text-white">${clan.name}</h1>
+                  <div class="text-white/70 text-sm font-bold">[${clan.tag}]</div>
+                  <p class="text-white/60 text-sm mt-1">${clan.description}</p>
+                </div>
+              </div>
+
+              <!-- Clan Stats -->
+              <div class="w-full max-w-[600px] grid grid-cols-4 gap-2">
+                <div class="bg-gray-800 p-3 rounded-lg text-center">
+                  <div class="text-white font-bold text-lg">${clan.memberIds.length}/${clan.maxMembers}</div>
+                  <div class="text-gray-400 text-xs">Members</div>
+                </div>
+                <div class="bg-gray-800 p-3 rounded-lg text-center">
+                  <div class="text-yellow-400 font-bold text-lg">${clan.clanCoins || 0}</div>
+                  <div class="text-gray-400 text-xs">Clan Coins</div>
+                </div>
+                <div class="bg-gray-800 p-3 rounded-lg text-center">
+                  <div class="text-green-400 font-bold text-lg">${clan.stats.totalWins}</div>
+                  <div class="text-gray-400 text-xs">Total Wins</div>
+                </div>
+                <div class="bg-gray-800 p-3 rounded-lg text-center">
+                  <div class="text-purple-400 font-bold text-lg">Lv.${clan.stats.clanLevel}</div>
+                  <div class="text-gray-400 text-xs">Clan Level</div>
+                </div>
+              </div>
+
+              <!-- Tabs -->
+              <div class="flex gap-2">
+                <button class="clan-tab ${tabCls('info')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="info">📋 Info</button>
+                <button class="clan-tab ${tabCls('members')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="members">👥 Members</button>
+                ${isLeader ? `<button class="clan-tab ${tabCls('requests')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="requests">📩 Requests ${requests.length > 0 ? '<span class="bg-red-500 text-white text-xs rounded-full px-1.5 ml-1">' + requests.length + '</span>' : ''}</button>` : ''}
+              </div>
+
+              <div class="w-full max-w-[600px]">
+                ${clanTab === 'info' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3">
+                    <h3 class="text-white font-bold">📋 Clan Info</h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                      <div class="text-gray-400">Founded</div><div class="text-white">${new Date(clan.createdAt).toLocaleDateString()}</div>
+                      <div class="text-gray-400">Min Games</div><div class="text-white">${clan.requirements.minGamesPlayed}</div>
+                      <div class="text-gray-400">Min Wins</div><div class="text-white">${clan.requirements.minGamesWon}</div>
+                      <div class="text-gray-400">Auto Accept</div><div class="text-white">${clan.requirements.autoAccept ? '✅ Yes' : '❌ No'}</div>
+                      <div class="text-gray-400">Total Kills</div><div class="text-orange-400 font-bold">${clan.stats.totalKills}</div>
+                      <div class="text-gray-400">Total Points</div><div class="text-yellow-400 font-bold">${clan.stats.totalPoints}</div>
+                    </div>
+                    <button id="clan-leave-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm mt-2">🚪 Leave Clan</button>
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'members' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-2">
+                    <h3 class="text-white font-bold">👥 Members (${members.length})</h3>
+                    ${members.map(m => {
+                      const mIsLeader = clan.leaderIds.includes(m.odataId)
+                      const isMe = m.odataId === getCurrentUser()?.uid
+                      return `
+                        <div class="flex items-center gap-3 p-2 rounded-lg bg-gray-700/50 ${mIsLeader ? 'border border-yellow-500/30' : ''}">
+                          ${renderAvatar(m.avatar, 36)}
+                          <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                              <span class="text-white font-bold text-sm truncate">${m.username}</span>
+                              ${mIsLeader ? '<span class="text-yellow-400 text-xs">👑 Leader</span>' : ''}
+                              ${isMe ? '<span class="text-blue-400 text-xs">(You)</span>' : ''}
+                            </div>
+                            <div class="text-gray-400 text-xs">${m.stats.gamesWon}W / ${m.stats.gamesPlayed}G | 💰${m.clanCoins || 0} coins</div>
+                          </div>
+                          ${isLeader && !isMe && !mIsLeader ? `
+                            <button class="clan-promote-btn bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-1 px-2 rounded" data-uid="${m.odataId}">👑</button>
+                            <button class="clan-kick-btn bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-uid="${m.odataId}">🚫</button>
+                          ` : ''}
+                        </div>
+                      `
+                    }).join('')}
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'requests' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-2">
+                    <h3 class="text-white font-bold">📩 Join Requests</h3>
+                    ${requests.length === 0 ? '<div class="text-gray-400 text-center py-4">No pending requests</div>' : ''}
+                    ${requests.map(r => `
+                      <div class="flex items-center justify-between p-3 rounded-lg bg-gray-700/50">
+                        <div>
+                          <span class="text-white font-bold">${r.username}</span>
+                          <div class="text-gray-400 text-xs">${r.gamesWon}W / ${r.gamesPlayed}G</div>
+                        </div>
+                        <div class="flex gap-2">
+                          <button class="clan-accept-btn bg-green-600 hover:bg-green-500 text-white text-sm font-bold py-1.5 px-3 rounded" data-req="${r.id}" data-uid="${r.userId}">✅ Accept</button>
+                          <button class="clan-reject-btn bg-red-600 hover:bg-red-500 text-white text-sm font-bold py-1.5 px-3 rounded" data-req="${r.id}">❌</button>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+
+              <button id="clan-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">${t('backButton')}</button>
+            </div>
+          `
+        } else {
+          // User not in a clan - show browse/create
+          const tabCls = (t2: string) => clanTab === t2 ? 'bg-rose-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          const allClans = clanTab === 'browse' ? await searchClans() : []
+
+          app.innerHTML = `
+            <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
+              <h1 class="text-2xl sm:text-4xl font-bold text-white">👥 Clans</h1>
+
+              <div class="flex gap-2">
+                <button class="clan-tab ${tabCls('browse')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="browse">🔍 Browse</button>
+                <button class="clan-tab ${tabCls('create')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="create">➕ Create</button>
+              </div>
+
+              <div class="w-full max-w-[600px]">
+                ${clanTab === 'browse' ? `
+                  <div class="flex flex-col gap-3">
+                    ${allClans.length === 0 ? '<div class="text-gray-400 text-center py-8 bg-gray-800 rounded-lg">No clans yet. Be the first to create one!</div>' : ''}
+                    ${allClans.map(clan => `
+                      <div class="bg-gray-800 rounded-xl overflow-hidden">
+                        <div class="bg-gradient-to-r ${clan.bannerColor} p-3 flex items-center gap-3">
+                          <span class="text-3xl">${clan.icon}</span>
+                          <div class="flex-1 min-w-0">
+                            <div class="text-white font-bold truncate">${clan.name} <span class="text-white/60 text-sm">[${clan.tag}]</span></div>
+                            <div class="text-white/70 text-xs truncate">${clan.description}</div>
+                          </div>
+                        </div>
+                        <div class="p-3 flex items-center justify-between">
+                          <div class="flex gap-4 text-xs text-gray-400">
+                            <span>👥 ${clan.memberIds.length}/${clan.maxMembers}</span>
+                            <span>🏆 ${clan.stats.totalWins}W</span>
+                            <span>Lv.${clan.stats.clanLevel}</span>
+                            <span>${clan.requirements.autoAccept ? '🟢 Open' : '🔒 Apply'}</span>
+                          </div>
+                          <button class="clan-join-btn bg-rose-600 hover:bg-rose-500 text-white font-bold py-1.5 px-4 rounded-lg text-sm transition-all hover:scale-105" data-clan="${clan.id}">
+                            ${clan.requirements.autoAccept ? 'Join' : 'Apply'}
+                          </button>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'create' ? `
+                  <div class="bg-gray-800 p-5 rounded-xl flex flex-col gap-3">
+                    <h3 class="text-white font-bold text-lg">➕ Create Clan</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="col-span-2">
+                        <label class="text-gray-300 text-sm block mb-1">Clan Name</label>
+                        <input type="text" id="clan-name" placeholder="Epic Warriors" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600" maxlength="24">
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-sm block mb-1">Tag (2-5 chars)</label>
+                        <input type="text" id="clan-tag" placeholder="WAR" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600" maxlength="5">
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-sm block mb-1">Icon</label>
+                        <div class="flex gap-1 flex-wrap">
+                          ${['⚔️', '🛡️', '👑', '🔥', '💀', '🐉', '🦁', '⚡', '🌟', '💎', '🏴', '🎯'].map(e => `<button class="clan-icon-btn bg-gray-700 hover:bg-gray-600 rounded p-1 text-lg" data-icon="${e}">${e}</button>`).join('')}
+                        </div>
+                        <input type="hidden" id="clan-icon" value="⚔️">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="text-gray-300 text-sm block mb-1">Description</label>
+                      <textarea id="clan-desc" placeholder="We fight for glory!" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 h-16" maxlength="150"></textarea>
+                    </div>
+                    <div>
+                      <label class="text-gray-300 text-sm block mb-1">Banner Color</label>
+                      <div class="flex gap-1.5 flex-wrap">
+                        ${['from-red-800 to-orange-700', 'from-blue-800 to-cyan-700', 'from-green-800 to-emerald-700', 'from-purple-800 to-pink-700', 'from-yellow-700 to-amber-600', 'from-gray-800 to-gray-600', 'from-rose-800 to-red-700', 'from-indigo-800 to-violet-700'].map((g, i) =>
+                          `<button class="clan-color-btn w-10 h-6 rounded bg-gradient-to-r ${g} hover:scale-110 transition-transform border border-gray-500" data-gradient="${g}"></button>`
+                        ).join('')}
+                      </div>
+                      <input type="hidden" id="clan-banner-color" value="from-red-800 to-orange-700">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                      <div>
+                        <label class="text-gray-300 text-xs block mb-1">Max Members</label>
+                        <select id="clan-max" class="w-full bg-gray-700 text-white px-2 py-1.5 rounded border border-gray-600 text-sm">
+                          <option value="10">10</option>
+                          <option value="20" selected>20</option>
+                          <option value="30">30</option>
+                          <option value="50">50</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-xs block mb-1">Min Games</label>
+                        <input type="number" id="clan-min-games" value="0" min="0" class="w-full bg-gray-700 text-white px-2 py-1.5 rounded border border-gray-600 text-sm">
+                      </div>
+                      <div>
+                        <label class="text-gray-300 text-xs block mb-1">Min Wins</label>
+                        <input type="number" id="clan-min-wins" value="0" min="0" class="w-full bg-gray-700 text-white px-2 py-1.5 rounded border border-gray-600 text-sm">
+                      </div>
+                    </div>
+                    <label class="flex items-center gap-2 text-gray-300 text-sm">
+                      <input type="checkbox" id="clan-auto-accept" checked class="accent-rose-500"> Auto-accept new members
+                    </label>
+                    <button id="clan-create-btn" class="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold py-3 rounded-xl text-lg transition-all hover:scale-[1.02] shadow-lg">
+                      ⚔️ Create Clan
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+
+              <button id="clan-back-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded transition-colors">${t('backButton')}</button>
+            </div>
+          `
+        }
+
+        // Event handlers
+        document.getElementById('clan-back-btn')?.addEventListener('click', () => { showAuthScreen = 'profile'; render() })
+
+        // Tab switching
+        document.querySelectorAll('.clan-tab').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            clanTab = (e.currentTarget as HTMLElement).dataset.tab as typeof clanTab
+            renderClanScreen()
+          })
+        })
+
+        // Join clan
+        document.querySelectorAll('.clan-join-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const clanId = (e.currentTarget as HTMLElement).dataset.clan
+            if (!clanId) return
+            const result = await requestJoinClan(clanId)
+            if (result.success) {
+              await loadUserData()
+              showShopPopup({ title: 'Clan Joined!', icon: '⚔️', subtitle: 'Welcome to the clan!' })
+              renderClanScreen()
+            } else {
+              alert(result.error || 'Failed to join')
+            }
+          })
+        })
+
+        // Create clan
+        document.getElementById('clan-create-btn')?.addEventListener('click', async () => {
+          const name = (document.getElementById('clan-name') as HTMLInputElement)?.value?.trim()
+          const tag = (document.getElementById('clan-tag') as HTMLInputElement)?.value?.trim()
+          const desc = (document.getElementById('clan-desc') as HTMLTextAreaElement)?.value?.trim()
+          const icon = (document.getElementById('clan-icon') as HTMLInputElement)?.value || '⚔️'
+          const bannerColor = (document.getElementById('clan-banner-color') as HTMLInputElement)?.value || 'from-red-800 to-orange-700'
+          const maxMembers = parseInt((document.getElementById('clan-max') as HTMLSelectElement)?.value || '20')
+          const minGamesPlayed = parseInt((document.getElementById('clan-min-games') as HTMLInputElement)?.value || '0')
+          const minGamesWon = parseInt((document.getElementById('clan-min-wins') as HTMLInputElement)?.value || '0')
+          const autoAccept = (document.getElementById('clan-auto-accept') as HTMLInputElement)?.checked ?? true
+
+          if (!name || name.length < 3) { alert('Clan name must be at least 3 characters'); return }
+          if (!tag || tag.length < 2) { alert('Tag must be 2-5 characters'); return }
+
+          const id = await createClan({ name, tag, description: desc || '', icon, bannerColor, maxMembers, minGamesPlayed, minGamesWon, autoAccept })
+          if (id) {
+            await loadUserData()
+            showShopPopup({ title: 'Clan Created!', icon, subtitle: `[${tag.toUpperCase()}] ${name}` })
+            clanTab = 'info'
+            renderClanScreen()
+          } else {
+            alert('Failed to create clan')
+          }
+        })
+
+        // Icon selector
+        document.querySelectorAll('.clan-icon-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const icon = (e.currentTarget as HTMLElement).dataset.icon
+            if (icon) (document.getElementById('clan-icon') as HTMLInputElement).value = icon
+            document.querySelectorAll('.clan-icon-btn').forEach(b => b.classList.remove('ring-2', 'ring-rose-500'))
+            ;(e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-rose-500')
+          })
+        })
+
+        // Color selector
+        document.querySelectorAll('.clan-color-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const gradient = (e.currentTarget as HTMLElement).dataset.gradient
+            if (gradient) (document.getElementById('clan-banner-color') as HTMLInputElement).value = gradient
+            document.querySelectorAll('.clan-color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'))
+            ;(e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-white')
+          })
+        })
+
+        // Leave clan
+        document.getElementById('clan-leave-btn')?.addEventListener('click', async () => {
+          if (confirm('Are you sure you want to leave this clan?')) {
+            await leaveClan()
+            await loadUserData()
+            clanTab = 'browse'
+            renderClanScreen()
+          }
+        })
+
+        // Accept/reject requests
+        document.querySelectorAll('.clan-accept-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const el = e.currentTarget as HTMLElement
+            await acceptClanRequest(el.dataset.req!, ud?.clanId!, el.dataset.uid!)
+            renderClanScreen()
+          })
+        })
+        document.querySelectorAll('.clan-reject-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            await rejectClanRequest((e.currentTarget as HTMLElement).dataset.req!)
+            renderClanScreen()
+          })
+        })
+
+        // Kick/promote
+        document.querySelectorAll('.clan-kick-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const uid = (e.currentTarget as HTMLElement).dataset.uid!
+            if (confirm('Kick this member?')) { await kickFromClan(ud?.clanId!, uid); renderClanScreen() }
+          })
+        })
+        document.querySelectorAll('.clan-promote-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const uid = (e.currentTarget as HTMLElement).dataset.uid!
+            if (confirm('Promote to leader?')) { await promoteClanMember(ud?.clanId!, uid); renderClanScreen() }
+          })
+        })
+      }
+
+      renderClanScreen()
       return
     }
 
