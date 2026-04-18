@@ -7499,6 +7499,168 @@ function stopMusic() {
   musicPhase = 0
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MUSIC PLAYER BAR - Sticky bottom bar with controls
+// ═══════════════════════════════════════════════════════════════════════════
+let musicPlayerBarVisible = false
+
+function renderMusicPlayerBar() {
+  // Remove existing bar
+  const existing = document.getElementById('music-player-bar')
+  if (existing) existing.remove()
+
+  const userData = getCurrentUserData()
+  if (!userData || !getCurrentUser()) return
+
+  // Get owned music packs
+  const ownedMusicIds = (userData.purchasedItems || []).filter(id => {
+    const item = SHOP_ITEMS.find(i => i.id === id && i.type === 'music_pack')
+    return !!item
+  })
+
+  // Always show bar if user has music enabled or owns packs
+  if (!musicEnabled && ownedMusicIds.length === 0) return
+
+  const ownedPacks = ownedMusicIds.map(id => SHOP_ITEMS.find(i => i.id === id)!).filter(Boolean)
+  const currentPack = equippedMusicPack ? SHOP_ITEMS.find(i => i.id === equippedMusicPack) : null
+  const isPlaying = !!musicInterval
+
+  // Find current index in owned packs for prev/next
+  const currentIdx = equippedMusicPack ? ownedPacks.findIndex(p => p.id === equippedMusicPack) : -1
+
+  const bar = document.createElement('div')
+  bar.id = 'music-player-bar'
+  bar.className = 'fixed bottom-0 left-0 right-0 z-40 transition-transform duration-300'
+  bar.style.transform = musicPlayerBarVisible ? 'translateY(0)' : 'translateY(calc(100% - 32px))'
+
+  bar.innerHTML = `
+    <!-- Toggle tab -->
+    <div id="music-bar-toggle" class="flex justify-center cursor-pointer">
+      <div class="bg-gray-800 border border-gray-600 border-b-0 rounded-t-lg px-4 py-1 flex items-center gap-2 hover:bg-gray-700 transition-colors">
+        <span class="text-sm">${isPlaying ? '🎵' : '🔇'}</span>
+        <span class="text-gray-300 text-xs font-bold">${musicPlayerBarVisible ? '▼' : '▲'} Music</span>
+        ${isPlaying && currentPack ? `<span class="text-purple-400 text-xs">${currentPack.icon} ${currentPack.name}</span>` : ''}
+      </div>
+    </div>
+    <!-- Player bar -->
+    <div class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-t border-gray-600 px-4 py-3">
+      <div class="max-w-[600px] mx-auto flex items-center gap-3">
+        <!-- Now playing info -->
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <div class="text-2xl ${isPlaying ? 'animate-bounce' : ''}" style="animation-duration:1.5s">${currentPack?.icon || '🎵'}</div>
+          <div class="min-w-0">
+            <div class="text-white font-bold text-sm truncate">${currentPack?.name || (musicEnabled ? 'Default Music' : 'No Music')}</div>
+            <div class="text-gray-400 text-xs truncate">${currentPack?.description || (isPlaying ? 'Playing...' : 'Paused')}</div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center gap-1.5">
+          <button id="music-bar-prev" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-colors text-sm ${ownedPacks.length < 2 ? 'opacity-30' : ''}" ${ownedPacks.length < 2 ? 'disabled' : ''}>⏮</button>
+          <button id="music-bar-playpause" class="w-10 h-10 rounded-full bg-gradient-to-r ${isPlaying ? 'from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500' : 'from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'} text-white flex items-center justify-center transition-all hover:scale-110 shadow-lg text-lg font-bold">${isPlaying ? '⏸' : '▶'}</button>
+          <button id="music-bar-next" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-colors text-sm ${ownedPacks.length < 2 ? 'opacity-30' : ''}" ${ownedPacks.length < 2 ? 'disabled' : ''}>⏭</button>
+        </div>
+
+        <!-- Volume -->
+        <div class="flex items-center gap-2 w-28">
+          <span class="text-gray-400 text-xs">🔊</span>
+          <input type="range" id="music-bar-volume" min="0" max="100" value="${Math.round(musicVolume * 100)}" class="flex-1 h-1.5 accent-purple-500 cursor-pointer">
+          <span id="music-bar-vol-label" class="text-gray-400 text-xs w-7 text-right">${Math.round(musicVolume * 100)}%</span>
+        </div>
+      </div>
+
+      <!-- Owned packs carousel -->
+      ${ownedPacks.length > 0 ? `
+        <div class="max-w-[600px] mx-auto mt-2 flex gap-1.5 overflow-x-auto pb-1" style="scrollbar-width:thin">
+          ${ownedPacks.map(pack => `
+            <button class="music-bar-pack flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${pack.id === equippedMusicPack ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 scale-105' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" data-pack-id="${pack.id}">
+              ${pack.icon} ${pack.name}
+            </button>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `
+
+  document.body.appendChild(bar)
+
+  // Toggle bar visibility
+  document.getElementById('music-bar-toggle')?.addEventListener('click', () => {
+    musicPlayerBarVisible = !musicPlayerBarVisible
+    bar.style.transform = musicPlayerBarVisible ? 'translateY(0)' : 'translateY(calc(100% - 32px))'
+  })
+
+  // Play/Pause
+  document.getElementById('music-bar-playpause')?.addEventListener('click', async () => {
+    if (isPlaying) {
+      stopMusic()
+      musicEnabled = false
+    } else {
+      musicEnabled = true
+      await startMusic()
+    }
+    renderMusicPlayerBar()
+  })
+
+  // Volume slider
+  document.getElementById('music-bar-volume')?.addEventListener('input', (e) => {
+    const val = parseInt((e.target as HTMLInputElement).value) / 100
+    musicVolume = val
+    if (musicGainNode) musicGainNode.gain.value = 0.45 * musicVolume * masterVolume
+    const label = document.getElementById('music-bar-vol-label')
+    if (label) label.textContent = Math.round(val * 100) + '%'
+  })
+
+  // Previous track
+  document.getElementById('music-bar-prev')?.addEventListener('click', async () => {
+    if (ownedPacks.length < 2) return
+    const newIdx = currentIdx <= 0 ? ownedPacks.length - 1 : currentIdx - 1
+    const newPack = ownedPacks[newIdx]
+    equippedMusicPack = newPack.id
+    const ud = getCurrentUserData()
+    if (ud) {
+      const eq = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+      eq.musicPack = newPack.id
+      await saveUserData({ equippedItems: eq })
+    }
+    if (isPlaying) { stopMusic(); await startMusic() }
+    renderMusicPlayerBar()
+  })
+
+  // Next track
+  document.getElementById('music-bar-next')?.addEventListener('click', async () => {
+    if (ownedPacks.length < 2) return
+    const newIdx = currentIdx >= ownedPacks.length - 1 ? 0 : currentIdx + 1
+    const newPack = ownedPacks[newIdx]
+    equippedMusicPack = newPack.id
+    const ud = getCurrentUserData()
+    if (ud) {
+      const eq = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+      eq.musicPack = newPack.id
+      await saveUserData({ equippedItems: eq })
+    }
+    if (isPlaying) { stopMusic(); await startMusic() }
+    renderMusicPlayerBar()
+  })
+
+  // Quick-switch pack buttons
+  bar.querySelectorAll('.music-bar-pack').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const packId = (e.target as HTMLElement).dataset.packId
+      if (!packId || packId === equippedMusicPack) return
+      equippedMusicPack = packId
+      const ud = getCurrentUserData()
+      if (ud) {
+        const eq = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
+        eq.musicPack = packId
+        await saveUserData({ equippedItems: eq })
+      }
+      if (isPlaying) { stopMusic(); await startMusic() }
+      renderMusicPlayerBar()
+    })
+  })
+}
+
 // Create white noise buffer for explosion/gunshot sounds
 function createNoiseBuffer(duration: number): AudioBuffer {
   const sampleRate = audioContext!.sampleRate
@@ -33012,6 +33174,8 @@ if (firebaseInitialized) {
       checkGlobalMessages()
       // Load custom shop items from Firestore
       loadCustomShopItems()
+      // Show music player bar after login
+      setTimeout(() => renderMusicPlayerBar(), 500)
     }
     render()
   })
@@ -33021,6 +33185,15 @@ if (firebaseInitialized) {
 }
 
 render()
+
+// Re-render music bar whenever music state changes
+const origStartMusic = startMusic
+const origStopMusic = stopMusic
+// Update music bar on equip changes
+setInterval(() => {
+  const bar = document.getElementById('music-player-bar')
+  if (getCurrentUser() && !bar) renderMusicPlayerBar()
+}, 5000)
 
 // ==================== F9 DEBUG PANEL ====================
 let debugPanelVisible = false
