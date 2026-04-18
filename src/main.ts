@@ -9696,6 +9696,28 @@ const translations: Record<Language, Record<string, string>> = {
     statsTotalPoints: 'Total Points',
     statsPiecesEliminated: 'Pieces Eliminated',
     statsEngineers: 'Engineers Captured',
+    statsPlaytime: 'Playtime',
+    statsCombat: 'Combat',
+    statsEconomy: 'Economy',
+    statsBalance: 'Balance',
+    statsEarned: 'Earned',
+    statsSpent: 'Spent',
+    statsCollection: 'Collection',
+    statsItemsOwned: 'Items Owned',
+    statsBadges: 'Badges',
+    statsTitles: 'Titles',
+    statsBanners: 'Banners',
+    statsMultiplayer: 'Multiplayer',
+    statsPuzzles: 'Puzzles',
+    statsSolved: 'solved',
+    statsPerfect: 'perfect',
+    statsStreak: 'streak',
+    statsMessages: 'messages',
+    statsTanks: 'Tanks',
+    statsHelicopters: 'Helicopters',
+    statsRockets: 'Rockets',
+    statsShips: 'Ships',
+    statsHackers: 'Hackers',
     noBadges: 'No badges yet. Keep playing!',
     // Multiplayer
     multiplayerButton: 'Play Online',
@@ -11039,6 +11061,28 @@ const translations: Record<Language, Record<string, string>> = {
     statsTotalPoints: 'Totaal Punten',
     statsPiecesEliminated: 'Stukken Geëlimineerd',
     statsEngineers: 'Ingenieurs Gevangen',
+    statsPlaytime: 'Speeltijd',
+    statsCombat: 'Gevecht',
+    statsEconomy: 'Economie',
+    statsBalance: 'Saldo',
+    statsEarned: 'Verdiend',
+    statsSpent: 'Uitgegeven',
+    statsCollection: 'Collectie',
+    statsItemsOwned: 'Items in bezit',
+    statsBadges: 'Badges',
+    statsTitles: 'Titels',
+    statsBanners: 'Banners',
+    statsMultiplayer: 'Multiplayer',
+    statsPuzzles: 'Puzzels',
+    statsSolved: 'opgelost',
+    statsPerfect: 'perfect',
+    statsStreak: 'streak',
+    statsMessages: 'berichten',
+    statsTanks: 'Tanks',
+    statsHelicopters: 'Helikopters',
+    statsRockets: 'Raketten',
+    statsShips: 'Schepen',
+    statsHackers: 'Hackers',
     noBadges: 'Nog geen badges. Blijf spelen!',
     // Multiplayer
     multiplayerButton: 'Online Spelen',
@@ -12381,6 +12425,28 @@ const translations: Record<Language, Record<string, string>> = {
     statsTotalPoints: 'Gesamtpunkte',
     statsPiecesEliminated: 'Figuren eliminiert',
     statsEngineers: 'Ingenieure erobert',
+    statsPlaytime: 'Spielzeit',
+    statsCombat: 'Kampf',
+    statsEconomy: 'Wirtschaft',
+    statsBalance: 'Guthaben',
+    statsEarned: 'Verdient',
+    statsSpent: 'Ausgegeben',
+    statsCollection: 'Sammlung',
+    statsItemsOwned: 'Items im Besitz',
+    statsBadges: 'Abzeichen',
+    statsTitles: 'Titel',
+    statsBanners: 'Banner',
+    statsMultiplayer: 'Mehrspieler',
+    statsPuzzles: 'Rätsel',
+    statsSolved: 'gelöst',
+    statsPerfect: 'perfekt',
+    statsStreak: 'Serie',
+    statsMessages: 'Nachrichten',
+    statsTanks: 'Panzer',
+    statsHelicopters: 'Helikopter',
+    statsRockets: 'Raketen',
+    statsShips: 'Schiffe',
+    statsHackers: 'Hacker',
     noBadges: 'Noch keine Abzeichen. Weiterspielen!',
     // Multiplayer
     multiplayerButton: 'Online Spielen',
@@ -12956,6 +13022,28 @@ const translations: Record<Language, Record<string, string>> = {
     statsTotalPoints: 'Points totaux',
     statsPiecesEliminated: 'Pièces éliminées',
     statsEngineers: 'Ingénieurs capturés',
+    statsPlaytime: 'Temps de jeu',
+    statsCombat: 'Combat',
+    statsEconomy: 'Économie',
+    statsBalance: 'Solde',
+    statsEarned: 'Gagné',
+    statsSpent: 'Dépensé',
+    statsCollection: 'Collection',
+    statsItemsOwned: 'Items possédés',
+    statsBadges: 'Badges',
+    statsTitles: 'Titres',
+    statsBanners: 'Bannières',
+    statsMultiplayer: 'Multijoueur',
+    statsPuzzles: 'Puzzles',
+    statsSolved: 'résolus',
+    statsPerfect: 'parfait',
+    statsStreak: 'série',
+    statsMessages: 'messages',
+    statsTanks: 'Chars',
+    statsHelicopters: 'Hélicoptères',
+    statsRockets: 'Roquettes',
+    statsShips: 'Navires',
+    statsHackers: 'Hackers',
     noBadges: 'Pas encore de badges. Continuez à jouer!',
     // Multiplayer
     multiplayerButton: 'Jouer en Ligne',
@@ -13530,6 +13618,28 @@ const translations: Record<Language, Record<string, string>> = {
     statsTotalPoints: 'Puntos totales',
     statsPiecesEliminated: 'Piezas eliminadas',
     statsEngineers: 'Ingenieros capturados',
+    statsPlaytime: 'Tiempo de juego',
+    statsCombat: 'Combate',
+    statsEconomy: 'Economía',
+    statsBalance: 'Saldo',
+    statsEarned: 'Ganado',
+    statsSpent: 'Gastado',
+    statsCollection: 'Colección',
+    statsItemsOwned: 'Items poseídos',
+    statsBadges: 'Insignias',
+    statsTitles: 'Títulos',
+    statsBanners: 'Banners',
+    statsMultiplayer: 'Multijugador',
+    statsPuzzles: 'Puzzles',
+    statsSolved: 'resueltos',
+    statsPerfect: 'perfecto',
+    statsStreak: 'racha',
+    statsMessages: 'mensajes',
+    statsTanks: 'Tanques',
+    statsHelicopters: 'Helicópteros',
+    statsRockets: 'Cohetes',
+    statsShips: 'Barcos',
+    statsHackers: 'Hackers',
     noBadges: 'Sin insignias aún. ¡Sigue jugando!',
     // Multiplayer
     multiplayerButton: 'Jugar en Línea',
@@ -26094,23 +26204,23 @@ function render() {
                 <div class="text-gray-400">${t('statsGamesPlayed')}</div><div class="text-white font-bold">${userData.stats.gamesPlayed}</div>
                 <div class="text-gray-400">${t('statsGamesWon')}</div><div class="text-green-400 font-bold">${userData.stats.gamesWon}</div>
                 <div class="text-gray-400">${t('statsGamesLost')}</div><div class="text-red-400 font-bold">${userData.stats.gamesLost}</div>
-                <div class="text-gray-400">Playtime</div><div class="text-blue-400 font-bold">${Math.floor(userData.stats.timePlayed / 3600)}h ${Math.floor((userData.stats.timePlayed % 3600) / 60)}m</div>
+                <div class="text-gray-400">${t('statsPlaytime')}</div><div class="text-blue-400 font-bold">${Math.floor(userData.stats.timePlayed / 3600)}h ${Math.floor((userData.stats.timePlayed % 3600) / 60)}m</div>
               </div>
             </div>
 
             <!-- Combat Stats Bar Chart -->
             <div>
-              <h3 class="text-sm font-bold text-gray-300 mb-2">⚔️ Combat</h3>
+              <h3 class="text-sm font-bold text-gray-300 mb-2">⚔️ ${t('statsCombat')}</h3>
               <div class="flex flex-col gap-1.5">
                 ${[
                   { label: t('statsPiecesEliminated'), value: userData.stats.piecesEliminated, max: 500, color: '#f59e0b' },
                   { label: t('statsTotalPoints'), value: userData.stats.totalPointsScored, max: 1000, color: '#a855f7' },
                   { label: t('statsEngineers'), value: userData.stats.engineersCaptured, max: 50, color: '#f97316' },
-                  { label: 'Tanks', value: userData.stats.tanksDestroyed || 0, max: 50, color: '#22c55e' },
-                  { label: 'Helicopters', value: userData.stats.helicoptersDestroyed || 0, max: 30, color: '#3b82f6' },
-                  { label: 'Rockets', value: userData.stats.rocketsDestroyed || 0, max: 20, color: '#ef4444' },
-                  { label: 'Ships', value: userData.stats.shipsDestroyed || 0, max: 30, color: '#06b6d4' },
-                  { label: 'Hackers', value: userData.stats.hackersDestroyed || 0, max: 20, color: '#10b981' },
+                  { label: t('statsTanks'), value: userData.stats.tanksDestroyed || 0, max: 50, color: '#22c55e' },
+                  { label: t('statsHelicopters'), value: userData.stats.helicoptersDestroyed || 0, max: 30, color: '#3b82f6' },
+                  { label: t('statsRockets'), value: userData.stats.rocketsDestroyed || 0, max: 20, color: '#ef4444' },
+                  { label: t('statsShips'), value: userData.stats.shipsDestroyed || 0, max: 30, color: '#06b6d4' },
+                  { label: t('statsHackers'), value: userData.stats.hackersDestroyed || 0, max: 20, color: '#10b981' },
                 ].map(stat => `
                   <div class="flex items-center gap-2">
                     <span class="text-gray-400 text-xs w-24 text-right truncate">${stat.label}</span>
@@ -26125,32 +26235,32 @@ function render() {
 
             <!-- Economy Stats -->
             <div>
-              <h3 class="text-sm font-bold text-gray-300 mb-2">💰 Economy</h3>
+              <h3 class="text-sm font-bold text-gray-300 mb-2">💰 ${t('statsEconomy')}</h3>
               <div class="grid grid-cols-3 gap-2">
                 <div class="bg-gray-700 p-3 rounded-lg text-center">
                   <div class="text-yellow-400 font-bold text-lg">${userData.warBucks}</div>
-                  <div class="text-gray-400 text-xs">Balance</div>
+                  <div class="text-gray-400 text-xs">${t('statsBalance')}</div>
                 </div>
                 <div class="bg-gray-700 p-3 rounded-lg text-center">
                   <div class="text-green-400 font-bold text-lg">${userData.stats.totalWarBucksEarned || 0}</div>
-                  <div class="text-gray-400 text-xs">Earned</div>
+                  <div class="text-gray-400 text-xs">${t('statsEarned')}</div>
                 </div>
                 <div class="bg-gray-700 p-3 rounded-lg text-center">
                   <div class="text-red-400 font-bold text-lg">${userData.stats.totalWarBucksSpent || 0}</div>
-                  <div class="text-gray-400 text-xs">Spent</div>
+                  <div class="text-gray-400 text-xs">${t('statsSpent')}</div>
                 </div>
               </div>
             </div>
 
             <!-- Collection Stats -->
             <div>
-              <h3 class="text-sm font-bold text-gray-300 mb-2">🎒 Collection</h3>
+              <h3 class="text-sm font-bold text-gray-300 mb-2">🎒 ${t('statsCollection')}</h3>
               <div class="grid grid-cols-2 gap-2">
                 ${[
-                  { label: 'Items Owned', value: (userData.purchasedItems || []).length, total: SHOP_ITEMS.length, icon: '🛍️' },
-                  { label: 'Badges', value: userData.badges.length, total: Object.keys(BADGES).length, icon: '🏅' },
-                  { label: 'Titles', value: earnedTitles.length, total: Object.keys(TITLES).length, icon: '🏷️' },
-                  { label: 'Banners', value: earnedBanners.length, total: BANNERS.length, icon: '🖼️' },
+                  { label: t('statsItemsOwned'), value: (userData.purchasedItems || []).length, total: SHOP_ITEMS.length, icon: '🛍️' },
+                  { label: t('statsBadges'), value: userData.badges.length, total: Object.keys(BADGES).length, icon: '🏅' },
+                  { label: t('statsTitles'), value: earnedTitles.length, total: Object.keys(TITLES).length, icon: '🏷️' },
+                  { label: t('statsBanners'), value: earnedBanners.length, total: BANNERS.length, icon: '🖼️' },
                 ].map(col => `
                   <div class="bg-gray-700 p-2.5 rounded-lg flex items-center gap-2">
                     <span class="text-lg">${col.icon}</span>
@@ -26171,14 +26281,14 @@ function render() {
             <!-- Multiplayer & Puzzles -->
             <div class="grid grid-cols-2 gap-3">
               <div class="bg-gray-700 p-3 rounded-lg">
-                <h4 class="text-xs font-bold text-gray-300 mb-1">🌐 Multiplayer</h4>
+                <h4 class="text-xs font-bold text-gray-300 mb-1">🌐 ${t('statsMultiplayer')}</h4>
                 <div class="text-white font-bold text-lg">${userData.stats.multiplayerWins || 0}W / ${userData.stats.multiplayerGames || 0}G</div>
-                <div class="text-gray-400 text-xs">${userData.stats.chatMessagesSent || 0} messages</div>
+                <div class="text-gray-400 text-xs">${userData.stats.chatMessagesSent || 0} ${t('statsMessages')}</div>
               </div>
               <div class="bg-gray-700 p-3 rounded-lg">
-                <h4 class="text-xs font-bold text-gray-300 mb-1">🧩 Puzzles</h4>
-                <div class="text-white font-bold text-lg">${userData.puzzleStats?.puzzlesSolved || 0} solved</div>
-                <div class="text-gray-400 text-xs">${userData.puzzleStats?.perfectSolves || 0} perfect | 🔥${userData.puzzleStats?.dailyStreak || 0} streak</div>
+                <h4 class="text-xs font-bold text-gray-300 mb-1">🧩 ${t('statsPuzzles')}</h4>
+                <div class="text-white font-bold text-lg">${userData.puzzleStats?.puzzlesSolved || 0} ${t('statsSolved')}</div>
+                <div class="text-gray-400 text-xs">${userData.puzzleStats?.perfectSolves || 0} ${t('statsPerfect')} | 🔥${userData.puzzleStats?.dailyStreak || 0} ${t('statsStreak')}</div>
               </div>
             </div>
           </div>
