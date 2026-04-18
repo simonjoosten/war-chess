@@ -1150,6 +1150,77 @@ function applySkinStyle(pieceSvg: string, x: number, y: number, team: 'yellow' |
       break
   }
 
+  // Extra visual variations based on specific skin ID (not just style)
+  if (equippedPieceSkin) {
+    const skinId = equippedPieceSkin
+    if (skinId === 'skin_vampire') {
+      overlayEffects += `<path d="M${centerX-6} ${y+38} L${centerX-4} ${y+44} L${centerX-2} ${y+38}" fill="#ff0000" opacity="0.8" class="pointer-events-none"/>
+        <path d="M${centerX+2} ${y+38} L${centerX+4} ${y+44} L${centerX+6} ${y+38}" fill="#ff0000" opacity="0.8" class="pointer-events-none"/>
+        <circle cx="${centerX}" cy="${centerY}" r="26" fill="none" stroke="#8b0000" stroke-width="1" opacity="0.4" stroke-dasharray="3,5" class="pointer-events-none"><animateTransform attributeName="transform" type="rotate" values="0 ${centerX} ${centerY};360 ${centerX} ${centerY}" dur="8s" repeatCount="indefinite"/></circle>`
+    } else if (skinId === 'skin_exosuit') {
+      overlayEffects += `<rect x="${x+10}" y="${y+4}" width="30" height="6" rx="3" fill="none" stroke="#64b5f6" stroke-width="1.5" class="pointer-events-none"/>
+        <rect x="${x+14}" y="${y+5.5}" width="${22 * (0.5 + Math.sin(Date.now()/500)*0.5)}" height="3" rx="1.5" fill="#64b5f6" opacity="0.7" class="pointer-events-none"/>
+        <circle cx="${x+12}" cy="${y+42}" r="3" fill="#64b5f6" opacity="0.5" class="pointer-events-none"><animate attributeName="opacity" values="0.5;1;0.5" dur="1.2s" repeatCount="indefinite"/></circle>
+        <circle cx="${x+38}" cy="${y+42}" r="3" fill="#64b5f6" opacity="0.5" class="pointer-events-none"><animate attributeName="opacity" values="1;0.5;1" dur="1.2s" repeatCount="indefinite"/></circle>`
+    } else if (skinId === 'skin_pirate') {
+      overlayEffects += `<line x1="${x+35}" y1="${y+5}" x2="${x+45}" y2="${y+20}" stroke="#8b4513" stroke-width="2" class="pointer-events-none"/>
+        <circle cx="${x+45}" cy="${y+22}" r="3" fill="none" stroke="#ffd700" stroke-width="1.5" class="pointer-events-none"/>
+        <text x="${x+3}" y="${y+12}" font-size="10" class="pointer-events-none">🏴‍☠️</text>`
+    } else if (skinId === 'skin_ninja') {
+      overlayEffects += `<line x1="${x+8}" y1="${centerY}" x2="${x+42}" y2="${centerY}" stroke="#00e676" stroke-width="1" opacity="0.4" class="pointer-events-none"/>
+        <polygon points="${centerX},${y+2} ${centerX+4},${y+8} ${centerX-4},${y+8}" fill="#00e676" opacity="0.6" class="pointer-events-none"/>
+        <circle cx="${centerX}" cy="${centerY}" r="22" fill="none" stroke="#4a148c" stroke-width="1" opacity="0.3" stroke-dasharray="2,6" class="pointer-events-none"/>`
+    } else if (skinId === 'skin_frost') {
+      overlayEffects += `<polygon points="${centerX},${y+2} ${centerX+3},${y+8} ${centerX+8},${y+8} ${centerX+4},${y+12} ${centerX+6},${y+18} ${centerX},${y+14} ${centerX-6},${y+18} ${centerX-4},${y+12} ${centerX-8},${y+8} ${centerX-3},${y+8}" fill="#b3e5fc" opacity="0.5" class="pointer-events-none"/>
+        <circle cx="${centerX}" cy="${centerY}" r="24" fill="none" stroke="#e1f5fe" stroke-width="1.5" opacity="0.3" class="pointer-events-none"><animate attributeName="r" values="24;27;24" dur="3s" repeatCount="indefinite"/></circle>`
+    } else if (skinId === 'skin_pumpkin') {
+      overlayEffects += `<ellipse cx="${centerX}" cy="${centerY-2}" rx="18" ry="16" fill="none" stroke="#e65100" stroke-width="2" class="pointer-events-none"/>
+        <path d="M${centerX-6} ${y+18} L${centerX-4} ${y+22} L${centerX-8} ${y+24}" stroke="#2e7d32" stroke-width="1.5" fill="none" class="pointer-events-none"/>
+        <path d="M${centerX+6} ${y+18} L${centerX+4} ${y+22} L${centerX+8} ${y+24}" stroke="#2e7d32" stroke-width="1.5" fill="none" class="pointer-events-none"/>
+        <rect x="${centerX-2}" y="${y+4}" width="4" height="8" rx="2" fill="#2e7d32" class="pointer-events-none"/>`
+    } else if (skinId === 'skin_alchemist') {
+      overlayEffects += `<circle cx="${centerX}" cy="${centerY}" r="20" fill="none" stroke="#ffd600" stroke-width="1" opacity="0.5" class="pointer-events-none"><animateTransform attributeName="transform" type="rotate" values="0 ${centerX} ${centerY};360 ${centerX} ${centerY}" dur="12s" repeatCount="indefinite"/></circle>
+        <circle cx="${centerX}" cy="${centerY}" r="14" fill="none" stroke="#aa00ff" stroke-width="1" opacity="0.4" stroke-dasharray="4,4" class="pointer-events-none"><animateTransform attributeName="transform" type="rotate" values="360 ${centerX} ${centerY};0 ${centerX} ${centerY}" dur="8s" repeatCount="indefinite"/></circle>
+        <text x="${centerX}" y="${y+48}" font-size="6" text-anchor="middle" fill="#ffd600" class="pointer-events-none">⚗</text>`
+    } else if (skinId === 'skin_deepsea') {
+      overlayEffects += `<circle cx="${x+10}" cy="${y+10}" r="2" fill="#76ff03" opacity="0.6" class="pointer-events-none"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="2s" repeatCount="indefinite"/></circle>
+        <circle cx="${x+40}" cy="${y+15}" r="1.5" fill="#76ff03" opacity="0.5" class="pointer-events-none"><animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite"/></circle>
+        <circle cx="${x+15}" cy="${y+40}" r="2.5" fill="#76ff03" opacity="0.4" class="pointer-events-none"><animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite"/></circle>
+        <path d="M${x+35} ${y+35} Q${x+40} ${y+30} ${x+45} ${y+35}" fill="none" stroke="#01579b" stroke-width="1" opacity="0.4" class="pointer-events-none"/>`
+    } else if (skinId === 'skin_cowboy') {
+      overlayEffects += `<ellipse cx="${centerX}" cy="${y+6}" rx="16" ry="4" fill="none" stroke="#a1887f" stroke-width="2" class="pointer-events-none"/>
+        <rect x="${centerX-10}" y="${y+2}" width="20" height="5" rx="2" fill="#6d4c41" class="pointer-events-none"/>
+        <text x="${x+40}" y="${y+44}" font-size="7" class="pointer-events-none">⭐</text>`
+    } else if (skinId === 'skin_diamond') {
+      overlayEffects += `<polygon points="${centerX},${y+4} ${x+42},${centerY} ${centerX},${y+46} ${x+8},${centerY}" fill="none" stroke="#e0e0e0" stroke-width="1.5" opacity="0.5" class="pointer-events-none"/>
+        <line x1="${centerX}" y1="${y+4}" x2="${centerX}" y2="${y+46}" stroke="#e91e63" stroke-width="0.5" opacity="0.3" class="pointer-events-none"/>
+        <line x1="${x+8}" y1="${centerY}" x2="${x+42}" y2="${centerY}" stroke="#e91e63" stroke-width="0.5" opacity="0.3" class="pointer-events-none"/>
+        <circle cx="${centerX}" cy="${centerY}" r="6" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.4" class="pointer-events-none"><animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/></circle>`
+    } else if (skinId === 'skin_ww1') {
+      overlayEffects += `<rect x="${x+3}" y="${y+3}" width="44" height="44" fill="none" stroke="#795548" stroke-width="2" stroke-dasharray="6,3" class="pointer-events-none"/>
+        <line x1="${x+36}" y1="${y+2}" x2="${x+42}" y2="${y+18}" stroke="#455a64" stroke-width="2" class="pointer-events-none"/>
+        <circle cx="${centerX}" cy="${y+10}" r="8" fill="none" stroke="#6d4c41" stroke-width="1.5" class="pointer-events-none"/>`
+    } else if (skinId === 'skin_coldwar') {
+      overlayEffects += `<rect x="${x+4}" y="${y+4}" width="42" height="42" fill="none" stroke="#b71c1c" stroke-width="1" opacity="0.4" class="pointer-events-none"/>
+        <text x="${centerX}" y="${y+48}" font-size="5" text-anchor="middle" fill="#b71c1c" opacity="0.6" font-family="monospace" class="pointer-events-none">CLASSIFIED</text>
+        <line x1="${x+4}" y1="${y+4}" x2="${x+14}" y2="${y+4}" stroke="#b71c1c" stroke-width="2" class="pointer-events-none"/>
+        <line x1="${x+4}" y1="${y+4}" x2="${x+4}" y2="${y+14}" stroke="#b71c1c" stroke-width="2" class="pointer-events-none"/>
+        <line x1="${x+46}" y1="${y+46}" x2="${x+36}" y2="${y+46}" stroke="#b71c1c" stroke-width="2" class="pointer-events-none"/>
+        <line x1="${x+46}" y1="${y+46}" x2="${x+46}" y2="${y+36}" stroke="#b71c1c" stroke-width="2" class="pointer-events-none"/>`
+    } else if (skinId === 'skin_zombie') {
+      overlayEffects += `<circle cx="${x+12}" cy="${y+14}" r="3" fill="#ff0000" opacity="0.6" class="pointer-events-none"><animate attributeName="opacity" values="0.4;0.8;0.4" dur="1.5s" repeatCount="indefinite"/></circle>
+        <circle cx="${x+38}" cy="${y+14}" r="3" fill="#ff0000" opacity="0.6" class="pointer-events-none"><animate attributeName="opacity" values="0.8;0.4;0.8" dur="1.5s" repeatCount="indefinite"/></circle>
+        <path d="M${x+15} ${y+42} Q${centerX} ${y+46} ${x+35} ${y+42}" stroke="#556b2f" stroke-width="1.5" fill="none" class="pointer-events-none"/>`
+    } else if (skinId === 'skin_steampunk') {
+      overlayEffects += `<circle cx="${x+12}" cy="${y+12}" r="8" fill="none" stroke="#d4af37" stroke-width="1.5" stroke-dasharray="3,3" class="pointer-events-none"><animateTransform attributeName="transform" type="rotate" values="0 ${x+12} ${y+12};360 ${x+12} ${y+12}" dur="4s" repeatCount="indefinite"/></circle>
+        <circle cx="${x+38}" cy="${y+38}" r="6" fill="none" stroke="#cd853f" stroke-width="1.5" stroke-dasharray="2,2" class="pointer-events-none"><animateTransform attributeName="transform" type="rotate" values="360 ${x+38} ${y+38};0 ${x+38} ${y+38}" dur="3s" repeatCount="indefinite"/></circle>`
+    } else if (skinId === 'skin_crystal') {
+      overlayEffects += `<polygon points="${centerX},${y+6} ${x+38},${y+16} ${x+42},${y+34} ${centerX},${y+44} ${x+8},${y+34} ${x+12},${y+16}" fill="none" stroke="#ff69b4" stroke-width="1" opacity="0.4" class="pointer-events-none"/>
+        <line x1="${centerX}" y1="${y+6}" x2="${centerX}" y2="${y+44}" stroke="#e0ffff" stroke-width="0.5" opacity="0.3" class="pointer-events-none"/>
+        <line x1="${x+8}" y1="${y+34}" x2="${x+42}" y2="${y+16}" stroke="#e0ffff" stroke-width="0.5" opacity="0.3" class="pointer-events-none"/>`
+    }
+  }
+
   return backgroundEffects + pieceSvg + overlayEffects
 }
 
@@ -2091,250 +2162,267 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
   if (!audioContext || !musicGainNode) return
 
   const scales: Record<string, number[]> = {
-    major: [0, 2, 4, 5, 7, 9, 11],
-    minor: [0, 2, 3, 5, 7, 8, 10],
-    pentatonic: [0, 2, 4, 7, 9],
-    blues: [0, 3, 5, 6, 7, 10],
-    dorian: [0, 2, 3, 5, 7, 9, 10],
-    mixolydian: [0, 2, 4, 5, 7, 9, 10]
+    major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10],
+    pentatonic: [0, 2, 4, 7, 9], blues: [0, 3, 5, 6, 7, 10],
+    dorian: [0, 2, 3, 5, 7, 9, 10], mixolydian: [0, 2, 4, 5, 7, 9, 10]
   }
-
-  const scaleIntervals = scales[params.scale] || scales.pentatonic
-  const baseFreq = params.baseNote || 220
-  const beatDur = 60 / params.tempo
-
-  // Generate 3 octaves of frequencies
-  const freqs: number[] = []
-  for (let oct = 0; oct < 3; oct++) {
-    for (const interval of scaleIntervals) {
-      freqs.push(baseFreq * Math.pow(2, oct + interval / 12))
-    }
-  }
-
-  // Create reverb with better quality
-  const convolver = audioContext.createConvolver()
+  const si = scales[params.scale] || scales.pentatonic
+  const bf = params.baseNote || 220
+  const bd = 60 / params.tempo
   const rate = audioContext.sampleRate
-  const reverbLen = rate * (0.5 + params.reverb * 4)
-  const impulse = audioContext.createBuffer(2, reverbLen, rate)
-  for (let ch = 0; ch < 2; ch++) {
-    const data = impulse.getChannelData(ch)
-    for (let i = 0; i < reverbLen; i++) {
-      const t = i / rate
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-3 * t / (params.reverb + 0.1)) * (1 + Math.sin(t * 200) * 0.1)
-    }
-  }
-  convolver.buffer = impulse
-  const reverbGain = audioContext.createGain()
-  reverbGain.gain.value = Math.min(0.6, params.reverb * 0.7)
-  convolver.connect(reverbGain)
-  reverbGain.connect(musicGainNode)
 
-  // Master filter with automation
-  const masterFilter = audioContext.createBiquadFilter()
-  masterFilter.type = 'lowpass'
-  masterFilter.frequency.value = params.filterFreq
-  masterFilter.Q.value = 1.5
-  masterFilter.connect(musicGainNode)
-  masterFilter.connect(convolver)
+  // 4 octaves of frequencies
+  const freqs: number[] = []
+  for (let o = 0; o < 4; o++) for (const iv of si) freqs.push(bf * Math.pow(2, o + iv / 12))
 
-  // Chord progressions - multiple progressions for variety
-  const progressions = params.scale === 'minor' || params.scale === 'dorian'
-    ? { intro: [[0, 2, 4], [0, 2, 4]], verse: [[0, 2, 4], [5, 0, 2], [3, 5, 0], [4, 6, 1]], chorus: [[0, 2, 4], [3, 5, 0], [5, 0, 2], [4, 6, 1]], bridge: [[3, 5, 0], [4, 6, 1], [5, 0, 2], [0, 2, 4]] }
-    : { intro: [[0, 2, 4], [0, 2, 4]], verse: [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]], chorus: [[0, 2, 4], [4, 6, 1], [3, 5, 0], [0, 2, 4]], bridge: [[3, 5, 0], [0, 2, 4], [4, 6, 1], [3, 5, 0]] }
+  // Reverb
+  const conv = audioContext.createConvolver()
+  const rLen = Math.floor(rate * (0.5 + params.reverb * 3))
+  const imp = audioContext.createBuffer(2, rLen, rate)
+  for (let ch = 0; ch < 2; ch++) { const d = imp.getChannelData(ch); for (let i = 0; i < rLen; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-4 * i / rLen) }
+  conv.buffer = imp
+  const rvg = audioContext.createGain(); rvg.gain.value = Math.min(0.5, params.reverb * 0.6)
+  conv.connect(rvg); rvg.connect(musicGainNode)
 
-  // Song structure: phases with different energy levels
-  const phases = ['intro', 'verse', 'verse', 'chorus', 'verse', 'chorus', 'bridge', 'chorus']
+  // Master filter
+  const mf = audioContext.createBiquadFilter()
+  mf.type = 'lowpass'; mf.frequency.value = params.filterFreq; mf.Q.value = 1.2
+  mf.connect(musicGainNode); mf.connect(conv)
 
-  // Noise buffer for drums
-  function createNoise(duration: number): AudioBuffer {
-    const len = Math.floor(rate * duration)
-    const buf = audioContext!.createBuffer(1, len, rate)
-    const data = buf.getChannelData(0)
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1
-    return buf
-  }
-  const noiseBuf = createNoise(0.15)
+  // Separate gain nodes per layer to prevent noise
+  const bassGain = audioContext.createGain(); bassGain.gain.value = 0.7; bassGain.connect(mf)
+  const padGain = audioContext.createGain(); padGain.gain.value = 0.4; padGain.connect(mf)
+  const melodyGain = audioContext.createGain(); melodyGain.gain.value = 0.5; melodyGain.connect(mf)
+  const arpGain = audioContext.createGain(); arpGain.gain.value = 0.3; arpGain.connect(mf)
+  const drumGain = audioContext.createGain(); drumGain.gain.value = 0.6; drumGain.connect(musicGainNode)
 
-  function playNote(freq: number, startTime: number, duration: number, velocity: number, wave?: OscillatorType) {
-    if (!audioContext || !musicGainNode) return
-    const osc = audioContext.createOscillator()
-    const osc2 = audioContext.createOscillator()
-    const noteGain = audioContext.createGain()
-    osc.type = wave || params.waveform
-    osc2.type = 'sine'
-    osc.frequency.value = freq
-    osc2.frequency.value = freq * 1.003
-    const og2 = audioContext.createGain()
-    og2.gain.value = 0.25
-    osc.connect(noteGain); osc2.connect(og2); og2.connect(noteGain)
-    noteGain.gain.setValueAtTime(0.001, startTime)
-    noteGain.gain.linearRampToValueAtTime(velocity * 0.07, startTime + 0.008)
-    noteGain.gain.exponentialRampToValueAtTime(velocity * 0.03, startTime + duration * 0.4)
-    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-    noteGain.connect(masterFilter)
-    osc.start(startTime); osc.stop(startTime + duration + 0.1)
-    osc2.start(startTime); osc2.stop(startTime + duration + 0.1)
+  // Noise buffer
+  const nBuf = audioContext.createBuffer(1, Math.floor(rate * 0.15), rate)
+  const nd = nBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+
+  // Chord progressions
+  const isMinor = params.scale === 'minor' || params.scale === 'dorian' || params.scale === 'blues'
+  const progs = {
+    intro: isMinor ? [[0, 2, 4], [0, 2, 4]] : [[0, 2, 4], [0, 2, 4]],
+    verse1: isMinor ? [[0, 2, 4], [5, 0, 2], [3, 5, 0], [4, 6, 1]] : [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]],
+    verse2: isMinor ? [[0, 2, 4], [3, 5, 0], [4, 6, 1], [5, 0, 2]] : [[0, 2, 4], [4, 6, 1], [3, 5, 0], [4, 6, 1]],
+    prechorus: isMinor ? [[3, 5, 0], [3, 5, 0], [4, 6, 1], [4, 6, 1]] : [[3, 5, 0], [4, 6, 1], [3, 5, 0], [4, 6, 1]],
+    chorus: isMinor ? [[0, 2, 4], [3, 5, 0], [5, 0, 2], [4, 6, 1]] : [[0, 2, 4], [4, 6, 1], [3, 5, 0], [0, 2, 4]],
+    bridge: isMinor ? [[3, 5, 0], [4, 6, 1], [5, 0, 2], [0, 2, 4]] : [[3, 5, 0], [0, 2, 4], [4, 6, 1], [3, 5, 0]],
+    breakdown: [[0, 2, 4], [0, 2, 4], [0, 2, 4], [0, 2, 4]],
+    buildup: isMinor ? [[4, 6, 1], [4, 6, 1], [4, 6, 1], [4, 6, 1]] : [[4, 6, 1], [4, 6, 1], [4, 6, 1], [4, 6, 1]],
+    finale: isMinor ? [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]] : [[0, 2, 4], [3, 5, 0], [4, 6, 1], [0, 2, 4]],
+    outro: [[0, 2, 4], [0, 2, 4], [0, 2, 4], [0, 2, 4]]
   }
 
-  function playBass(freq: number, startTime: number, duration: number) {
-    if (!audioContext || !musicGainNode) return
-    const osc = audioContext.createOscillator()
-    const osc2 = audioContext.createOscillator()
-    const noteGain = audioContext.createGain()
-    const flt = audioContext.createBiquadFilter()
-    osc.type = 'sine'; osc2.type = 'triangle'
-    osc.frequency.value = freq / 2; osc2.frequency.value = freq / 2 * 1.001
-    flt.type = 'lowpass'; flt.frequency.value = 250; flt.Q.value = 3
-    const og2 = audioContext.createGain(); og2.gain.value = 0.15
-    osc.connect(flt); osc2.connect(og2); og2.connect(flt)
-    noteGain.gain.setValueAtTime(0.001, startTime)
-    noteGain.gain.linearRampToValueAtTime(0.12, startTime + 0.015)
-    noteGain.gain.setValueAtTime(0.1, startTime + 0.1)
-    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-    flt.connect(noteGain); noteGain.connect(masterFilter)
-    osc.start(startTime); osc.stop(startTime + duration + 0.1)
-    osc2.start(startTime); osc2.stop(startTime + duration + 0.1)
+  // 12 phases, ~4 bars each = 48 bars = ~4+ minutes at 120bpm
+  const phases: Array<{ name: string; energy: number; hasDrums: boolean; hasBass: boolean; hasPad: boolean; hasMelody: boolean; hasArp: boolean }> = [
+    { name: 'intro',      energy: 0.15, hasDrums: false, hasBass: false, hasPad: true,  hasMelody: false, hasArp: false },
+    { name: 'verse1',     energy: 0.35, hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: false, hasArp: false },
+    { name: 'verse1',     energy: 0.45, hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: false },
+    { name: 'prechorus',  energy: 0.55, hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: false },
+    { name: 'chorus',     energy: 0.75, hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: true },
+    { name: 'verse2',     energy: 0.4,  hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: false },
+    { name: 'prechorus',  energy: 0.6,  hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: true },
+    { name: 'chorus',     energy: 0.85, hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: true },
+    { name: 'bridge',     energy: 0.5,  hasDrums: false, hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: false },
+    { name: 'breakdown',  energy: 0.2,  hasDrums: false, hasBass: false, hasPad: true,  hasMelody: true,  hasArp: false },
+    { name: 'buildup',    energy: 0.7,  hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: false, hasArp: true },
+    { name: 'finale',     energy: 1.0,  hasDrums: true,  hasBass: true,  hasPad: true,  hasMelody: true,  hasArp: true },
+    { name: 'outro',      energy: 0.25, hasDrums: false, hasBass: true,  hasPad: true,  hasMelody: false, hasArp: false },
+  ]
+
+  // === INSTRUMENT FUNCTIONS (each outputs to its own gain node) ===
+  function playNote(freq: number, t: number, dur: number, vel: number, dest: GainNode, wave?: OscillatorType) {
+    if (!audioContext) return
+    const o = audioContext.createOscillator(); const g = audioContext.createGain()
+    o.type = wave || params.waveform; o.frequency.value = freq
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(vel * 0.06, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(vel * 0.02, t + dur * 0.5)
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur)
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05)
   }
 
-  function playKick(startTime: number) {
-    if (!audioContext || !musicGainNode) return
-    const osc = audioContext.createOscillator()
-    const g = audioContext.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(150, startTime)
-    osc.frequency.exponentialRampToValueAtTime(40, startTime + 0.12)
-    g.gain.setValueAtTime(0.15, startTime)
-    g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25)
-    osc.connect(g); g.connect(musicGainNode!)
-    osc.start(startTime); osc.stop(startTime + 0.3)
+  function playPad(chordFreqs: number[], t: number, dur: number, vel: number) {
+    if (!audioContext) return
+    chordFreqs.forEach(freq => {
+      const o1 = audioContext!.createOscillator(); const o2 = audioContext!.createOscillator()
+      const g = audioContext!.createGain(); const f = audioContext!.createBiquadFilter()
+      o1.type = 'sawtooth'; o2.type = 'sawtooth'
+      o1.frequency.value = freq; o2.frequency.value = freq * 1.004
+      f.type = 'lowpass'; f.frequency.value = 800 + vel * 500; f.Q.value = 0.5
+      const og = audioContext!.createGain(); og.gain.value = 0.5
+      o1.connect(f); o2.connect(og); og.connect(f)
+      g.gain.setValueAtTime(0.001, t)
+      g.gain.linearRampToValueAtTime(vel * 0.03, t + dur * 0.2)
+      g.gain.setValueAtTime(vel * 0.025, t + dur * 0.7)
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur)
+      f.connect(g); g.connect(padGain)
+      o1.start(t); o1.stop(t + dur + 0.1); o2.start(t); o2.stop(t + dur + 0.1)
+    })
   }
 
-  function playHihat(startTime: number, open: boolean) {
-    if (!audioContext || !musicGainNode) return
-    const src = audioContext.createBufferSource()
-    const g = audioContext.createGain()
-    const flt = audioContext.createBiquadFilter()
-    src.buffer = noiseBuf
-    flt.type = 'highpass'; flt.frequency.value = open ? 6000 : 8000; flt.Q.value = 1
-    g.gain.setValueAtTime(open ? 0.04 : 0.03, startTime)
-    g.gain.exponentialRampToValueAtTime(0.001, startTime + (open ? 0.15 : 0.05))
-    src.connect(flt); flt.connect(g); g.connect(musicGainNode!)
-    src.start(startTime); src.stop(startTime + 0.2)
+  function playBass(freq: number, t: number, dur: number) {
+    if (!audioContext) return
+    const o = audioContext.createOscillator(); const g = audioContext.createGain()
+    const f = audioContext.createBiquadFilter()
+    o.type = 'sine'; o.frequency.value = freq / 2
+    f.type = 'lowpass'; f.frequency.value = 280; f.Q.value = 2
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.1, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur)
+    o.connect(f); f.connect(g); g.connect(bassGain)
+    o.start(t); o.stop(t + dur + 0.05)
   }
 
-  function playSnare(startTime: number) {
-    if (!audioContext || !musicGainNode) return
-    const osc = audioContext.createOscillator()
-    const src = audioContext.createBufferSource()
-    const g = audioContext.createGain()
-    const g2 = audioContext.createGain()
-    const flt = audioContext.createBiquadFilter()
-    osc.type = 'triangle'; osc.frequency.value = 180
-    src.buffer = noiseBuf
-    flt.type = 'bandpass'; flt.frequency.value = 3000; flt.Q.value = 1.5
-    g.gain.setValueAtTime(0.08, startTime)
-    g.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15)
-    g2.gain.setValueAtTime(0.06, startTime)
-    g2.gain.exponentialRampToValueAtTime(0.001, startTime + 0.1)
-    osc.connect(g2); g2.connect(musicGainNode!)
-    src.connect(flt); flt.connect(g); g.connect(musicGainNode!)
-    osc.start(startTime); osc.stop(startTime + 0.2)
-    src.start(startTime); src.stop(startTime + 0.2)
+  function playKick(t: number, vel: number) {
+    if (!audioContext) return
+    const o = audioContext.createOscillator(); const g = audioContext.createGain()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(150 * vel, t); o.frequency.exponentialRampToValueAtTime(35, t + 0.12)
+    g.gain.setValueAtTime(0.12 * vel, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25)
+    o.connect(g); g.connect(drumGain); o.start(t); o.stop(t + 0.3)
+  }
+
+  function playSnare(t: number, vel: number) {
+    if (!audioContext) return
+    const o = audioContext.createOscillator(); const s = audioContext.createBufferSource()
+    const g1 = audioContext.createGain(); const g2 = audioContext.createGain()
+    const f = audioContext.createBiquadFilter()
+    o.type = 'triangle'; o.frequency.value = 180; s.buffer = nBuf
+    f.type = 'bandpass'; f.frequency.value = 3000; f.Q.value = 1.5
+    g1.gain.setValueAtTime(0.06 * vel, t); g1.gain.exponentialRampToValueAtTime(0.001, t + 0.12)
+    g2.gain.setValueAtTime(0.04 * vel, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.08)
+    o.connect(g2); g2.connect(drumGain); s.connect(f); f.connect(g1); g1.connect(drumGain)
+    o.start(t); o.stop(t + 0.15); s.start(t); s.stop(t + 0.15)
+  }
+
+  function playHat(t: number, open: boolean) {
+    if (!audioContext) return
+    const s = audioContext.createBufferSource(); const g = audioContext.createGain()
+    const f = audioContext.createBiquadFilter()
+    s.buffer = nBuf; f.type = 'highpass'; f.frequency.value = open ? 6000 : 9000
+    g.gain.setValueAtTime(open ? 0.03 : 0.02, t); g.gain.exponentialRampToValueAtTime(0.001, t + (open ? 0.12 : 0.04))
+    s.connect(f); f.connect(g); g.connect(drumGain); s.start(t); s.stop(t + 0.15)
+  }
+
+  function playPerc(t: number) {
+    if (!audioContext) return
+    const o = audioContext.createOscillator(); const g = audioContext.createGain()
+    o.type = 'sine'; o.frequency.setValueAtTime(800 + Math.random() * 400, t)
+    o.frequency.exponentialRampToValueAtTime(200, t + 0.08)
+    g.gain.setValueAtTime(0.03, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
+    o.connect(g); g.connect(drumGain); o.start(t); o.stop(t + 0.12)
   }
 
   let barCount = 0
-  let lastMelodyNote = Math.floor(freqs.length / 2)
+  let lastMel = Math.floor(freqs.length * 0.5)
 
   function playBar() {
     if (!audioContext || !musicGainNode) return
     const now = audioContext.currentTime
-    const barDur = beatDur * 4
+    const barDur = bd * 4
 
-    // Determine phase
-    const phaseIdx = Math.floor(barCount / 4) % phases.length
-    const phase = phases[phaseIdx]
-    const prog = progressions[phase as keyof typeof progressions] || progressions.verse
-    const chordIdx = barCount % prog.length
-    const chord = prog[chordIdx]
-    const energy = phase === 'intro' ? 0.3 : phase === 'verse' ? 0.6 : phase === 'bridge' ? 0.7 : 1.0
+    // Phase selection - each phase is 4 bars, cycle through all 13
+    const pi = Math.floor(barCount / 4) % phases.length
+    const phase = phases[pi]
+    const pn = phase.name
+    const nrg = phase.energy
+    const prog = progs[pn as keyof typeof progs] || progs.verse1
+    const chord = prog[barCount % prog.length]
 
-    // Filter sweep based on energy
-    masterFilter.frequency.linearRampToValueAtTime(params.filterFreq * (0.5 + energy * 0.5), now + barDur)
+    // Smooth filter automation
+    mf.frequency.linearRampToValueAtTime(params.filterFreq * (0.3 + nrg * 0.7), now + barDur)
 
-    // === BASS ===
-    const bassFreq = freqs[chord[0]] || baseFreq
-    if (phase === 'intro') {
-      playBass(bassFreq, now, barDur * 0.9)
-    } else {
-      // Rhythmic bass pattern
-      playBass(bassFreq, now, beatDur * 0.8)
-      if (energy > 0.5) playBass(bassFreq, now + beatDur * 2, beatDur * 0.8)
-      if (energy > 0.7) {
-        playBass(freqs[chord[1]] || bassFreq, now + beatDur * 2.5, beatDur * 0.5)
-      }
+    // Layer volumes based on energy (prevent noise buildup)
+    bassGain.gain.linearRampToValueAtTime(phase.hasBass ? 0.4 + nrg * 0.3 : 0.0, now + 0.1)
+    padGain.gain.linearRampToValueAtTime(phase.hasPad ? 0.2 + nrg * 0.15 : 0.0, now + 0.1)
+    melodyGain.gain.linearRampToValueAtTime(phase.hasMelody ? 0.3 + nrg * 0.2 : 0.0, now + 0.1)
+    arpGain.gain.linearRampToValueAtTime(phase.hasArp ? 0.15 + nrg * 0.15 : 0.0, now + 0.1)
+    drumGain.gain.linearRampToValueAtTime(phase.hasDrums ? 0.3 + nrg * 0.3 : 0.0, now + 0.1)
+
+    // === PAD (strings/atmosphere) ===
+    if (phase.hasPad) {
+      const padFreqs = chord.map(n => freqs[n + si.length] || bf * 2)
+      playPad(padFreqs, now, barDur * 0.95, nrg * 0.5)
     }
 
-    // === CHORDS ===
-    if (phase !== 'intro' || barCount % 2 === 0) {
-      const chordVel = 0.25 + energy * 0.2
-      chord.forEach((noteIdx, i) => {
-        const freq = freqs[noteIdx + scaleIntervals.length] || baseFreq * 2
-        if (phase === 'chorus') {
-          // Arpeggiated chords in chorus
-          playNote(freq, now + i * beatDur * 0.25, beatDur * 1.5, chordVel)
-        } else {
-          playNote(freq, now + i * 0.015, barDur * 0.7, chordVel * 0.8)
-        }
-      })
+    // === BASS ===
+    if (phase.hasBass) {
+      const bFreq = freqs[chord[0]] || bf
+      if (nrg < 0.4) {
+        playBass(bFreq, now, barDur * 0.9)
+      } else {
+        playBass(bFreq, now, bd * 0.75)
+        playBass(bFreq, now + bd * 2, bd * 0.75)
+        if (nrg > 0.6) playBass(freqs[chord[1]] || bFreq, now + bd * 2.5, bd * 0.5)
+        if (nrg > 0.8) playBass(freqs[chord[2]] || bFreq, now + bd * 3.5, bd * 0.4)
+      }
     }
 
     // === MELODY ===
-    const melodyNotes = Math.floor(params.density * 2 * energy)
-    for (let i = 0; i < melodyNotes; i++) {
-      const beatPos = i / Math.max(1, melodyNotes)
-      const swingOff = (i % 2 === 1) ? params.swing * beatDur : 0
-      const noteTime = now + beatPos * barDur + swingOff
+    if (phase.hasMelody) {
+      const noteCount = Math.max(1, Math.floor(params.density * 1.5 * nrg))
+      for (let i = 0; i < noteCount; i++) {
+        const pos = i / noteCount
+        const sw = (i % 2 === 1) ? params.swing * bd : 0
+        const t = now + pos * barDur + sw
+        // Musical motion: mostly stepwise, occasional leap, occasional rest
+        if (Math.random() < 0.15) continue // Rest
+        const step = Math.random() < 0.65 ? (Math.random() < 0.5 ? 1 : -1) : (Math.random() < 0.5 ? 2 : -2)
+        lastMel = Math.max(si.length, Math.min(freqs.length - 2, lastMel + step))
+        const dur = bd / Math.max(1, params.density) * (0.5 + Math.random() * 0.5)
+        const vel = (0.3 + Math.random() * 0.3) * nrg
+        const w = pn === 'chorus' || pn === 'finale' ? 'triangle' as OscillatorType : undefined
+        playNote(freqs[lastMel], t, dur, vel, melodyGain, w)
+      }
+    }
 
-      // Stepwise motion with occasional leaps for more musical melodies
-      const step = Math.random() < 0.7 ? (Math.random() < 0.5 ? 1 : -1) : (Math.random() < 0.5 ? 2 : -2)
-      lastMelodyNote = Math.max(scaleIntervals.length, Math.min(freqs.length - 1, lastMelodyNote + step))
-      const freq = freqs[lastMelodyNote]
-      const dur = beatDur / Math.max(1, params.density) * (0.6 + Math.random() * 0.4)
-      const vel = (0.4 + Math.random() * 0.4) * energy
-
-      // Vary waveform occasionally in chorus
-      const wave = phase === 'chorus' && Math.random() < 0.3 ? 'triangle' as OscillatorType : undefined
-      playNote(freq, noteTime, dur, vel, wave)
+    // === ARPEGGIO (only in chorus/buildup/finale) ===
+    if (phase.hasArp) {
+      const arpNotes = chord.map(n => freqs[n + si.length * 2] || bf * 4)
+      const arpSteps = pn === 'finale' ? 8 : pn === 'buildup' ? 6 : 4
+      for (let i = 0; i < arpSteps; i++) {
+        const t = now + i * (barDur / arpSteps)
+        const note = arpNotes[i % arpNotes.length]
+        playNote(note, t, bd * 0.4, 0.25 * nrg, arpGain, 'sine')
+      }
     }
 
     // === DRUMS ===
-    if (phase !== 'intro' || barCount > 1) {
-      // Kick pattern
-      playKick(now)
-      if (energy > 0.5) playKick(now + beatDur * 2)
-      if (phase === 'chorus') {
-        playKick(now + beatDur * 1)
-        playKick(now + beatDur * 3)
+    if (phase.hasDrums) {
+      // Kick patterns vary by phase
+      playKick(now, nrg)
+      if (nrg > 0.4) playKick(now + bd * 2, nrg * 0.9)
+      if (pn === 'chorus' || pn === 'finale') { playKick(now + bd, nrg * 0.7); playKick(now + bd * 3, nrg * 0.7) }
+
+      // Snare
+      if (nrg > 0.3) { playSnare(now + bd, nrg); playSnare(now + bd * 3, nrg) }
+
+      // Hats - more subdivisions at higher energy
+      const hatCount = nrg > 0.7 ? 8 : nrg > 0.4 ? 4 : 2
+      for (let i = 0; i < hatCount; i++) {
+        playHat(now + i * (barDur / hatCount), i % 4 === 2 && nrg > 0.5)
       }
 
-      // Snare on 2 and 4
-      if (energy > 0.4) {
-        playSnare(now + beatDur)
-        playSnare(now + beatDur * 3)
+      // Percussion accents
+      if (nrg > 0.6 && barCount % 2 === 0) playPerc(now + bd * 1.5)
+      if (pn === 'finale') { playPerc(now + bd * 0.5); playPerc(now + bd * 2.5) }
+
+      // Fills at phrase boundaries
+      if (barCount % 4 === 3) {
+        if (nrg > 0.3) playSnare(now + bd * 3.5, nrg * 0.6)
+        if (nrg > 0.5) { playSnare(now + bd * 3.25, nrg * 0.5); playKick(now + bd * 3.75, nrg) }
+        if (nrg > 0.8) { playPerc(now + bd * 3); playPerc(now + bd * 3.5); playSnare(now + bd * 3.75, nrg) }
       }
 
-      // Hi-hats
-      for (let i = 0; i < (energy > 0.7 ? 8 : 4); i++) {
-        const hTime = now + i * (barDur / (energy > 0.7 ? 8 : 4))
-        const isOpen = i % 4 === 2 && energy > 0.6
-        playHihat(hTime, isOpen)
-      }
-
-      // Extra fills at end of 4-bar phrases
-      if (barCount % 4 === 3 && energy > 0.5) {
-        playSnare(now + beatDur * 3.25)
-        playSnare(now + beatDur * 3.5)
-        playKick(now + beatDur * 3.75)
+      // Buildup: snare roll crescendo
+      if (pn === 'buildup' && barCount % 4 >= 2) {
+        const rollCount = barCount % 4 === 3 ? 8 : 4
+        for (let i = 0; i < rollCount; i++) {
+          playSnare(now + i * (barDur / rollCount), 0.3 + (i / rollCount) * 0.7)
+        }
       }
     }
 
@@ -2342,7 +2430,7 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
   }
 
   playBar()
-  musicInterval = window.setInterval(playBar, beatDur * 4 * 1000)
+  musicInterval = window.setInterval(playBar, bd * 4 * 1000)
 }
 
 // Preview music from admin panel
