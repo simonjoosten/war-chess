@@ -339,6 +339,18 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'effect_runes', name: 'Magic Runes', description: 'Magical symbols appear', price: 250, type: 'effect', icon: '🔮', effectType: 'sparkle' },
   { id: 'effect_money', name: 'Money Rain', description: 'War Bucks falling effect', price: 300, type: 'effect', icon: '💵', effectType: 'sparkle' },
 
+  // Effects - Wave 2
+  { id: 'effect_tornado', name: 'Tornado Spin', description: 'Whirling wind particles swirl around every piece that moves', price: 225, type: 'effect', icon: '🌪️', effectType: 'sparkle' },
+  { id: 'effect_soul', name: 'Soul Reaper', description: 'Dark skulls and ghostly souls rise from every captured piece', price: 300, type: 'effect', icon: '💀', effectType: 'ghost' },
+  { id: 'effect_prisma', name: 'Prisma Burst', description: 'Rainbow light rays explode when tanks, rockets and artillery fire', price: 275, type: 'effect', icon: '🌈', effectType: 'sparkle' },
+  { id: 'effect_butterfly', name: 'Butterfly Swarm', description: 'Colorful butterflies fly up when builders construct barricades and bridges', price: 200, type: 'effect', icon: '🦋', effectType: 'sparkle' },
+  { id: 'effect_plasma', name: 'Plasma Chain', description: 'Blue plasma arcs chain between pieces when hackers freeze or capture', price: 325, type: 'effect', icon: '⚡', effectType: 'lightning' },
+  { id: 'effect_moonlight', name: 'Moonlight Glow', description: 'Soft silver moonlight particles float around every piece that moves', price: 200, type: 'effect', icon: '🌙', effectType: 'stars' },
+  { id: 'effect_musicnotes', name: 'Music Notes', description: 'Musical notes burst into the air when you win the game', price: 250, type: 'effect', icon: '🎵', effectType: 'sparkle' },
+  { id: 'effect_toxic', name: 'Toxic Drip', description: 'Poisonous green droplets and toxic fumes rise from every kill', price: 225, type: 'effect', icon: '💉', effectType: 'smoke' },
+  { id: 'effect_bluefire', name: 'Blue Inferno', description: 'Scorching blue flames erupt when tanks, rockets and ships fire their weapons', price: 300, type: 'effect', icon: '🔥', effectType: 'fire' },
+  { id: 'effect_warp', name: 'Warp Drive', description: 'Space-warping streaks trail behind helicopters and fighters at high speed', price: 275, type: 'effect', icon: '💫', effectType: 'stars' },
+
   // NEW: More Music Packs
   { id: 'music_tropical', name: 'Tropical Vibes', description: 'Chill beach music with steel drums', price: 200, type: 'music_pack', icon: '🏖️', packId: 'tropical' },
   { id: 'music_dark', name: 'Dark Orchestra', description: 'Ominous strings and brass', price: 275, type: 'music_pack', icon: '🦇', packId: 'dark' },
