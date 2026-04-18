@@ -880,7 +880,42 @@ export const BADGES = {
   WINS_50: { id: 'wins_50', name: 'Half Century', description: 'Win 50 games', icon: '5️⃣' },
   WINS_100: { id: 'wins_100', name: 'Century Winner', description: 'Win 100 games', icon: '🏆' },
   PLAYTIME_10H: { id: 'playtime_10h', name: 'Time Invested', description: 'Play for 10 hours total', icon: '⏰' },
-  PLAYTIME_50H: { id: 'playtime_50h', name: 'Hardcore', description: 'Play for 50 hours total', icon: '🔥' }
+  PLAYTIME_50H: { id: 'playtime_50h', name: 'Hardcore', description: 'Play for 50 hours total', icon: '🔥' },
+
+  // Combat badges - Wave 2
+  FIRST_BLOOD: { id: 'first_blood', name: 'First Blood', description: 'Eliminate your first piece', icon: '🗡️' },
+  SERIAL_KILLER: { id: 'serial_killer', name: 'Serial Killer', description: 'Eliminate 500 pieces total', icon: '💀' },
+  UNTOUCHABLE: { id: 'untouchable', name: 'Untouchable', description: 'Win a game losing fewer than 3 pieces', icon: '🛡️' },
+  MASTER_HACKER: { id: 'master_hacker', name: 'Master Hacker', description: 'Hack 20 pieces with the hacker', icon: '🧠' },
+  MASTER_BUILDER: { id: 'master_builder', name: 'Master Builder', description: 'Build 50 structures total', icon: '🏗️' },
+  ARTILLERY_KING: { id: 'artillery_king', name: 'Artillery King', description: 'Destroy 30 pieces with artillery', icon: '🎯' },
+
+  // Multiplayer badges - Wave 2
+  WIN_STREAK_5: { id: 'win_streak_5', name: 'Win Streak', description: 'Win 5 multiplayer games in a row', icon: '🔥' },
+  GLOBE_TROTTER: { id: 'globe_trotter', name: 'Globe Trotter', description: 'Play against 10 different players', icon: '🌍' },
+  BLITZ_MASTER: { id: 'blitz_master', name: 'Blitz Master', description: 'Win 10 games with timer enabled', icon: '⚡' },
+
+  // Shop & Collection badges - Wave 2
+  SHOPAHOLIC: { id: 'shopaholic', name: 'Shopaholic', description: 'Buy 20 items from the shop', icon: '🛒' },
+  BUNDLE_HUNTER: { id: 'bundle_hunter', name: 'Bundle Hunter', description: 'Buy 3 bundles', icon: '📦' },
+  DEAL_SNIPER: { id: 'deal_sniper', name: 'Deal Sniper', description: 'Buy 10 daily deal items', icon: '🔥' },
+
+  // Special badges
+  NIGHT_OWL: { id: 'night_owl', name: 'Night Owl', description: 'Play a game after midnight', icon: '🌙' },
+  COMEBACK_KING: { id: 'comeback_king', name: 'Comeback King', description: 'Win after being 20+ points behind', icon: '💪' },
+  WAR_LEGEND: { id: 'war_legend', name: 'War Legend', description: 'Earn 40 other badges', icon: '👑' },
+
+  // Extra 10 badges
+  SURVIVOR_10: { id: 'survivor_10', name: 'Iron Will', description: 'Win 10 games with less than 5 points difference', icon: '🦾' },
+  POINTS_1000: { id: 'points_1000', name: 'Points Machine', description: 'Score 1000 total points', icon: '📈' },
+  POINTS_5000: { id: 'points_5000', name: 'Score Legend', description: 'Score 5000 total points', icon: '🏅' },
+  ELIMINATOR_250: { id: 'eliminator_250', name: 'Eliminator', description: 'Eliminate 250 pieces total', icon: '☠️' },
+  ELIMINATOR_1000: { id: 'eliminator_1000', name: 'War Machine', description: 'Eliminate 1000 pieces total', icon: '⚙️' },
+  COLLECTOR_SOUNDS: { id: 'collector_sounds', name: 'Sound Collector', description: 'Buy all sound packs', icon: '🔊' },
+  COLLECTOR_MUSIC: { id: 'collector_music', name: 'Music Collector', description: 'Buy all music packs', icon: '🎵' },
+  GAMES_1000: { id: 'games_1000', name: 'Addicted', description: 'Play 1000 games', icon: '🎮' },
+  WINS_250: { id: 'wins_250', name: 'Quarter Thousand', description: 'Win 250 games', icon: '🥇' },
+  PLAYTIME_100H: { id: 'playtime_100h', name: 'No Life', description: 'Play for 100 hours total', icon: '💀' }
 }
 
 // Check and award badges
@@ -1028,6 +1063,70 @@ export function checkBadges(userData: UserData): string[] {
   }
   if (!userData.badges.includes('playtime_50h') && stats.timePlayed >= 180000) { // 50 hours in seconds
     newBadges.push('playtime_50h')
+  }
+
+  // === NEW BADGES - Wave 2 ===
+
+  // Combat
+  if (!userData.badges.includes('first_blood') && stats.piecesEliminated >= 1) {
+    newBadges.push('first_blood')
+  }
+  if (!userData.badges.includes('serial_killer') && stats.piecesEliminated >= 500) {
+    newBadges.push('serial_killer')
+  }
+  if (!userData.badges.includes('master_hacker') && (stats.hackersDestroyed || 0) >= 20) {
+    newBadges.push('master_hacker')
+  }
+  if (!userData.badges.includes('eliminator_250') && stats.piecesEliminated >= 250) {
+    newBadges.push('eliminator_250')
+  }
+  if (!userData.badges.includes('eliminator_1000') && stats.piecesEliminated >= 1000) {
+    newBadges.push('eliminator_1000')
+  }
+
+  // Shop
+  if (!userData.badges.includes('shopaholic') && owned.length >= 20) {
+    newBadges.push('shopaholic')
+  }
+  if (!userData.badges.includes('night_owl')) {
+    const hour = new Date().getHours()
+    if (hour >= 0 && hour < 5 && stats.gamesPlayed > 0) {
+      newBadges.push('night_owl')
+    }
+  }
+
+  // Collection - sounds & music
+  const allSounds = SHOP_ITEMS.filter(i => i.type === 'sound_pack').map(i => i.id)
+  const allMusic = SHOP_ITEMS.filter(i => i.type === 'music_pack').map(i => i.id)
+  if (!userData.badges.includes('collector_sounds') && allSounds.every(id => owned.includes(id))) {
+    newBadges.push('collector_sounds')
+  }
+  if (!userData.badges.includes('collector_music') && allMusic.every(id => owned.includes(id))) {
+    newBadges.push('collector_music')
+  }
+
+  // Points milestones
+  if (!userData.badges.includes('points_1000') && stats.totalPointsScored >= 1000) {
+    newBadges.push('points_1000')
+  }
+  if (!userData.badges.includes('points_5000') && stats.totalPointsScored >= 5000) {
+    newBadges.push('points_5000')
+  }
+
+  // Game milestones
+  if (!userData.badges.includes('games_1000') && stats.gamesPlayed >= 1000) {
+    newBadges.push('games_1000')
+  }
+  if (!userData.badges.includes('wins_250') && stats.gamesWon >= 250) {
+    newBadges.push('wins_250')
+  }
+  if (!userData.badges.includes('playtime_100h') && stats.timePlayed >= 360000) { // 100 hours
+    newBadges.push('playtime_100h')
+  }
+
+  // War Legend - earned 40+ other badges
+  if (!userData.badges.includes('war_legend') && (userData.badges.length + newBadges.length) >= 40) {
+    newBadges.push('war_legend')
   }
 
   return newBadges
