@@ -146,6 +146,12 @@ export interface UserData {
   // Friends system
   friends: string[]  // Friend user IDs
   blockedUsers: string[]  // Blocked user IDs
+  // Profile avatar
+  avatar?: {
+    type: 'emoji' | 'piece' | 'photo'  // emoji = single emoji, piece = game piece icon, photo = base64 image
+    value: string  // The emoji character, piece type, or base64 data URL
+    bgColor?: string  // Background color for the avatar circle
+  }
 }
 
 // Shop items for sale

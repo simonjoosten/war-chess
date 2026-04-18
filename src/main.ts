@@ -25922,8 +25922,81 @@ function render() {
         <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
           <h1 class="text-2xl sm:text-4xl font-bold text-white">👤 ${t('profileTitle')}</h1>
           ${userData ? `
-          <div class="text-xl text-blue-400 font-bold">${userData.username}</div>
+          <!-- Avatar + Username -->
+          <div class="flex flex-col items-center gap-2">
+            <div id="profile-avatar-btn" class="relative cursor-pointer group">
+              <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl border-3 border-blue-500 shadow-lg shadow-blue-500/20 transition-all group-hover:scale-110 group-hover:shadow-blue-500/40" style="background:${userData.avatar?.bgColor || '#1e3a5f'}">
+                ${userData.avatar?.type === 'photo'
+                  ? `<img src="${userData.avatar.value}" class="w-full h-full rounded-full object-cover" alt="avatar">`
+                  : userData.avatar?.type === 'piece'
+                  ? `<span>${{soldier:'🎖️',tank:'🚜',helicopter:'🚁',ship:'🚢',hacker:'💻',builder:'👷',rocket:'🚀',fighter:'✈️'}[userData.avatar?.value || ''] || '🎖️'}</span>`
+                  : `<span>${userData.avatar?.value || '👤'}</span>`
+                }
+              </div>
+              <div class="absolute -bottom-1 -right-1 bg-blue-600 rounded-full w-7 h-7 flex items-center justify-center text-sm border-2 border-gray-800 group-hover:bg-blue-500 transition-colors">✏️</div>
+            </div>
+            <div class="text-xl text-blue-400 font-bold">${userData.username}</div>
+          </div>
           <div class="text-yellow-400 font-bold">💰 ${userData.warBucks} ${t('profileWarBucks')}</div>
+
+          <!-- Avatar Editor Modal (hidden) -->
+          <div id="avatar-editor" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 border border-blue-500/30 shadow-2xl" style="animation:deal-slide-in 0.3s ease-out">
+              <h3 class="text-lg font-bold text-white mb-4 text-center">🖼️ Profile Picture</h3>
+
+              <!-- Preview -->
+              <div class="flex justify-center mb-4">
+                <div id="avatar-preview" class="w-24 h-24 rounded-full flex items-center justify-center text-5xl border-3 border-blue-500 shadow-lg shadow-blue-500/30 transition-all" style="background:${userData.avatar?.bgColor || '#1e3a5f'}">
+                  <span>${userData.avatar?.value || '👤'}</span>
+                </div>
+              </div>
+
+              <!-- Background Color -->
+              <div class="flex items-center gap-2 mb-3">
+                <label class="text-gray-300 text-sm">Background:</label>
+                <input type="color" id="avatar-bg-color" value="${userData.avatar?.bgColor || '#1e3a5f'}" class="w-8 h-8 rounded cursor-pointer">
+                <div class="flex gap-1 ml-auto">
+                  ${['#1e3a5f', '#2d1b4e', '#1a3a1a', '#4a1a1a', '#3a3a1a', '#1a1a1a', '#4a0e2e', '#0e3a3a'].map(c =>
+                    `<button class="avatar-quick-color w-6 h-6 rounded-full border border-gray-600 hover:scale-110 transition-transform" style="background:${c}" data-color="${c}"></button>`
+                  ).join('')}
+                </div>
+              </div>
+
+              <!-- Emoji Picker -->
+              <div class="mb-3">
+                <label class="text-gray-300 text-sm block mb-1">Emoji:</label>
+                <div class="grid grid-cols-8 gap-1.5">
+                  ${['😎', '🤩', '😈', '👻', '🤖', '👽', '🦊', '🐺', '🦁', '🐲', '🦅', '🐙', '💀', '🎃', '👑', '⚡', '🔥', '❄️', '💎', '⭐', '🌙', '🌈', '💜', '🖤', '🎮', '🎯', '🏆', '⚔️', '🛡️', '🚀', '💣', '🌊'].map(emoji =>
+                    `<button class="avatar-emoji-btn bg-gray-700 hover:bg-gray-600 rounded-lg p-1.5 text-lg transition-all hover:scale-110" data-emoji="${emoji}">${emoji}</button>`
+                  ).join('')}
+                </div>
+              </div>
+
+              <!-- Game Pieces -->
+              <div class="mb-3">
+                <label class="text-gray-300 text-sm block mb-1">Game Piece:</label>
+                <div class="grid grid-cols-8 gap-1.5">
+                  ${['soldier', 'tank', 'helicopter', 'ship', 'hacker', 'builder', 'rocket', 'fighter'].map(piece => {
+                    const icons: Record<string, string> = {soldier:'🎖️',tank:'🚜',helicopter:'🚁',ship:'🚢',hacker:'💻',builder:'👷',rocket:'🚀',fighter:'✈️'}
+                    return `<button class="avatar-piece-btn bg-gray-700 hover:bg-gray-600 rounded-lg p-1.5 text-lg transition-all hover:scale-110" data-piece="${piece}">${icons[piece]}</button>`
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Photo Upload -->
+              <div class="mb-4">
+                <label class="text-gray-300 text-sm block mb-1">Upload Photo:</label>
+                <input type="file" id="avatar-file-input" accept="image/*" class="hidden">
+                <button id="avatar-upload-btn" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm py-2 px-4 rounded-lg w-full transition-colors">📷 Choose Photo...</button>
+              </div>
+
+              <!-- Buttons -->
+              <div class="flex gap-3">
+                <button id="avatar-save-btn" class="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 rounded-xl transition-all hover:scale-105">✅ Save</button>
+                <button id="avatar-cancel-btn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 rounded-xl transition-all">Cancel</button>
+              </div>
+            </div>
+          </div>
 
           <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[400px]">
             <h2 class="text-lg font-bold text-white">📊 ${t('profileStats')}</h2>
@@ -26064,10 +26137,123 @@ function render() {
           showAuthScreen = 'login'
           render()
         })
+
+        // Avatar editor
+        let pendingAvatar: { type: 'emoji' | 'piece' | 'photo'; value: string; bgColor: string } = {
+          type: (userData?.avatar?.type as 'emoji' | 'piece' | 'photo') || 'emoji',
+          value: userData?.avatar?.value || '👤',
+          bgColor: userData?.avatar?.bgColor || '#1e3a5f'
+        }
+
+        const updateAvatarPreview = () => {
+          const preview = document.getElementById('avatar-preview')
+          if (!preview) return
+          preview.style.background = pendingAvatar.bgColor
+          if (pendingAvatar.type === 'photo') {
+            preview.innerHTML = `<img src="${pendingAvatar.value}" class="w-full h-full rounded-full object-cover" alt="avatar">`
+          } else if (pendingAvatar.type === 'piece') {
+            const icons: Record<string, string> = {soldier:'🎖️',tank:'🚜',helicopter:'🚁',ship:'🚢',hacker:'💻',builder:'👷',rocket:'🚀',fighter:'✈️'}
+            preview.innerHTML = `<span>${icons[pendingAvatar.value] || '🎖️'}</span>`
+          } else {
+            preview.innerHTML = `<span>${pendingAvatar.value}</span>`
+          }
+        }
+
+        // Open editor
+        document.getElementById('profile-avatar-btn')?.addEventListener('click', () => {
+          document.getElementById('avatar-editor')?.classList.remove('hidden')
+        })
+
+        // Close editor
+        document.getElementById('avatar-cancel-btn')?.addEventListener('click', () => {
+          document.getElementById('avatar-editor')?.classList.add('hidden')
+        })
+
+        // Background color picker
+        document.getElementById('avatar-bg-color')?.addEventListener('input', (e) => {
+          pendingAvatar.bgColor = (e.target as HTMLInputElement).value
+          updateAvatarPreview()
+        })
+
+        // Quick colors
+        document.querySelectorAll('.avatar-quick-color').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            pendingAvatar.bgColor = (e.target as HTMLElement).dataset.color || '#1e3a5f'
+            ;(document.getElementById('avatar-bg-color') as HTMLInputElement).value = pendingAvatar.bgColor
+            updateAvatarPreview()
+          })
+        })
+
+        // Emoji buttons
+        document.querySelectorAll('.avatar-emoji-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            pendingAvatar.type = 'emoji'
+            pendingAvatar.value = (e.target as HTMLElement).dataset.emoji || '👤'
+            updateAvatarPreview()
+          })
+        })
+
+        // Piece buttons
+        document.querySelectorAll('.avatar-piece-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            pendingAvatar.type = 'piece'
+            pendingAvatar.value = (e.target as HTMLElement).dataset.piece || 'soldier'
+            updateAvatarPreview()
+          })
+        })
+
+        // Photo upload
+        document.getElementById('avatar-upload-btn')?.addEventListener('click', () => {
+          document.getElementById('avatar-file-input')?.click()
+        })
+        document.getElementById('avatar-file-input')?.addEventListener('change', (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0]
+          if (!file) return
+          if (file.size > 500000) { alert('Photo too large! Max 500KB.'); return }
+          const reader = new FileReader()
+          reader.onload = (ev) => {
+            // Resize to 128x128 for storage
+            const img = new Image()
+            img.onload = () => {
+              const canvas = document.createElement('canvas')
+              canvas.width = 128; canvas.height = 128
+              const ctx = canvas.getContext('2d')!
+              const size = Math.min(img.width, img.height)
+              const sx = (img.width - size) / 2
+              const sy = (img.height - size) / 2
+              ctx.drawImage(img, sx, sy, size, size, 0, 0, 128, 128)
+              pendingAvatar.type = 'photo'
+              pendingAvatar.value = canvas.toDataURL('image/jpeg', 0.7)
+              updateAvatarPreview()
+            }
+            img.src = ev.target?.result as string
+          }
+          reader.readAsDataURL(file)
+        })
+
+        // Save avatar
+        document.getElementById('avatar-save-btn')?.addEventListener('click', async () => {
+          await saveUserData({ avatar: pendingAvatar })
+          await loadUserData()
+          document.getElementById('avatar-editor')?.classList.add('hidden')
+          render()
+        })
       }
 
       renderProfileWithNotifications()
       return
+    }
+
+    // Avatar render helper - use anywhere to show a user's avatar
+    function renderAvatar(avatar?: { type: string; value: string; bgColor?: string }, size: number = 32): string {
+      const bg = avatar?.bgColor || '#1e3a5f'
+      const icons: Record<string, string> = {soldier:'🎖️',tank:'🚜',helicopter:'🚁',ship:'🚢',hacker:'💻',builder:'👷',rocket:'🚀',fighter:'✈️'}
+      const fontSize = Math.floor(size * 0.55)
+      if (avatar?.type === 'photo') {
+        return `<img src="${avatar.value}" class="rounded-full object-cover" style="width:${size}px;height:${size}px" alt="">`
+      }
+      const content = avatar?.type === 'piece' ? (icons[avatar.value] || '🎖️') : (avatar?.value || '👤')
+      return `<div class="rounded-full flex items-center justify-center flex-shrink-0" style="width:${size}px;height:${size}px;background:${bg};font-size:${fontSize}px">${content}</div>`
     }
 
     // Shop purchase popup
@@ -27167,7 +27353,7 @@ function render() {
           <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
             <h1 class="text-2xl sm:text-4xl font-bold text-white">🏆 Tournaments</h1>
 
-            ${userData ? `<div class="text-blue-400 font-bold">👤 ${userData.username}</div>` : ''}
+            ${userData ? `<div class="flex items-center gap-2 justify-center"><div class="text-blue-400 font-bold">${renderAvatar(userData.avatar, 28)}</div><span class="text-blue-400 font-bold">${userData.username}</span></div>` : ''}
 
             ${tournaments.length > 0 ? `
               <div class="w-full max-w-[700px] flex flex-col gap-4">
