@@ -28296,9 +28296,17 @@ function render() {
                       </div>
 
                       <!-- AI Generate Button -->
-                      <button id="si-ai-generate" class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-all">
-                        🤖 AI Auto-Generate
-                      </button>
+                      <!-- AI Prompt -->
+                      <div class="bg-gradient-to-r from-purple-900/40 to-blue-900/40 p-3 rounded-lg border border-purple-500/30">
+                        <label class="text-purple-300 text-xs font-bold block mb-1">🤖 AI Prompt - Beschrijf wat je wilt</label>
+                        <div class="flex gap-2">
+                          <input type="text" id="si-ai-prompt" placeholder="bijv. 'een donker spookachtig thema met paarse mist' of 'vrolijke snelle chiptune muziek'" class="flex-1 bg-gray-700 text-white px-3 py-2 rounded border border-purple-500/30 focus:border-purple-400 focus:outline-none text-sm placeholder-gray-500">
+                          <button id="si-ai-generate" class="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-2 px-4 rounded transition-all whitespace-nowrap">
+                            🤖 Generate
+                          </button>
+                        </div>
+                        <div id="si-ai-status" class="mt-2 hidden"></div>
+                      </div>
 
                       <!-- Theme Options -->
                       <div id="si-theme-options" class="bg-gray-600/50 p-3 rounded-lg grid gap-3">
@@ -29642,16 +29650,92 @@ function render() {
             })
           })
 
-          // AI Auto-Generate - Smart themed generation with AI reactions
+          // AI Auto-Generate - Prompt-based intelligent generation
           document.getElementById('si-ai-generate')?.addEventListener('click', () => {
             const type = siType?.value
             const nameInput = document.getElementById('si-name') as HTMLInputElement
             const descInput = document.getElementById('si-description') as HTMLInputElement
             const priceInput = document.getElementById('si-price') as HTMLInputElement
             const iconInput = document.getElementById('si-icon') as HTMLInputElement
+            const promptInput = document.getElementById('si-ai-prompt') as HTMLInputElement
+            const statusDiv = document.getElementById('si-ai-status')
 
+            const prompt = (promptInput?.value || '').toLowerCase().trim()
             const rand = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
             const randInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min))
+
+            // AI thinking animation
+            if (statusDiv) {
+              statusDiv.classList.remove('hidden')
+              statusDiv.innerHTML = '<div class="flex items-center gap-2 text-purple-300 text-sm"><span class="animate-spin">⚙️</span> AI is aan het nadenken...</div>'
+            }
+
+            // Keyword detection system (multilingual: EN/NL/DE/FR/ES)
+            const has = (...words: string[]) => words.some(w => prompt.includes(w))
+
+            // Detect mood/theme from prompt
+            let detectedMood = ''
+            if (has('fire', 'vuur', 'feuer', 'feu', 'fuego', 'lava', 'flame', 'vlam', 'hot', 'heet', 'burn', 'brand')) detectedMood = 'fire'
+            else if (has('ice', 'ijs', 'eis', 'glace', 'hielo', 'frost', 'cold', 'koud', 'snow', 'sneeuw', 'winter', 'frozen', 'bevroren', 'arctic')) detectedMood = 'ice'
+            else if (has('nature', 'natuur', 'natur', 'forest', 'bos', 'wald', 'tree', 'boom', 'jungle', 'leaf', 'blad', 'green', 'groen')) detectedMood = 'nature'
+            else if (has('ocean', 'oceaan', 'ozean', 'sea', 'zee', 'meer', 'mer', 'mar', 'water', 'underwater', 'onderwat', 'coral', 'reef', 'fish', 'vis')) detectedMood = 'ocean'
+            else if (has('space', 'ruimte', 'weltraum', 'espace', 'espacio', 'star', 'ster', 'cosmic', 'galaxy', 'nebula', 'planet')) detectedMood = 'space'
+            else if (has('neon', 'cyber', 'digital', 'holo', 'synth', 'matrix', 'hack', 'code', 'glitch', 'pixel')) detectedMood = 'neon'
+            else if (has('dark', 'donker', 'dunkel', 'sombre', 'oscuro', 'spook', 'ghost', 'geist', 'haunt', 'shadow', 'schaduw', 'horror', 'creepy', 'evil', 'curse', 'skull', 'death', 'dood')) detectedMood = 'dark'
+            else if (has('gold', 'goud', 'golden', 'royal', 'koninkl', 'king', 'koning', 'crown', 'kroon', 'palace', 'paleis', 'luxur', 'rich', 'rijk', 'diamond', 'diamant')) detectedMood = 'gold'
+            else if (has('cherry', 'blossom', 'bloesem', 'sakura', 'pink', 'roze', 'rose', 'petal', 'flower', 'bloem', 'spring', 'lente', 'garden', 'tuin')) detectedMood = 'cherry'
+            else if (has('steam', 'stoom', 'dampf', 'clockwork', 'gear', 'tandwiel', 'victorian', 'brass', 'copper', 'koper', 'industrial')) detectedMood = 'steampunk'
+
+            // Detect music mood from prompt
+            let detectedMusicMood = ''
+            if (has('chill', 'relax', 'calm', 'rustig', 'peace', 'vredig', 'soft', 'zacht', 'mellow', 'zen', 'ambient', 'slow', 'langzaam')) detectedMusicMood = 'chill'
+            else if (has('intense', 'aggress', 'heavy', 'zwaar', 'hard', 'fast', 'snel', 'schnell', 'rapide', 'power', 'kracht', 'rage', 'fury')) detectedMusicMood = 'intense'
+            else if (has('retro', '8-bit', '8bit', 'chiptune', 'arcade', 'pixel', 'classic', 'klassiek', 'old', 'oud', 'nostalg')) detectedMusicMood = 'retro'
+            else if (has('myster', 'geheim', 'secret', 'enigma', 'cryptic', 'whisper', 'fluister', 'eerie', 'griezelig', 'spooky')) detectedMusicMood = 'mysterious'
+            else if (has('epic', 'hero', 'held', 'legend', 'triumph', 'victory', 'overwinning', 'glory', 'glorie', 'battle', 'strijd', 'war', 'oorlog')) detectedMusicMood = 'epic'
+            else if (has('funk', 'groove', 'soul', 'jazz', 'swing', 'blues', 'smooth', 'dance', 'dans')) detectedMusicMood = 'funky'
+            else if (has('happy', 'blij', 'vrolijk', 'cheerful', 'joy', 'vreugde', 'bright', 'helder', 'sunny', 'zonnig', 'fun', 'leuk')) detectedMusicMood = 'happy'
+
+            // Detect effect type from prompt
+            let detectedEffect = ''
+            if (has('fire', 'vuur', 'flame', 'vlam', 'burn')) detectedEffect = 'fire'
+            else if (has('lightning', 'bliksem', 'blitz', 'electric', 'thunder', 'donder', 'volt', 'shock')) detectedEffect = 'lightning'
+            else if (has('sparkle', 'glitter', 'shimmer', 'schitter', 'twinkle', 'fonkel', 'magic', 'magisch')) detectedEffect = 'sparkle'
+            else if (has('smoke', 'rook', 'rauch', 'fog', 'mist', 'nebel', 'cloud', 'wolk')) detectedEffect = 'smoke'
+            else if (has('heart', 'hart', 'herz', 'coeur', 'love', 'liefde', 'amour')) detectedEffect = 'hearts'
+            else if (has('star', 'ster', 'stern', 'étoile', 'estrella', 'cosmic')) detectedEffect = 'stars'
+            else if (has('explo', 'boom', 'blast', 'bang', 'detona', 'bomb')) detectedEffect = 'explosion'
+            else if (has('ghost', 'geest', 'geist', 'fantôme', 'fantasma', 'phantom', 'spirit', 'wraith', 'spook')) detectedEffect = 'ghost'
+
+            // Detect skin style from prompt
+            let detectedSkin = ''
+            if (has('robot', 'mech', 'chrome', 'metal', 'machine', 'android', 'cyborg')) detectedSkin = 'robot'
+            else if (has('medieval', 'middeleeuws', 'knight', 'ridder', 'ritter', 'castle', 'kasteel', 'sword', 'zwaard', 'armor', 'pantser')) detectedSkin = 'medieval'
+            else if (has('scifi', 'sci-fi', 'space', 'ruimte', 'alien', 'laser', 'plasma', 'quantum')) detectedSkin = 'scifi'
+            else if (has('pixel', '8bit', '8-bit', 'retro', 'arcade', 'classic')) detectedSkin = 'pixel'
+            else if (has('minimal', 'clean', 'simple', 'simpel', 'eenvoudig', 'geometric')) detectedSkin = 'minimal'
+            else if (has('cartoon', 'funny', 'grappig', 'silly', 'gek', 'comic', 'wacky', 'bouncy')) detectedSkin = 'cartoon'
+            else if (has('military', 'militair', 'army', 'leger', 'soldier', 'soldaat', 'camo', 'war')) detectedSkin = 'military'
+            else if (has('fantasy', 'wizard', 'tovenaar', 'dragon', 'draak', 'magic', 'elf', 'fairy')) detectedSkin = 'fantasy'
+
+            // Color detection from prompt
+            const colorKeywords: Record<string, string> = {
+              red: '#ff0000', rood: '#ff0000', rot: '#ff0000', rouge: '#ff0000', rojo: '#ff0000',
+              blue: '#0066ff', blauw: '#0066ff', blau: '#0066ff', bleu: '#0066ff', azul: '#0066ff',
+              green: '#00cc00', groen: '#00cc00', grün: '#00cc00', vert: '#00cc00', verde: '#00cc00',
+              purple: '#9900ff', paars: '#9900ff', lila: '#9900ff', violet: '#9900ff', morado: '#9900ff',
+              yellow: '#ffcc00', geel: '#ffcc00', gelb: '#ffcc00', jaune: '#ffcc00', amarillo: '#ffcc00',
+              orange: '#ff6600', oranje: '#ff6600',
+              pink: '#ff69b4', roze: '#ff69b4', rosa: '#ff69b4',
+              white: '#ffffff', wit: '#ffffff', weiß: '#ffffff', blanc: '#ffffff', blanco: '#ffffff',
+              black: '#111111', zwart: '#111111', schwarz: '#111111', noir: '#111111', negro: '#111111',
+              cyan: '#00cccc', turquoise: '#00cccc', turkoois: '#00cccc',
+              brown: '#8b4513', bruin: '#8b4513', braun: '#8b4513', marron: '#8b4513',
+            }
+            let detectedColor = ''
+            for (const [word, hex] of Object.entries(colorKeywords)) {
+              if (prompt.includes(word)) { detectedColor = hex; break }
+            }
             const lang = currentLanguage
 
             // Localized description templates per mood
@@ -29786,9 +29870,36 @@ function render() {
               }, 1500)
             }
 
+            // Delayed AI status updates for natural feel
+            const aiLog = (msg: string, delay: number) => {
+              setTimeout(() => {
+                if (statusDiv) {
+                  const line = document.createElement('div')
+                  line.className = 'text-purple-300/70 text-xs flex items-center gap-1'
+                  line.innerHTML = `<span class="text-green-400">✓</span> ${msg}`
+                  statusDiv.appendChild(line)
+                }
+              }, delay)
+            }
+
+            if (prompt) {
+              aiLog(`Prompt gelezen: "${prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}"`, 200)
+              if (detectedMood) aiLog(`Mood gedetecteerd: ${detectedMood}`, 500)
+              if (detectedColor) aiLog(`Kleur gedetecteerd: ${detectedColor}`, 700)
+              if (detectedEffect) aiLog(`Effect type: ${detectedEffect}`, 600)
+              if (detectedMusicMood) aiLog(`Muziek sfeer: ${detectedMusicMood}`, 800)
+              if (detectedSkin) aiLog(`Skin stijl: ${detectedSkin}`, 650)
+            }
+
+            // Apply with delay for "thinking" effect
+            setTimeout(() => {
+
             switch (type) {
               case 'theme': {
-                const concept = themeConcepts[Math.floor(Math.random() * themeConcepts.length)]
+                // Use detected mood from prompt, or random
+                const concept = prompt && detectedMood
+                  ? themeConcepts.find(c => c.mood === detectedMood) || themeConcepts[Math.floor(Math.random() * themeConcepts.length)]
+                  : themeConcepts[Math.floor(Math.random() * themeConcepts.length)]
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
@@ -29812,11 +29923,21 @@ function render() {
                 ;(document.getElementById('si-color-accent') as HTMLInputElement).value = hslToHex((baseHue + 40) % 360, 55 + Math.random() * 25, 40 + Math.random() * 20)
                 ;(document.getElementById('si-color-water') as HTMLInputElement).value = hslToHex((baseHue + 160) % 360, 50 + Math.random() * 25, 30 + Math.random() * 20)
                 ;(document.getElementById('si-ambient') as HTMLSelectElement).value = concept.ambient
+                // Override with detected color from prompt
+                if (detectedColor) {
+                  ;(document.getElementById('si-color-light') as HTMLInputElement).value = detectedColor
+                  // Auto-generate complementary from detected color
+                  document.getElementById('si-gen-complementary')?.click()
+                }
                 updateThemePreview()
                 break
               }
               case 'effect': {
-                const concept = effectConcepts[Math.floor(Math.random() * effectConcepts.length)]
+                const concept = prompt && detectedEffect
+                  ? effectConcepts.find(c => c.type === detectedEffect) || effectConcepts[Math.floor(Math.random() * effectConcepts.length)]
+                  : prompt && detectedMood
+                  ? effectConcepts.find(c => c.mood === detectedMood) || effectConcepts[Math.floor(Math.random() * effectConcepts.length)]
+                  : effectConcepts[Math.floor(Math.random() * effectConcepts.length)]
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
@@ -29826,7 +29947,9 @@ function render() {
                 break
               }
               case 'piece_skin': {
-                const concept = skinConcepts[Math.floor(Math.random() * skinConcepts.length)]
+                const concept = prompt && detectedSkin
+                  ? skinConcepts.find(c => c.style === detectedSkin) || skinConcepts[Math.floor(Math.random() * skinConcepts.length)]
+                  : skinConcepts[Math.floor(Math.random() * skinConcepts.length)]
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
@@ -29870,7 +29993,11 @@ function render() {
                 break
               }
               case 'music_pack': {
-                const concept = musicConcepts[Math.floor(Math.random() * musicConcepts.length)]
+                const concept = prompt && detectedMusicMood
+                  ? musicConcepts.find(c => c.mood === detectedMusicMood) || musicConcepts[Math.floor(Math.random() * musicConcepts.length)]
+                  : prompt && detectedMood
+                  ? musicConcepts.find(c => c.mood === detectedMood) || musicConcepts[Math.floor(Math.random() * musicConcepts.length)]
+                  : musicConcepts[Math.floor(Math.random() * musicConcepts.length)]
                 const name = `${rand(concept.adj)} ${rand(concept.noun)}`
                 nameInput.value = name
                 iconInput.value = rand(concept.icon)
@@ -29894,20 +30021,23 @@ function render() {
             }
 
             // Show AI reaction (localized)
-            setTimeout(() => {
-              const langReactions = localAiReactions[lang] || localAiReactions.en
-              const reactions = langReactions[type || 'theme'] || langReactions.theme
-              const reaction = rand(reactions)
-              const aiBtn2 = document.getElementById('si-ai-generate')
-              if (aiBtn2) {
-                const reactionDiv = document.createElement('div')
-                reactionDiv.className = 'mt-2 p-2 bg-purple-900/50 border border-purple-500/30 rounded-lg text-purple-300 text-sm animate-pulse'
-                reactionDiv.textContent = reaction
-                aiBtn2.parentElement?.insertBefore(reactionDiv, aiBtn2.nextSibling)
-                // Remove after 4 seconds
-                setTimeout(() => reactionDiv.remove(), 4000)
-              }
-            }, 500)
+            const langReactions = localAiReactions[lang] || localAiReactions.en
+            const reactions = langReactions[type || 'theme'] || langReactions.theme
+            const reaction = rand(reactions)
+
+            if (statusDiv) {
+              aiLog('Instellingen toegepast!', 100)
+              setTimeout(() => {
+                const doneDiv = document.createElement('div')
+                doneDiv.className = 'mt-1 p-2 bg-green-900/40 border border-green-500/30 rounded text-green-300 text-sm'
+                doneDiv.textContent = reaction
+                statusDiv.appendChild(doneDiv)
+                // Hide status after 5 seconds
+                setTimeout(() => { if (statusDiv) statusDiv.classList.add('hidden'); statusDiv!.innerHTML = '' }, 5000)
+              }, 300)
+            }
+
+            }, prompt ? 1000 : 100)  // Delay for "thinking" effect when prompt is used
           })
 
           // Create item button
