@@ -26067,23 +26067,119 @@ function render() {
             </div>
           </div>
 
-          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[400px]">
+          <div class="bg-gray-800 p-6 rounded-lg flex flex-col gap-4 w-full max-w-[500px]">
             <h2 class="text-lg font-bold text-white">📊 ${t('profileStats')}</h2>
-            <div class="grid grid-cols-2 gap-3 text-sm">
-              <div class="text-gray-400">${t('statsGamesPlayed')}</div>
-              <div class="text-white font-bold">${userData.stats.gamesPlayed}</div>
-              <div class="text-gray-400">${t('statsGamesWon')}</div>
-              <div class="text-green-400 font-bold">${userData.stats.gamesWon}</div>
-              <div class="text-gray-400">${t('statsGamesLost')}</div>
-              <div class="text-red-400 font-bold">${userData.stats.gamesLost}</div>
-              <div class="text-gray-400">${t('statsWinRate')}</div>
-              <div class="text-white font-bold">${winRate}%</div>
-              <div class="text-gray-400">${t('statsTotalPoints')}</div>
-              <div class="text-yellow-400 font-bold">${userData.stats.totalPointsScored}</div>
-              <div class="text-gray-400">${t('statsPiecesEliminated')}</div>
-              <div class="text-white font-bold">${userData.stats.piecesEliminated}</div>
-              <div class="text-gray-400">${t('statsEngineers')}</div>
-              <div class="text-orange-400 font-bold">${userData.stats.engineersCaptured}</div>
+
+            <!-- Win/Loss Donut Chart -->
+            <div class="flex items-center gap-6">
+              <div class="relative flex-shrink-0">
+                <svg width="100" height="100" viewBox="0 0 100 100">
+                  ${(() => {
+                    const total = Math.max(1, userData.stats.gamesWon + userData.stats.gamesLost)
+                    const winPct = userData.stats.gamesWon / total
+                    const winAngle = winPct * 360
+                    const r = 40, cx = 50, cy = 50
+                    const winEnd = { x: cx + r * Math.sin(winAngle * Math.PI / 180), y: cy - r * Math.cos(winAngle * Math.PI / 180) }
+                    const largeArc = winAngle > 180 ? 1 : 0
+                    return total <= 1 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#374151" stroke-width="12"/>` : `
+                      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#ef4444" stroke-width="12"/>
+                      <path d="M${cx},${cy - r} A${r},${r} 0 ${largeArc},1 ${winEnd.x},${winEnd.y}" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round"/>
+                    `
+                  })()}
+                  <text x="50" y="46" text-anchor="middle" fill="white" font-size="18" font-weight="bold">${winRate}%</text>
+                  <text x="50" y="62" text-anchor="middle" fill="#9ca3af" font-size="9">Win Rate</text>
+                </svg>
+              </div>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm flex-1">
+                <div class="text-gray-400">${t('statsGamesPlayed')}</div><div class="text-white font-bold">${userData.stats.gamesPlayed}</div>
+                <div class="text-gray-400">${t('statsGamesWon')}</div><div class="text-green-400 font-bold">${userData.stats.gamesWon}</div>
+                <div class="text-gray-400">${t('statsGamesLost')}</div><div class="text-red-400 font-bold">${userData.stats.gamesLost}</div>
+                <div class="text-gray-400">Playtime</div><div class="text-blue-400 font-bold">${Math.floor(userData.stats.timePlayed / 3600)}h ${Math.floor((userData.stats.timePlayed % 3600) / 60)}m</div>
+              </div>
+            </div>
+
+            <!-- Combat Stats Bar Chart -->
+            <div>
+              <h3 class="text-sm font-bold text-gray-300 mb-2">⚔️ Combat</h3>
+              <div class="flex flex-col gap-1.5">
+                ${[
+                  { label: t('statsPiecesEliminated'), value: userData.stats.piecesEliminated, max: 500, color: '#f59e0b' },
+                  { label: t('statsTotalPoints'), value: userData.stats.totalPointsScored, max: 1000, color: '#a855f7' },
+                  { label: t('statsEngineers'), value: userData.stats.engineersCaptured, max: 50, color: '#f97316' },
+                  { label: 'Tanks', value: userData.stats.tanksDestroyed || 0, max: 50, color: '#22c55e' },
+                  { label: 'Helicopters', value: userData.stats.helicoptersDestroyed || 0, max: 30, color: '#3b82f6' },
+                  { label: 'Rockets', value: userData.stats.rocketsDestroyed || 0, max: 20, color: '#ef4444' },
+                  { label: 'Ships', value: userData.stats.shipsDestroyed || 0, max: 30, color: '#06b6d4' },
+                  { label: 'Hackers', value: userData.stats.hackersDestroyed || 0, max: 20, color: '#10b981' },
+                ].map(stat => `
+                  <div class="flex items-center gap-2">
+                    <span class="text-gray-400 text-xs w-24 text-right truncate">${stat.label}</span>
+                    <div class="flex-1 bg-gray-700 rounded-full h-4 overflow-hidden relative">
+                      <div class="h-4 rounded-full transition-all" style="width:${Math.min(100, (stat.value / stat.max) * 100)}%;background:${stat.color}"></div>
+                      <span class="absolute inset-0 flex items-center justify-center text-white text-xs font-bold" style="text-shadow:0 1px 2px rgba(0,0,0,0.8)">${stat.value}</span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Economy Stats -->
+            <div>
+              <h3 class="text-sm font-bold text-gray-300 mb-2">💰 Economy</h3>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="bg-gray-700 p-3 rounded-lg text-center">
+                  <div class="text-yellow-400 font-bold text-lg">${userData.warBucks}</div>
+                  <div class="text-gray-400 text-xs">Balance</div>
+                </div>
+                <div class="bg-gray-700 p-3 rounded-lg text-center">
+                  <div class="text-green-400 font-bold text-lg">${userData.stats.totalWarBucksEarned || 0}</div>
+                  <div class="text-gray-400 text-xs">Earned</div>
+                </div>
+                <div class="bg-gray-700 p-3 rounded-lg text-center">
+                  <div class="text-red-400 font-bold text-lg">${userData.stats.totalWarBucksSpent || 0}</div>
+                  <div class="text-gray-400 text-xs">Spent</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Collection Stats -->
+            <div>
+              <h3 class="text-sm font-bold text-gray-300 mb-2">🎒 Collection</h3>
+              <div class="grid grid-cols-2 gap-2">
+                ${[
+                  { label: 'Items Owned', value: (userData.purchasedItems || []).length, total: SHOP_ITEMS.length, icon: '🛍️' },
+                  { label: 'Badges', value: userData.badges.length, total: Object.keys(BADGES).length, icon: '🏅' },
+                  { label: 'Titles', value: earnedTitles.length, total: Object.keys(TITLES).length, icon: '🏷️' },
+                  { label: 'Banners', value: earnedBanners.length, total: BANNERS.length, icon: '🖼️' },
+                ].map(col => `
+                  <div class="bg-gray-700 p-2.5 rounded-lg flex items-center gap-2">
+                    <span class="text-lg">${col.icon}</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex justify-between">
+                        <span class="text-white text-sm font-bold">${col.value}/${col.total}</span>
+                        <span class="text-gray-400 text-xs">${Math.round(col.value / col.total * 100)}%</span>
+                      </div>
+                      <div class="bg-gray-600 rounded-full h-1.5 mt-0.5">
+                        <div class="bg-blue-500 h-1.5 rounded-full" style="width:${Math.round(col.value / col.total * 100)}%"></div>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Multiplayer & Puzzles -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-gray-700 p-3 rounded-lg">
+                <h4 class="text-xs font-bold text-gray-300 mb-1">🌐 Multiplayer</h4>
+                <div class="text-white font-bold text-lg">${userData.stats.multiplayerWins || 0}W / ${userData.stats.multiplayerGames || 0}G</div>
+                <div class="text-gray-400 text-xs">${userData.stats.chatMessagesSent || 0} messages</div>
+              </div>
+              <div class="bg-gray-700 p-3 rounded-lg">
+                <h4 class="text-xs font-bold text-gray-300 mb-1">🧩 Puzzles</h4>
+                <div class="text-white font-bold text-lg">${userData.puzzleStats?.puzzlesSolved || 0} solved</div>
+                <div class="text-gray-400 text-xs">${userData.puzzleStats?.perfectSolves || 0} perfect | 🔥${userData.puzzleStats?.dailyStreak || 0} streak</div>
+              </div>
             </div>
           </div>
 
