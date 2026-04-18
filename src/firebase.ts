@@ -532,6 +532,30 @@ export const WAR_PASS_CHALLENGES: WarPassChallenge[] = [
     reward: { type: 'item', itemId: 'effect_explosion' } },
   { id: 'engineer_25', name: 'Engineer Legend', description: 'Capture 25 engineers', icon: '🔩', requirement: 25, stat: 'engineersCaptured',
     reward: { type: 'item', itemId: 'theme_lava' } },
+
+  // Tier 6 - New Premium Challenges
+  { id: 'win_50', name: 'Supreme Commander', description: 'Win 50 games', icon: '👑', requirement: 50, stat: 'gamesWon',
+    reward: { type: 'item', itemId: 'skin_vampire' } },
+  { id: 'eliminate_500', name: 'Annihilator', description: 'Eliminate 500 pieces', icon: '☠️', requirement: 500, stat: 'piecesEliminated',
+    reward: { type: 'item', itemId: 'effect_soul' } },
+  { id: 'points_2500', name: 'Infinite Power', description: 'Score 2500 total points', icon: '⚡', requirement: 2500, stat: 'totalPointsScored',
+    reward: { type: 'item', itemId: 'theme_dragon' } },
+  { id: 'play_50', name: 'War Addict', description: 'Play 50 games', icon: '🎮', requirement: 50, stat: 'gamesPlayed',
+    reward: { type: 'item', itemId: 'music_viking' } },
+  { id: 'engineer_50', name: 'Engineer Overlord', description: 'Capture 50 engineers', icon: '🔧', requirement: 50, stat: 'engineersCaptured',
+    reward: { type: 'item', itemId: 'skin_exosuit' } },
+
+  // Tier 7 - Legendary Challenges
+  { id: 'win_100', name: 'Immortal Warrior', description: 'Win 100 games', icon: '🔱', requirement: 100, stat: 'gamesWon',
+    reward: { type: 'item', itemId: 'skin_diamond' } },
+  { id: 'eliminate_1000', name: 'God of War', description: 'Eliminate 1000 pieces', icon: '⚔️', requirement: 1000, stat: 'piecesEliminated',
+    reward: { type: 'item', itemId: 'theme_obsidian' } },
+  { id: 'points_5000', name: 'Transcended', description: 'Score 5000 total points', icon: '🌌', requirement: 5000, stat: 'totalPointsScored',
+    reward: { type: 'item', itemId: 'theme_crystal_cavern' } },
+  { id: 'play_100', name: 'Eternal Soldier', description: 'Play 100 games', icon: '💎', requirement: 100, stat: 'gamesPlayed',
+    reward: { type: 'warBucks', amount: 1000 } },
+  { id: 'engineer_100', name: 'Engineer Deity', description: 'Capture 100 engineers', icon: '⚙️', requirement: 100, stat: 'engineersCaptured',
+    reward: { type: 'item', itemId: 'effect_plasma' } },
 ]
 
 // Get scaled War Pass challenges based on completion count

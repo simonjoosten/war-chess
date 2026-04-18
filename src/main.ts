@@ -2060,7 +2060,7 @@ async function startMusic() {
   if (!audioContext || musicInterval) return
 
   musicGainNode = audioContext.createGain()
-  musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+  musicGainNode.gain.value = 0.45 * musicVolume * masterVolume
   musicGainNode.connect(audioContext.destination)
 
   measureCount = 0
@@ -2190,11 +2190,11 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
   mf.connect(musicGainNode); mf.connect(conv)
 
   // Separate gain nodes per layer to prevent noise
-  const bassGain = audioContext.createGain(); bassGain.gain.value = 0.7; bassGain.connect(mf)
-  const padGain = audioContext.createGain(); padGain.gain.value = 0.4; padGain.connect(mf)
-  const melodyGain = audioContext.createGain(); melodyGain.gain.value = 0.5; melodyGain.connect(mf)
-  const arpGain = audioContext.createGain(); arpGain.gain.value = 0.3; arpGain.connect(mf)
-  const drumGain = audioContext.createGain(); drumGain.gain.value = 0.6; drumGain.connect(musicGainNode)
+  const bassGain = audioContext.createGain(); bassGain.gain.value = 1.0; bassGain.connect(mf)
+  const padGain = audioContext.createGain(); padGain.gain.value = 0.7; padGain.connect(mf)
+  const melodyGain = audioContext.createGain(); melodyGain.gain.value = 0.8; melodyGain.connect(mf)
+  const arpGain = audioContext.createGain(); arpGain.gain.value = 0.5; arpGain.connect(mf)
+  const drumGain = audioContext.createGain(); drumGain.gain.value = 0.9; drumGain.connect(musicGainNode)
 
   // Noise buffer
   const nBuf = audioContext.createBuffer(1, Math.floor(rate * 0.15), rate)
@@ -2238,8 +2238,8 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
     const o = audioContext.createOscillator(); const g = audioContext.createGain()
     o.type = wave || params.waveform; o.frequency.value = freq
     g.gain.setValueAtTime(0.001, t)
-    g.gain.linearRampToValueAtTime(vel * 0.06, t + 0.01)
-    g.gain.exponentialRampToValueAtTime(vel * 0.02, t + dur * 0.5)
+    g.gain.linearRampToValueAtTime(vel * 0.15, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(vel * 0.06, t + dur * 0.5)
     g.gain.exponentialRampToValueAtTime(0.001, t + dur)
     o.connect(g); g.connect(dest); o.start(t); o.stop(t + dur + 0.05)
   }
@@ -2255,8 +2255,8 @@ function startParametricMusic(params: { tempo: number; scale: string; baseNote: 
       const og = audioContext!.createGain(); og.gain.value = 0.5
       o1.connect(f); o2.connect(og); og.connect(f)
       g.gain.setValueAtTime(0.001, t)
-      g.gain.linearRampToValueAtTime(vel * 0.03, t + dur * 0.2)
-      g.gain.setValueAtTime(vel * 0.025, t + dur * 0.7)
+      g.gain.linearRampToValueAtTime(vel * 0.08, t + dur * 0.2)
+      g.gain.setValueAtTime(vel * 0.06, t + dur * 0.7)
       g.gain.exponentialRampToValueAtTime(0.001, t + dur)
       f.connect(g); g.connect(padGain)
       o1.start(t); o1.stop(t + dur + 0.1); o2.start(t); o2.stop(t + dur + 0.1)
@@ -2444,7 +2444,7 @@ async function previewParametricMusic(params: { tempo: number; scale: string; ba
 
   // Create temporary gain node for preview
   musicGainNode = audioContext.createGain()
-  musicGainNode.gain.value = 0.15 * masterVolume
+  musicGainNode.gain.value = 0.5 * masterVolume
   musicGainNode.connect(audioContext.destination)
 
   previewMusicPlaying = true
@@ -25317,22 +25317,22 @@ function render() {
       // Volume buttons with +/- controls
       document.getElementById('master-vol-down')?.addEventListener('click', () => {
         masterVolume = Math.max(0, masterVolume - 0.1)
-        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+        if (musicGainNode) musicGainNode.gain.value = 0.45 * musicVolume * masterVolume
         render()
       })
       document.getElementById('master-vol-up')?.addEventListener('click', () => {
         masterVolume = Math.min(1, masterVolume + 0.1)
-        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+        if (musicGainNode) musicGainNode.gain.value = 0.45 * musicVolume * masterVolume
         render()
       })
       document.getElementById('music-vol-down')?.addEventListener('click', () => {
         musicVolume = Math.max(0, musicVolume - 0.1)
-        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+        if (musicGainNode) musicGainNode.gain.value = 0.45 * musicVolume * masterVolume
         render()
       })
       document.getElementById('music-vol-up')?.addEventListener('click', () => {
         musicVolume = Math.min(1, musicVolume + 0.1)
-        if (musicGainNode) musicGainNode.gain.value = 0.12 * musicVolume * masterVolume
+        if (musicGainNode) musicGainNode.gain.value = 0.45 * musicVolume * masterVolume
         render()
       })
       document.getElementById('sfx-vol-down')?.addEventListener('click', () => {
@@ -26456,63 +26456,108 @@ function render() {
         return
       }
 
+      // Determine tier colors and labels for challenges
+      const getTierInfo = (idx: number): { color: string; gradient: string; label: string; glow: string } => {
+        if (idx < 4) return { color: 'text-green-400', gradient: 'from-green-600 to-emerald-500', label: 'EASY', glow: 'shadow-green-500/20' }
+        if (idx < 10) return { color: 'text-blue-400', gradient: 'from-blue-600 to-cyan-500', label: 'MEDIUM', glow: 'shadow-blue-500/20' }
+        if (idx < 16) return { color: 'text-purple-400', gradient: 'from-purple-600 to-pink-500', label: 'HARD', glow: 'shadow-purple-500/20' }
+        if (idx < 22) return { color: 'text-orange-400', gradient: 'from-orange-600 to-red-500', label: 'EXPERT', glow: 'shadow-orange-500/20' }
+        if (idx < 27) return { color: 'text-yellow-400', gradient: 'from-yellow-500 to-amber-500', label: 'MASTER', glow: 'shadow-yellow-500/20' }
+        if (idx < 32) return { color: 'text-red-400', gradient: 'from-red-600 to-rose-500', label: 'PREMIUM', glow: 'shadow-red-500/20' }
+        return { color: 'text-fuchsia-400', gradient: 'from-fuchsia-600 to-violet-500', label: 'LEGENDARY', glow: 'shadow-fuchsia-500/30' }
+      }
+
+      let challengeIdx = 0
       const renderChallenge = (challenge: WarPassChallenge) => {
         const currentProgress = stats[challenge.stat] || 0
         const progressPercent = Math.min(100, (currentProgress / challenge.requirement) * 100)
         const isCompleted = currentProgress >= challenge.requirement
         const isClaimed = claimedRewards.includes(challenge.id)
+        const tier = getTierInfo(challengeIdx++)
 
+        const rewardItem = challenge.reward.type === 'item' ? SHOP_ITEMS.find(i => i.id === challenge.reward.itemId) : null
         const rewardText = challenge.reward.type === 'warBucks'
           ? `💰 ${challenge.reward.amount}`
-          : `🎁 ${SHOP_ITEMS.find(i => i.id === challenge.reward.itemId)?.name || 'Item'}`
+          : `${rewardItem?.icon || '🎁'} ${rewardItem?.name || 'Item'}`
 
         return `
-          <div class="bg-gray-700 p-4 rounded-lg flex flex-col gap-2 ${isClaimed ? 'opacity-60' : ''}">
-            <div class="flex items-center gap-2">
-              <span class="text-2xl">${challenge.icon}</span>
-              <div class="flex-1">
-                <span class="text-white font-bold">${challenge.name}</span>
+          <div class="bg-gray-700/80 p-4 rounded-xl flex flex-col gap-2 border ${isClaimed ? 'border-gray-600 opacity-50' : isCompleted ? 'border-green-500/50 shadow-lg ' + tier.glow : 'border-gray-600/50'} transition-all ${isCompleted && !isClaimed ? 'hover:scale-[1.02]' : ''}">
+            <div class="flex items-center gap-3">
+              <div class="text-3xl ${isCompleted && !isClaimed ? 'animate-bounce' : ''}">${challenge.icon}</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-bold">${challenge.name}</span>
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-gradient-to-r ${tier.gradient} text-white font-bold">${tier.label}</span>
+                </div>
                 <p class="text-gray-400 text-sm">${challenge.description}</p>
               </div>
+              <div class="text-right flex-shrink-0">
+                <div class="text-sm font-bold ${tier.color}">${rewardText}</div>
+              </div>
             </div>
-            <div class="w-full bg-gray-600 rounded-full h-3 mt-2">
-              <div class="bg-gradient-to-r from-purple-500 to-purple-400 h-3 rounded-full transition-all" style="width: ${progressPercent}%"></div>
+            <div class="w-full bg-gray-800 rounded-full h-4 mt-1 overflow-hidden relative">
+              <div class="bg-gradient-to-r ${tier.gradient} h-4 rounded-full transition-all relative" style="width: ${progressPercent}%">
+                ${progressPercent > 15 ? `<span class="absolute right-2 top-0 text-white text-xs font-bold leading-4">${Math.round(progressPercent)}%</span>` : ''}
+              </div>
+              ${progressPercent <= 15 ? `<span class="absolute left-2 top-0 text-gray-400 text-xs leading-4">${Math.round(progressPercent)}%</span>` : ''}
             </div>
-            <div class="flex items-center justify-between mt-1">
-              <span class="text-gray-300 text-sm">${currentProgress} / ${challenge.requirement}</span>
-              <span class="text-yellow-400 text-sm">${t('warPassReward')}: ${rewardText}</span>
-            </div>
-            <div class="flex justify-end mt-2">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-400 text-xs">${currentProgress} / ${challenge.requirement}</span>
               ${isClaimed
-                ? `<span class="text-gray-400 font-bold">${t('warPassClaimed')}</span>`
+                ? `<span class="text-gray-500 font-bold text-sm flex items-center gap-1">✅ ${t('warPassClaimed')}</span>`
                 : (isCompleted
-                  ? `<button class="claim-reward-btn bg-green-600 hover:bg-green-500 text-white font-bold py-1 px-4 rounded text-sm transition-colors" data-challenge="${challenge.id}">
-                      ${t('warPassClaim')}
+                  ? `<button class="claim-reward-btn bg-gradient-to-r ${tier.gradient} hover:brightness-110 text-white font-bold py-1.5 px-5 rounded-lg text-sm transition-all shadow-lg ${tier.glow} hover:scale-105" data-challenge="${challenge.id}">
+                      ${t('warPassClaim')} ${rewardText}
                     </button>`
-                  : `<span class="text-gray-500 text-sm">${t('warPassProgress')}: ${Math.round(progressPercent)}%</span>`)
+                  : `<span class="text-gray-500 text-xs">${t('warPassProgress')}: ${Math.round(progressPercent)}%</span>`)
               }
             </div>
           </div>
         `
       }
 
+      const totalChallenges = scaledChallenges.length
+      const claimedCount = claimedRewards.length
+      const passProgress = Math.round((claimedCount / totalChallenges) * 100)
+
       app.innerHTML = `
         <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
-          <h1 class="text-2xl sm:text-4xl font-bold text-white">🎖️ ${t('warPassTitle')}</h1>
-          <div class="text-yellow-400 font-bold text-xl">💰 ${userData?.warBucks || 0} War Bucks</div>
+          <!-- War Pass Header -->
+          <div class="w-full max-w-[600px] deals-header rounded-xl p-4 sm:p-6 text-center relative overflow-hidden">
+            <h1 class="text-2xl sm:text-3xl font-black text-white mb-1">
+              <span class="star-decoration inline-block">⭐</span>
+              ${t('warPassTitle')}
+              <span class="star-decoration inline-block" style="animation-delay:0.7s">⭐</span>
+            </h1>
+            <div class="text-yellow-200 font-bold text-lg mb-3">💰 ${userData?.warBucks || 0} War Bucks</div>
 
-          <!-- War Pass stats -->
-          <div class="flex gap-4 text-center">
-            <div class="bg-purple-900/50 px-4 py-2 rounded-lg">
-              <div class="text-purple-300 text-sm">Completed</div>
-              <div class="text-white font-bold text-xl">${completedCount}x</div>
-            </div>
-            ${allChallengesClaimed ? `
-              <div class="bg-green-900/50 px-4 py-2 rounded-lg">
-                <div class="text-green-300 text-sm">Reset in</div>
-                <div class="text-white font-bold text-xl">${hoursLeft}h ${minutesLeft}m</div>
+            <!-- Overall progress bar -->
+            <div class="w-full bg-black/30 rounded-full h-5 mb-3 overflow-hidden">
+              <div class="bg-gradient-to-r from-green-500 via-yellow-500 to-purple-500 h-5 rounded-full transition-all relative" style="width:${passProgress}%">
+                <span class="absolute inset-0 flex items-center justify-center text-white text-xs font-black">${claimedCount}/${totalChallenges} (${passProgress}%)</span>
               </div>
-            ` : ''}
+            </div>
+
+            <div class="flex gap-3 justify-center flex-wrap">
+              <div class="bg-black/20 px-4 py-2 rounded-lg">
+                <div class="text-purple-200 text-xs">Resets</div>
+                <div class="text-white font-bold text-lg">${completedCount}x</div>
+              </div>
+              <div class="bg-black/20 px-4 py-2 rounded-lg">
+                <div class="text-green-200 text-xs">Claimed</div>
+                <div class="text-white font-bold text-lg">${claimedCount}</div>
+              </div>
+              <div class="bg-black/20 px-4 py-2 rounded-lg">
+                <div class="text-yellow-200 text-xs">Remaining</div>
+                <div class="text-white font-bold text-lg">${totalChallenges - claimedCount}</div>
+              </div>
+              ${allChallengesClaimed ? `
+                <div class="bg-black/20 px-4 py-2 rounded-lg deal-timer">
+                  <div class="text-red-200 text-xs">Reset in</div>
+                  <div class="text-white font-bold text-lg">${hoursLeft}h ${minutesLeft}m</div>
+                </div>
+              ` : ''}
+            </div>
           </div>
 
           ${allChallengesClaimed ? `
