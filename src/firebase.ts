@@ -6514,33 +6514,52 @@ export async function adminCreateSampleBundles(): Promise<number> {
 
 // ==================== CLAN SYSTEM ====================
 
+export type ClanRole = 'leader' | 'coleader' | 'elder' | 'member'
+
 export interface Clan {
   id: string
   name: string
-  tag: string  // Short 2-5 letter tag like [WAR]
+  tag: string
   description: string
-  icon: string  // Emoji
-  bannerColor: string  // Gradient color
+  icon: string
+  bannerColor: string
   createdAt: number
-  createdBy: string  // User ID of founder
-  leaderIds: string[]  // User IDs of leaders (can accept requests, kick)
-  memberIds: string[]  // All member user IDs including leaders
+  createdBy: string
+  // Roles: map of odataId => role
+  roles: Record<string, ClanRole>
+  memberIds: string[]
   maxMembers: number
-  // Requirements to join
+  // Requirements
   requirements: {
     minGamesPlayed: number
     minGamesWon: number
-    autoAccept: boolean  // Auto-accept or require approval
+    autoAccept: boolean
   }
-  // Clan stats (aggregated)
+  // Rules (custom text)
+  rules: string
+  // Stats
   stats: {
     totalWins: number
     totalKills: number
     totalPoints: number
     clanLevel: number
+    clanXP: number  // XP towards next level
   }
-  // Clan coins pool
   clanCoins: number
+  // Announcements (pinned messages)
+  announcements: Array<{ text: string; by: string; at: number }>
+  // Clan badges earned
+  clanBadges: string[]
+  // Weekly challenge
+  weeklyChallenge?: {
+    type: string  // e.g. 'kills', 'wins', 'points'
+    target: number
+    progress: number
+    startedAt: number
+    reward: number  // Clan coins reward
+  }
+  // Banner level unlocks
+  bannerLevel: number  // 1-5, unlocks better banners
 }
 
 export interface ClanJoinRequest {
@@ -6554,29 +6573,70 @@ export interface ClanJoinRequest {
   status: 'pending' | 'accepted' | 'rejected'
 }
 
+// Role hierarchy helpers
+const ROLE_POWER: Record<ClanRole, number> = { leader: 4, coleader: 3, elder: 2, member: 1 }
+const ROLE_LABELS: Record<ClanRole, { name: string; icon: string; color: string }> = {
+  leader: { name: 'Leader', icon: '👑', color: '#fbbf24' },
+  coleader: { name: 'Co-Leader', icon: '⭐', color: '#a855f7' },
+  elder: { name: 'Elder', icon: '🛡️', color: '#3b82f6' },
+  member: { name: 'Member', icon: '👤', color: '#9ca3af' }
+}
+export { ROLE_LABELS }
+
+export function getClanRole(clan: Clan, userId: string): ClanRole {
+  return clan.roles?.[userId] || (clan.createdBy === userId ? 'leader' : 'member')
+}
+
+export function canManage(clan: Clan, userId: string): boolean {
+  const role = getClanRole(clan, userId)
+  return ROLE_POWER[role] >= ROLE_POWER.coleader
+}
+
+// Clan leveling: XP needed per level
+export function getClanLevelXP(level: number): number { return level * 500 }
+
+// Clan badges definitions
+export const CLAN_BADGES: Record<string, { name: string; icon: string; desc: string; check: (c: Clan) => boolean }> = {
+  first_blood: { name: 'First Blood', icon: '🗡️', desc: 'Clan gets first win', check: c => c.stats.totalWins >= 1 },
+  squad_up: { name: 'Squad Up', icon: '👥', desc: '5+ members', check: c => c.memberIds.length >= 5 },
+  army: { name: 'Army', icon: '🪖', desc: '15+ members', check: c => c.memberIds.length >= 15 },
+  war_machine: { name: 'War Machine', icon: '⚙️', desc: '100 total kills', check: c => c.stats.totalKills >= 100 },
+  legendary: { name: 'Legendary', icon: '🏆', desc: '50 clan wins', check: c => c.stats.totalWins >= 50 },
+  rich_clan: { name: 'Rich Clan', icon: '💰', desc: '1000 clan coins', check: c => c.clanCoins >= 1000 },
+  level_5: { name: 'Rising Power', icon: '⬆️', desc: 'Reach level 5', check: c => (c.stats.clanLevel || 1) >= 5 },
+  level_10: { name: 'Dominant Force', icon: '🔥', desc: 'Reach level 10', check: c => (c.stats.clanLevel || 1) >= 10 },
+}
+
+// Banner unlocks per clan level
+export const CLAN_BANNER_LEVELS: Array<{ level: number; gradient: string; name: string }> = [
+  { level: 1, gradient: 'from-gray-800 to-gray-700', name: 'Default' },
+  { level: 2, gradient: 'from-blue-800 to-cyan-700', name: 'Ocean' },
+  { level: 3, gradient: 'from-green-800 to-emerald-700', name: 'Forest' },
+  { level: 5, gradient: 'from-purple-800 to-pink-700', name: 'Royal' },
+  { level: 7, gradient: 'from-red-800 to-orange-700', name: 'Inferno' },
+  { level: 10, gradient: 'from-yellow-600 via-amber-500 to-yellow-700', name: 'Golden' },
+]
+
 // Create a new clan
 export async function createClan(data: {
   name: string; tag: string; description: string; icon: string; bannerColor: string;
-  maxMembers: number; minGamesPlayed: number; minGamesWon: number; autoAccept: boolean
+  maxMembers: number; minGamesPlayed: number; minGamesWon: number; autoAccept: boolean;
+  rules?: string
 }): Promise<string | null> {
   if (!db || !currentUser || !currentUserData) return null
-  if (currentUserData.clanId) return null // Already in a clan
+  if (currentUserData.clanId) return null
 
   try {
     const clan: Omit<Clan, 'id'> = {
-      name: data.name,
-      tag: data.tag.toUpperCase(),
-      description: data.description,
-      icon: data.icon,
-      bannerColor: data.bannerColor,
-      createdAt: Date.now(),
+      name: data.name, tag: data.tag.toUpperCase(), description: data.description,
+      icon: data.icon, bannerColor: data.bannerColor, createdAt: Date.now(),
       createdBy: currentUser.uid,
-      leaderIds: [currentUser.uid],
-      memberIds: [currentUser.uid],
-      maxMembers: data.maxMembers,
+      roles: { [currentUser.uid]: 'leader' },
+      memberIds: [currentUser.uid], maxMembers: data.maxMembers,
       requirements: { minGamesPlayed: data.minGamesPlayed, minGamesWon: data.minGamesWon, autoAccept: data.autoAccept },
-      stats: { totalWins: 0, totalKills: 0, totalPoints: 0, clanLevel: 1 },
-      clanCoins: 0
+      rules: data.rules || '',
+      stats: { totalWins: 0, totalKills: 0, totalPoints: 0, clanLevel: 1, clanXP: 0 },
+      clanCoins: 0, announcements: [], clanBadges: [], bannerLevel: 1
     }
     const docRef = await addDoc(collection(db, 'clans'), clan)
     await updateDoc(doc(db, 'users', currentUser.uid), { clanId: docRef.id })
@@ -6592,205 +6652,368 @@ export async function createClan(data: {
 export async function getClan(clanId: string): Promise<Clan | null> {
   if (!db) return null
   try {
-    const clanDoc = await getDoc(doc(db, 'clans', clanId))
-    if (clanDoc.exists()) return { ...clanDoc.data(), id: clanDoc.id } as Clan
+    const d = await getDoc(doc(db, 'clans', clanId))
+    if (d.exists()) {
+      const data = d.data() as Clan
+      // Backwards compat: migrate leaderIds to roles
+      if (!data.roles && (data as any).leaderIds) {
+        data.roles = {}
+        for (const lid of (data as any).leaderIds) data.roles[lid] = 'leader'
+        for (const mid of data.memberIds) { if (!data.roles[mid]) data.roles[mid] = 'member' }
+      }
+      return { ...data, id: d.id }
+    }
     return null
-  } catch (error) {
-    console.error('Error getting clan:', error)
-    return null
-  }
+  } catch (error) { return null }
 }
 
 // Search clans
 export async function searchClans(searchQuery?: string): Promise<Clan[]> {
   if (!db) return []
   try {
-    const clansRef = collection(db, 'clans')
-    const snapshot = await getDocs(clansRef)
+    const snapshot = await getDocs(collection(db, 'clans'))
     let clans = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Clan))
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       clans = clans.filter(c => c.name.toLowerCase().includes(q) || c.tag.toLowerCase().includes(q))
     }
     return clans.sort((a, b) => b.memberIds.length - a.memberIds.length)
-  } catch (error) {
-    console.error('Error searching clans:', error)
-    return []
-  }
+  } catch (error) { return [] }
 }
 
-// Request to join a clan
+// Get clan leaderboard
+export async function getClanLeaderboard(sortBy: 'members' | 'wins' | 'kills' | 'coins' | 'level' = 'wins'): Promise<Clan[]> {
+  if (!db) return []
+  try {
+    const snapshot = await getDocs(collection(db, 'clans'))
+    const clans = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Clan))
+    switch (sortBy) {
+      case 'members': return clans.sort((a, b) => b.memberIds.length - a.memberIds.length)
+      case 'wins': return clans.sort((a, b) => b.stats.totalWins - a.stats.totalWins)
+      case 'kills': return clans.sort((a, b) => b.stats.totalKills - a.stats.totalKills)
+      case 'coins': return clans.sort((a, b) => (b.clanCoins || 0) - (a.clanCoins || 0))
+      case 'level': return clans.sort((a, b) => (b.stats.clanLevel || 1) - (a.stats.clanLevel || 1))
+      default: return clans
+    }
+  } catch (error) { return [] }
+}
+
+// Request to join
 export async function requestJoinClan(clanId: string): Promise<{ success: boolean; error?: string }> {
   if (!db || !currentUser || !currentUserData) return { success: false, error: 'Not logged in' }
   if (currentUserData.clanId) return { success: false, error: 'Already in a clan' }
-
   try {
     const clan = await getClan(clanId)
     if (!clan) return { success: false, error: 'Clan not found' }
     if (clan.memberIds.length >= clan.maxMembers) return { success: false, error: 'Clan is full' }
-
-    const stats = currentUserData.stats
-    if (stats.gamesPlayed < clan.requirements.minGamesPlayed) return { success: false, error: `Need ${clan.requirements.minGamesPlayed} games played` }
-    if (stats.gamesWon < clan.requirements.minGamesWon) return { success: false, error: `Need ${clan.requirements.minGamesWon} wins` }
+    const s = currentUserData.stats
+    if (s.gamesPlayed < clan.requirements.minGamesPlayed) return { success: false, error: `Need ${clan.requirements.minGamesPlayed} games` }
+    if (s.gamesWon < clan.requirements.minGamesWon) return { success: false, error: `Need ${clan.requirements.minGamesWon} wins` }
 
     if (clan.requirements.autoAccept) {
-      // Auto-accept: add directly
-      await updateDoc(doc(db, 'clans', clanId), { memberIds: arrayUnion(currentUser.uid) })
+      const newRoles = { ...clan.roles, [currentUser.uid]: 'member' as ClanRole }
+      await updateDoc(doc(db, 'clans', clanId), { memberIds: arrayUnion(currentUser.uid), roles: newRoles })
       await updateDoc(doc(db, 'users', currentUser.uid), { clanId })
       if (currentUserData) currentUserData.clanId = clanId
       return { success: true }
     } else {
-      // Create join request
       await addDoc(collection(db, 'clanRequests'), {
         clanId, userId: currentUser.uid, username: currentUserData.username,
-        gamesPlayed: stats.gamesPlayed, gamesWon: stats.gamesWon,
-        requestedAt: Date.now(), status: 'pending'
+        gamesPlayed: s.gamesPlayed, gamesWon: s.gamesWon, requestedAt: Date.now(), status: 'pending'
       })
       return { success: true }
     }
-  } catch (error) {
-    console.error('Error joining clan:', error)
-    return { success: false, error: 'Failed to join' }
-  }
+  } catch (error) { return { success: false, error: 'Failed' } }
 }
 
-// Get pending join requests for a clan
+// Get pending join requests
 export async function getClanRequests(clanId: string): Promise<ClanJoinRequest[]> {
   if (!db) return []
   try {
     const q = query(collection(db, 'clanRequests'), where('clanId', '==', clanId), where('status', '==', 'pending'))
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as ClanJoinRequest))
-  } catch (error) {
-    return []
-  }
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as ClanJoinRequest))
+  } catch (_e) { return [] }
 }
 
-// Accept a join request
+// Accept request
 export async function acceptClanRequest(requestId: string, clanId: string, userId: string): Promise<boolean> {
   if (!db) return false
   try {
+    const clan = await getClan(clanId)
+    if (!clan) return false
+    const newRoles = { ...clan.roles, [userId]: 'member' as ClanRole }
     await updateDoc(doc(db, 'clanRequests', requestId), { status: 'accepted' })
-    await updateDoc(doc(db, 'clans', clanId), { memberIds: arrayUnion(userId) })
+    await updateDoc(doc(db, 'clans', clanId), { memberIds: arrayUnion(userId), roles: newRoles })
     await updateDoc(doc(db, 'users', userId), { clanId })
     return true
-  } catch (error) {
-    return false
-  }
+  } catch (_e) { return false }
 }
 
-// Reject a join request
+// Reject request
 export async function rejectClanRequest(requestId: string): Promise<boolean> {
   if (!db) return false
-  try {
-    await updateDoc(doc(db, 'clanRequests', requestId), { status: 'rejected' })
-    return true
-  } catch (error) {
-    return false
-  }
+  try { await updateDoc(doc(db, 'clanRequests', requestId), { status: 'rejected' }); return true }
+  catch (_e) { return false }
 }
 
-// Leave a clan
+// Leave clan
 export async function leaveClan(): Promise<boolean> {
   if (!db || !currentUser || !currentUserData?.clanId) return false
   const clanId = currentUserData.clanId
   try {
     const clan = await getClan(clanId)
     if (!clan) return false
-
-    // Remove from members
     const newMembers = clan.memberIds.filter(id => id !== currentUser!.uid)
-    const newLeaders = clan.leaderIds.filter(id => id !== currentUser!.uid)
-
+    const newRoles = { ...clan.roles }; delete newRoles[currentUser!.uid]
     if (newMembers.length === 0) {
-      // Delete clan if last member
       await deleteDoc(doc(db, 'clans', clanId))
     } else {
-      // If leaving leader and no other leaders, promote first member
-      if (newLeaders.length === 0) newLeaders.push(newMembers[0])
-      await updateDoc(doc(db, 'clans', clanId), { memberIds: newMembers, leaderIds: newLeaders })
+      // If leaving as leader, promote someone
+      if (getClanRole(clan, currentUser!.uid) === 'leader') {
+        const nextLeader = newMembers.find(id => newRoles[id] === 'coleader') || newMembers[0]
+        newRoles[nextLeader] = 'leader'
+      }
+      await updateDoc(doc(db, 'clans', clanId), { memberIds: newMembers, roles: newRoles })
     }
-
     await updateDoc(doc(db, 'users', currentUser.uid), { clanId: null })
     if (currentUserData) currentUserData.clanId = undefined
     return true
-  } catch (error) {
-    return false
-  }
+  } catch (_e) { return false }
 }
 
-// Kick a member from clan (leader only)
+// Kick member (coleader+)
 export async function kickFromClan(clanId: string, userId: string): Promise<boolean> {
   if (!db || !currentUser) return false
   try {
     const clan = await getClan(clanId)
-    if (!clan || !clan.leaderIds.includes(currentUser.uid)) return false
-
+    if (!clan || !canManage(clan, currentUser.uid)) return false
+    if (ROLE_POWER[getClanRole(clan, userId)] >= ROLE_POWER[getClanRole(clan, currentUser.uid)]) return false
     const newMembers = clan.memberIds.filter(id => id !== userId)
-    const newLeaders = clan.leaderIds.filter(id => id !== userId)
-    await updateDoc(doc(db, 'clans', clanId), { memberIds: newMembers, leaderIds: newLeaders })
+    const newRoles = { ...clan.roles }; delete newRoles[userId]
+    await updateDoc(doc(db, 'clans', clanId), { memberIds: newMembers, roles: newRoles })
     await updateDoc(doc(db, 'users', userId), { clanId: null })
     return true
-  } catch (error) {
-    return false
-  }
+  } catch (_e) { return false }
 }
 
-// Promote member to leader
-export async function promoteClanMember(clanId: string, userId: string): Promise<boolean> {
+// Set member role (leader only for leader/coleader, coleader for elder)
+export async function setClanRole(clanId: string, userId: string, role: ClanRole): Promise<boolean> {
   if (!db || !currentUser) return false
   try {
     const clan = await getClan(clanId)
-    if (!clan || !clan.leaderIds.includes(currentUser.uid)) return false
-    await updateDoc(doc(db, 'clans', clanId), { leaderIds: arrayUnion(userId) })
+    if (!clan) return false
+    const myRole = getClanRole(clan, currentUser.uid)
+    if (ROLE_POWER[myRole] <= ROLE_POWER[role]) return false // Can't set equal/higher role
+    if (role === 'leader' && myRole !== 'leader') return false
+    const newRoles = { ...clan.roles, [userId]: role }
+    await updateDoc(doc(db, 'clans', clanId), { roles: newRoles })
     return true
-  } catch (error) {
-    return false
-  }
+  } catch (_e) { return false }
 }
 
-// Add clan coins (called after winning a game)
+// Promote (shorthand)
+export async function promoteClanMember(clanId: string, userId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+  const clan = await getClan(clanId)
+  if (!clan) return false
+  const current = getClanRole(clan, userId)
+  const next: ClanRole = current === 'member' ? 'elder' : current === 'elder' ? 'coleader' : current === 'coleader' ? 'leader' : 'leader'
+  return setClanRole(clanId, userId, next)
+}
+
+// Demote
+export async function demoteClanMember(clanId: string, userId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+  const clan = await getClan(clanId)
+  if (!clan) return false
+  const current = getClanRole(clan, userId)
+  const next: ClanRole = current === 'coleader' ? 'elder' : current === 'elder' ? 'member' : 'member'
+  return setClanRole(clanId, userId, next)
+}
+
+// Add clan coins + XP (called after winning)
 export async function addClanCoins(amount: number): Promise<void> {
   if (!db || !currentUser || !currentUserData?.clanId) return
   try {
     const clanRef = doc(db, 'clans', currentUserData.clanId)
-    const clanDoc = await getDoc(clanRef)
-    if (clanDoc.exists()) {
-      const clan = clanDoc.data() as Clan
-      await updateDoc(clanRef, { clanCoins: (clan.clanCoins || 0) + amount })
+    const clanDoc2 = await getDoc(clanRef)
+    if (clanDoc2.exists()) {
+      const clan = clanDoc2.data() as Clan
+      const newCoins = (clan.clanCoins || 0) + amount
+      let newXP = (clan.stats.clanXP || 0) + amount
+      let newLevel = clan.stats.clanLevel || 1
+      // Level up check
+      while (newXP >= getClanLevelXP(newLevel)) {
+        newXP -= getClanLevelXP(newLevel)
+        newLevel++
+      }
+      // Check clan badges
+      const updatedClan = { ...clan, clanCoins: newCoins, stats: { ...clan.stats, clanXP: newXP, clanLevel: newLevel } }
+      const newBadges = [...(clan.clanBadges || [])]
+      for (const [id, badge] of Object.entries(CLAN_BADGES)) {
+        if (!newBadges.includes(id) && badge.check(updatedClan as Clan)) newBadges.push(id)
+      }
+      await updateDoc(clanRef, { clanCoins: newCoins, 'stats.clanXP': newXP, 'stats.clanLevel': newLevel, clanBadges: newBadges, bannerLevel: Math.min(newLevel, 10) })
+      // Update weekly challenge progress
+      if (clan.weeklyChallenge && clan.weeklyChallenge.type === 'coins') {
+        await updateDoc(clanRef, { 'weeklyChallenge.progress': (clan.weeklyChallenge.progress || 0) + amount })
+      }
     }
-    // Also add to user's personal clan coins
     await updateDoc(doc(db, 'users', currentUser.uid), { clanCoins: (currentUserData.clanCoins || 0) + amount })
     if (currentUserData) currentUserData.clanCoins = (currentUserData.clanCoins || 0) + amount
-  } catch (error) {
-    console.error('Error adding clan coins:', error)
-  }
+  } catch (error) { console.error('Error adding clan coins:', error) }
 }
 
-// Get clan members with their data
+// Add clan stats (wins/kills/points)
+export async function addClanStats(wins: number, kills: number, points: number): Promise<void> {
+  if (!db || !currentUser || !currentUserData?.clanId) return
+  try {
+    const clanRef = doc(db, 'clans', currentUserData.clanId)
+    const clanDoc2 = await getDoc(clanRef)
+    if (clanDoc2.exists()) {
+      const clan = clanDoc2.data() as Clan
+      const newStats = {
+        totalWins: clan.stats.totalWins + wins,
+        totalKills: clan.stats.totalKills + kills,
+        totalPoints: clan.stats.totalPoints + points,
+        clanLevel: clan.stats.clanLevel, clanXP: clan.stats.clanXP
+      }
+      await updateDoc(clanRef, { stats: newStats })
+      // Update weekly challenge
+      if (clan.weeklyChallenge) {
+        const wc = clan.weeklyChallenge
+        const add = wc.type === 'wins' ? wins : wc.type === 'kills' ? kills : wc.type === 'points' ? points : 0
+        if (add > 0) await updateDoc(clanRef, { 'weeklyChallenge.progress': (wc.progress || 0) + add })
+      }
+    }
+  } catch (_e) { /* ignore */ }
+}
+
+// Post clan announcement (coleader+)
+export async function postClanAnnouncement(clanId: string, text: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+  try {
+    const clan = await getClan(clanId)
+    if (!clan || !canManage(clan, currentUser.uid)) return false
+    const announcements = [...(clan.announcements || []), { text, by: currentUserData.username, at: Date.now() }].slice(-10)
+    await updateDoc(doc(db, 'clans', clanId), { announcements })
+    return true
+  } catch (_e) { return false }
+}
+
+// Send clan chat message
+export async function sendClanChat(clanId: string, message: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+  try {
+    await addDoc(collection(db, 'clanChat'), {
+      clanId, userId: currentUser.uid, username: currentUserData.username,
+      message, timestamp: Date.now(), avatar: currentUserData.avatar || null
+    })
+    return true
+  } catch (_e) { return false }
+}
+
+// Get clan chat messages
+export async function getClanChat(clanId: string, limit2: number = 50): Promise<Array<{ id: string; userId: string; username: string; message: string; timestamp: number; avatar?: any }>> {
+  if (!db) return []
+  try {
+    const q = query(collection(db, 'clanChat'), where('clanId', '==', clanId))
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any))
+      .sort((a: any, b: any) => b.timestamp - a.timestamp).slice(0, limit2).reverse()
+  } catch (_e) { return [] }
+}
+
+// Create clan poll (coleader+)
+export async function createClanPoll(clanId: string, question: string, options: string[]): Promise<boolean> {
+  if (!db || !currentUser) return false
+  try {
+    const clan = await getClan(clanId)
+    if (!clan || !canManage(clan, currentUser.uid)) return false
+    await addDoc(collection(db, 'clanPolls'), {
+      clanId, question, options, votes: {}, createdAt: Date.now(), createdBy: currentUserData?.username || 'admin', active: true
+    })
+    return true
+  } catch (_e) { return false }
+}
+
+// Vote on clan poll
+export async function voteClanPoll(pollId: string, optionIndex: number): Promise<boolean> {
+  if (!db || !currentUser) return false
+  try {
+    const pollRef = doc(db, 'clanPolls', pollId)
+    const pollDoc = await getDoc(pollRef)
+    if (!pollDoc.exists()) return false
+    const votes = pollDoc.data().votes || {}
+    votes[currentUser.uid] = optionIndex
+    await updateDoc(pollRef, { votes })
+    return true
+  } catch (_e) { return false }
+}
+
+// Get clan polls
+export async function getClanPolls(clanId: string): Promise<Array<{ id: string; question: string; options: string[]; votes: Record<string, number>; active: boolean }>> {
+  if (!db) return []
+  try {
+    const q = query(collection(db, 'clanPolls'), where('clanId', '==', clanId))
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as any))
+  } catch (_e) { return [] }
+}
+
+// Invite player to clan
+export async function inviteToClan(clanId: string, userId: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+  try {
+    await addDoc(collection(db, 'clanInvites'), {
+      clanId, fromUserId: currentUser.uid, fromUsername: currentUserData.username,
+      toUserId: userId, createdAt: Date.now(), status: 'pending'
+    })
+    return true
+  } catch (_e) { return false }
+}
+
+// Get my clan invites
+export async function getMyClanInvites(): Promise<Array<{ id: string; clanId: string; fromUsername: string }>> {
+  if (!db || !currentUser) return []
+  try {
+    const q = query(collection(db, 'clanInvites'), where('toUserId', '==', currentUser.uid), where('status', '==', 'pending'))
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as any))
+  } catch (_e) { return [] }
+}
+
+// Update clan settings (coleader+)
+export async function updateClan(clanId: string, data: Partial<Pick<Clan, 'name' | 'description' | 'icon' | 'bannerColor' | 'maxMembers' | 'requirements' | 'rules'>>): Promise<boolean> {
+  if (!db || !currentUser) return false
+  try {
+    const clan = await getClan(clanId)
+    if (!clan || !canManage(clan, currentUser.uid)) return false
+    await updateDoc(doc(db, 'clans', clanId), data)
+    return true
+  } catch (_e) { return false }
+}
+
+// Get clan members with data
 export async function getClanMembers(memberIds: string[]): Promise<Array<UserData & { odataId: string }>> {
   if (!db || memberIds.length === 0) return []
   try {
     const members: Array<UserData & { odataId: string }> = []
     for (const id of memberIds.slice(0, 50)) {
-      const userDoc = await getDoc(doc(db, 'users', id))
-      if (userDoc.exists()) members.push({ ...userDoc.data() as UserData, odataId: id })
+      const d = await getDoc(doc(db, 'users', id))
+      if (d.exists()) members.push({ ...d.data() as UserData, odataId: id })
     }
     return members
-  } catch (error) {
-    return []
-  }
+  } catch (_e) { return [] }
 }
 
-// Update clan info (leader only)
-export async function updateClan(clanId: string, data: Partial<Pick<Clan, 'name' | 'description' | 'icon' | 'bannerColor' | 'maxMembers' | 'requirements'>>): Promise<boolean> {
+// Start weekly challenge (leader)
+export async function startWeeklyChallenge(clanId: string, type: string, target: number, reward: number): Promise<boolean> {
   if (!db || !currentUser) return false
   try {
     const clan = await getClan(clanId)
-    if (!clan || !clan.leaderIds.includes(currentUser.uid)) return false
-    await updateDoc(doc(db, 'clans', clanId), data)
+    if (!clan || getClanRole(clan, currentUser.uid) !== 'leader') return false
+    await updateDoc(doc(db, 'clans', clanId), {
+      weeklyChallenge: { type, target, progress: 0, startedAt: Date.now(), reward }
+    })
     return true
-  } catch (error) {
-    return false
-  }
+  } catch (_e) { return false }
 }

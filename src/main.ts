@@ -184,18 +184,39 @@ import {
   getEarnedBanners,
   // Clans
   Clan,
+  ClanRole,
+  ROLE_LABELS,
+  CLAN_BADGES,
+  CLAN_BANNER_LEVELS,
+  getClanRole,
+  canManage,
+  getClanLevelXP,
   createClan,
   getClan,
   searchClans,
+  getClanLeaderboard,
   requestJoinClan,
   getClanRequests,
   acceptClanRequest,
   rejectClanRequest,
   leaveClan,
   kickFromClan,
+  setClanRole,
   promoteClanMember,
+  demoteClanMember,
   getClanMembers,
   addClanCoins,
+  addClanStats,
+  postClanAnnouncement,
+  sendClanChat,
+  getClanChat,
+  createClanPoll,
+  voteClanPoll,
+  getClanPolls,
+  inviteToClan,
+  getMyClanInvites,
+  updateClan,
+  startWeeklyChallenge,
   // Custom Shop Items
   loadCustomShopItems,
   adminCreateShopItem,
@@ -27098,7 +27119,7 @@ function render() {
     // Clan screen
     if (showAuthScreen === 'clan') {
       const userData = getCurrentUserData()
-      let clanTab: 'info' | 'members' | 'requests' | 'browse' | 'create' = userData?.clanId ? 'info' : 'browse'
+      let clanTab: 'info' | 'members' | 'requests' | 'browse' | 'create' | 'chat' | 'leaderboard' | 'polls' = userData?.clanId ? 'info' : 'browse'
 
       const renderClanScreen = async () => {
         const ud = getCurrentUserData()
@@ -27109,7 +27130,7 @@ function render() {
           const clan = await getClan(myClanId)
           if (!clan) { clanTab = 'browse'; renderClanScreen(); return }
 
-          const isLeader = clan.leaderIds.includes(getCurrentUser()?.uid || '')
+          const isLeader = canManage(clan, getCurrentUser()?.uid || '')
           const members = clanTab === 'members' ? await getClanMembers(clan.memberIds) : []
           const requests = clanTab === 'requests' && isLeader ? await getClanRequests(myClanId) : []
 
@@ -27149,24 +27170,90 @@ function render() {
               </div>
 
               <!-- Tabs -->
-              <div class="flex gap-2">
-                <button class="clan-tab ${tabCls('info')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="info">📋 Info</button>
-                <button class="clan-tab ${tabCls('members')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="members">👥 Members</button>
-                ${isLeader ? `<button class="clan-tab ${tabCls('requests')} font-bold py-2 px-4 rounded-lg text-sm" data-tab="requests">📩 Requests ${requests.length > 0 ? '<span class="bg-red-500 text-white text-xs rounded-full px-1.5 ml-1">' + requests.length + '</span>' : ''}</button>` : ''}
+              <div class="flex flex-wrap gap-2 justify-center">
+                <button class="clan-tab ${tabCls('info')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="info">📋 Info</button>
+                <button class="clan-tab ${tabCls('members')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="members">👥 Members</button>
+                <button class="clan-tab ${tabCls('chat')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="chat">💬 Chat</button>
+                <button class="clan-tab ${tabCls('polls')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="polls">🗳️ Polls</button>
+                <button class="clan-tab ${tabCls('leaderboard')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="leaderboard">📊 Ranking</button>
+                ${isLeader ? `<button class="clan-tab ${tabCls('requests')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="requests">📩 Requests ${requests.length > 0 ? '<span class="bg-red-500 text-white text-xs rounded-full px-1.5 ml-1">' + requests.length + '</span>' : ''}</button>` : ''}
               </div>
 
               <div class="w-full max-w-[600px]">
                 ${clanTab === 'info' ? `
+                  <!-- XP Progress Bar -->
+                  <div class="bg-gray-800 p-4 rounded-lg mb-3">
+                    <div class="flex justify-between text-sm mb-1">
+                      <span class="text-gray-300 font-bold">⬆️ Level ${clan.stats.clanLevel || 1}</span>
+                      <span class="text-gray-400">${clan.stats.clanXP || 0} / ${getClanLevelXP(clan.stats.clanLevel || 1)} XP</span>
+                    </div>
+                    <div class="bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <div class="bg-gradient-to-r from-rose-500 to-pink-500 h-3 rounded-full transition-all" style="width:${Math.min(100, ((clan.stats.clanXP || 0) / getClanLevelXP(clan.stats.clanLevel || 1)) * 100)}%"></div>
+                    </div>
+                  </div>
+
+                  <!-- Announcements -->
+                  ${(clan.announcements || []).length > 0 ? `
+                    <div class="bg-yellow-900/30 border border-yellow-600/30 p-3 rounded-lg mb-3">
+                      <h4 class="text-yellow-400 font-bold text-sm mb-1">📢 Announcements</h4>
+                      ${(clan.announcements || []).slice(-3).reverse().map(a => `
+                        <div class="text-gray-300 text-sm py-1 border-b border-gray-700/50 last:border-0">
+                          <span class="text-white">${a.text}</span>
+                          <span class="text-gray-500 text-xs ml-2">- ${a.by}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+
+                  <!-- Weekly Challenge -->
+                  ${clan.weeklyChallenge ? `
+                    <div class="bg-purple-900/30 border border-purple-500/30 p-3 rounded-lg mb-3">
+                      <h4 class="text-purple-400 font-bold text-sm mb-1">🗓️ Weekly Challenge</h4>
+                      <div class="text-white text-sm">${clan.weeklyChallenge.type}: ${clan.weeklyChallenge.progress || 0} / ${clan.weeklyChallenge.target}</div>
+                      <div class="bg-gray-700 rounded-full h-2 mt-1">
+                        <div class="bg-purple-500 h-2 rounded-full" style="width:${Math.min(100, ((clan.weeklyChallenge.progress || 0) / clan.weeklyChallenge.target) * 100)}%"></div>
+                      </div>
+                      <div class="text-purple-300 text-xs mt-1">Reward: 💰 ${clan.weeklyChallenge.reward} clan coins</div>
+                    </div>
+                  ` : isLeader ? '<button id="clan-start-challenge" class="bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold py-2 px-4 rounded-lg mb-3 w-full">🗓️ Start Weekly Challenge</button>' : ''}
+
+                  <!-- Clan Badges -->
+                  ${(clan.clanBadges || []).length > 0 ? `
+                    <div class="bg-gray-800 p-3 rounded-lg mb-3">
+                      <h4 class="text-white font-bold text-sm mb-2">🏅 Clan Badges</h4>
+                      <div class="flex flex-wrap gap-2">
+                        ${(clan.clanBadges || []).map(bid => {
+                          const b = CLAN_BADGES[bid]
+                          return b ? `<span class="bg-gray-700 px-2 py-1 rounded text-sm" title="${b.desc}">${b.icon} ${b.name}</span>` : ''
+                        }).join('')}
+                      </div>
+                    </div>
+                  ` : ''}
+
+                  <!-- Rules -->
+                  ${clan.rules ? `
+                    <div class="bg-gray-800 p-3 rounded-lg mb-3">
+                      <h4 class="text-white font-bold text-sm mb-1">📋 Clan Rules</h4>
+                      <p class="text-gray-400 text-sm whitespace-pre-wrap">${clan.rules}</p>
+                    </div>
+                  ` : ''}
+
                   <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3">
-                    <h3 class="text-white font-bold">📋 Clan Info</h3>
+                    <h3 class="text-white font-bold">📊 Stats & Info</h3>
                     <div class="grid grid-cols-2 gap-2 text-sm">
                       <div class="text-gray-400">Founded</div><div class="text-white">${new Date(clan.createdAt).toLocaleDateString()}</div>
                       <div class="text-gray-400">Min Games</div><div class="text-white">${clan.requirements.minGamesPlayed}</div>
                       <div class="text-gray-400">Min Wins</div><div class="text-white">${clan.requirements.minGamesWon}</div>
-                      <div class="text-gray-400">Auto Accept</div><div class="text-white">${clan.requirements.autoAccept ? '✅ Yes' : '❌ No'}</div>
+                      <div class="text-gray-400">Auto Accept</div><div class="text-white">${clan.requirements.autoAccept ? '🟢 Open' : '🔒 Apply'}</div>
                       <div class="text-gray-400">Total Kills</div><div class="text-orange-400 font-bold">${clan.stats.totalKills}</div>
                       <div class="text-gray-400">Total Points</div><div class="text-yellow-400 font-bold">${clan.stats.totalPoints}</div>
                     </div>
+                    ${isLeader ? `
+                      <div class="flex flex-col gap-2 mt-2 pt-2 border-t border-gray-700">
+                        <input type="text" id="clan-announcement-text" placeholder="Post an announcement..." class="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 text-sm">
+                        <button id="clan-post-announcement" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1.5 px-4 rounded text-sm">📢 Post</button>
+                      </div>
+                    ` : ''}
                     <button id="clan-leave-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm mt-2">🚪 Leave Clan</button>
                   </div>
                 ` : ''}
@@ -27175,7 +27262,8 @@ function render() {
                   <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-2">
                     <h3 class="text-white font-bold">👥 Members (${members.length})</h3>
                     ${members.map(m => {
-                      const mIsLeader = clan.leaderIds.includes(m.odataId)
+                      const mRole = getClanRole(clan, m.odataId)
+                      const mIsLeader = mRole === 'leader' || mRole === 'coleader'
                       const isMe = m.odataId === getCurrentUser()?.uid
                       return `
                         <div class="flex items-center gap-3 p-2 rounded-lg bg-gray-700/50 ${mIsLeader ? 'border border-yellow-500/30' : ''}">
@@ -27183,7 +27271,7 @@ function render() {
                           <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
                               <span class="text-white font-bold text-sm truncate">${m.username}</span>
-                              ${mIsLeader ? '<span class="text-yellow-400 text-xs">👑 Leader</span>' : ''}
+                              <span class="text-xs" style="color:${ROLE_LABELS[mRole].color}">${ROLE_LABELS[mRole].icon} ${ROLE_LABELS[mRole].name}</span>
                               ${isMe ? '<span class="text-blue-400 text-xs">(You)</span>' : ''}
                             </div>
                             <div class="text-gray-400 text-xs">${m.stats.gamesWon}W / ${m.stats.gamesPlayed}G | 💰${m.clanCoins || 0} coins</div>
@@ -27214,6 +27302,46 @@ function render() {
                         </div>
                       </div>
                     `).join('')}
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'chat' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-2">
+                    <h3 class="text-white font-bold">💬 Clan Chat</h3>
+                    <div id="clan-chat-messages" class="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto bg-gray-900 p-3 rounded-lg">
+                      <div class="text-gray-500 text-center text-sm py-4">Loading messages...</div>
+                    </div>
+                    <div class="flex gap-2">
+                      <input type="text" id="clan-chat-input" placeholder="Type a message..." class="flex-1 bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 text-sm" maxlength="200">
+                      <button id="clan-chat-send" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-4 rounded text-sm">Send</button>
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'polls' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3">
+                    <h3 class="text-white font-bold">🗳️ Clan Polls</h3>
+                    ${isLeader ? `
+                      <div class="bg-gray-700 p-3 rounded-lg flex flex-col gap-2">
+                        <input type="text" id="clan-poll-question" placeholder="Poll question..." class="bg-gray-600 text-white px-3 py-2 rounded border border-gray-500 text-sm">
+                        <input type="text" id="clan-poll-opt1" placeholder="Option 1" class="bg-gray-600 text-white px-3 py-1.5 rounded border border-gray-500 text-sm">
+                        <input type="text" id="clan-poll-opt2" placeholder="Option 2" class="bg-gray-600 text-white px-3 py-1.5 rounded border border-gray-500 text-sm">
+                        <input type="text" id="clan-poll-opt3" placeholder="Option 3 (optional)" class="bg-gray-600 text-white px-3 py-1.5 rounded border border-gray-500 text-sm">
+                        <button id="clan-create-poll" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-1.5 px-4 rounded text-sm">Create Poll</button>
+                      </div>
+                    ` : ''}
+                    <div id="clan-polls-list" class="flex flex-col gap-2">
+                      <div class="text-gray-500 text-center text-sm py-4">Loading polls...</div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'leaderboard' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3">
+                    <h3 class="text-white font-bold">📊 Clan Leaderboard</h3>
+                    <div id="clan-leaderboard-list" class="flex flex-col gap-2">
+                      <div class="text-gray-500 text-center text-sm py-4">Loading rankings...</div>
+                    </div>
                   </div>
                 ` : ''}
               </div>
@@ -27439,9 +27567,155 @@ function render() {
         document.querySelectorAll('.clan-promote-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             const uid = (e.currentTarget as HTMLElement).dataset.uid!
-            if (confirm('Promote to leader?')) { await promoteClanMember(ud?.clanId!, uid); renderClanScreen() }
+            if (confirm('Promote this member?')) { await promoteClanMember(ud?.clanId!, uid); renderClanScreen() }
           })
         })
+
+        // Post announcement
+        document.getElementById('clan-post-announcement')?.addEventListener('click', async () => {
+          const text = (document.getElementById('clan-announcement-text') as HTMLInputElement)?.value?.trim()
+          if (!text || !ud?.clanId) return
+          await postClanAnnouncement(ud.clanId, text)
+          renderClanScreen()
+        })
+
+        // Start weekly challenge
+        document.getElementById('clan-start-challenge')?.addEventListener('click', async () => {
+          if (!ud?.clanId) return
+          const types = ['wins', 'kills', 'points']
+          const type = types[Math.floor(Math.random() * types.length)]
+          const targets: Record<string, number> = { wins: 20, kills: 100, points: 500 }
+          const rewards: Record<string, number> = { wins: 200, kills: 150, points: 100 }
+          await startWeeklyChallenge(ud.clanId, type, targets[type], rewards[type])
+          renderClanScreen()
+        })
+
+        // Chat - load messages and send
+        if (clanTab === 'chat' && ud?.clanId) {
+          const chatMessages = await getClanChat(ud.clanId)
+          const chatEl = document.getElementById('clan-chat-messages')
+          if (chatEl) {
+            if (chatMessages.length === 0) {
+              chatEl.innerHTML = '<div class="text-gray-500 text-center text-sm py-4">No messages yet. Say hello!</div>'
+            } else {
+              chatEl.innerHTML = chatMessages.map(m => {
+                const isMe = m.userId === getCurrentUser()?.uid
+                return `
+                  <div class="flex gap-2 ${isMe ? 'flex-row-reverse' : ''}">
+                    ${renderAvatar(m.avatar, 28)}
+                    <div class="${isMe ? 'bg-rose-900/50 border-rose-700/30' : 'bg-gray-700'} border border-gray-600/30 px-3 py-1.5 rounded-xl max-w-[75%]">
+                      <div class="text-xs ${isMe ? 'text-rose-400' : 'text-blue-400'} font-bold">${m.username}</div>
+                      <div class="text-white text-sm">${m.message}</div>
+                    </div>
+                  </div>
+                `
+              }).join('')
+              chatEl.scrollTop = chatEl.scrollHeight
+            }
+          }
+
+          document.getElementById('clan-chat-send')?.addEventListener('click', async () => {
+            const input = document.getElementById('clan-chat-input') as HTMLInputElement
+            if (!input?.value?.trim() || !ud?.clanId) return
+            await sendClanChat(ud.clanId, input.value.trim())
+            input.value = ''
+            renderClanScreen()
+          })
+
+          document.getElementById('clan-chat-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('clan-chat-send')?.click()
+          })
+        }
+
+        // Polls - load and render
+        if (clanTab === 'polls' && ud?.clanId) {
+          const polls = await getClanPolls(ud.clanId)
+          const pollsEl = document.getElementById('clan-polls-list')
+          if (pollsEl) {
+            if (polls.length === 0) {
+              pollsEl.innerHTML = '<div class="text-gray-500 text-center text-sm py-4">No polls yet.</div>'
+            } else {
+              const myUid = getCurrentUser()?.uid || ''
+              pollsEl.innerHTML = polls.map(poll => {
+                const totalVotes = Object.keys(poll.votes || {}).length
+                const myVote = poll.votes?.[myUid]
+                const hasVoted = myVote !== undefined
+                return `
+                  <div class="bg-gray-700 p-3 rounded-lg">
+                    <h4 class="text-white font-bold text-sm mb-2">📊 ${poll.question}</h4>
+                    <div class="flex flex-col gap-1.5">
+                      ${poll.options.map((opt: string, idx: number) => {
+                        const voteCount = Object.values(poll.votes || {}).filter((v: any) => v === idx).length
+                        const pct = totalVotes > 0 ? Math.round(voteCount / totalVotes * 100) : 0
+                        return `
+                          <button class="clan-poll-vote relative bg-gray-600 rounded-lg p-2 text-left overflow-hidden transition-all ${hasVoted ? '' : 'hover:bg-gray-500 cursor-pointer'} ${myVote === idx ? 'ring-2 ring-rose-500' : ''}" data-poll="${poll.id}" data-option="${idx}" ${hasVoted ? 'disabled' : ''}>
+                            <div class="absolute inset-0 bg-rose-600/30 transition-all" style="width:${pct}%"></div>
+                            <div class="relative flex justify-between">
+                              <span class="text-white text-sm">${opt}</span>
+                              <span class="text-gray-300 text-xs">${voteCount} (${pct}%)</span>
+                            </div>
+                          </button>
+                        `
+                      }).join('')}
+                    </div>
+                    <div class="text-gray-400 text-xs mt-1">${totalVotes} votes</div>
+                  </div>
+                `
+              }).join('')
+
+              // Vote handlers
+              pollsEl.querySelectorAll('.clan-poll-vote:not([disabled])').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                  const el = e.currentTarget as HTMLElement
+                  await voteClanPoll(el.dataset.poll!, parseInt(el.dataset.option!))
+                  renderClanScreen()
+                })
+              })
+            }
+          }
+
+          // Create poll
+          document.getElementById('clan-create-poll')?.addEventListener('click', async () => {
+            const q2 = (document.getElementById('clan-poll-question') as HTMLInputElement)?.value?.trim()
+            const o1 = (document.getElementById('clan-poll-opt1') as HTMLInputElement)?.value?.trim()
+            const o2 = (document.getElementById('clan-poll-opt2') as HTMLInputElement)?.value?.trim()
+            const o3 = (document.getElementById('clan-poll-opt3') as HTMLInputElement)?.value?.trim()
+            if (!q2 || !o1 || !o2 || !ud?.clanId) { alert('Need question and at least 2 options'); return }
+            const opts = [o1, o2]; if (o3) opts.push(o3)
+            await createClanPoll(ud.clanId, q2, opts)
+            renderClanScreen()
+          })
+        }
+
+        // Leaderboard - load and render
+        if (clanTab === 'leaderboard') {
+          const topClans = await getClanLeaderboard('wins')
+          const lbEl = document.getElementById('clan-leaderboard-list')
+          if (lbEl) {
+            if (topClans.length === 0) {
+              lbEl.innerHTML = '<div class="text-gray-500 text-center text-sm py-4">No clans yet.</div>'
+            } else {
+              lbEl.innerHTML = topClans.slice(0, 20).map((c, idx) => {
+                const medals = ['🥇', '🥈', '🥉']
+                const isMyClan = c.id === ud?.clanId
+                return `
+                  <div class="flex items-center gap-3 p-2.5 rounded-lg ${isMyClan ? 'bg-rose-900/30 border border-rose-500/30' : 'bg-gray-700/50'} ${idx < 3 ? 'border border-yellow-500/20' : ''}">
+                    <span class="text-lg font-bold w-8 text-center ${idx < 3 ? 'text-yellow-400' : 'text-gray-500'}">${idx < 3 ? medals[idx] : '#' + (idx + 1)}</span>
+                    <span class="text-xl">${c.icon}</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-white font-bold text-sm truncate">${c.name} <span class="text-gray-400">[${c.tag}]</span></div>
+                      <div class="text-gray-400 text-xs">👥${c.memberIds.length} | Lv.${c.stats.clanLevel || 1}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-green-400 font-bold text-sm">${c.stats.totalWins}W</div>
+                      <div class="text-gray-400 text-xs">${c.stats.totalKills}K</div>
+                    </div>
+                  </div>
+                `
+              }).join('')
+            }
+          }
+        }
       }
 
       renderClanScreen()
