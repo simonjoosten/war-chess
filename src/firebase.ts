@@ -6546,6 +6546,8 @@ export interface Clan {
     clanXP: number  // XP towards next level
   }
   clanCoins: number
+  // Clan photo/logo
+  photo?: string  // Base64 image
   // Announcements (pinned messages)
   announcements: Array<{ text: string; by: string; at: number }>
   // Clan badges earned
@@ -7016,4 +7018,183 @@ export async function startWeeklyChallenge(clanId: string, type: string, target:
     })
     return true
   } catch (_e) { return false }
+}
+
+// ==================== CLAN EXTENDED FEATURES ====================
+
+// Clan photo (base64, stored on clan doc)
+export async function setClanPhoto(clanId: string, photoBase64: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+  try {
+    const clan = await getClan(clanId)
+    if (!clan || !canManage(clan, currentUser.uid)) return false
+    await updateDoc(doc(db, 'clans', clanId), { photo: photoBase64 })
+    return true
+  } catch (_e) { return false }
+}
+
+// Emoji reactions on chat messages
+export async function reactToClanChat(messageId: string, emoji: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+  try {
+    const msgRef = doc(db, 'clanChat', messageId)
+    const msgDoc = await getDoc(msgRef)
+    if (!msgDoc.exists()) return false
+    const reactions = msgDoc.data().reactions || {}
+    if (!reactions[emoji]) reactions[emoji] = []
+    const uid = currentUser.uid
+    if (reactions[emoji].includes(uid)) {
+      reactions[emoji] = reactions[emoji].filter((id: string) => id !== uid)
+      if (reactions[emoji].length === 0) delete reactions[emoji]
+    } else {
+      reactions[emoji].push(uid)
+    }
+    await updateDoc(msgRef, { reactions })
+    return true
+  } catch (_e) { return false }
+}
+
+// Clan Events
+export interface ClanEvent {
+  id: string
+  clanId: string
+  title: string
+  description: string
+  icon: string
+  date: number  // Timestamp
+  createdBy: string
+  attendees: string[]  // User IDs who will attend
+}
+
+export async function createClanEvent(clanId: string, title: string, description: string, icon: string, date: number): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+  try {
+    const clan = await getClan(clanId)
+    if (!clan || !canManage(clan, currentUser.uid)) return false
+    await addDoc(collection(db, 'clanEvents'), {
+      clanId, title, description, icon, date, createdBy: currentUserData.username, attendees: [currentUser.uid]
+    })
+    return true
+  } catch (_e) { return false }
+}
+
+export async function getClanEvents(clanId: string): Promise<ClanEvent[]> {
+  if (!db) return []
+  try {
+    const q = query(collection(db, 'clanEvents'), where('clanId', '==', clanId))
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as ClanEvent)).sort((a, b) => a.date - b.date)
+  } catch (_e) { return [] }
+}
+
+export async function attendClanEvent(eventId: string): Promise<boolean> {
+  if (!db || !currentUser) return false
+  try {
+    await updateDoc(doc(db, 'clanEvents', eventId), { attendees: arrayUnion(currentUser.uid) })
+    return true
+  } catch (_e) { return false }
+}
+
+// Clan Notifications
+export interface ClanNotification {
+  id: string
+  clanId: string
+  type: 'join' | 'leave' | 'promote' | 'kick' | 'war' | 'challenge' | 'event' | 'badge'
+  message: string
+  icon: string
+  timestamp: number
+}
+
+export async function addClanNotification(clanId: string, type: ClanNotification['type'], message: string, icon: string): Promise<void> {
+  if (!db) return
+  try {
+    await addDoc(collection(db, 'clanNotifications'), { clanId, type, message, icon, timestamp: Date.now() })
+  } catch (_e) { /* ignore */ }
+}
+
+export async function getClanNotifications(clanId: string, limit2: number = 20): Promise<ClanNotification[]> {
+  if (!db) return []
+  try {
+    const q = query(collection(db, 'clanNotifications'), where('clanId', '==', clanId))
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as ClanNotification))
+      .sort((a, b) => b.timestamp - a.timestamp).slice(0, limit2)
+  } catch (_e) { return [] }
+}
+
+// Clan Wars
+export interface ClanWar {
+  id: string
+  challengerClanId: string
+  defenderClanId: string
+  challengerName: string
+  defenderName: string
+  challengerIcon: string
+  defenderIcon: string
+  status: 'pending' | 'active' | 'finished'
+  // Best of 5: array of match results
+  matches: Array<{ winnerId: string; score: string }>
+  challengerWins: number
+  defenderWins: number
+  winnerId?: string
+  createdAt: number
+  reward: number  // Clan coins for winner
+}
+
+export async function challengeClanWar(targetClanId: string, reward: number): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData?.clanId) return false
+  try {
+    const myClan = await getClan(currentUserData.clanId)
+    const targetClan = await getClan(targetClanId)
+    if (!myClan || !targetClan) return false
+    if (getClanRole(myClan, currentUser.uid) !== 'leader') return false
+
+    await addDoc(collection(db, 'clanWars'), {
+      challengerClanId: myClan.id, defenderClanId: targetClanId,
+      challengerName: myClan.name, defenderName: targetClan.name,
+      challengerIcon: myClan.icon, defenderIcon: targetClan.icon,
+      status: 'pending', matches: [], challengerWins: 0, defenderWins: 0,
+      createdAt: Date.now(), reward
+    })
+    await addClanNotification(targetClanId, 'war', `${myClan.name} has challenged your clan to war!`, '⚔️')
+    return true
+  } catch (_e) { return false }
+}
+
+export async function getClanWars(clanId: string): Promise<ClanWar[]> {
+  if (!db) return []
+  try {
+    const q1 = query(collection(db, 'clanWars'), where('challengerClanId', '==', clanId))
+    const q2 = query(collection(db, 'clanWars'), where('defenderClanId', '==', clanId))
+    const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)])
+    const wars = [...s1.docs, ...s2.docs].map(d => ({ ...d.data(), id: d.id } as ClanWar))
+    return wars.sort((a, b) => b.createdAt - a.createdAt)
+  } catch (_e) { return [] }
+}
+
+export async function acceptClanWar(warId: string): Promise<boolean> {
+  if (!db) return false
+  try {
+    await updateDoc(doc(db, 'clanWars', warId), { status: 'active' })
+    return true
+  } catch (_e) { return false }
+}
+
+// Play together request
+export async function sendPlayRequest(toUserId: string, toUsername: string): Promise<boolean> {
+  if (!db || !currentUser || !currentUserData) return false
+  try {
+    await addDoc(collection(db, 'playRequests'), {
+      fromUserId: currentUser.uid, fromUsername: currentUserData.username,
+      toUserId, toUsername, clanId: currentUserData.clanId,
+      timestamp: Date.now(), status: 'pending'
+    })
+    return true
+  } catch (_e) { return false }
+}
+
+export async function getPlayRequests(): Promise<Array<{ id: string; fromUsername: string; fromUserId: string; timestamp: number }>> {
+  if (!db || !currentUser) return []
+  try {
+    const q = query(collection(db, 'playRequests'), where('toUserId', '==', currentUser.uid), where('status', '==', 'pending'))
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as any))
+  } catch (_e) { return [] }
 }
