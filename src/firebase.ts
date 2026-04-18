@@ -148,10 +148,118 @@ export interface UserData {
   blockedUsers: string[]  // Blocked user IDs
   // Profile avatar
   avatar?: {
-    type: 'emoji' | 'piece' | 'photo'  // emoji = single emoji, piece = game piece icon, photo = base64 image
-    value: string  // The emoji character, piece type, or base64 data URL
-    bgColor?: string  // Background color for the avatar circle
+    type: 'emoji' | 'piece' | 'photo'
+    value: string
+    bgColor?: string
   }
+  // Profile title
+  equippedTitle?: string  // Title ID
+  // Profile banner
+  equippedBanner?: string  // Banner ID
+}
+
+// Earnable titles
+export const TITLES: Record<string, { id: string; name: string; color: string; requirement: string }> = {
+  // Free titles
+  newcomer: { id: 'newcomer', name: 'Newcomer', color: '#9ca3af', requirement: 'Default title' },
+  // Win-based
+  warrior: { id: 'warrior', name: 'Warrior', color: '#22c55e', requirement: 'Win 5 games' },
+  champion: { id: 'champion', name: 'Champion', color: '#3b82f6', requirement: 'Win 25 games' },
+  warlord: { id: 'warlord', name: 'Warlord', color: '#a855f7', requirement: 'Win 50 games' },
+  legend: { id: 'legend', name: 'Legend', color: '#f59e0b', requirement: 'Win 100 games' },
+  god_of_war: { id: 'god_of_war', name: 'God of War', color: '#ef4444', requirement: 'Win 250 games' },
+  // Kill-based
+  hunter: { id: 'hunter', name: 'Hunter', color: '#6b7280', requirement: 'Eliminate 50 pieces' },
+  destroyer: { id: 'destroyer', name: 'The Destroyer', color: '#f97316', requirement: 'Eliminate 200 pieces' },
+  annihilator: { id: 'annihilator', name: 'Annihilator', color: '#dc2626', requirement: 'Eliminate 500 pieces' },
+  reaper: { id: 'reaper', name: 'Soul Reaper', color: '#7c3aed', requirement: 'Eliminate 1000 pieces' },
+  // Special
+  noob_slayer: { id: 'noob_slayer', name: 'Noob Slayer', color: '#10b981', requirement: 'Win 10 games with 30+ point difference' },
+  untouchable: { id: 'untouchable', name: 'Untouchable', color: '#06b6d4', requirement: 'Win losing fewer than 3 pieces' },
+  speedrunner: { id: 'speedrunner', name: 'Speed Demon', color: '#eab308', requirement: 'Win in under 3 minutes' },
+  hacker_king: { id: 'hacker_king', name: 'Hacker King', color: '#14b8a6', requirement: 'Hack 20 pieces' },
+  master_builder: { id: 'master_builder', name: 'Master Builder', color: '#f59e0b', requirement: 'Build 50 structures' },
+  // Economy
+  rich_boi: { id: 'rich_boi', name: 'War Profiteer', color: '#fbbf24', requirement: 'Earn 5000 War Bucks' },
+  big_spender: { id: 'big_spender', name: 'Big Spender', color: '#a78bfa', requirement: 'Spend 5000 War Bucks' },
+  collector: { id: 'collector', name: 'Collector', color: '#f472b6', requirement: 'Own 30+ items' },
+  // Multiplayer
+  online_beast: { id: 'online_beast', name: 'Online Beast', color: '#60a5fa', requirement: 'Win 25 multiplayer games' },
+  social_butterfly: { id: 'social_butterfly', name: 'Social Butterfly', color: '#fb923c', requirement: 'Send 100 chat messages' },
+  // Milestone
+  veteran: { id: 'veteran', name: 'Veteran', color: '#4ade80', requirement: 'Play 100 games' },
+  no_life: { id: 'no_life', name: 'No Life', color: '#e879f9', requirement: 'Play 50 hours' },
+  puzzle_master: { id: 'puzzle_master', name: 'Puzzle Master', color: '#38bdf8', requirement: 'Solve 50 puzzles' },
+  war_pass_hero: { id: 'war_pass_hero', name: 'War Pass Hero', color: '#c084fc', requirement: 'Complete War Pass 10 times' },
+  // Ultra rare
+  ultimate: { id: 'ultimate', name: 'The Ultimate', color: '#ff0000', requirement: 'Earn 40 badges' },
+}
+
+// Check which titles a user has earned
+export function getEarnedTitles(userData: UserData): string[] {
+  const s = userData.stats
+  const earned: string[] = ['newcomer']
+  if (s.gamesWon >= 5) earned.push('warrior')
+  if (s.gamesWon >= 25) earned.push('champion')
+  if (s.gamesWon >= 50) earned.push('warlord')
+  if (s.gamesWon >= 100) earned.push('legend')
+  if (s.gamesWon >= 250) earned.push('god_of_war')
+  if (s.piecesEliminated >= 50) earned.push('hunter')
+  if (s.piecesEliminated >= 200) earned.push('destroyer')
+  if (s.piecesEliminated >= 500) earned.push('annihilator')
+  if (s.piecesEliminated >= 1000) earned.push('reaper')
+  if ((s.totalWarBucksEarned || 0) >= 5000) earned.push('rich_boi')
+  if ((s.totalWarBucksSpent || 0) >= 5000) earned.push('big_spender')
+  if ((userData.purchasedItems || []).length >= 30) earned.push('collector')
+  if ((s.multiplayerWins || 0) >= 25) earned.push('online_beast')
+  if ((s.chatMessagesSent || 0) >= 100) earned.push('social_butterfly')
+  if (s.gamesPlayed >= 100) earned.push('veteran')
+  if (s.timePlayed >= 180000) earned.push('no_life')
+  if ((userData.puzzleStats?.puzzlesSolved || 0) >= 50) earned.push('puzzle_master')
+  if ((userData.warPass?.completedCount || 0) >= 10) earned.push('war_pass_hero')
+  if ((userData.badges || []).length >= 40) earned.push('ultimate')
+  if ((s.hackersDestroyed || 0) >= 20) earned.push('hacker_king')
+  return earned
+}
+
+// Profile banners
+export const BANNERS: Array<{ id: string; name: string; gradient: string; icon: string; requirement: string }> = [
+  { id: 'default', name: 'Default', gradient: 'from-gray-800 to-gray-700', icon: '🎮', requirement: 'Default' },
+  { id: 'fire', name: 'Inferno', gradient: 'from-red-900 via-orange-800 to-yellow-700', icon: '🔥', requirement: 'Win 10 games' },
+  { id: 'ocean', name: 'Deep Ocean', gradient: 'from-blue-900 via-cyan-800 to-teal-700', icon: '🌊', requirement: 'Play 25 games' },
+  { id: 'forest', name: 'Enchanted Forest', gradient: 'from-green-900 via-emerald-800 to-lime-700', icon: '🌲', requirement: 'Eliminate 100 pieces' },
+  { id: 'sunset', name: 'Golden Sunset', gradient: 'from-orange-800 via-pink-700 to-purple-800', icon: '🌅', requirement: 'Score 500 points' },
+  { id: 'space', name: 'Cosmic Void', gradient: 'from-indigo-900 via-purple-900 to-black', icon: '🌌', requirement: 'Win 25 games' },
+  { id: 'neon', name: 'Neon City', gradient: 'from-pink-800 via-purple-700 to-blue-800', icon: '💜', requirement: 'Own 15 items' },
+  { id: 'gold', name: 'Royal Gold', gradient: 'from-yellow-700 via-amber-600 to-yellow-800', icon: '👑', requirement: 'Earn 3000 War Bucks' },
+  { id: 'arctic', name: 'Frozen North', gradient: 'from-blue-200 via-cyan-300 to-blue-400', icon: '❄️', requirement: 'Win 50 games' },
+  { id: 'blood', name: 'Blood Moon', gradient: 'from-red-950 via-red-800 to-black', icon: '🌑', requirement: 'Eliminate 500 pieces' },
+  { id: 'rainbow', name: 'Prismatic', gradient: 'from-red-500 via-yellow-500 to-blue-500', icon: '🌈', requirement: 'Complete War Pass 5 times' },
+  { id: 'dragon', name: 'Dragon Fire', gradient: 'from-green-900 via-yellow-700 to-red-800', icon: '🐉', requirement: 'Win 100 games' },
+  { id: 'shadow', name: 'Shadow Realm', gradient: 'from-gray-950 via-purple-950 to-gray-950', icon: '💀', requirement: 'Earn 30 badges' },
+  { id: 'cherry', name: 'Sakura Dreams', gradient: 'from-pink-300 via-pink-400 to-rose-500', icon: '🌸', requirement: 'Solve 25 puzzles' },
+  { id: 'matrix', name: 'The Matrix', gradient: 'from-black via-green-950 to-black', icon: '💊', requirement: 'Play 50 hours' },
+]
+
+// Check which banners a user has earned
+export function getEarnedBanners(userData: UserData): string[] {
+  const s = userData.stats
+  const earned: string[] = ['default']
+  if (s.gamesWon >= 10) earned.push('fire')
+  if (s.gamesPlayed >= 25) earned.push('ocean')
+  if (s.piecesEliminated >= 100) earned.push('forest')
+  if (s.totalPointsScored >= 500) earned.push('sunset')
+  if (s.gamesWon >= 25) earned.push('space')
+  if ((userData.purchasedItems || []).length >= 15) earned.push('neon')
+  if ((s.totalWarBucksEarned || 0) >= 3000) earned.push('gold')
+  if (s.gamesWon >= 50) earned.push('arctic')
+  if (s.piecesEliminated >= 500) earned.push('blood')
+  if ((userData.warPass?.completedCount || 0) >= 5) earned.push('rainbow')
+  if (s.gamesWon >= 100) earned.push('dragon')
+  if ((userData.badges || []).length >= 30) earned.push('shadow')
+  if ((userData.puzzleStats?.puzzlesSolved || 0) >= 25) earned.push('cherry')
+  if (s.timePlayed >= 180000) earned.push('matrix')
+  return earned
 }
 
 // Shop items for sale

@@ -177,6 +177,11 @@ import {
   adminToggleBundle,
   adminSetDailyDeals,
   purchaseBundle,
+  // Titles & Banners
+  TITLES,
+  BANNERS,
+  getEarnedTitles,
+  getEarnedBanners,
   // Custom Shop Items
   loadCustomShopItems,
   adminCreateShopItem,
@@ -25918,11 +25923,25 @@ function render() {
         const eventNotifications = unclaimedRewards + unvotedPolls
         const messageNotifications = messages.length
 
+        const earnedTitles = userData ? getEarnedTitles(userData) : ['newcomer']
+        const earnedBanners = userData ? getEarnedBanners(userData) : ['default']
+        const currentTitle = TITLES[userData?.equippedTitle || 'newcomer'] || TITLES.newcomer
+        const currentBanner = BANNERS.find(b => b.id === (userData?.equippedBanner || 'default')) || BANNERS[0]
+
         app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-start p-4 sm:p-8 gap-4 overflow-y-auto">
-          <h1 class="text-2xl sm:text-4xl font-bold text-white">👤 ${t('profileTitle')}</h1>
+        <div class="min-h-screen flex flex-col items-center justify-start gap-4 overflow-y-auto">
+          <!-- Profile Banner -->
+          <div class="w-full bg-gradient-to-r ${currentBanner.gradient} p-6 sm:p-10 text-center relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 30%, white 1px, transparent 1px);background-size:40px 40px"></div>
+            <div class="relative z-10">
+              <h1 class="text-2xl sm:text-3xl font-bold text-white mb-1">👤 ${t('profileTitle')}</h1>
+              <button id="change-banner-btn" class="text-white/50 text-xs hover:text-white/80 transition-colors">🖼️ Change Banner</button>
+            </div>
+          </div>
+
+          <div class="px-4 sm:px-8 w-full flex flex-col items-center gap-4 pb-8">
           ${userData ? `
-          <!-- Avatar + Username -->
+          <!-- Avatar + Username + Title -->
           <div class="flex flex-col items-center gap-2">
             <div id="profile-avatar-btn" class="relative cursor-pointer group">
               <div class="w-20 h-20 rounded-full flex items-center justify-center text-4xl border-3 border-blue-500 shadow-lg shadow-blue-500/20 transition-all group-hover:scale-110 group-hover:shadow-blue-500/40" style="background:${userData.avatar?.bgColor || '#1e3a5f'}">
@@ -25936,6 +25955,9 @@ function render() {
               <div class="absolute -bottom-1 -right-1 bg-blue-600 rounded-full w-7 h-7 flex items-center justify-center text-sm border-2 border-gray-800 group-hover:bg-blue-500 transition-colors">✏️</div>
             </div>
             <div class="text-xl text-blue-400 font-bold">${userData.username}</div>
+            <button id="change-title-btn" class="px-3 py-1 rounded-full text-sm font-bold transition-all hover:scale-105" style="color:${currentTitle.color};border:1px solid ${currentTitle.color};text-shadow:0 0 10px ${currentTitle.color}40">
+              🏷️ ${currentTitle.name}
+            </button>
           </div>
           <div class="text-yellow-400 font-bold">💰 ${userData.warBucks} ${t('profileWarBucks')}</div>
 
@@ -25995,6 +26017,53 @@ function render() {
                 <button id="avatar-save-btn" class="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 rounded-xl transition-all hover:scale-105">✅ Save</button>
                 <button id="avatar-cancel-btn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 rounded-xl transition-all">Cancel</button>
               </div>
+            </div>
+          </div>
+
+          <!-- Title Picker Modal -->
+          <div id="title-picker" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-yellow-500/30 shadow-2xl max-h-[80vh] overflow-y-auto" style="animation:deal-slide-in 0.3s ease-out">
+              <h3 class="text-lg font-bold text-white mb-4 text-center">🏷️ Choose Title</h3>
+              <div class="flex flex-col gap-2">
+                ${Object.values(TITLES).map(title => {
+                  const earned = earnedTitles.includes(title.id)
+                  const equipped = (userData?.equippedTitle || 'newcomer') === title.id
+                  return `
+                    <button class="title-select-btn flex items-center justify-between p-3 rounded-xl transition-all ${equipped ? 'bg-gray-600 ring-2 ring-yellow-500' : earned ? 'bg-gray-700 hover:bg-gray-600 cursor-pointer' : 'bg-gray-800 opacity-40 cursor-not-allowed'}" data-title="${title.id}" ${!earned ? 'disabled' : ''}>
+                      <div class="flex items-center gap-3">
+                        <span class="font-bold text-sm" style="color:${title.color};text-shadow:0 0 8px ${title.color}40">${title.name}</span>
+                        ${equipped ? '<span class="text-yellow-400 text-xs">✓ Equipped</span>' : ''}
+                      </div>
+                      <span class="text-gray-400 text-xs">${earned ? '✅ Unlocked' : '🔒 ' + title.requirement}</span>
+                    </button>
+                  `
+                }).join('')}
+              </div>
+              <button id="title-close-btn" class="mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 rounded-xl transition-all">Close</button>
+            </div>
+          </div>
+
+          <!-- Banner Picker Modal -->
+          <div id="banner-picker" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-purple-500/30 shadow-2xl max-h-[80vh] overflow-y-auto" style="animation:deal-slide-in 0.3s ease-out">
+              <h3 class="text-lg font-bold text-white mb-4 text-center">🖼️ Choose Banner</h3>
+              <div class="flex flex-col gap-2">
+                ${BANNERS.map(banner => {
+                  const earned = earnedBanners.includes(banner.id)
+                  const equipped = (userData?.equippedBanner || 'default') === banner.id
+                  return `
+                    <button class="banner-select-btn flex items-center justify-between p-3 rounded-xl bg-gradient-to-r ${banner.gradient} transition-all ${equipped ? 'ring-2 ring-yellow-500' : earned ? 'hover:scale-[1.02] cursor-pointer' : 'opacity-30 cursor-not-allowed'}" data-banner="${banner.id}" ${!earned ? 'disabled' : ''}>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xl">${banner.icon}</span>
+                        <span class="text-white font-bold text-sm">${banner.name}</span>
+                        ${equipped ? '<span class="text-yellow-400 text-xs">✓</span>' : ''}
+                      </div>
+                      <span class="text-white/60 text-xs">${earned ? '✅' : '🔒 ' + banner.requirement}</span>
+                    </button>
+                  `
+                }).join('')}
+              </div>
+              <button id="banner-close-btn" class="mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 rounded-xl transition-all">Close</button>
             </div>
           </div>
 
@@ -26083,6 +26152,7 @@ function render() {
               ${t('authLogout')}
             </button>
           </div>
+        </div>
         </div>
       `
 
@@ -26237,6 +26307,44 @@ function render() {
           await loadUserData()
           document.getElementById('avatar-editor')?.classList.add('hidden')
           render()
+        })
+
+        // Title picker
+        document.getElementById('change-title-btn')?.addEventListener('click', () => {
+          document.getElementById('title-picker')?.classList.remove('hidden')
+        })
+        document.getElementById('title-close-btn')?.addEventListener('click', () => {
+          document.getElementById('title-picker')?.classList.add('hidden')
+        })
+        document.querySelectorAll('.title-select-btn:not([disabled])').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const titleId = (e.currentTarget as HTMLElement).dataset.title
+            if (titleId) {
+              await saveUserData({ equippedTitle: titleId })
+              await loadUserData()
+              document.getElementById('title-picker')?.classList.add('hidden')
+              render()
+            }
+          })
+        })
+
+        // Banner picker
+        document.getElementById('change-banner-btn')?.addEventListener('click', () => {
+          document.getElementById('banner-picker')?.classList.remove('hidden')
+        })
+        document.getElementById('banner-close-btn')?.addEventListener('click', () => {
+          document.getElementById('banner-picker')?.classList.add('hidden')
+        })
+        document.querySelectorAll('.banner-select-btn:not([disabled])').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const bannerId = (e.currentTarget as HTMLElement).dataset.banner
+            if (bannerId) {
+              await saveUserData({ equippedBanner: bannerId })
+              await loadUserData()
+              document.getElementById('banner-picker')?.classList.add('hidden')
+              render()
+            }
+          })
         })
       }
 
