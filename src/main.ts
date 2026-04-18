@@ -27254,7 +27254,66 @@ function render() {
                         <button id="clan-post-announcement" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-1.5 px-4 rounded text-sm">📢 Post</button>
                       </div>
                     ` : ''}
-                    <button id="clan-leave-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm mt-2">🚪 Leave Clan</button>
+                    <div class="flex gap-2 mt-2">
+                      ${isLeader ? `<button id="clan-edit-btn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg text-sm">✏️ Edit Clan</button>` : ''}
+                      <button id="clan-leave-btn" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg text-sm">🚪 Leave</button>
+                    </div>
+
+                    <!-- Edit Clan Modal -->
+                    <div id="clan-edit-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+                      <div class="bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 border border-blue-500/30 shadow-2xl max-h-[85vh] overflow-y-auto" style="animation:deal-slide-in 0.3s ease-out">
+                        <h3 class="text-lg font-bold text-white mb-4 text-center">✏️ Edit Clan</h3>
+                        <div class="flex flex-col gap-3">
+                          <div>
+                            <label class="text-gray-300 text-sm block mb-1">Clan Name</label>
+                            <input type="text" id="clan-edit-name" value="${clan.name}" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600" maxlength="24">
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-sm block mb-1">Description</label>
+                            <textarea id="clan-edit-desc" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 h-16" maxlength="150">${clan.description}</textarea>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-sm block mb-1">Rules</label>
+                            <textarea id="clan-edit-rules" class="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 h-16" maxlength="300" placeholder="Clan rules...">${clan.rules || ''}</textarea>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-sm block mb-1">Icon</label>
+                            <div class="flex gap-1 flex-wrap">
+                              ${['⚔️','🛡️','👑','🔥','💀','🐉','🦁','⚡','🌟','💎','🏴','🎯'].map(e => `<button class="clan-edit-icon bg-gray-700 hover:bg-gray-600 rounded p-1 text-lg ${clan.icon === e ? 'ring-2 ring-rose-500' : ''}" data-icon="${e}">${e}</button>`).join('')}
+                            </div>
+                          </div>
+                          <div>
+                            <label class="text-gray-300 text-sm block mb-1">Banner</label>
+                            <div class="flex gap-1.5 flex-wrap">
+                              ${['from-red-800 to-orange-700','from-blue-800 to-cyan-700','from-green-800 to-emerald-700','from-purple-800 to-pink-700','from-yellow-700 to-amber-600','from-gray-800 to-gray-600','from-rose-800 to-red-700','from-indigo-800 to-violet-700'].map(g => `<button class="clan-edit-color w-10 h-6 rounded bg-gradient-to-r ${g} hover:scale-110 transition-transform border ${clan.bannerColor === g ? 'border-white ring-2 ring-white' : 'border-gray-500'}" data-gradient="${g}"></button>`).join('')}
+                            </div>
+                          </div>
+                          <div class="grid grid-cols-3 gap-2">
+                            <div>
+                              <label class="text-gray-300 text-xs block mb-1">Max Members</label>
+                              <select id="clan-edit-max" class="w-full bg-gray-700 text-white px-2 py-1.5 rounded border border-gray-600 text-sm">
+                                ${[10,20,30,50].map(n => `<option value="${n}" ${clan.maxMembers === n ? 'selected' : ''}>${n}</option>`).join('')}
+                              </select>
+                            </div>
+                            <div>
+                              <label class="text-gray-300 text-xs block mb-1">Min Games</label>
+                              <input type="number" id="clan-edit-mingames" value="${clan.requirements.minGamesPlayed}" min="0" class="w-full bg-gray-700 text-white px-2 py-1.5 rounded border border-gray-600 text-sm">
+                            </div>
+                            <div>
+                              <label class="text-gray-300 text-xs block mb-1">Min Wins</label>
+                              <input type="number" id="clan-edit-minwins" value="${clan.requirements.minGamesWon}" min="0" class="w-full bg-gray-700 text-white px-2 py-1.5 rounded border border-gray-600 text-sm">
+                            </div>
+                          </div>
+                          <label class="flex items-center gap-2 text-gray-300 text-sm">
+                            <input type="checkbox" id="clan-edit-autoaccept" ${clan.requirements.autoAccept ? 'checked' : ''} class="accent-rose-500"> Auto-accept members
+                          </label>
+                          <div class="flex gap-3 mt-2">
+                            <button id="clan-edit-save" class="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 rounded-xl">✅ Save</button>
+                            <button id="clan-edit-cancel" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2.5 rounded-xl">Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ` : ''}
 
@@ -27276,9 +27335,12 @@ function render() {
                             </div>
                             <div class="text-gray-400 text-xs">${m.stats.gamesWon}W / ${m.stats.gamesPlayed}G | 💰${m.clanCoins || 0} coins</div>
                           </div>
-                          ${isLeader && !isMe && !mIsLeader ? `
-                            <button class="clan-promote-btn bg-yellow-600 hover:bg-yellow-500 text-white text-xs py-1 px-2 rounded" data-uid="${m.odataId}">👑</button>
-                            <button class="clan-kick-btn bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded" data-uid="${m.odataId}">🚫</button>
+                          ${isLeader && !isMe ? `
+                            <div class="flex gap-1">
+                              <button class="clan-promote-btn bg-green-600 hover:bg-green-500 text-white text-xs py-1 px-1.5 rounded" data-uid="${m.odataId}" title="Promote">⬆️</button>
+                              <button class="clan-demote-btn bg-orange-600 hover:bg-orange-500 text-white text-xs py-1 px-1.5 rounded" data-uid="${m.odataId}" title="Demote">⬇️</button>
+                              <button class="clan-kick-btn bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-1.5 rounded" data-uid="${m.odataId}" title="Kick">🚫</button>
+                            </div>
                           ` : ''}
                         </div>
                       `
@@ -27569,6 +27631,59 @@ function render() {
             const uid = (e.currentTarget as HTMLElement).dataset.uid!
             if (confirm('Promote this member?')) { await promoteClanMember(ud?.clanId!, uid); renderClanScreen() }
           })
+        })
+        document.querySelectorAll('.clan-demote-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const uid = (e.currentTarget as HTMLElement).dataset.uid!
+            if (confirm('Demote this member?')) { await demoteClanMember(ud?.clanId!, uid); renderClanScreen() }
+          })
+        })
+
+        // Edit clan modal
+        let editIcon = ''
+        let editColor = ''
+        document.getElementById('clan-edit-btn')?.addEventListener('click', () => {
+          document.getElementById('clan-edit-modal')?.classList.remove('hidden')
+        })
+        document.getElementById('clan-edit-cancel')?.addEventListener('click', () => {
+          document.getElementById('clan-edit-modal')?.classList.add('hidden')
+        })
+        document.querySelectorAll('.clan-edit-icon').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            editIcon = (e.currentTarget as HTMLElement).dataset.icon || ''
+            document.querySelectorAll('.clan-edit-icon').forEach(b => b.classList.remove('ring-2', 'ring-rose-500'))
+            ;(e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-rose-500')
+          })
+        })
+        document.querySelectorAll('.clan-edit-color').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            editColor = (e.currentTarget as HTMLElement).dataset.gradient || ''
+            document.querySelectorAll('.clan-edit-color').forEach(b => { b.classList.remove('ring-2', 'ring-white'); (b as HTMLElement).style.borderColor = '#6b7280' })
+            ;(e.currentTarget as HTMLElement).classList.add('ring-2', 'ring-white')
+          })
+        })
+        document.getElementById('clan-edit-save')?.addEventListener('click', async () => {
+          if (!ud?.clanId) return
+          const updates: any = {}
+          const name = (document.getElementById('clan-edit-name') as HTMLInputElement)?.value?.trim()
+          const desc = (document.getElementById('clan-edit-desc') as HTMLTextAreaElement)?.value?.trim()
+          const rules = (document.getElementById('clan-edit-rules') as HTMLTextAreaElement)?.value?.trim()
+          const maxMembers = parseInt((document.getElementById('clan-edit-max') as HTMLSelectElement)?.value || '20')
+          const minGames = parseInt((document.getElementById('clan-edit-mingames') as HTMLInputElement)?.value || '0')
+          const minWins = parseInt((document.getElementById('clan-edit-minwins') as HTMLInputElement)?.value || '0')
+          const autoAccept = (document.getElementById('clan-edit-autoaccept') as HTMLInputElement)?.checked ?? true
+
+          if (name) updates.name = name
+          if (desc !== undefined) updates.description = desc
+          if (rules !== undefined) updates.rules = rules
+          if (editIcon) updates.icon = editIcon
+          if (editColor) updates.bannerColor = editColor
+          updates.maxMembers = maxMembers
+          updates.requirements = { minGamesPlayed: minGames, minGamesWon: minWins, autoAccept }
+
+          await updateClan(ud.clanId, updates)
+          document.getElementById('clan-edit-modal')?.classList.add('hidden')
+          renderClanScreen()
         })
 
         // Post announcement
