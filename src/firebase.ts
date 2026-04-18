@@ -5800,7 +5800,10 @@ export async function getAllBundles(): Promise<Bundle[]> {
   }
 }
 
-// Get active bundles only
+// Max 4 active bundles in the shop at once
+export const MAX_ACTIVE_BUNDLES = 4
+
+// Get active bundles only (max 4)
 export async function getActiveBundles(): Promise<Bundle[]> {
   if (!db) return []
 
@@ -5808,10 +5811,24 @@ export async function getActiveBundles(): Promise<Bundle[]> {
     const bundlesRef = collection(db, 'bundles')
     const q = query(bundlesRef, where('active', '==', true))
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Bundle))
+    const bundles = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Bundle))
+    return bundles.slice(0, MAX_ACTIVE_BUNDLES)
   } catch (error) {
     console.error('Error getting active bundles:', error)
     return []
+  }
+}
+
+// Count currently active bundles
+export async function getActiveBundleCount(): Promise<number> {
+  if (!db) return 0
+  try {
+    const bundlesRef = collection(db, 'bundles')
+    const q = query(bundlesRef, where('active', '==', true))
+    const snapshot = await getDocs(q)
+    return snapshot.size
+  } catch (error) {
+    return 0
   }
 }
 
@@ -5830,6 +5847,10 @@ export async function adminCreateBundle(bundle: {
     const originalPrice = items.reduce((sum, item) => sum + item.price, 0)
     const bundlePrice = Math.floor(originalPrice * 0.8)  // 20% off
 
+    // Only set active if under the limit
+    const activeCount = await getActiveBundleCount()
+    const canBeActive = activeCount < MAX_ACTIVE_BUNDLES
+
     const bundleData: Omit<Bundle, 'id'> = {
       name: bundle.name,
       icon: bundle.icon,
@@ -5837,7 +5858,7 @@ export async function adminCreateBundle(bundle: {
       itemIds: bundle.itemIds,
       originalPrice,
       bundlePrice,
-      active: true,
+      active: canBeActive,
       createdAt: Date.now(),
       createdBy: currentUserData?.username || 'admin'
     }
@@ -5863,16 +5884,23 @@ export async function adminDeleteBundle(bundleId: string): Promise<boolean> {
   }
 }
 
-// Admin: Toggle bundle active status
-export async function adminToggleBundle(bundleId: string, active: boolean): Promise<boolean> {
-  if (!db) return false
+// Admin: Toggle bundle active status (max 4 active)
+export async function adminToggleBundle(bundleId: string, active: boolean): Promise<{ success: boolean; error?: string }> {
+  if (!db) return { success: false, error: 'No database' }
 
   try {
+    // Check limit when activating
+    if (active) {
+      const count = await getActiveBundleCount()
+      if (count >= MAX_ACTIVE_BUNDLES) {
+        return { success: false, error: `Max ${MAX_ACTIVE_BUNDLES} active bundles allowed. Disable one first.` }
+      }
+    }
     await updateDoc(doc(db, 'bundles', bundleId), { active })
-    return true
+    return { success: true }
   } catch (error) {
     console.error('Error toggling bundle:', error)
-    return false
+    return { success: false, error: 'Failed to toggle bundle' }
   }
 }
 

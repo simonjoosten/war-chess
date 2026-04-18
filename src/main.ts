@@ -30266,12 +30266,21 @@ function render() {
             const listEl = document.getElementById('admin-bundles-list')
             if (!listEl) return
 
+            const activeCount = bundles.filter(b => b.active).length
+
             if (bundles.length === 0) {
               listEl.innerHTML = '<div class="text-gray-400 text-center py-4">No bundles created yet.</div>'
               return
             }
 
-            listEl.innerHTML = bundles.map(bundle => {
+            const slotsHtml = `<div class="mb-3 p-2 bg-gray-800 rounded flex items-center gap-2">
+              <span class="text-gray-300 text-sm">Active slots:</span>
+              ${Array.from({length: 4}, (_, i) => `<div class="w-6 h-6 rounded ${i < activeCount ? 'bg-green-500' : 'bg-gray-600'} flex items-center justify-center text-xs text-white font-bold">${i < activeCount ? '✓' : ''}</div>`).join('')}
+              <span class="text-gray-400 text-sm ml-1">${activeCount}/4</span>
+              ${activeCount >= 4 ? '<span class="text-yellow-400 text-xs ml-auto">Max reached!</span>' : ''}
+            </div>`
+
+            listEl.innerHTML = slotsHtml + bundles.map(bundle => {
               const bundleItems = bundle.itemIds.map(id => SHOP_ITEMS.find(i => i.id === id)).filter(Boolean) as ShopItem[]
               return `
                 <div class="bg-gray-700 p-4 rounded-lg">
@@ -30312,9 +30321,13 @@ function render() {
                 const bundleId = target.dataset.bundleId
                 const active = target.dataset.active === 'true'
                 if (bundleId) {
-                  await adminToggleBundle(bundleId, active)
-                  adminDataLoaded = false
-                  renderAdminPanel()
+                  const result = await adminToggleBundle(bundleId, active)
+                  if (!result.success && result.error) {
+                    alert(result.error)
+                  } else {
+                    adminDataLoaded = false
+                    renderAdminPanel()
+                  }
                 }
               })
             })
