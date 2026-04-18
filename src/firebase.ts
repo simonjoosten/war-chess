@@ -432,6 +432,18 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: 'music_drill_beats', name: 'Drill Beats', description: 'Dark sliding 808s with aggressive hi-hat patterns and menacing melodies', price: 275, type: 'music_pack', icon: '🔫',
     packId: 'drill_beats', musicParams: { tempo: 140, scale: 'minor', baseNote: 98, waveform: 'sawtooth' as OscillatorType, filterFreq: 2500, reverb: 0.15, swing: 0.1, density: 7 } },
 
+  // Music Packs - Intense War Music (10+ phases, 3+ minutes each)
+  { id: 'music_blitzkrieg', name: 'Blitzkrieg', description: 'Relentless mechanized warfare - pounding drums build from silence to all-out artillery assault with screaming brass', price: 325, type: 'music_pack', icon: '💣',
+    packId: 'blitzkrieg', musicParams: { tempo: 155, scale: 'minor', baseNote: 98, waveform: 'sawtooth' as OscillatorType, filterFreq: 5500, reverb: 0.2, swing: 0, density: 7 } },
+  { id: 'music_trench_requiem', name: 'Trench Requiem', description: 'Haunting orchestral war theme - starts with a lone melody rising into thundering cannons and heroic fanfares', price: 325, type: 'music_pack', icon: '🪖',
+    packId: 'trench_requiem', musicParams: { tempo: 88, scale: 'minor', baseNote: 130, waveform: 'sawtooth' as OscillatorType, filterFreq: 3500, reverb: 0.6, swing: 0.05, density: 3 } },
+  { id: 'music_air_raid', name: 'Air Raid Siren', description: 'Escalating tension that explodes into chaos - air raid sirens, rapid drums and desperate counter-attack rhythms', price: 300, type: 'music_pack', icon: '🚨',
+    packId: 'air_raid', musicParams: { tempo: 170, scale: 'minor', baseNote: 110, waveform: 'square' as OscillatorType, filterFreq: 6000, reverb: 0.15, swing: 0, density: 8 } },
+  { id: 'music_last_stand', name: 'Last Stand', description: 'Epic final battle music - quiet prayers become a roaring war cry with massive drums and soaring melodies at the climax', price: 350, type: 'music_pack', icon: '⚔️',
+    packId: 'last_stand', musicParams: { tempo: 105, scale: 'minor', baseNote: 130, waveform: 'sawtooth' as OscillatorType, filterFreq: 4000, reverb: 0.45, swing: 0.05, density: 4 } },
+  { id: 'music_nuclear_dawn', name: 'Nuclear Dawn', description: 'The end of everything - deep rumbling bass evolves through 10 phases into an apocalyptic explosion of sound', price: 350, type: 'music_pack', icon: '☢️',
+    packId: 'nuclear_dawn', musicParams: { tempo: 130, scale: 'minor', baseNote: 87, waveform: 'sawtooth' as OscillatorType, filterFreq: 4500, reverb: 0.35, swing: 0, density: 6 } },
+
   // Board Themes - Wave 2
   { id: 'theme_cherry_blossom', name: 'Cherry Blossom Temple', description: 'A peaceful Japanese temple surrounded by falling sakura petals', price: 225, type: 'theme', icon: '🌸',
     colors: { light: '#fce4ec', dark: '#f48fb1', accent: '#ad1457', water: '#7b1fa2' }, ambientEffect: 'sparkle' },
