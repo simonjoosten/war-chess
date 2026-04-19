@@ -7553,6 +7553,173 @@ function stopMusic() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATION SYSTEM - Popups with ping sound
+// ═══════════════════════════════════════════════════════════════════════════
+let notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false'
+let notificationInterval: number | null = null
+let lastNotificationTime = 0
+
+// 50 notification messages across categories
+const NOTIFICATION_MESSAGES: Array<{ icon: string; title: string; message: string; category: string }> = [
+  // Daily Deals (10)
+  { icon: '🔥', title: 'Hot Deal!', message: 'New daily deals are live! 20% off on 2 items today!', category: 'deals' },
+  { icon: '💰', title: 'Don\'t Miss Out!', message: 'Today\'s deals expire at midnight. Grab them now!', category: 'deals' },
+  { icon: '📦', title: 'Bundle Alert!', message: 'Check out our bundle deals - save big on themed packs!', category: 'deals' },
+  { icon: '🛒', title: 'New in Shop!', message: 'Fresh items just dropped in the shop. Go check them out!', category: 'deals' },
+  { icon: '⏰', title: 'Deals Expiring!', message: 'Only a few hours left on today\'s daily deals!', category: 'deals' },
+  { icon: '🎁', title: 'Special Offer!', message: 'Limited time bundle available. Don\'t sleep on this!', category: 'deals' },
+  { icon: '💎', title: 'Rare Item Alert!', message: 'A premium item is on sale today. Check the deals tab!', category: 'deals' },
+  { icon: '🏷️', title: 'Price Drop!', message: 'Some items got a price drop today. Time to shop!', category: 'deals' },
+  { icon: '🌟', title: 'Featured Deal!', message: 'Today\'s featured deal is too good to pass up!', category: 'deals' },
+  { icon: '🎯', title: 'Deal Hunter!', message: 'You haven\'t checked today\'s deals yet. What are you waiting for?', category: 'deals' },
+
+  // War Pass & Challenges (10)
+  { icon: '🎖️', title: 'War Pass!', message: 'New war pass challenges are waiting. Earn free rewards!', category: 'warpass' },
+  { icon: '⭐', title: 'Challenge Ready!', message: 'You\'re close to completing a war pass challenge!', category: 'warpass' },
+  { icon: '🏆', title: 'Claim Reward!', message: 'You have unclaimed war pass rewards! Don\'t forget them!', category: 'warpass' },
+  { icon: '📈', title: 'Level Up!', message: 'Keep playing to level up your war pass and earn more!', category: 'warpass' },
+  { icon: '🎮', title: 'Play More!', message: 'Just a few more games to complete your daily challenges!', category: 'warpass' },
+  { icon: '💪', title: 'Almost There!', message: 'You\'re so close to the next war pass tier!', category: 'warpass' },
+  { icon: '🔥', title: 'Streak Alert!', message: 'Keep your daily streak alive! Play a game today!', category: 'warpass' },
+  { icon: '🎯', title: 'New Mission!', message: 'A new challenge just appeared in your war pass!', category: 'warpass' },
+  { icon: '🧩', title: 'Puzzle Time!', message: 'Daily puzzles are refreshed! Solve them for War Bucks!', category: 'warpass' },
+  { icon: '💰', title: 'Free Bucks!', message: 'Complete today\'s easy challenge for free War Bucks!', category: 'warpass' },
+
+  // Social & Multiplayer (10)
+  { icon: '🌐', title: 'Players Online!', message: 'Other players are online right now. Challenge them!', category: 'social' },
+  { icon: '⚔️', title: 'Battle Time!', message: 'Looking for a fight? Join the multiplayer lobby!', category: 'social' },
+  { icon: '👥', title: 'Clan Activity!', message: 'Your clan members are active. Check in with them!', category: 'social' },
+  { icon: '💬', title: 'New Messages!', message: 'You might have unread messages from friends!', category: 'social' },
+  { icon: '🏟️', title: 'Tournament!', message: 'A tournament is coming up. Register now!', category: 'social' },
+  { icon: '🤝', title: 'Play Together!', message: 'Invite a friend to play a game together!', category: 'social' },
+  { icon: '📊', title: 'Leaderboard!', message: 'Check where you rank on the leaderboard!', category: 'social' },
+  { icon: '🎉', title: 'Welcome Back!', message: 'Good to see you! Ready for some war chess?', category: 'social' },
+  { icon: '👑', title: 'Top Player!', message: 'You\'re climbing the ranks! Keep it up!', category: 'social' },
+  { icon: '🌟', title: 'Show Off!', message: 'Equip your best skin and theme to impress others!', category: 'social' },
+
+  // Tips & Tricks (10)
+  { icon: '💡', title: 'Pro Tip!', message: 'Hackers can freeze enemy pieces for 2 turns. Use them wisely!', category: 'tips' },
+  { icon: '🧠', title: 'Strategy!', message: 'Control the center of the board for maximum advantage!', category: 'tips' },
+  { icon: '🎯', title: 'Did You Know?', message: 'Artillery can shoot across the whole board diagonally!', category: 'tips' },
+  { icon: '🚁', title: 'Air Power!', message: 'Helicopters can fly over water and mountains. Use them!', category: 'tips' },
+  { icon: '🏗️', title: 'Build Smart!', message: 'Builders can create barricades that block enemy movement!', category: 'tips' },
+  { icon: '🚀', title: 'Rocket Power!', message: 'Rockets have the longest range of any ground unit!', category: 'tips' },
+  { icon: '🛡️', title: 'Defense!', message: 'Trenches give your pieces extra protection. Use them!', category: 'tips' },
+  { icon: '⚡', title: 'Speed Tip!', message: 'SUVs are the fastest ground units. Perfect for flanking!', category: 'tips' },
+  { icon: '🌊', title: 'Naval Tip!', message: 'Ships control the water lanes. Don\'t forget about them!', category: 'tips' },
+  { icon: '💣', title: 'Boom!', message: 'Landmines are invisible to your enemy. Place them wisely!', category: 'tips' },
+
+  // Cosmetics & Collection (10)
+  { icon: '🎨', title: 'New Themes!', message: 'Have you seen all the new board themes? Check the shop!', category: 'cosmetic' },
+  { icon: '🎵', title: 'Music Update!', message: 'New music packs available! War beats and chill vibes!', category: 'cosmetic' },
+  { icon: '✨', title: 'Effect Alert!', message: 'Cool new particle effects in the shop. Make your pieces shine!', category: 'cosmetic' },
+  { icon: '🔊', title: 'Sound Packs!', message: 'Try the new sound packs for a completely different experience!', category: 'cosmetic' },
+  { icon: '👤', title: 'Profile Update!', message: 'Customize your avatar, title and banner on your profile!', category: 'cosmetic' },
+  { icon: '🏷️', title: 'New Title!', message: 'You might have earned a new title! Check your profile!', category: 'cosmetic' },
+  { icon: '🖼️', title: 'Banner Unlock!', message: 'Play more to unlock epic profile banners!', category: 'cosmetic' },
+  { icon: '🏅', title: 'Badge Alert!', message: 'You\'re close to earning a new badge! Keep playing!', category: 'cosmetic' },
+  { icon: '⚔️', title: 'Skin Sale!', message: 'New piece skins make your army look legendary!', category: 'cosmetic' },
+  { icon: '🎮', title: 'Collect Them All!', message: 'How many items do you own? Check your collection stats!', category: 'cosmetic' },
+]
+
+// Play notification ping sound
+async function playNotificationPing() {
+  await ensureAudioReady()
+  if (!audioContext) return
+
+  const now = audioContext.currentTime
+  // Two-tone ping: high note then higher note
+  const freqs = [880, 1320]
+  freqs.forEach((freq, i) => {
+    const osc = audioContext!.createOscillator()
+    const gain = audioContext!.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0, now + i * 0.12)
+    gain.gain.linearRampToValueAtTime(0.15 * masterVolume * sfxVolume, now + i * 0.12 + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3)
+    osc.connect(gain)
+    gain.connect(audioContext!.destination)
+    osc.start(now + i * 0.12)
+    osc.stop(now + i * 0.12 + 0.35)
+  })
+}
+
+// Show notification popup
+function showNotificationPopup(notif: { icon: string; title: string; message: string }) {
+  // Remove existing notification if any
+  const existing = document.getElementById('game-notification')
+  if (existing) existing.remove()
+
+  const popup = document.createElement('div')
+  popup.id = 'game-notification'
+  popup.className = 'fixed top-4 right-4 z-50 max-w-sm'
+  popup.style.animation = 'deal-slide-in 0.4s ease-out'
+  popup.innerHTML = `
+    <div class="bg-gray-800 border border-purple-500/40 rounded-xl p-4 shadow-2xl shadow-purple-500/10 flex gap-3 items-start cursor-pointer hover:bg-gray-750 transition-colors">
+      <div class="text-3xl flex-shrink-0 deal-icon">${notif.icon}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-white font-bold text-sm">${notif.title}</div>
+        <div class="text-gray-400 text-xs mt-0.5">${notif.message}</div>
+      </div>
+      <button class="text-gray-500 hover:text-white text-lg flex-shrink-0 leading-none" id="notif-close">×</button>
+    </div>
+  `
+
+  document.body.appendChild(popup)
+
+  // Close on click
+  document.getElementById('notif-close')?.addEventListener('click', (e) => { e.stopPropagation(); popup.remove() })
+  popup.addEventListener('click', () => popup.remove())
+
+  // Auto-close after 6 seconds with fade
+  setTimeout(() => {
+    popup.style.transition = 'opacity 0.5s, transform 0.5s'
+    popup.style.opacity = '0'
+    popup.style.transform = 'translateX(100px)'
+    setTimeout(() => popup.remove(), 500)
+  }, 6000)
+}
+
+// Send a random notification
+function triggerRandomNotification() {
+  if (!notificationsEnabled) return
+  if (Date.now() - lastNotificationTime < 30000) return // Min 30s between notifications
+
+  const notif = NOTIFICATION_MESSAGES[Math.floor(Math.random() * NOTIFICATION_MESSAGES.length)]
+  showNotificationPopup(notif)
+  if (soundEnabled) playNotificationPing()
+  lastNotificationTime = Date.now()
+}
+
+// Start notification timer (random interval 2-5 minutes)
+function startNotifications() {
+  if (notificationInterval) return
+  // First notification after 60 seconds
+  setTimeout(() => {
+    triggerRandomNotification()
+    // Then every 2-5 minutes
+    notificationInterval = window.setInterval(() => {
+      triggerRandomNotification()
+    }, (120 + Math.random() * 180) * 1000) // 2-5 min
+  }, 60000)
+}
+
+function stopNotifications() {
+  if (notificationInterval) {
+    clearInterval(notificationInterval)
+    notificationInterval = null
+  }
+}
+
+function toggleNotifications(enabled: boolean) {
+  notificationsEnabled = enabled
+  localStorage.setItem('notificationsEnabled', String(enabled))
+  if (enabled) startNotifications()
+  else stopNotifications()
+}
+
 // MUSIC PLAYER BAR - Sticky bottom bar with controls
 // ═══════════════════════════════════════════════════════════════════════════
 let musicPlayerBarVisible = false
@@ -25502,6 +25669,12 @@ function render() {
                 <button id="screen-shake-btn" class="py-1 px-3 rounded text-sm ${screenShakeEnabled ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${screenShakeEnabled ? t('on') : t('off')}</button>
               </div>
 
+              <!-- Notifications -->
+              <div class="flex items-center justify-between">
+                <label class="text-gray-300 text-sm">🔔 Notifications</label>
+                <button id="notifications-btn" class="py-1 px-3 rounded text-sm ${notificationsEnabled ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200'}">${notificationsEnabled ? t('on') : t('off')}</button>
+              </div>
+
               <!-- Show Coordinates -->
               <div class="flex items-center justify-between">
                 <label class="text-gray-300 text-sm">${t('showCoordinatesLabel')}</label>
@@ -25704,6 +25877,12 @@ function render() {
       // Screen shake toggle
       document.getElementById('screen-shake-btn')?.addEventListener('click', () => {
         screenShakeEnabled = !screenShakeEnabled
+        render()
+      })
+
+      // Notifications toggle
+      document.getElementById('notifications-btn')?.addEventListener('click', () => {
+        toggleNotifications(!notificationsEnabled)
         render()
       })
 
@@ -34687,8 +34866,8 @@ if (firebaseInitialized) {
       checkGlobalMessages()
       // Load custom shop items from Firestore
       loadCustomShopItems()
-      // Show music player bar after login
-      setTimeout(() => renderMusicPlayerBar(), 500)
+      // Show music player bar and start notifications after login
+      setTimeout(() => { renderMusicPlayerBar(); startNotifications() }, 500)
     }
     render()
   })
