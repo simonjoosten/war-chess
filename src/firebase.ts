@@ -7198,3 +7198,99 @@ export async function getPlayRequests(): Promise<Array<{ id: string; fromUsernam
     return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id } as any))
   } catch (_e) { return [] }
 }
+
+// ==================== CLAN SHOP & CLAN PASS ====================
+
+export interface ClanShopItem {
+  id: string
+  name: string
+  description: string
+  icon: string
+  cost: number  // Clan coins
+  type: 'upgrade' | 'boost' | 'cosmetic' | 'reward'
+  effect: string  // What it does
+  maxPurchases: number  // How many times can be bought (0 = unlimited)
+}
+
+export const CLAN_SHOP_ITEMS: ClanShopItem[] = [
+  // Upgrades
+  { id: 'cs_members_5', name: '+5 Member Slots', description: 'Increase max members by 5', icon: '👥', cost: 200, type: 'upgrade', effect: 'add_members_5', maxPurchases: 4 },
+  { id: 'cs_members_10', name: '+10 Member Slots', description: 'Increase max members by 10', icon: '👥', cost: 350, type: 'upgrade', effect: 'add_members_10', maxPurchases: 2 },
+  { id: 'cs_xp_boost', name: 'XP Boost (24h)', description: 'Double clan XP for 24 hours', icon: '⚡', cost: 150, type: 'boost', effect: 'xp_boost_24h', maxPurchases: 0 },
+  { id: 'cs_coin_boost', name: 'Coin Boost (24h)', description: 'Double clan coin earning for 24 hours', icon: '💰', cost: 200, type: 'boost', effect: 'coin_boost_24h', maxPurchases: 0 },
+  { id: 'cs_banner_gold', name: 'Gold Banner', description: 'Unlock the exclusive gold clan banner', icon: '🏅', cost: 500, type: 'cosmetic', effect: 'banner_gold', maxPurchases: 1 },
+  { id: 'cs_banner_diamond', name: 'Diamond Banner', description: 'Unlock the legendary diamond clan banner', icon: '💎', cost: 1000, type: 'cosmetic', effect: 'banner_diamond', maxPurchases: 1 },
+  { id: 'cs_war_shield', name: 'War Shield (48h)', description: 'Protect clan from war challenges for 48h', icon: '🛡️', cost: 300, type: 'boost', effect: 'war_shield_48h', maxPurchases: 0 },
+  { id: 'cs_rename', name: 'Clan Rename', description: 'Change your clan name once', icon: '✏️', cost: 250, type: 'upgrade', effect: 'rename', maxPurchases: 0 },
+  // Rewards for all members
+  { id: 'cs_bucks_all_50', name: '50 Bucks for All', description: 'Give 50 War Bucks to every clan member', icon: '💰', cost: 300, type: 'reward', effect: 'bucks_all_50', maxPurchases: 0 },
+  { id: 'cs_bucks_all_100', name: '100 Bucks for All', description: 'Give 100 War Bucks to every clan member', icon: '💰', cost: 500, type: 'reward', effect: 'bucks_all_100', maxPurchases: 0 },
+  { id: 'cs_effect_all', name: 'Free Effect for All', description: 'Give a random effect to every member', icon: '✨', cost: 750, type: 'reward', effect: 'effect_all', maxPurchases: 0 },
+  { id: 'cs_clan_badge', name: 'Custom Clan Badge', description: 'Create a custom badge for your clan', icon: '🏅', cost: 400, type: 'cosmetic', effect: 'custom_badge', maxPurchases: 3 },
+]
+
+// Clan Pass tiers (progressive rewards)
+export const CLAN_PASS_TIERS: Array<{ level: number; xpRequired: number; reward: string; rewardIcon: string; rewardDesc: string }> = [
+  { level: 1, xpRequired: 0, reward: 'clan_badge_starter', rewardIcon: '🏅', rewardDesc: 'Starter Badge' },
+  { level: 2, xpRequired: 500, reward: '100_coins', rewardIcon: '💰', rewardDesc: '100 Clan Coins' },
+  { level: 3, xpRequired: 1200, reward: 'banner_blue', rewardIcon: '🖼️', rewardDesc: 'Blue Banner' },
+  { level: 4, xpRequired: 2000, reward: '200_coins', rewardIcon: '💰', rewardDesc: '200 Clan Coins' },
+  { level: 5, xpRequired: 3000, reward: 'clan_badge_warrior', rewardIcon: '⚔️', rewardDesc: 'Warrior Badge' },
+  { level: 6, xpRequired: 4500, reward: 'members_plus5', rewardIcon: '👥', rewardDesc: '+5 Member Slots' },
+  { level: 7, xpRequired: 6000, reward: '300_coins', rewardIcon: '💰', rewardDesc: '300 Clan Coins' },
+  { level: 8, xpRequired: 8000, reward: 'banner_purple', rewardIcon: '🖼️', rewardDesc: 'Purple Banner' },
+  { level: 9, xpRequired: 10000, reward: '500_coins', rewardIcon: '💰', rewardDesc: '500 Clan Coins' },
+  { level: 10, xpRequired: 13000, reward: 'clan_badge_legend', rewardIcon: '👑', rewardDesc: 'Legend Badge' },
+  { level: 11, xpRequired: 16000, reward: 'members_plus10', rewardIcon: '👥', rewardDesc: '+10 Member Slots' },
+  { level: 12, xpRequired: 20000, reward: '750_coins', rewardIcon: '💰', rewardDesc: '750 Clan Coins' },
+  { level: 13, xpRequired: 25000, reward: 'banner_gold', rewardIcon: '🏅', rewardDesc: 'Gold Banner' },
+  { level: 14, xpRequired: 30000, reward: '1000_coins', rewardIcon: '💰', rewardDesc: '1000 Clan Coins' },
+  { level: 15, xpRequired: 40000, reward: 'clan_badge_ultimate', rewardIcon: '💎', rewardDesc: 'Ultimate Badge + Diamond Banner' },
+]
+
+// Buy clan shop item
+export async function buyClanShopItem(clanId: string, itemId: string): Promise<{ success: boolean; error?: string }> {
+  if (!db || !currentUser) return { success: false, error: 'Not logged in' }
+  try {
+    const clan = await getClan(clanId)
+    if (!clan || !canManage(clan, currentUser.uid)) return { success: false, error: 'Not authorized' }
+
+    const item = CLAN_SHOP_ITEMS.find(i => i.id === itemId)
+    if (!item) return { success: false, error: 'Item not found' }
+    if ((clan.clanCoins || 0) < item.cost) return { success: false, error: 'Not enough clan coins' }
+
+    // Check max purchases
+    const purchases = (clan as any).shopPurchases || {}
+    if (item.maxPurchases > 0 && (purchases[itemId] || 0) >= item.maxPurchases) {
+      return { success: false, error: 'Max purchases reached' }
+    }
+
+    // Deduct coins
+    const newCoins = (clan.clanCoins || 0) - item.cost
+    const newPurchases = { ...purchases, [itemId]: (purchases[itemId] || 0) + 1 }
+    const updates: any = { clanCoins: newCoins, shopPurchases: newPurchases }
+
+    // Apply effect
+    switch (item.effect) {
+      case 'add_members_5': updates.maxMembers = (clan.maxMembers || 20) + 5; break
+      case 'add_members_10': updates.maxMembers = (clan.maxMembers || 20) + 10; break
+      case 'bucks_all_50': case 'bucks_all_100': {
+        const amount = item.effect === 'bucks_all_50' ? 50 : 100
+        for (const memberId of clan.memberIds) {
+          try {
+            const memberDoc = await getDoc(doc(db, 'users', memberId))
+            if (memberDoc.exists()) {
+              const memberData = memberDoc.data() as UserData
+              await updateDoc(doc(db, 'users', memberId), { warBucks: (memberData.warBucks || 0) + amount })
+            }
+          } catch (_e) { /* skip */ }
+        }
+        break
+      }
+    }
+
+    await updateDoc(doc(db, 'clans', clanId), updates)
+    await addClanNotification(clanId, 'badge', `${item.icon} ${item.name} purchased!`, item.icon)
+    return { success: true }
+  } catch (_e) { return { success: false, error: 'Failed' } }
+}

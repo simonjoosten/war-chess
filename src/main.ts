@@ -217,6 +217,9 @@ import {
   getMyClanInvites,
   updateClan,
   startWeeklyChallenge,
+  CLAN_SHOP_ITEMS,
+  CLAN_PASS_TIERS,
+  buyClanShopItem,
   setClanPhoto,
   reactToClanChat,
   ClanEvent,
@@ -9933,6 +9936,46 @@ const translations: Record<Language, Record<string, string>> = {
     statsRockets: 'Rockets',
     statsShips: 'Ships',
     statsHackers: 'Hackers',
+    // Clan
+    clanTitle: 'Clan',
+    clanCreate: 'Create Clan',
+    clanBrowse: 'Browse',
+    clanInfo: 'Info',
+    clanMembers: 'Members',
+    clanChat: 'Chat',
+    clanPolls: 'Polls',
+    clanRanking: 'Ranking',
+    clanEvents: 'Events',
+    clanWars: 'Wars',
+    clanShop: 'Shop',
+    clanPass: 'Pass',
+    clanRequests: 'Requests',
+    clanNotifications: 'Notifications',
+    clanLeave: 'Leave Clan',
+    clanEdit: 'Edit Clan',
+    clanJoin: 'Join',
+    clanApply: 'Apply',
+    clanOpen: 'Open',
+    clanClosed: 'Apply',
+    clanCoins: 'Clan Coins',
+    clanLevel: 'Level',
+    clanFounded: 'Founded',
+    clanTotalWins: 'Total Wins',
+    clanTotalKills: 'Total Kills',
+    clanRules: 'Clan Rules',
+    clanAnnouncements: 'Announcements',
+    clanWeeklyChallenge: 'Weekly Challenge',
+    clanNoClans: 'No clans yet. Be the first to create one!',
+    clanNoMessages: 'No messages yet. Say hello!',
+    clanNoPolls: 'No polls yet.',
+    clanNoEvents: 'No events planned yet.',
+    clanNoWars: 'No clan wars yet. Challenge another clan!',
+    clanNoNotifs: 'No notifications yet.',
+    clanPromote: 'Promote',
+    clanDemote: 'Demote',
+    clanKick: 'Kick',
+    clanPlayTogether: 'Play together',
+    clanPostAnnouncement: 'Post',
     noBadges: 'No badges yet. Keep playing!',
     // Multiplayer
     multiplayerButton: 'Play Online',
@@ -11298,6 +11341,45 @@ const translations: Record<Language, Record<string, string>> = {
     statsRockets: 'Raketten',
     statsShips: 'Schepen',
     statsHackers: 'Hackers',
+    clanTitle: 'Clan',
+    clanCreate: 'Clan Aanmaken',
+    clanBrowse: 'Zoeken',
+    clanInfo: 'Info',
+    clanMembers: 'Leden',
+    clanChat: 'Chat',
+    clanPolls: 'Peilingen',
+    clanRanking: 'Ranglijst',
+    clanEvents: 'Evenementen',
+    clanWars: 'Oorlogen',
+    clanShop: 'Winkel',
+    clanPass: 'Pas',
+    clanRequests: 'Verzoeken',
+    clanNotifications: 'Meldingen',
+    clanLeave: 'Clan Verlaten',
+    clanEdit: 'Clan Bewerken',
+    clanJoin: 'Toetreden',
+    clanApply: 'Aanmelden',
+    clanOpen: 'Open',
+    clanClosed: 'Aanmelden',
+    clanCoins: 'Clan Munten',
+    clanLevel: 'Level',
+    clanFounded: 'Opgericht',
+    clanTotalWins: 'Totale Wins',
+    clanTotalKills: 'Totale Kills',
+    clanRules: 'Clan Regels',
+    clanAnnouncements: 'Aankondigingen',
+    clanWeeklyChallenge: 'Wekelijkse Uitdaging',
+    clanNoClans: 'Nog geen clans. Maak er als eerste een aan!',
+    clanNoMessages: 'Nog geen berichten. Zeg hallo!',
+    clanNoPolls: 'Nog geen peilingen.',
+    clanNoEvents: 'Nog geen evenementen gepland.',
+    clanNoWars: 'Nog geen clan oorlogen. Daag een andere clan uit!',
+    clanNoNotifs: 'Nog geen meldingen.',
+    clanPromote: 'Promoveren',
+    clanDemote: 'Degraderen',
+    clanKick: 'Verwijderen',
+    clanPlayTogether: 'Samen spelen',
+    clanPostAnnouncement: 'Plaatsen',
     noBadges: 'Nog geen badges. Blijf spelen!',
     // Multiplayer
     multiplayerButton: 'Online Spelen',
@@ -12662,6 +12744,45 @@ const translations: Record<Language, Record<string, string>> = {
     statsRockets: 'Raketen',
     statsShips: 'Schiffe',
     statsHackers: 'Hacker',
+    clanTitle: 'Clan',
+    clanCreate: 'Clan Erstellen',
+    clanBrowse: 'Durchsuchen',
+    clanInfo: 'Info',
+    clanMembers: 'Mitglieder',
+    clanChat: 'Chat',
+    clanPolls: 'Umfragen',
+    clanRanking: 'Rangliste',
+    clanEvents: 'Events',
+    clanWars: 'Kriege',
+    clanShop: 'Shop',
+    clanPass: 'Pass',
+    clanRequests: 'Anfragen',
+    clanNotifications: 'Benachrichtigungen',
+    clanLeave: 'Clan Verlassen',
+    clanEdit: 'Clan Bearbeiten',
+    clanJoin: 'Beitreten',
+    clanApply: 'Bewerben',
+    clanOpen: 'Offen',
+    clanClosed: 'Bewerben',
+    clanCoins: 'Clan Münzen',
+    clanLevel: 'Level',
+    clanFounded: 'Gegründet',
+    clanTotalWins: 'Gesamtsiege',
+    clanTotalKills: 'Gesamtkills',
+    clanRules: 'Clan Regeln',
+    clanAnnouncements: 'Ankündigungen',
+    clanWeeklyChallenge: 'Wöchentliche Herausforderung',
+    clanNoClans: 'Noch keine Clans. Erstelle den ersten!',
+    clanNoMessages: 'Noch keine Nachrichten. Sag Hallo!',
+    clanNoPolls: 'Noch keine Umfragen.',
+    clanNoEvents: 'Noch keine Events geplant.',
+    clanNoWars: 'Noch keine Clan-Kriege. Fordere einen anderen Clan heraus!',
+    clanNoNotifs: 'Noch keine Benachrichtigungen.',
+    clanPromote: 'Befördern',
+    clanDemote: 'Degradieren',
+    clanKick: 'Entfernen',
+    clanPlayTogether: 'Zusammen spielen',
+    clanPostAnnouncement: 'Posten',
     noBadges: 'Noch keine Abzeichen. Weiterspielen!',
     // Multiplayer
     multiplayerButton: 'Online Spielen',
@@ -13259,6 +13380,45 @@ const translations: Record<Language, Record<string, string>> = {
     statsRockets: 'Roquettes',
     statsShips: 'Navires',
     statsHackers: 'Hackers',
+    clanTitle: 'Clan',
+    clanCreate: 'Créer un Clan',
+    clanBrowse: 'Parcourir',
+    clanInfo: 'Info',
+    clanMembers: 'Membres',
+    clanChat: 'Chat',
+    clanPolls: 'Sondages',
+    clanRanking: 'Classement',
+    clanEvents: 'Événements',
+    clanWars: 'Guerres',
+    clanShop: 'Boutique',
+    clanPass: 'Pass',
+    clanRequests: 'Demandes',
+    clanNotifications: 'Notifications',
+    clanLeave: 'Quitter le Clan',
+    clanEdit: 'Modifier le Clan',
+    clanJoin: 'Rejoindre',
+    clanApply: 'Postuler',
+    clanOpen: 'Ouvert',
+    clanClosed: 'Postuler',
+    clanCoins: 'Pièces de Clan',
+    clanLevel: 'Niveau',
+    clanFounded: 'Fondé',
+    clanTotalWins: 'Victoires Totales',
+    clanTotalKills: 'Éliminations Totales',
+    clanRules: 'Règles du Clan',
+    clanAnnouncements: 'Annonces',
+    clanWeeklyChallenge: 'Défi Hebdomadaire',
+    clanNoClans: 'Pas encore de clans. Soyez le premier!',
+    clanNoMessages: 'Pas de messages. Dites bonjour!',
+    clanNoPolls: 'Pas de sondages.',
+    clanNoEvents: 'Pas d\'événements prévus.',
+    clanNoWars: 'Pas de guerres. Défiez un autre clan!',
+    clanNoNotifs: 'Pas de notifications.',
+    clanPromote: 'Promouvoir',
+    clanDemote: 'Rétrograder',
+    clanKick: 'Expulser',
+    clanPlayTogether: 'Jouer ensemble',
+    clanPostAnnouncement: 'Publier',
     noBadges: 'Pas encore de badges. Continuez à jouer!',
     // Multiplayer
     multiplayerButton: 'Jouer en Ligne',
@@ -13855,6 +14015,45 @@ const translations: Record<Language, Record<string, string>> = {
     statsRockets: 'Cohetes',
     statsShips: 'Barcos',
     statsHackers: 'Hackers',
+    clanTitle: 'Clan',
+    clanCreate: 'Crear Clan',
+    clanBrowse: 'Buscar',
+    clanInfo: 'Info',
+    clanMembers: 'Miembros',
+    clanChat: 'Chat',
+    clanPolls: 'Encuestas',
+    clanRanking: 'Clasificación',
+    clanEvents: 'Eventos',
+    clanWars: 'Guerras',
+    clanShop: 'Tienda',
+    clanPass: 'Pase',
+    clanRequests: 'Solicitudes',
+    clanNotifications: 'Notificaciones',
+    clanLeave: 'Dejar el Clan',
+    clanEdit: 'Editar Clan',
+    clanJoin: 'Unirse',
+    clanApply: 'Solicitar',
+    clanOpen: 'Abierto',
+    clanClosed: 'Solicitar',
+    clanCoins: 'Monedas de Clan',
+    clanLevel: 'Nivel',
+    clanFounded: 'Fundado',
+    clanTotalWins: 'Victorias Totales',
+    clanTotalKills: 'Eliminaciones Totales',
+    clanRules: 'Reglas del Clan',
+    clanAnnouncements: 'Anuncios',
+    clanWeeklyChallenge: 'Desafío Semanal',
+    clanNoClans: '¡No hay clanes aún. ¡Sé el primero!',
+    clanNoMessages: 'No hay mensajes. ¡Di hola!',
+    clanNoPolls: 'No hay encuestas.',
+    clanNoEvents: 'No hay eventos planificados.',
+    clanNoWars: '¡No hay guerras. ¡Desafía a otro clan!',
+    clanNoNotifs: 'No hay notificaciones.',
+    clanPromote: 'Ascender',
+    clanDemote: 'Degradar',
+    clanKick: 'Expulsar',
+    clanPlayTogether: 'Jugar juntos',
+    clanPostAnnouncement: 'Publicar',
     noBadges: 'Sin insignias aún. ¡Sigue jugando!',
     // Multiplayer
     multiplayerButton: 'Jugar en Línea',
@@ -27311,7 +27510,7 @@ function render() {
     // Clan screen
     if (showAuthScreen === 'clan') {
       const userData = getCurrentUserData()
-      let clanTab: 'info' | 'members' | 'requests' | 'browse' | 'create' | 'chat' | 'leaderboard' | 'polls' | 'events' | 'wars' | 'notifications' = userData?.clanId ? 'info' : 'browse'
+      let clanTab: 'info' | 'members' | 'requests' | 'browse' | 'create' | 'chat' | 'leaderboard' | 'polls' | 'events' | 'wars' | 'notifications' | 'shop' | 'pass' = userData?.clanId ? 'info' : 'browse'
 
       const renderClanScreen = async () => {
         const ud = getCurrentUserData()
@@ -27374,6 +27573,8 @@ function render() {
                 <button class="clan-tab ${tabCls('members')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="members">👥 Members</button>
                 <button class="clan-tab ${tabCls('chat')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="chat">💬 Chat</button>
                 <button class="clan-tab ${tabCls('polls')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="polls">🗳️ Polls</button>
+                <button class="clan-tab ${tabCls('shop')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="shop">🛒 Shop</button>
+                <button class="clan-tab ${tabCls('pass')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="pass">🎖️ Pass</button>
                 <button class="clan-tab ${tabCls('events')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="events">🗓️ Events</button>
                 <button class="clan-tab ${tabCls('wars')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="wars">⚔️ Wars</button>
                 <button class="clan-tab ${tabCls('leaderboard')} font-bold py-2 px-3 rounded-lg text-sm" data-tab="leaderboard">📊 Ranking</button>
@@ -27606,6 +27807,80 @@ function render() {
                     <h3 class="text-white font-bold">📊 Clan Leaderboard</h3>
                     <div id="clan-leaderboard-list" class="flex flex-col gap-2">
                       <div class="text-gray-500 text-center text-sm py-4">Loading rankings...</div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'shop' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3">
+                    <div class="flex justify-between items-center">
+                      <h3 class="text-white font-bold">🛒 Clan Shop</h3>
+                      <span class="text-yellow-400 font-bold text-sm">💰 ${clan.clanCoins || 0} Clan Coins</span>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                      ${CLAN_SHOP_ITEMS.map(item => {
+                        const purchases = ((clan as any).shopPurchases || {})[item.id] || 0
+                        const maxed = item.maxPurchases > 0 && purchases >= item.maxPurchases
+                        const canAfford = (clan.clanCoins || 0) >= item.cost
+                        return `
+                          <div class="bg-gray-700/80 p-3 rounded-xl flex items-center gap-3 ${maxed ? 'opacity-50' : ''}">
+                            <span class="text-2xl flex-shrink-0">${item.icon}</span>
+                            <div class="flex-1 min-w-0">
+                              <div class="text-white font-bold text-sm">${item.name}</div>
+                              <div class="text-gray-400 text-xs">${item.description}</div>
+                              ${item.maxPurchases > 0 ? `<div class="text-gray-500 text-xs">${purchases}/${item.maxPurchases} purchased</div>` : ''}
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                              ${maxed
+                                ? '<span class="text-gray-500 text-xs font-bold">MAXED</span>'
+                                : `<button class="clan-shop-buy bg-gradient-to-r ${canAfford ? 'from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500' : 'from-gray-600 to-gray-600 cursor-not-allowed'} text-white font-bold py-1.5 px-3 rounded-lg text-sm transition-all ${canAfford ? 'hover:scale-105' : ''}" data-item="${item.id}" ${!canAfford ? 'disabled' : ''}>
+                                    💰 ${item.cost}
+                                  </button>`
+                              }
+                            </div>
+                          </div>
+                        `
+                      }).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${clanTab === 'pass' ? `
+                  <div class="bg-gray-800 p-4 rounded-lg flex flex-col gap-3">
+                    <h3 class="text-white font-bold">🎖️ Clan Pass</h3>
+                    <p class="text-gray-400 text-sm">Earn XP by winning games and completing challenges to unlock clan rewards!</p>
+
+                    <!-- Current Level -->
+                    <div class="bg-gradient-to-r from-rose-900/50 to-purple-900/50 p-3 rounded-xl border border-rose-500/30">
+                      <div class="flex justify-between items-center mb-1">
+                        <span class="text-white font-bold">Level ${clan.stats.clanLevel || 1}</span>
+                        <span class="text-gray-400 text-xs">${clan.stats.clanXP || 0} / ${getClanLevelXP(clan.stats.clanLevel || 1)} XP</span>
+                      </div>
+                      <div class="bg-gray-800 rounded-full h-3 overflow-hidden">
+                        <div class="bg-gradient-to-r from-rose-500 to-purple-500 h-3 rounded-full" style="width:${Math.min(100, ((clan.stats.clanXP || 0) / getClanLevelXP(clan.stats.clanLevel || 1)) * 100)}%"></div>
+                      </div>
+                    </div>
+
+                    <!-- Tier Rewards -->
+                    <div class="flex flex-col gap-1.5">
+                      ${CLAN_PASS_TIERS.map(tier => {
+                        const clanLevel = clan.stats.clanLevel || 1
+                        const unlocked = clanLevel >= tier.level
+                        const current = clanLevel === tier.level
+                        return `
+                          <div class="flex items-center gap-3 p-2 rounded-lg ${current ? 'bg-rose-900/30 border border-rose-500/30' : unlocked ? 'bg-gray-700/30' : 'bg-gray-800/50 opacity-60'}">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${unlocked ? 'bg-gradient-to-r from-rose-500 to-purple-500 text-white' : 'bg-gray-700 text-gray-400'}">${tier.level}</div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center gap-2">
+                                <span class="text-lg">${tier.rewardIcon}</span>
+                                <span class="text-white text-sm font-bold">${tier.rewardDesc}</span>
+                              </div>
+                              <div class="text-gray-500 text-xs">${tier.xpRequired} XP needed</div>
+                            </div>
+                            ${unlocked ? '<span class="text-green-400 text-sm font-bold">✅</span>' : current ? '<span class="text-yellow-400 text-xs animate-pulse">⏳ In Progress</span>' : '🔒'}
+                          </div>
+                        `
+                      }).join('')}
                     </div>
                   </div>
                 ` : ''}
@@ -28089,6 +28364,25 @@ function render() {
             }
           }
         }
+
+        // Clan shop buy
+        document.querySelectorAll('.clan-shop-buy:not([disabled])').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const itemId = (e.currentTarget as HTMLElement).dataset.item
+            if (!itemId || !ud?.clanId) return
+            const item = CLAN_SHOP_ITEMS.find(i => i.id === itemId)
+            if (!item) return
+            if (confirm(`Buy ${item.name} for 💰${item.cost} clan coins?`)) {
+              const result = await buyClanShopItem(ud.clanId, itemId)
+              if (result.success) {
+                showShopPopup({ title: 'Purchased!', icon: item.icon, subtitle: item.name })
+                renderClanScreen()
+              } else {
+                alert(result.error || 'Failed')
+              }
+            }
+          })
+        })
 
         // Clan photo upload
         document.getElementById('clan-upload-photo')?.addEventListener('click', () => {
