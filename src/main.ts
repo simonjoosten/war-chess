@@ -1629,6 +1629,8 @@ let currentLanguage: Language = 'en'
 let showSettings = false
 let showManual = false
 let showCoach = false
+let showCredits = false
+let creditsTab: 'credits' | 'discord' | 'games' = 'credits'
 
 // Coach system - Enhanced with multiple question types, real board, and rewards
 type CoachLevel = 'beginner' | 'medium' | 'masters' | 'war_gods'
@@ -1702,7 +1704,7 @@ let musicEnabled = false
 let masterVolume = 0.8 // 0-1
 let musicVolume = 0.5 // 0-1
 let sfxVolume = 0.8 // 0-1
-type MusicStyle = 'epic' | 'ambient' | 'tension' | 'electronic' | 'orchestral' | 'retro'
+type MusicStyle = 'epic' | 'ambient' | 'tension' | 'electronic' | 'orchestral' | 'retro' | 'command_center' | 'briefing_room' | 'deploy' | 'stratagem' | 'encirclement' | 'assault' | 'last_stand' | 'barracks' | 'war_room'
 let musicStyle: MusicStyle = 'epic'
 let musicGainNode: GainNode | null = null
 let musicInterval: number | null = null
@@ -2198,14 +2200,35 @@ async function startMusic() {
     case 'synthwave':
       startSynthwaveMusic()
       break
+    case 'command_center':
+      startCommandCenterMusic()
+      break
+    case 'briefing_room':
+      startBriefingRoomMusic()
+      break
+    case 'deploy':
+      startDeployMusic()
+      break
+    case 'stratagem':
+      startStratagemMusic()
+      break
+    case 'encirclement':
+      startEncirclementMusic()
+      break
+    case 'assault':
+      startAssaultMusic()
+      break
+    case 'last_stand':
+      startLastStandMusic()
+      break
+    case 'barracks':
+      startBarracksMusic()
+      break
+    case 'war_room':
+      startWarRoomMusic()
+      break
     default: {
-      // Check if it's a custom music pack with musicParams
-      const customItem = SHOP_ITEMS.find(i => i.id === equippedMusicPack && i.musicParams)
-      if (customItem?.musicParams) {
-        startParametricMusic(customItem.musicParams)
-      } else {
-        startEpicMusic()
-      }
+      startEpicMusic()
       break
     }
   }
@@ -7546,6 +7569,1400 @@ function startSynthwaveMusic() {
   }, 4000)
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WAR CHESS SIGNATURE SOUNDTRACK - 12 pieces, cinematic military + chess
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Shared note frequencies for the War Chess soundtrack
+const WC_NOTES: Record<string, number> = {
+  A1: 55, Bb1: 58.27, B1: 61.74, C2: 65.41, D2: 73.42, Eb2: 77.78, E2: 82.41, F2: 87.31, G2: 98, Ab2: 103.83, A2: 110, Bb2: 116.54, B2: 123.47,
+  C3: 130.81, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61, G3: 196, Ab3: 207.65, A3: 220, Bb3: 233.08, B3: 246.94,
+  C4: 261.63, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23, G4: 392, Ab4: 415.30, A4: 440, Bb4: 466.16, B4: 493.88,
+  C5: 523.25, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880, Bb5: 932.33
+}
+
+// Shared reverb creator for the soundtrack
+function createWCReverb(decayTime: number, brightness: number = 2.5): ConvolverNode {
+  const conv = audioContext!.createConvolver()
+  const rate = audioContext!.sampleRate
+  const len = Math.floor(rate * decayTime)
+  const impulse = audioContext!.createBuffer(2, len, rate)
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch)
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, brightness)
+    }
+  }
+  conv.buffer = impulse
+  return conv
+}
+
+// ── 1. COMMAND CENTER ── Main Menu (90s loop, 85 BPM, D minor)
+function startCommandCenterMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 85
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(2.5)
+  const reverbGain = ctx.createGain()
+  reverbGain.gain.value = 0.25
+  reverb.connect(reverbGain)
+  reverbGain.connect(out)
+
+  // Deep strings pad (warm, wide)
+  function playPad(freqs: number[], t: number, dur: number, vol: number = 0.012) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach((freq, i) => {
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator()
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      o1.type = 'sawtooth'; o2.type = 'sawtooth'
+      o1.frequency.value = freq; o2.frequency.value = freq * 1.004
+      f.type = 'lowpass'; f.frequency.value = 900; f.Q.value = 0.7
+      g.gain.setValueAtTime(0.001, t + i * 0.08)
+      g.gain.linearRampToValueAtTime(vol, t + i * 0.08 + 1.5)
+      g.gain.setValueAtTime(vol * 0.8, t + dur - 2)
+      g.gain.linearRampToValueAtTime(0.001, t + dur)
+      o1.connect(f); o2.connect(f); f.connect(g)
+      g.connect(out); g.connect(reverb)
+      o1.start(t + i * 0.08); o2.start(t + i * 0.08)
+      o1.stop(t + dur + 0.5); o2.stop(t + dur + 0.5)
+    })
+  }
+
+  // Piano note with harmonics
+  function playPiano(freq: number, t: number, dur: number, vel: number = 0.7) {
+    if (!audioContext || !musicEnabled) return
+    const hGains = [1, 0.5, 0.25, 0.12, 0.06]
+    const nGain = ctx.createGain()
+    const flt = ctx.createBiquadFilter()
+    flt.type = 'lowpass'; flt.frequency.value = 3000 + vel * 2000; flt.Q.value = 0.5
+    hGains.forEach((hg, i) => {
+      const o = ctx.createOscillator(), og = ctx.createGain()
+      o.type = i === 0 ? 'triangle' : 'sine'
+      o.frequency.value = freq * (i + 1)
+      if (i > 0) o.detune.value = (i + 1) * 0.5
+      og.gain.value = hg * vel * 0.015
+      o.connect(og); og.connect(flt)
+      o.start(t); o.stop(t + dur + 0.5)
+    })
+    nGain.gain.setValueAtTime(0.001, t)
+    nGain.gain.linearRampToValueAtTime(vel * 0.12, t + 0.008)
+    nGain.gain.exponentialRampToValueAtTime(vel * 0.06, t + 0.15)
+    nGain.gain.exponentialRampToValueAtTime(0.001, t + dur)
+    flt.connect(nGain); nGain.connect(out); nGain.connect(reverb)
+  }
+
+  // Soft march snare roll
+  function playSnareRoll(t: number, dur: number, vol: number = 0.04) {
+    if (!audioContext || !musicEnabled) return
+    const count = Math.floor(dur / 0.12)
+    for (let i = 0; i < count; i++) {
+      const st = t + i * 0.12
+      const nb = ctx.createBufferSource()
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let j = 0; j < d.length; j++) d[j] = (Math.random() * 2 - 1) * Math.exp(-j / d.length * 4)
+      nb.buffer = buf
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      f.type = 'bandpass'; f.frequency.value = 3500; f.Q.value = 1.2
+      const v = vol * (0.7 + Math.random() * 0.3) * (1 - (i / count) * 0.3)
+      g.gain.setValueAtTime(0.001, st)
+      g.gain.linearRampToValueAtTime(v, st + 0.005)
+      g.gain.exponentialRampToValueAtTime(0.001, st + 0.05)
+      nb.connect(f); f.connect(g); g.connect(out)
+      nb.start(st); nb.stop(st + 0.08)
+    }
+  }
+
+  // Low brass drone
+  function playBrassDrone(freq: number, t: number, dur: number, vol: number = 0.02) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator()
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o2.type = 'sawtooth'
+    o.frequency.value = freq; o2.frequency.value = freq * 1.002
+    f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(vol, t + 2)
+    g.gain.setValueAtTime(vol * 0.8, t + dur - 3)
+    g.gain.linearRampToValueAtTime(0.001, t + dur)
+    o.connect(f); o2.connect(f); f.connect(g)
+    g.connect(out); g.connect(reverb)
+    o.start(t); o2.start(t); o.stop(t + dur + 0.5); o2.stop(t + dur + 0.5)
+  }
+
+  // D minor chord progression: Dm - Bb - Gm - A
+  const chords = [
+    [WC_NOTES.D2, WC_NOTES.F2, WC_NOTES.A2],
+    [WC_NOTES.Bb1, WC_NOTES.D2, WC_NOTES.F2],
+    [WC_NOTES.G2, WC_NOTES.Bb2, WC_NOTES.D3],
+    [WC_NOTES.A1, WC_NOTES.E2, WC_NOTES.A2],
+  ]
+  // Piano melody in D minor (high, sparse, heroic)
+  const melody = [
+    { n: 'D5', t: 0, d: 2 }, { n: 'F5', t: 2.5, d: 1.5 }, { n: 'E5', t: 4.5, d: 1 },
+    { n: 'D5', t: 6, d: 2 }, { n: 'A4', t: 9, d: 1.5 }, { n: 'Bb4', t: 11, d: 1 },
+    { n: 'A4', t: 13, d: 2 }, { n: 'G4', t: 16, d: 1.5 }, { n: 'A4', t: 18, d: 1 },
+    { n: 'Bb4', t: 19.5, d: 2 }, { n: 'A4', t: 22, d: 1 }, { n: 'F4', t: 24, d: 2 },
+    { n: 'G4', t: 27, d: 1.5 }, { n: 'A4', t: 29, d: 1 }, { n: 'D5', t: 31, d: 3 },
+  ]
+
+  const loopBeats = 32
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Pad: one chord per 8 beats
+    chords.forEach((ch, i) => playPad(ch, now + i * 8 * beat, 8 * beat))
+
+    // Brass drone on D
+    playBrassDrone(WC_NOTES.D2, now, loopDur)
+
+    // Piano melody
+    melody.forEach(m => {
+      const f = WC_NOTES[m.n]
+      if (f) playPiano(f, now + m.t * beat, m.d * beat, 0.5 + Math.random() * 0.15)
+    })
+
+    // Snare roll at end of loop (last 4 beats, soft)
+    playSnareRoll(now + 28 * beat, 4 * beat, 0.03)
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 2. BRIEFING ROOM ── Lobby / Waiting (60s loop, 70 BPM, A minor)
+function startBriefingRoomMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 70
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(3, 2)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.35
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Clock tick
+  function playTick(t: number, accent: boolean = false) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'sine'; o.frequency.value = accent ? 1200 : 900
+    f.type = 'highpass'; f.frequency.value = 600; f.Q.value = 2
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(accent ? 0.06 : 0.035, t + 0.002)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.06)
+    o.connect(f); f.connect(g); g.connect(out)
+    o.start(t); o.stop(t + 0.1)
+  }
+
+  // Dark ambient pad
+  function playDarkPad(freq: number, t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator()
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    o1.type = 'triangle'; o2.type = 'sine'
+    o1.frequency.value = freq; o2.frequency.value = freq * 2.001
+    f.type = 'lowpass'; f.frequency.value = 500; f.Q.value = 0.5
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.018, t + 3)
+    g.gain.linearRampToValueAtTime(0.001, t + dur)
+    o1.connect(f); o2.connect(f); f.connect(g)
+    g.connect(out); g.connect(reverb)
+    o1.start(t); o2.start(t); o1.stop(t + dur + 0.5); o2.stop(t + dur + 0.5)
+  }
+
+  // Sparse low piano
+  function playLowPiano(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'triangle'; o.frequency.value = freq
+    f.type = 'lowpass'; f.frequency.value = 1500; f.Q.value = 0.5
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.02, t + 0.3)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 3)
+    o.connect(f); f.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); o.stop(t + 4)
+  }
+
+  // Radio static (very subtle)
+  function playStatic(t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() > 0.995 ? (Math.random() * 2 - 1) * 0.15 : 0
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'bandpass'; f.frequency.value = 2000; f.Q.value = 3
+    g.gain.value = 0.015
+    src.connect(f); f.connect(g); g.connect(out)
+    src.start(t); src.stop(t + dur)
+  }
+
+  const loopBeats = 16
+  const loopDur = loopBeats * beat
+
+  // A minor notes for sparse piano: A2, E3, C3, occasionally D3
+  const pianoNotes = [
+    { n: WC_NOTES.A2, t: 0 }, { n: WC_NOTES.E3, t: 5 },
+    { n: WC_NOTES.C3, t: 10 }, { n: WC_NOTES.D3, t: 14 },
+  ]
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Clock ticks every beat
+    for (let i = 0; i < loopBeats; i++) {
+      playTick(now + i * beat, i % 4 === 0)
+    }
+
+    // Dark pad on A
+    playDarkPad(WC_NOTES.A2, now, loopDur)
+
+    // Sparse piano notes
+    pianoNotes.forEach(p => playLowPiano(p.n, now + p.t * beat))
+
+    // Radio static wash
+    playStatic(now, loopDur)
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 3. DEPLOY ── Game Start / First Moves (120s loop, 95 BPM, E minor)
+function startDeployMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 95
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(2)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.2
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Pizzicato pluck (short triangle)
+  function playPluck(freq: number, t: number, vel: number = 0.6) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'triangle'; o.frequency.value = freq
+    f.type = 'lowpass'; f.frequency.value = 3000; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(vel * 0.1, t + 0.005)
+    g.gain.exponentialRampToValueAtTime(vel * 0.03, t + 0.08)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
+    o.connect(f); f.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); o.stop(t + 0.5)
+  }
+
+  // Cello drone
+  function playCelloDrone(freq: number, t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator()
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    o1.type = 'sawtooth'; o2.type = 'sawtooth'
+    o1.frequency.value = freq; o2.frequency.value = freq * 1.003
+    // Vibrato
+    const lfo = ctx.createOscillator(), lfoG = ctx.createGain()
+    lfo.type = 'sine'; lfo.frequency.value = 5.2
+    lfoG.gain.value = freq * 0.008
+    lfo.connect(lfoG); lfoG.connect(o1.frequency)
+    f.type = 'lowpass'; f.frequency.value = 700; f.Q.value = 0.8
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.02, t + 2)
+    g.gain.setValueAtTime(0.018, t + dur - 3)
+    g.gain.linearRampToValueAtTime(0.001, t + dur)
+    o1.connect(f); o2.connect(f); f.connect(g)
+    g.connect(out); g.connect(reverb)
+    o1.start(t); o2.start(t); lfo.start(t)
+    o1.stop(t + dur + 0.5); o2.stop(t + dur + 0.5); lfo.stop(t + dur + 0.5)
+  }
+
+  // Soft kick
+  function playKick(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(90, t)
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.12)
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.07, t + 0.005)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.25)
+    o.connect(g); g.connect(out)
+    o.start(t); o.stop(t + 0.3)
+  }
+
+  // Harp arpeggio
+  function playHarpArp(freqs: number[], t: number) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach((freq, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.type = 'sine'; o.frequency.value = freq
+      const st = t + i * 0.08
+      g.gain.setValueAtTime(0.001, st)
+      g.gain.linearRampToValueAtTime(0.04, st + 0.005)
+      g.gain.exponentialRampToValueAtTime(0.001, st + 1.2)
+      o.connect(g); g.connect(out); g.connect(reverb)
+      o.start(st); o.stop(st + 1.5)
+    })
+  }
+
+  // E minor pizzicato pattern
+  const pluckPattern = [
+    { n: WC_NOTES.E3, t: 0 }, { n: WC_NOTES.G3, t: 1 }, { n: WC_NOTES.B3, t: 2 }, { n: WC_NOTES.E4, t: 3 },
+    { n: WC_NOTES.D4, t: 4 }, { n: WC_NOTES.B3, t: 5 }, { n: WC_NOTES.G3, t: 6 }, { n: WC_NOTES.A3, t: 7 },
+    { n: WC_NOTES.B3, t: 8 }, { n: WC_NOTES.D4, t: 9 }, { n: WC_NOTES.E4, t: 10 }, { n: WC_NOTES.G4, t: 11 },
+    { n: WC_NOTES.F4, t: 12.5 }, { n: WC_NOTES.E4, t: 13.5 }, { n: WC_NOTES.D4, t: 14.5 }, { n: WC_NOTES.B3, t: 15.5 },
+  ]
+
+  const loopBeats = 32
+  const loopDur = loopBeats * beat
+  const phase4Beats = 8
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+    const phase = measureCount % 4
+
+    // Phase 0: plucks only
+    // Phase 1: + cello drone
+    // Phase 2: + kick on 1 and 3
+    // Phase 3: + harp arpeggio
+
+    // Plucks always (2 rounds of 16-beat pattern)
+    for (let r = 0; r < 2; r++) {
+      pluckPattern.forEach(p => {
+        playPluck(p.n, now + (r * 16 + p.t) * beat, 0.4 + Math.random() * 0.2)
+      })
+    }
+
+    // Phase 1+: cello drone on E
+    if (phase >= 1) playCelloDrone(WC_NOTES.E2, now, loopDur)
+
+    // Phase 2+: soft kick on beat 1 and 3
+    if (phase >= 2) {
+      for (let i = 0; i < loopBeats; i += 2) playKick(now + i * beat)
+    }
+
+    // Phase 3: harp arpeggios every 8 beats
+    if (phase >= 3) {
+      playHarpArp([WC_NOTES.E4, WC_NOTES.G4, WC_NOTES.B4, WC_NOTES.E5], now)
+      playHarpArp([WC_NOTES.D4, WC_NOTES.G4, WC_NOTES.B4, WC_NOTES.D5], now + 8 * beat)
+      playHarpArp([WC_NOTES.C4, WC_NOTES.E4, WC_NOTES.A4, WC_NOTES.C5], now + 16 * beat)
+      playHarpArp([WC_NOTES.B3, WC_NOTES.E4, WC_NOTES.G4, WC_NOTES.B4], now + 24 * beat)
+    }
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 4. STRATAGEM ── Mid-game / Deep Thinking (180s loop, 80 BPM, C minor)
+function startStratagemMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 80
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(3.5, 2)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.4
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Piano chord (soft, spacious)
+  function playChord(freqs: number[], t: number, dur: number, vel: number = 0.5) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach((freq, i) => {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator()
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      o.type = 'triangle'; o2.type = 'sine'
+      o.frequency.value = freq; o2.frequency.value = freq * 2
+      o2.detune.value = 1
+      f.type = 'lowpass'; f.frequency.value = 2500; f.Q.value = 0.5
+      const st = t + i * 0.03
+      g.gain.setValueAtTime(0.001, st)
+      g.gain.linearRampToValueAtTime(vel * 0.04, st + 0.01)
+      g.gain.exponentialRampToValueAtTime(vel * 0.02, st + 0.2)
+      g.gain.exponentialRampToValueAtTime(0.001, st + dur)
+      o.connect(f); o2.connect(f); f.connect(g)
+      g.connect(out); g.connect(reverb)
+      o.start(st); o2.start(st)
+      o.stop(st + dur + 0.5); o2.stop(st + dur + 0.5)
+    })
+  }
+
+  // Strings swell
+  function playStringSwell(freqs: number[], t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach((freq, i) => {
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator()
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      o1.type = 'sawtooth'; o2.type = 'sawtooth'
+      o1.frequency.value = freq; o2.frequency.value = freq * 1.004
+      f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 0.5
+      // Slow swell in, slow out
+      g.gain.setValueAtTime(0.001, t)
+      g.gain.linearRampToValueAtTime(0.008, t + dur * 0.4)
+      g.gain.linearRampToValueAtTime(0.006, t + dur * 0.7)
+      g.gain.linearRampToValueAtTime(0.001, t + dur)
+      o1.connect(f); o2.connect(f); f.connect(g)
+      g.connect(out); g.connect(reverb)
+      o1.start(t); o2.start(t)
+      o1.stop(t + dur + 0.5); o2.stop(t + dur + 0.5)
+    })
+  }
+
+  // Clock tick (eighth notes, very soft)
+  function playClockTick(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'sine'; o.frequency.value = 1000
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.02, t + 0.001)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.03)
+    o.connect(g); g.connect(out)
+    o.start(t); o.stop(t + 0.05)
+  }
+
+  // Horn accent (single note, far away)
+  function playHornAccent(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o.frequency.value = freq
+    f.type = 'lowpass'; f.frequency.value = 800; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.025, t + 0.5)
+    g.gain.linearRampToValueAtTime(0.02, t + 1.5)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 3)
+    o.connect(f); f.connect(g); g.connect(reverb)
+    o.start(t); o.stop(t + 4)
+  }
+
+  // Cm - Ab - Fm - G chord progression (dark, classical)
+  const chordProg = [
+    { freqs: [WC_NOTES.C4, WC_NOTES.Eb4, WC_NOTES.G4], t: 0 },
+    { freqs: [WC_NOTES.Ab3, WC_NOTES.C4, WC_NOTES.Eb4], t: 8 },
+    { freqs: [WC_NOTES.F3, WC_NOTES.Ab3, WC_NOTES.C4], t: 16 },
+    { freqs: [WC_NOTES.G3, WC_NOTES.B3, WC_NOTES.D4], t: 24 },
+  ]
+
+  const loopBeats = 32
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Piano chords - sparse, with silence between
+    chordProg.forEach(c => {
+      playChord(c.freqs, now + c.t * beat, 5 * beat, 0.4 + Math.random() * 0.1)
+    })
+
+    // Strings swell on Cm at bar 2 and Ab at bar 4
+    playStringSwell([WC_NOTES.C3, WC_NOTES.Eb3, WC_NOTES.G3], now + 4 * beat, 12 * beat)
+    playStringSwell([WC_NOTES.Ab2, WC_NOTES.C3, WC_NOTES.Eb3], now + 20 * beat, 10 * beat)
+
+    // Clock ticks on eighth notes
+    for (let i = 0; i < loopBeats * 2; i++) {
+      playClockTick(now + i * beat * 0.5)
+    }
+
+    // Horn accent - once, at a surprising moment
+    const hornBeat = 13 + Math.floor(Math.random() * 4)
+    playHornAccent(WC_NOTES.G3, now + hornBeat * beat)
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 5. ENCIRCLEMENT ── Tension Rising (120s loop, 100 BPM, G minor)
+function startEncirclementMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 100
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(1.8)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.2
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Heartbeat kick
+  function playHeartbeat(t: number, vol: number = 0.08) {
+    if (!audioContext || !musicEnabled) return
+    // Double thump: lub-dub
+    for (let i = 0; i < 2; i++) {
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.type = 'sine'
+      const st = t + i * 0.18
+      o.frequency.setValueAtTime(i === 0 ? 80 : 60, st)
+      o.frequency.exponentialRampToValueAtTime(30, st + 0.15)
+      g.gain.setValueAtTime(0.001, st)
+      g.gain.linearRampToValueAtTime(vol * (i === 0 ? 1 : 0.6), st + 0.005)
+      g.gain.exponentialRampToValueAtTime(0.001, st + 0.2)
+      o.connect(g); g.connect(out)
+      o.start(st); o.stop(st + 0.3)
+    }
+  }
+
+  // Tremolo strings
+  function playTremoloStrings(freqs: number[], t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach(freq => {
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator()
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      const lfo = ctx.createOscillator(), lfoG = ctx.createGain()
+      o1.type = 'sawtooth'; o2.type = 'sawtooth'
+      o1.frequency.value = freq; o2.frequency.value = freq * 1.003
+      lfo.type = 'sine'; lfo.frequency.value = 8
+      lfoG.gain.value = 0.006
+      lfo.connect(lfoG); lfoG.connect(g.gain)
+      f.type = 'lowpass'
+      f.frequency.setValueAtTime(400, t)
+      f.frequency.linearRampToValueAtTime(1500, t + dur) // Filter opens over time
+      f.Q.value = 0.8
+      g.gain.setValueAtTime(0.001, t)
+      g.gain.linearRampToValueAtTime(0.012, t + 2)
+      g.gain.linearRampToValueAtTime(0.001, t + dur)
+      o1.connect(f); o2.connect(f); f.connect(g)
+      g.connect(out); g.connect(reverb)
+      o1.start(t); o2.start(t); lfo.start(t)
+      o1.stop(t + dur + 0.5); o2.stop(t + dur + 0.5); lfo.stop(t + dur + 0.5)
+    })
+  }
+
+  // Brass stab (short, off-beat)
+  function playBrassStab(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o.frequency.value = freq
+    f.type = 'lowpass'; f.frequency.value = 1200; f.Q.value = 1.5
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.05, t + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.3)
+    o.connect(f); f.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); o.stop(t + 0.4)
+  }
+
+  // Hi-hat pattern
+  function playHiHat(t: number, open: boolean = false) {
+    if (!audioContext || !musicEnabled) return
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * (open ? 0.1 : 0.03)), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * (open ? 3 : 8))
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'highpass'; f.frequency.value = open ? 7000 : 9000
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(open ? 0.04 : 0.05, t + 0.002)
+    g.gain.exponentialRampToValueAtTime(0.001, t + (open ? 0.08 : 0.025))
+    src.connect(f); f.connect(g); g.connect(out)
+    src.start(t); src.stop(t + 0.15)
+  }
+
+  // Gm - Eb - Cm - D chord bases
+  const chords = [
+    [WC_NOTES.G2, WC_NOTES.Bb2, WC_NOTES.D3],
+    [WC_NOTES.Eb2, WC_NOTES.G2, WC_NOTES.Bb2],
+    [WC_NOTES.C2, WC_NOTES.Eb2, WC_NOTES.G2],
+    [WC_NOTES.D2, WC_NOTES.A2, WC_NOTES.D3],
+  ]
+
+  const loopBeats = 32
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Heartbeat every 2 beats
+    for (let i = 0; i < loopBeats; i += 2) playHeartbeat(now + i * beat)
+
+    // Tremolo strings - one chord per 8 beats, filter opens
+    chords.forEach((ch, i) => playTremoloStrings(ch, now + i * 8 * beat, 8 * beat))
+
+    // Brass stabs on off-beats (beat 1.5, 5.5, etc.)
+    const stabBeats = [1.5, 5.5, 9.5, 17.5, 21.5, 25.5]
+    const stabNotes = [WC_NOTES.D3, WC_NOTES.Bb2, WC_NOTES.G2, WC_NOTES.D3, WC_NOTES.Eb3, WC_NOTES.D3]
+    stabBeats.forEach((b, i) => playBrassStab(stabNotes[i], now + b * beat))
+
+    // Hi-hats on eighth notes
+    for (let i = 0; i < loopBeats * 2; i++) {
+      playHiHat(now + i * beat * 0.5, i % 4 === 3)
+    }
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 6. ASSAULT ── Full Battle (90s loop, 120 BPM, D minor)
+function startAssaultMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 120
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(1.2, 3)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.15
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // March kick
+  function playKick(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(120, t)
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.1)
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.12, t + 0.005)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2)
+    o.connect(g); g.connect(out)
+    o.start(t); o.stop(t + 0.25)
+  }
+
+  // Tight snare
+  function playSnare(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'triangle'; o.frequency.value = 180
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.08, t + 0.003)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1)
+    o.connect(g); g.connect(out)
+    o.start(t); o.stop(t + 0.15)
+    // Noise component
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * 5)
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const ng = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'bandpass'; f.frequency.value = 3500; f.Q.value = 1.5
+    ng.gain.setValueAtTime(0.001, t)
+    ng.gain.linearRampToValueAtTime(0.1, t + 0.002)
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.07)
+    src.connect(f); f.connect(ng); ng.connect(out)
+    src.start(t); src.stop(t + 0.12)
+  }
+
+  // Aggressive strings riff
+  function playStringRiff(freqs: number[], t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach(freq => {
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator()
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      o1.type = 'sawtooth'; o2.type = 'sawtooth'; o3.type = 'sawtooth'
+      o1.frequency.value = freq; o2.frequency.value = freq * 1.005; o3.frequency.value = freq * 0.995
+      f.type = 'lowpass'; f.frequency.value = 2000; f.Q.value = 1
+      g.gain.setValueAtTime(0.001, t)
+      g.gain.linearRampToValueAtTime(0.015, t + 0.05)
+      g.gain.setValueAtTime(0.012, t + dur - 0.1)
+      g.gain.linearRampToValueAtTime(0.001, t + dur)
+      o1.connect(f); o2.connect(f); o3.connect(f); f.connect(g)
+      g.connect(out); g.connect(reverb)
+      o1.start(t); o2.start(t); o3.start(t)
+      o1.stop(t + dur + 0.3); o2.stop(t + dur + 0.3); o3.stop(t + dur + 0.3)
+    })
+  }
+
+  // Brass fanfare stab
+  function playBrassFanfare(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o.frequency.value = freq
+    f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 2
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.03)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5)
+    o.connect(f); f.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); o.stop(t + 0.6)
+  }
+
+  // Bass pulse
+  function playBass(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'triangle'; o.frequency.value = freq
+    f.type = 'lowpass'; f.frequency.value = 300; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.08, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.9)
+    o.connect(f); f.connect(g); g.connect(out)
+    o.start(t); o.stop(t + beat)
+  }
+
+  // Crash cymbal
+  function playCrash(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.8), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * 3)
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'highpass'; f.frequency.value = 4000
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.6)
+    src.connect(f); f.connect(g); g.connect(out); g.connect(reverb)
+    src.start(t); src.stop(t + 0.9)
+  }
+
+  // Dm - Bb - Gm - A - Dm - C - Bb - A (march pattern)
+  const bassNotes = [WC_NOTES.D2, WC_NOTES.D2, WC_NOTES.Bb1, WC_NOTES.Bb1, WC_NOTES.G2, WC_NOTES.G2, WC_NOTES.A1, WC_NOTES.A1]
+  const stringChords = [
+    [WC_NOTES.D3, WC_NOTES.F3, WC_NOTES.A3],
+    [WC_NOTES.Bb2, WC_NOTES.D3, WC_NOTES.F3],
+    [WC_NOTES.G2, WC_NOTES.Bb2, WC_NOTES.D3],
+    [WC_NOTES.A2, WC_NOTES.E3, WC_NOTES.A3],
+  ]
+
+  const loopBeats = 32
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // March drums: kick on 1,3 - snare on 2,4
+    for (let i = 0; i < loopBeats; i++) {
+      if (i % 2 === 0) playKick(now + i * beat)
+      if (i % 2 === 1) playSnare(now + i * beat)
+    }
+
+    // Bass on every beat
+    for (let i = 0; i < loopBeats; i++) {
+      playBass(bassNotes[i % 8], now + i * beat)
+    }
+
+    // String riff - chord per 8 beats
+    stringChords.forEach((ch, i) => playStringRiff(ch, now + i * 8 * beat, 7.5 * beat))
+
+    // Brass fanfare on beat 1 of each 8-bar group
+    playBrassFanfare(WC_NOTES.D4, now)
+    playBrassFanfare(WC_NOTES.Bb3, now + 8 * beat)
+    playBrassFanfare(WC_NOTES.D4, now + 16 * beat)
+    playBrassFanfare(WC_NOTES.A3, now + 24 * beat)
+
+    // Crash at start and halfway
+    playCrash(now)
+    playCrash(now + 16 * beat)
+
+    // Snare roll fill last 2 beats of section
+    for (let i = 0; i < 8; i++) {
+      playSnare(now + (loopBeats - 2) * beat + i * beat * 0.25)
+    }
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 7. LAST STAND ── Critical Moment (60s loop, 110 BPM, F minor)
+function startLastStandMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 110
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(2, 2)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.25
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Heavy timpani
+  function playTimpani(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'sine'
+    o.frequency.setValueAtTime(freq, t)
+    o.frequency.exponentialRampToValueAtTime(freq * 0.7, t + 0.3)
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.15, t + 0.008)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.8)
+    o.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); o.stop(t + 1)
+  }
+
+  // High violin tremolo (anxious)
+  function playViolinTremolo(freq: number, t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    const lfo = ctx.createOscillator(), lfoG = ctx.createGain()
+    o.type = 'sawtooth'; o.frequency.value = freq
+    lfo.type = 'sine'; lfo.frequency.value = 10
+    lfoG.gain.value = 0.008
+    lfo.connect(lfoG); lfoG.connect(g.gain)
+    f.type = 'lowpass'; f.frequency.value = 3000; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.015, t + 0.3)
+    g.gain.setValueAtTime(0.012, t + dur - 0.5)
+    g.gain.linearRampToValueAtTime(0.001, t + dur)
+    o.connect(f); f.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); lfo.start(t)
+    o.stop(t + dur + 0.3); lfo.stop(t + dur + 0.3)
+  }
+
+  // Brass drone (threatening)
+  function playThreatDrone(freq: number, t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator()
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o2.type = 'sawtooth'
+    o.frequency.value = freq; o2.frequency.value = freq * 1.002
+    f.type = 'lowpass'; f.frequency.value = 500; f.Q.value = 1.5
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.025, t + 1)
+    g.gain.setValueAtTime(0.02, t + dur - 1.5)
+    g.gain.linearRampToValueAtTime(0.001, t + dur)
+    o.connect(f); o2.connect(f); f.connect(g)
+    g.connect(out); g.connect(reverb)
+    o.start(t); o2.start(t); o.stop(t + dur + 0.3); o2.stop(t + dur + 0.3)
+  }
+
+  // Falling piano notes (urgent)
+  function playFallingPiano(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const notes = [WC_NOTES.F5, WC_NOTES.Eb5, WC_NOTES.C5, WC_NOTES.Ab4, WC_NOTES.F4, WC_NOTES.Eb4, WC_NOTES.C4]
+    notes.forEach((freq, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.type = 'triangle'; o.frequency.value = freq
+      const st = t + i * 0.15
+      g.gain.setValueAtTime(0.001, st)
+      g.gain.linearRampToValueAtTime(0.06, st + 0.005)
+      g.gain.exponentialRampToValueAtTime(0.001, st + 0.5)
+      o.connect(g); g.connect(out); g.connect(reverb)
+      o.start(st); o.stop(st + 0.6)
+    })
+  }
+
+  const loopBeats = 24
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Timpani pattern: heavy, irregular
+    const timpBeats = [0, 1.5, 3, 6, 8, 9.5, 12, 14, 16, 18, 19.5, 21]
+    const timpFreqs = [80, 65, 80, 100, 80, 65, 90, 80, 65, 80, 100, 65]
+    timpBeats.forEach((b, i) => playTimpani(timpFreqs[i], now + b * beat))
+
+    // High violin tremolo - dissonant: F5 + E5 (minor 2nd = tension)
+    playViolinTremolo(WC_NOTES.F5, now, loopDur)
+    playViolinTremolo(WC_NOTES.E5, now + 2 * beat, loopDur - 3 * beat)
+
+    // Threatening brass drone on F + B (tritone = maximum tension)
+    playThreatDrone(WC_NOTES.F2, now, loopDur)
+    playThreatDrone(WC_NOTES.B2, now + 4 * beat, loopDur - 5 * beat)
+
+    // Falling piano at bar 3 and bar 5
+    playFallingPiano(now + 8 * beat)
+    playFallingPiano(now + 16 * beat)
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 8. VICTORY MARCH ── Win Jingle (15s, one-shot, 130 BPM, D major)
+function playVictoryMarch() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 130
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(2.5)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.3
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  const now = ctx.currentTime
+
+  // Snare roll intro
+  for (let i = 0; i < 12; i++) {
+    const t = now + i * 0.06
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let j = 0; j < d.length; j++) d[j] = (Math.random() * 2 - 1) * Math.exp(-j / d.length * 6)
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'bandpass'; f.frequency.value = 3500; f.Q.value = 1
+    const vol = 0.03 + (i / 12) * 0.06
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(vol, t + 0.003)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04)
+    src.connect(f); f.connect(g); g.connect(out)
+    src.start(t); src.stop(t + 0.06)
+  }
+
+  // Brass fanfare: D5 → F#5 → A5 (D major triad ascending)
+  const fanfare = [
+    { f: WC_NOTES.D4, t: 0.8 }, { f: 370, t: 1.3 }, { f: WC_NOTES.A4, t: 1.8 }, { f: WC_NOTES.D5, t: 2.5 }
+  ]
+  fanfare.forEach(n => {
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const fl = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o.frequency.value = n.f
+    fl.type = 'bandpass'; fl.frequency.value = 1500; fl.Q.value = 2
+    g.gain.setValueAtTime(0.001, now + n.t)
+    g.gain.linearRampToValueAtTime(0.07, now + n.t + 0.05)
+    g.gain.setValueAtTime(0.06, now + n.t + 0.3)
+    g.gain.exponentialRampToValueAtTime(0.001, now + n.t + 1.5)
+    o.connect(fl); fl.connect(g); g.connect(out); g.connect(reverb)
+    o.start(now + n.t); o.stop(now + n.t + 2)
+  })
+
+  // Strings swell - D major chord
+  const swell = [WC_NOTES.D3, 370 / 2, WC_NOTES.A3, WC_NOTES.D4]
+  swell.forEach(freq => {
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator()
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    o1.type = 'sawtooth'; o2.type = 'sawtooth'
+    o1.frequency.value = freq; o2.frequency.value = freq * 1.003
+    f.type = 'lowpass'; f.frequency.value = 1500; f.Q.value = 0.7
+    g.gain.setValueAtTime(0.001, now + 2.5)
+    g.gain.linearRampToValueAtTime(0.015, now + 4)
+    g.gain.linearRampToValueAtTime(0.001, now + 8)
+    o1.connect(f); o2.connect(f); f.connect(g)
+    g.connect(out); g.connect(reverb)
+    o1.start(now + 2.5); o2.start(now + 2.5)
+    o1.stop(now + 9); o2.stop(now + 9)
+  })
+
+  // Final crash
+  const crashBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 1.5), ctx.sampleRate)
+  const cd = crashBuf.getChannelData(0)
+  for (let i = 0; i < cd.length; i++) cd[i] = (Math.random() * 2 - 1) * Math.exp(-i / cd.length * 2)
+  const crashSrc = ctx.createBufferSource()
+  crashSrc.buffer = crashBuf
+  const cg = ctx.createGain(), cf = ctx.createBiquadFilter()
+  cf.type = 'highpass'; cf.frequency.value = 3000
+  cg.gain.setValueAtTime(0.001, now + 2.5)
+  cg.gain.linearRampToValueAtTime(0.08, now + 2.55)
+  cg.gain.exponentialRampToValueAtTime(0.001, now + 6)
+  crashSrc.connect(cf); cf.connect(cg); cg.connect(out); cg.connect(reverb)
+  crashSrc.start(now + 2.5); crashSrc.stop(now + 7)
+}
+
+// ── 9. FALLEN COMMANDER ── Loss Jingle (12s, one-shot, 60 BPM, D minor)
+function playFallenCommander() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+
+  const reverb = createWCReverb(4, 1.5)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.5
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  const now = ctx.currentTime
+
+  // Low cello drone on D
+  const cd1 = ctx.createOscillator(), cd2 = ctx.createOscillator()
+  const cg = ctx.createGain(), cf = ctx.createBiquadFilter()
+  cd1.type = 'sawtooth'; cd2.type = 'sawtooth'
+  cd1.frequency.value = WC_NOTES.D2; cd2.frequency.value = WC_NOTES.D2 * 1.003
+  cf.type = 'lowpass'; cf.frequency.value = 400; cf.Q.value = 0.8
+  cg.gain.setValueAtTime(0.001, now)
+  cg.gain.linearRampToValueAtTime(0.025, now + 1)
+  cg.gain.linearRampToValueAtTime(0.02, now + 6)
+  cg.gain.linearRampToValueAtTime(0.001, now + 10)
+  cd1.connect(cf); cd2.connect(cf); cf.connect(cg)
+  cg.connect(out); cg.connect(reverb)
+  cd1.start(now); cd2.start(now); cd1.stop(now + 11); cd2.stop(now + 11)
+
+  // Three descending piano notes: F4 → D4 → A3
+  const descent = [
+    { f: WC_NOTES.F4, t: 1 }, { f: WC_NOTES.D4, t: 2.5 }, { f: WC_NOTES.A3, t: 4 }
+  ]
+  descent.forEach(n => {
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'triangle'; o.frequency.value = n.f
+    g.gain.setValueAtTime(0.001, now + n.t)
+    g.gain.linearRampToValueAtTime(0.08, now + n.t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.03, now + n.t + 0.3)
+    g.gain.exponentialRampToValueAtTime(0.001, now + n.t + 3)
+    o.connect(g); g.connect(out); g.connect(reverb)
+    o.start(now + n.t); o.stop(now + n.t + 4)
+  })
+
+  // Snare roll fading out
+  for (let i = 0; i < 20; i++) {
+    const t = now + 5 + i * 0.15
+    const vol = 0.04 * (1 - i / 20)
+    if (vol < 0.003) continue
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.05), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let j = 0; j < d.length; j++) d[j] = (Math.random() * 2 - 1) * Math.exp(-j / d.length * 6)
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'bandpass'; f.frequency.value = 3000; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(vol, t + 0.003)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04)
+    src.connect(f); f.connect(g); g.connect(out)
+    src.start(t); src.stop(t + 0.06)
+  }
+}
+
+// ── 10. BARRACKS ── Clan / Social Screen (90s loop, 90 BPM, G major)
+function startBarracksMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 90
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(2)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.25
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Acoustic guitar pluck (warm triangle)
+  function playGuitar(freq: number, t: number, vel: number = 0.6) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator()
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    o.type = 'triangle'; o2.type = 'sine'
+    o.frequency.value = freq; o2.frequency.value = freq * 2
+    f.type = 'lowpass'; f.frequency.value = 2500; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(vel * 0.08, t + 0.005)
+    g.gain.exponentialRampToValueAtTime(vel * 0.03, t + 0.15)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.8)
+    o.connect(f); o2.connect(f); f.connect(g)
+    g.connect(out); g.connect(reverb)
+    o.start(t); o2.start(t); o.stop(t + 1); o2.stop(t + 1)
+  }
+
+  // Brushed snare (very soft)
+  function playBrush(t: number) {
+    if (!audioContext || !musicEnabled) return
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.15), ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * 3) * 0.3
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const g = ctx.createGain(), f = ctx.createBiquadFilter()
+    f.type = 'bandpass'; f.frequency.value = 2500; f.Q.value = 0.8
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.025, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.12)
+    src.connect(f); f.connect(g); g.connect(out)
+    src.start(t); src.stop(t + 0.2)
+  }
+
+  // Bass note
+  function playBassNote(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    o.type = 'triangle'; o.frequency.value = freq
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.06, t + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.8)
+    o.connect(g); g.connect(out)
+    o.start(t); o.stop(t + beat * 2)
+  }
+
+  // Flute melody (sine + vibrato)
+  function playFlute(freq: number, t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const lfo = ctx.createOscillator(), lfoG = ctx.createGain()
+    o.type = 'sine'; o.frequency.value = freq
+    lfo.type = 'sine'; lfo.frequency.value = 5.5
+    lfoG.gain.value = freq * 0.012
+    lfo.connect(lfoG); lfoG.connect(o.frequency)
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.04, t + 0.1)
+    g.gain.setValueAtTime(0.035, t + dur - 0.2)
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur)
+    o.connect(g); g.connect(out); g.connect(reverb)
+    o.start(t); lfo.start(t); o.stop(t + dur + 0.3); lfo.stop(t + dur + 0.3)
+  }
+
+  // G major guitar pattern: G - Em - C - D
+  const guitarPattern = [
+    // G chord arpeggio
+    { n: WC_NOTES.G3, t: 0 }, { n: WC_NOTES.B3, t: 0.5 }, { n: WC_NOTES.D4, t: 1 }, { n: WC_NOTES.G4, t: 1.5 },
+    { n: WC_NOTES.D4, t: 2 }, { n: WC_NOTES.B3, t: 2.5 }, { n: WC_NOTES.G3, t: 3 }, { n: WC_NOTES.B3, t: 3.5 },
+    // Em chord
+    { n: WC_NOTES.E3, t: 4 }, { n: WC_NOTES.G3, t: 4.5 }, { n: WC_NOTES.B3, t: 5 }, { n: WC_NOTES.E4, t: 5.5 },
+    { n: WC_NOTES.B3, t: 6 }, { n: WC_NOTES.G3, t: 6.5 }, { n: WC_NOTES.E3, t: 7 }, { n: WC_NOTES.G3, t: 7.5 },
+    // C chord
+    { n: WC_NOTES.C4, t: 8 }, { n: WC_NOTES.E4, t: 8.5 }, { n: WC_NOTES.G4, t: 9 }, { n: WC_NOTES.C5, t: 9.5 },
+    { n: WC_NOTES.G4, t: 10 }, { n: WC_NOTES.E4, t: 10.5 }, { n: WC_NOTES.C4, t: 11 }, { n: WC_NOTES.E4, t: 11.5 },
+    // D chord
+    { n: WC_NOTES.D4, t: 12 }, { n: WC_NOTES.A3, t: 12.5 }, { n: WC_NOTES.D4, t: 13 }, { n: WC_NOTES.A4, t: 13.5 },
+    { n: WC_NOTES.D4, t: 14 }, { n: WC_NOTES.A3, t: 14.5 }, { n: WC_NOTES.D4, t: 15 }, { n: WC_NOTES.A3, t: 15.5 },
+  ]
+
+  const bassPattern = [
+    { n: WC_NOTES.G2, t: 0 }, { n: WC_NOTES.G2, t: 2 },
+    { n: WC_NOTES.E2, t: 4 }, { n: WC_NOTES.E2, t: 6 },
+    { n: WC_NOTES.C3, t: 8 }, { n: WC_NOTES.C3, t: 10 },
+    { n: WC_NOTES.D3, t: 12 }, { n: WC_NOTES.D3, t: 14 },
+  ]
+
+  // Flute melody floating above (G major, lyrical)
+  const fluteMelody = [
+    { n: WC_NOTES.B4, t: 0, d: 2 }, { n: WC_NOTES.A4, t: 2.5, d: 1.5 },
+    { n: WC_NOTES.G4, t: 4.5, d: 2 }, { n: WC_NOTES.A4, t: 7, d: 1 },
+    { n: WC_NOTES.B4, t: 8.5, d: 1.5 }, { n: WC_NOTES.D5, t: 10.5, d: 2 },
+    { n: WC_NOTES.C5, t: 13, d: 1.5 }, { n: WC_NOTES.B4, t: 15, d: 1 },
+  ]
+
+  const loopBeats = 16
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Guitar arpeggios
+    guitarPattern.forEach(p => playGuitar(p.n, now + p.t * beat, 0.4 + Math.random() * 0.15))
+
+    // Bass
+    bassPattern.forEach(p => playBassNote(p.n, now + p.t * beat))
+
+    // Brushed snare on 2 and 4
+    for (let i = 0; i < loopBeats; i++) {
+      if (i % 4 === 1 || i % 4 === 3) playBrush(now + i * beat)
+    }
+
+    // Flute melody (only every other section for breathing room)
+    if (measureCount % 2 === 1) {
+      fluteMelody.forEach(m => playFlute(m.n, now + m.t * beat, m.d * beat))
+    }
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 11. WAR ROOM ── Profile / Stats (60s loop, 75 BPM, A minor)
+function startWarRoomMusic() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const bpm = 75
+  const beat = 60 / bpm
+
+  const reverb = createWCReverb(4, 1.8)
+  const rvGain = ctx.createGain()
+  rvGain.gain.value = 0.45
+  reverb.connect(rvGain)
+  rvGain.connect(out)
+
+  // Deep pad only (minimal)
+  function playDeepPad(freqs: number[], t: number, dur: number) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach(freq => {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator()
+      const g = ctx.createGain(), f = ctx.createBiquadFilter()
+      o.type = 'sine'; o2.type = 'triangle'
+      o.frequency.value = freq; o2.frequency.value = freq * 1.001
+      f.type = 'lowpass'; f.frequency.value = 400; f.Q.value = 0.5
+      g.gain.setValueAtTime(0.001, t)
+      g.gain.linearRampToValueAtTime(0.015, t + 4)
+      g.gain.linearRampToValueAtTime(0.001, t + dur)
+      o.connect(f); o2.connect(f); f.connect(g)
+      g.connect(out); g.connect(reverb)
+      o.start(t); o2.start(t); o.stop(t + dur + 0.5); o2.stop(t + dur + 0.5)
+    })
+  }
+
+  // Very soft piano chord
+  function playSoftChord(freqs: number[], t: number) {
+    if (!audioContext || !musicEnabled) return
+    freqs.forEach((freq, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.type = 'triangle'; o.frequency.value = freq
+      const st = t + i * 0.05
+      g.gain.setValueAtTime(0.001, st)
+      g.gain.linearRampToValueAtTime(0.03, st + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.008, st + 0.3)
+      g.gain.exponentialRampToValueAtTime(0.001, st + 4)
+      o.connect(g); g.connect(out); g.connect(reverb)
+      o.start(st); o.stop(st + 5)
+    })
+  }
+
+  // Single distant horn
+  function playDistantHorn(freq: number, t: number) {
+    if (!audioContext || !musicEnabled) return
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o.frequency.value = freq
+    f.type = 'lowpass'; f.frequency.value = 500; f.Q.value = 1
+    g.gain.setValueAtTime(0.001, t)
+    g.gain.linearRampToValueAtTime(0.015, t + 1)
+    g.gain.linearRampToValueAtTime(0.01, t + 3)
+    g.gain.exponentialRampToValueAtTime(0.001, t + 5)
+    o.connect(f); f.connect(g); g.connect(reverb)
+    o.start(t); o.stop(t + 6)
+  }
+
+  // Am - F - Dm - E progression
+  const pads = [
+    { freqs: [WC_NOTES.A2, WC_NOTES.C3, WC_NOTES.E3], t: 0 },
+    { freqs: [WC_NOTES.F2, WC_NOTES.A2, WC_NOTES.C3], t: 8 },
+  ]
+  const pianoChords = [
+    { freqs: [WC_NOTES.A3, WC_NOTES.C4, WC_NOTES.E4], t: 2 },
+    { freqs: [WC_NOTES.F3, WC_NOTES.A3, WC_NOTES.C4], t: 10 },
+  ]
+
+  const loopBeats = 16
+  const loopDur = loopBeats * beat
+
+  function playSection() {
+    if (!audioContext || !musicEnabled) return
+    const now = ctx.currentTime
+
+    // Deep pad
+    pads.forEach(p => playDeepPad(p.freqs, now + p.t * beat, 8 * beat))
+
+    // Piano chords (very sparse)
+    pianoChords.forEach(p => playSoftChord(p.freqs, now + p.t * beat))
+
+    // Distant horn - only sometimes
+    if (measureCount % 3 === 1) {
+      playDistantHorn(WC_NOTES.A3, now + 6 * beat)
+    }
+
+    measureCount++
+  }
+
+  playSection()
+  musicInterval = window.setInterval(() => {
+    if (!musicEnabled) { stopMusic(); return }
+    playSection()
+  }, loopDur * 1000)
+}
+
+// ── 12. REVEILLE ── Notification Jingle (5s, one-shot, Bb major)
+function playReveille() {
+  if (!audioContext || !musicGainNode) return
+  const ctx = audioContext
+  const out = musicGainNode
+  const now = ctx.currentTime
+
+  // Snare tap
+  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate)
+  const d = buf.getChannelData(0)
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * 8)
+  const src = ctx.createBufferSource()
+  src.buffer = buf
+  const sg = ctx.createGain(), sf = ctx.createBiquadFilter()
+  sf.type = 'bandpass'; sf.frequency.value = 3000; sf.Q.value = 1
+  sg.gain.setValueAtTime(0.001, now)
+  sg.gain.linearRampToValueAtTime(0.08, now + 0.003)
+  sg.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+  src.connect(sf); sf.connect(sg); sg.connect(out)
+  src.start(now); src.stop(now + 0.08)
+
+  // Trumpet reveille: Bb4 → D5 → F5 → Bb5
+  const notes = [
+    { f: WC_NOTES.Bb4, t: 0.15, d: 0.2 },
+    { f: WC_NOTES.D5, t: 0.4, d: 0.2 },
+    { f: WC_NOTES.F5, t: 0.65, d: 0.2 },
+    { f: WC_NOTES.Bb5, t: 0.9, d: 0.6 },
+  ]
+  notes.forEach(n => {
+    const o = ctx.createOscillator(), g = ctx.createGain()
+    const f = ctx.createBiquadFilter()
+    o.type = 'sawtooth'; o.frequency.value = n.f
+    f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 2
+    g.gain.setValueAtTime(0.001, now + n.t)
+    g.gain.linearRampToValueAtTime(0.06, now + n.t + 0.02)
+    g.gain.setValueAtTime(0.05, now + n.t + n.d * 0.7)
+    g.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d + 0.3)
+    o.connect(f); f.connect(g); g.connect(out)
+    o.start(now + n.t); o.stop(now + n.t + n.d + 0.4)
+  })
+}
+
 function stopMusic() {
   if (musicInterval) {
     clearInterval(musicInterval)
@@ -7735,21 +9152,10 @@ function renderMusicPlayerBar() {
   const userData = getCurrentUserData()
   if (!userData || !getCurrentUser()) return
 
-  // Get owned music packs
-  const ownedMusicIds = (userData.purchasedItems || []).filter(id => {
-    const item = SHOP_ITEMS.find(i => i.id === id && i.type === 'music_pack')
-    return !!item
-  })
+  // Always show bar if user has music enabled
+  if (!musicEnabled) return
 
-  // Always show bar if user has music enabled or owns packs
-  if (!musicEnabled && ownedMusicIds.length === 0) return
-
-  const ownedPacks = ownedMusicIds.map(id => SHOP_ITEMS.find(i => i.id === id)!).filter(Boolean)
-  const currentPack = equippedMusicPack ? SHOP_ITEMS.find(i => i.id === equippedMusicPack) : null
   const isPlaying = !!musicInterval
-
-  // Find current index in owned packs for prev/next
-  const currentIdx = equippedMusicPack ? ownedPacks.findIndex(p => p.id === equippedMusicPack) : -1
 
   const bar = document.createElement('div')
   bar.id = 'music-player-bar'
@@ -7762,7 +9168,6 @@ function renderMusicPlayerBar() {
       <div class="bg-gray-800 border border-gray-600 border-b-0 rounded-t-lg px-4 py-1 flex items-center gap-2 hover:bg-gray-700 transition-colors">
         <span class="text-sm">${isPlaying ? '🎵' : '🔇'}</span>
         <span class="text-gray-300 text-xs font-bold">${musicPlayerBarVisible ? '▼' : '▲'} Music</span>
-        ${isPlaying && currentPack ? `<span class="text-purple-400 text-xs">${currentPack.icon} ${currentPack.name}</span>` : ''}
       </div>
     </div>
     <!-- Player bar -->
@@ -7770,18 +9175,16 @@ function renderMusicPlayerBar() {
       <div class="max-w-[600px] mx-auto flex items-center gap-3">
         <!-- Now playing info -->
         <div class="flex items-center gap-2 min-w-0 flex-1">
-          <div class="text-2xl ${isPlaying ? 'animate-bounce' : ''}" style="animation-duration:1.5s">${currentPack?.icon || '🎵'}</div>
+          <div class="text-2xl ${isPlaying ? 'animate-bounce' : ''}" style="animation-duration:1.5s">🎵</div>
           <div class="min-w-0">
-            <div class="text-white font-bold text-sm truncate">${currentPack?.name || (musicEnabled ? 'Default Music' : 'No Music')}</div>
-            <div class="text-gray-400 text-xs truncate">${currentPack?.description || (isPlaying ? 'Playing...' : 'Paused')}</div>
+            <div class="text-white font-bold text-sm truncate">${isPlaying ? 'Music' : 'No Music'}</div>
+            <div class="text-gray-400 text-xs truncate">${isPlaying ? 'Playing...' : 'Paused'}</div>
           </div>
         </div>
 
         <!-- Controls -->
         <div class="flex items-center gap-1.5">
-          <button id="music-bar-prev" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-colors text-sm ${ownedPacks.length < 2 ? 'opacity-30' : ''}" ${ownedPacks.length < 2 ? 'disabled' : ''}>⏮</button>
           <button id="music-bar-playpause" class="w-10 h-10 rounded-full bg-gradient-to-r ${isPlaying ? 'from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500' : 'from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'} text-white flex items-center justify-center transition-all hover:scale-110 shadow-lg text-lg font-bold">${isPlaying ? '⏸' : '▶'}</button>
-          <button id="music-bar-next" class="w-8 h-8 rounded-full bg-gray-700 hover:bg-gray-600 text-white flex items-center justify-center transition-colors text-sm ${ownedPacks.length < 2 ? 'opacity-30' : ''}" ${ownedPacks.length < 2 ? 'disabled' : ''}>⏭</button>
         </div>
 
         <!-- Volume -->
@@ -7792,16 +9195,6 @@ function renderMusicPlayerBar() {
         </div>
       </div>
 
-      <!-- Owned packs carousel -->
-      ${ownedPacks.length > 0 ? `
-        <div class="max-w-[600px] mx-auto mt-2 flex gap-1.5 overflow-x-auto pb-1" style="scrollbar-width:thin">
-          ${ownedPacks.map(pack => `
-            <button class="music-bar-pack flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${pack.id === equippedMusicPack ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 scale-105' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" data-pack-id="${pack.id}">
-              ${pack.icon} ${pack.name}
-            </button>
-          `).join('')}
-        </div>
-      ` : ''}
     </div>
   `
 
@@ -7834,54 +9227,6 @@ function renderMusicPlayerBar() {
     if (label) label.textContent = Math.round(val * 100) + '%'
   })
 
-  // Previous track
-  document.getElementById('music-bar-prev')?.addEventListener('click', async () => {
-    if (ownedPacks.length < 2) return
-    const newIdx = currentIdx <= 0 ? ownedPacks.length - 1 : currentIdx - 1
-    const newPack = ownedPacks[newIdx]
-    equippedMusicPack = newPack.id
-    const ud = getCurrentUserData()
-    if (ud) {
-      const eq = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
-      eq.musicPack = newPack.id
-      await saveUserData({ equippedItems: eq })
-    }
-    if (isPlaying) { stopMusic(); await startMusic() }
-    renderMusicPlayerBar()
-  })
-
-  // Next track
-  document.getElementById('music-bar-next')?.addEventListener('click', async () => {
-    if (ownedPacks.length < 2) return
-    const newIdx = currentIdx >= ownedPacks.length - 1 ? 0 : currentIdx + 1
-    const newPack = ownedPacks[newIdx]
-    equippedMusicPack = newPack.id
-    const ud = getCurrentUserData()
-    if (ud) {
-      const eq = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
-      eq.musicPack = newPack.id
-      await saveUserData({ equippedItems: eq })
-    }
-    if (isPlaying) { stopMusic(); await startMusic() }
-    renderMusicPlayerBar()
-  })
-
-  // Quick-switch pack buttons
-  bar.querySelectorAll('.music-bar-pack').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const packId = (e.target as HTMLElement).dataset.packId
-      if (!packId || packId === equippedMusicPack) return
-      equippedMusicPack = packId
-      const ud = getCurrentUserData()
-      if (ud) {
-        const eq = { ...(ud.equippedItems || { theme: null, pieceSkin: null, effect: null, soundPack: null, musicPack: null }) }
-        eq.musicPack = packId
-        await saveUserData({ equippedItems: eq })
-      }
-      if (isPlaying) { stopMusic(); await startMusic() }
-      renderMusicPlayerBar()
-    })
-  })
 }
 
 // Create white noise buffer for explosion/gunshot sounds
@@ -9718,6 +11063,40 @@ const translations: Record<Language, Record<string, string>> = {
     botThinking: 'Bot is thinking...',
     settingsButton: 'Settings',
     backButton: 'Back',
+    creditsButton: 'Credits',
+    creditsTitle: 'Credits',
+    creditsTabCredits: 'Credits',
+    creditsTabDiscord: 'Discord',
+    creditsTabGames: 'More from S&R',
+    creditsTagline: 'A strategic battle of wits',
+    creditsStudio: 'An S&R Studio production',
+    creditsCreatedBy: 'Created By',
+    creditsRoleLead: 'Lead Developer & Designer',
+    creditsRoleCo: 'Co-Creator & Designer',
+    creditsThanksTitle: 'Special Thanks',
+    creditsThanksText: 'To every player, friend, and supporter who made War Chess possible. 💛',
+    creditsMadeWith: 'Made with ❤️',
+    discordHeading: 'Join Our Discord',
+    discordSubtext: 'Connect with the community, chat with other players, share strategies, and get the latest news!',
+    discordCommunity: 'War Chess Community',
+    discordPerks: '🎮 Find opponents · 💡 Share tips · 🎉 Join events · 📢 Get updates',
+    discordJoinBtn: 'Join Discord Server',
+    discordTournaments: 'Tournaments',
+    discordTournamentsDesc: 'Compete with players',
+    discordSneakPeeks: 'Sneak Peeks',
+    discordSneakPeeksDesc: 'See new features first',
+    discordFriends: 'Friends',
+    discordFriendsDesc: 'Meet the community',
+    gamesHeading: 'More from S&R Studio',
+    gamesSubtext: 'Discover more games from our studio!',
+    gamesComingSoon: 'COMING SOON',
+    gamesNewTitle: 'A Brand New Game',
+    gamesNewDesc: 'Something exciting is in the works! Stay tuned for an announcement very soon.',
+    gamesTagDev: 'In Development',
+    gamesTagStrategy: 'Strategy',
+    gamesTagMadeBy: 'By S&R Studio',
+    gamesDiscordHint: 'Want to be first to know? Join our',
+    gamesDiscordHintEnd: 'for the latest news!',
     languageLabel: 'Language',
     // Timer settings
     timerLabel: 'Chess Clock',
@@ -11138,6 +12517,40 @@ const translations: Record<Language, Record<string, string>> = {
     botHard: 'Moeilijk',
     botThinking: 'Bot is aan het denken...',
     settingsButton: 'Instellingen',
+    creditsButton: 'Credits',
+    creditsTitle: 'Credits',
+    creditsTabCredits: 'Credits',
+    creditsTabDiscord: 'Discord',
+    creditsTabGames: 'Meer van S&R',
+    creditsTagline: 'Een strategische strijd van slimheid',
+    creditsStudio: 'Een S&R Studio productie',
+    creditsCreatedBy: 'Gemaakt Door',
+    creditsRoleLead: 'Hoofdontwikkelaar & Designer',
+    creditsRoleCo: 'Mede-bedenker & Designer',
+    creditsThanksTitle: 'Speciale Dank',
+    creditsThanksText: 'Aan elke speler, vriend en supporter die War Chess mogelijk maakte. 💛',
+    creditsMadeWith: 'Gemaakt met ❤️',
+    discordHeading: 'Word lid van onze Discord',
+    discordSubtext: 'Verbind met de community, chat met andere spelers, deel strategieën en krijg het laatste nieuws!',
+    discordCommunity: 'War Chess Community',
+    discordPerks: '🎮 Vind tegenstanders · 💡 Deel tips · 🎉 Doe mee aan events · 📢 Krijg updates',
+    discordJoinBtn: 'Discord Server Joinen',
+    discordTournaments: 'Toernooien',
+    discordTournamentsDesc: 'Speel tegen spelers',
+    discordSneakPeeks: 'Sneak Peeks',
+    discordSneakPeeksDesc: 'Zie nieuwe features eerst',
+    discordFriends: 'Vrienden',
+    discordFriendsDesc: 'Ontmoet de community',
+    gamesHeading: 'Meer van S&R Studio',
+    gamesSubtext: 'Ontdek meer spellen van onze studio!',
+    gamesComingSoon: 'BINNENKORT',
+    gamesNewTitle: 'Een Gloednieuw Spel',
+    gamesNewDesc: 'Iets spannends is in de maak! Houd ons in de gaten voor een aankondiging zeer binnenkort.',
+    gamesTagDev: 'In Ontwikkeling',
+    gamesTagStrategy: 'Strategie',
+    gamesTagMadeBy: 'Door S&R Studio',
+    gamesDiscordHint: 'Wil je het als eerste weten? Word lid van onze',
+    gamesDiscordHintEnd: 'voor het laatste nieuws!',
     backButton: 'Terug',
     languageLabel: 'Taal',
     timerLabel: 'Schaakklok',
@@ -12541,6 +13954,40 @@ const translations: Record<Language, Record<string, string>> = {
     botHard: 'Schwer',
     botThinking: 'Bot denkt nach...',
     settingsButton: 'Einstellungen',
+    creditsButton: 'Credits',
+    creditsTitle: 'Credits',
+    creditsTabCredits: 'Credits',
+    creditsTabDiscord: 'Discord',
+    creditsTabGames: 'Mehr von S&R',
+    creditsTagline: 'Ein strategischer Kampf des Verstandes',
+    creditsStudio: 'Eine S&R Studio Produktion',
+    creditsCreatedBy: 'Erstellt Von',
+    creditsRoleLead: 'Lead-Entwickler & Designer',
+    creditsRoleCo: 'Mit-Schöpfer & Designer',
+    creditsThanksTitle: 'Besonderer Dank',
+    creditsThanksText: 'An jeden Spieler, Freund und Unterstützer, der War Chess möglich gemacht hat. 💛',
+    creditsMadeWith: 'Mit ❤️ gemacht',
+    discordHeading: 'Tritt unserem Discord bei',
+    discordSubtext: 'Verbinde dich mit der Community, chatte mit anderen Spielern, teile Strategien und erhalte die neuesten Nachrichten!',
+    discordCommunity: 'War Chess Community',
+    discordPerks: '🎮 Finde Gegner · 💡 Teile Tipps · 🎉 Nimm an Events teil · 📢 Erhalte Updates',
+    discordJoinBtn: 'Discord-Server beitreten',
+    discordTournaments: 'Turniere',
+    discordTournamentsDesc: 'Tritt gegen Spieler an',
+    discordSneakPeeks: 'Sneak Peeks',
+    discordSneakPeeksDesc: 'Sieh neue Features zuerst',
+    discordFriends: 'Freunde',
+    discordFriendsDesc: 'Triff die Community',
+    gamesHeading: 'Mehr von S&R Studio',
+    gamesSubtext: 'Entdecke weitere Spiele aus unserem Studio!',
+    gamesComingSoon: 'DEMNÄCHST',
+    gamesNewTitle: 'Ein brandneues Spiel',
+    gamesNewDesc: 'Etwas Aufregendes ist in Arbeit! Bleib dran für eine Ankündigung sehr bald.',
+    gamesTagDev: 'In Entwicklung',
+    gamesTagStrategy: 'Strategie',
+    gamesTagMadeBy: 'Von S&R Studio',
+    gamesDiscordHint: 'Willst du als Erster Bescheid wissen? Tritt unserem',
+    gamesDiscordHintEnd: 'für die neuesten Nachrichten bei!',
     backButton: 'Zurück',
     languageLabel: 'Sprache',
     timerLabel: 'Schachuhr',
@@ -13177,6 +14624,40 @@ const translations: Record<Language, Record<string, string>> = {
     botHard: 'Difficile',
     botThinking: 'Le bot réfléchit...',
     settingsButton: 'Paramètres',
+    creditsButton: 'Crédits',
+    creditsTitle: 'Crédits',
+    creditsTabCredits: 'Crédits',
+    creditsTabDiscord: 'Discord',
+    creditsTabGames: 'Plus de S&R',
+    creditsTagline: 'Une bataille stratégique d\'esprits',
+    creditsStudio: 'Une production S&R Studio',
+    creditsCreatedBy: 'Créé Par',
+    creditsRoleLead: 'Développeur Principal & Designer',
+    creditsRoleCo: 'Co-Créateur & Designer',
+    creditsThanksTitle: 'Remerciements Spéciaux',
+    creditsThanksText: 'À chaque joueur, ami et supporter qui a rendu War Chess possible. 💛',
+    creditsMadeWith: 'Fait avec ❤️',
+    discordHeading: 'Rejoignez notre Discord',
+    discordSubtext: 'Connectez-vous avec la communauté, discutez avec d\'autres joueurs, partagez vos stratégies et obtenez les dernières nouvelles !',
+    discordCommunity: 'Communauté War Chess',
+    discordPerks: '🎮 Trouvez des adversaires · 💡 Partagez des astuces · 🎉 Participez aux événements · 📢 Recevez les mises à jour',
+    discordJoinBtn: 'Rejoindre le serveur Discord',
+    discordTournaments: 'Tournois',
+    discordTournamentsDesc: 'Affrontez d\'autres joueurs',
+    discordSneakPeeks: 'Aperçus',
+    discordSneakPeeksDesc: 'Voyez les nouveautés en avant-première',
+    discordFriends: 'Amis',
+    discordFriendsDesc: 'Rencontrez la communauté',
+    gamesHeading: 'Plus de S&R Studio',
+    gamesSubtext: 'Découvrez plus de jeux de notre studio !',
+    gamesComingSoon: 'BIENTÔT DISPONIBLE',
+    gamesNewTitle: 'Un tout nouveau jeu',
+    gamesNewDesc: 'Quelque chose d\'excitant est en préparation ! Restez à l\'écoute pour une annonce très prochainement.',
+    gamesTagDev: 'En Développement',
+    gamesTagStrategy: 'Stratégie',
+    gamesTagMadeBy: 'Par S&R Studio',
+    gamesDiscordHint: 'Vous voulez être les premiers informés ? Rejoignez notre',
+    gamesDiscordHintEnd: 'pour les dernières nouvelles !',
     backButton: 'Retour',
     languageLabel: 'Langue',
     timerLabel: 'Pendule d\'échecs',
@@ -13812,6 +15293,40 @@ const translations: Record<Language, Record<string, string>> = {
     botHard: 'Difícil',
     botThinking: 'El bot está pensando...',
     settingsButton: 'Configuración',
+    creditsButton: 'Créditos',
+    creditsTitle: 'Créditos',
+    creditsTabCredits: 'Créditos',
+    creditsTabDiscord: 'Discord',
+    creditsTabGames: 'Más de S&R',
+    creditsTagline: 'Una batalla estratégica de ingenio',
+    creditsStudio: 'Una producción de S&R Studio',
+    creditsCreatedBy: 'Creado Por',
+    creditsRoleLead: 'Desarrollador Principal & Diseñador',
+    creditsRoleCo: 'Co-Creador & Diseñador',
+    creditsThanksTitle: 'Agradecimientos Especiales',
+    creditsThanksText: 'A cada jugador, amigo y seguidor que hizo posible War Chess. 💛',
+    creditsMadeWith: 'Hecho con ❤️',
+    discordHeading: 'Únete a nuestro Discord',
+    discordSubtext: '¡Conéctate con la comunidad, chatea con otros jugadores, comparte estrategias y obtén las últimas noticias!',
+    discordCommunity: 'Comunidad War Chess',
+    discordPerks: '🎮 Encuentra rivales · 💡 Comparte consejos · 🎉 Únete a eventos · 📢 Recibe actualizaciones',
+    discordJoinBtn: 'Unirse al servidor de Discord',
+    discordTournaments: 'Torneos',
+    discordTournamentsDesc: 'Compite con otros jugadores',
+    discordSneakPeeks: 'Adelantos',
+    discordSneakPeeksDesc: 'Ve las novedades primero',
+    discordFriends: 'Amigos',
+    discordFriendsDesc: 'Conoce a la comunidad',
+    gamesHeading: 'Más de S&R Studio',
+    gamesSubtext: '¡Descubre más juegos de nuestro estudio!',
+    gamesComingSoon: 'PRÓXIMAMENTE',
+    gamesNewTitle: 'Un Juego Totalmente Nuevo',
+    gamesNewDesc: '¡Algo emocionante se está preparando! Mantente atento a un anuncio muy pronto.',
+    gamesTagDev: 'En Desarrollo',
+    gamesTagStrategy: 'Estrategia',
+    gamesTagMadeBy: 'Por S&R Studio',
+    gamesDiscordHint: '¿Quieres ser el primero en saberlo? Únete a nuestro',
+    gamesDiscordHintEnd: 'para las últimas noticias!',
     backButton: 'Volver',
     languageLabel: 'Idioma',
     timerLabel: 'Reloj de ajedrez',
@@ -25682,6 +27197,186 @@ function render() {
       return
     }
 
+    if (showCredits) {
+      // Credits screen with tabs: Credits / Discord / Other Games
+      const tabBtn = (id: 'credits' | 'discord' | 'games', icon: string, label: string) => `
+        <button data-credits-tab="${id}" class="credits-tab-btn px-4 sm:px-6 py-2 sm:py-3 rounded-t-lg font-bold transition-all text-sm sm:text-base ${creditsTab === id
+          ? 'bg-gradient-to-b from-yellow-500 to-yellow-600 text-gray-900 shadow-lg scale-105'
+          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}">
+          ${icon} ${label}
+        </button>
+      `
+
+      let tabContent = ''
+      if (creditsTab === 'credits') {
+        tabContent = `
+          <div class="flex flex-col items-center gap-6 sm:gap-8 w-full">
+            <div class="text-center">
+              <div class="text-5xl sm:text-7xl mb-2 animate-pulse">⚔️</div>
+              <h2 class="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-yellow-300 via-yellow-500 to-orange-500 bg-clip-text text-transparent">War Chess</h2>
+              <p class="text-gray-400 text-sm sm:text-base mt-2 italic">${t('creditsTagline')}</p>
+              <div class="mt-3 inline-flex items-center gap-2 bg-gradient-to-r from-yellow-600/20 via-orange-600/20 to-red-600/20 border border-yellow-500/40 px-4 py-1.5 rounded-full">
+                <span class="text-yellow-300 text-xs sm:text-sm font-bold tracking-wider">🏛️ S&R STUDIO</span>
+              </div>
+            </div>
+
+            <div class="w-full max-w-2xl bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 border border-yellow-600/30 rounded-xl p-6 sm:p-8 shadow-2xl">
+              <h3 class="text-center text-yellow-400 font-bold text-lg sm:text-xl mb-6 tracking-widest uppercase">— ${t('creditsCreatedBy')} —</h3>
+              <div class="flex flex-col sm:flex-row justify-center items-center gap-6 sm:gap-12">
+                <div class="flex flex-col items-center gap-2 group">
+                  <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl sm:text-4xl shadow-lg group-hover:scale-110 transition-transform">👑</div>
+                  <span class="text-white font-bold text-lg sm:text-xl">Simon Joosten</span>
+                  <span class="text-blue-300 text-xs sm:text-sm">${t('creditsRoleLead')}</span>
+                </div>
+                <div class="text-yellow-500 text-2xl hidden sm:block">✦</div>
+                <div class="flex flex-col items-center gap-2 group">
+                  <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center text-3xl sm:text-4xl shadow-lg group-hover:scale-110 transition-transform">⚡</div>
+                  <span class="text-white font-bold text-lg sm:text-xl">Romijn Lijnders</span>
+                  <span class="text-orange-300 text-xs sm:text-sm">${t('creditsRoleCo')}</span>
+                </div>
+              </div>
+              <p class="text-center text-yellow-200/80 text-xs sm:text-sm mt-6 italic">${t('creditsStudio')}</p>
+            </div>
+
+            <div class="w-full max-w-2xl bg-gray-800/50 rounded-xl p-4 sm:p-6 border border-gray-700">
+              <h3 class="text-center text-gray-300 font-bold text-base sm:text-lg mb-3">${t('creditsThanksTitle')}</h3>
+              <p class="text-center text-gray-400 text-sm sm:text-base">
+                ${t('creditsThanksText')}
+              </p>
+            </div>
+
+            <div class="text-gray-500 text-xs sm:text-sm text-center">
+              © ${new Date().getFullYear()} War Chess · ${t('creditsMadeWith')}
+            </div>
+          </div>
+        `
+      } else if (creditsTab === 'discord') {
+        tabContent = `
+          <div class="flex flex-col items-center gap-6 sm:gap-8 w-full">
+            <div class="text-center">
+              <div class="text-6xl sm:text-8xl mb-3">💬</div>
+              <h2 class="text-3xl sm:text-5xl font-bold text-white">${t('discordHeading')}</h2>
+              <p class="text-gray-400 text-sm sm:text-base mt-3 max-w-md mx-auto">
+                ${t('discordSubtext')}
+              </p>
+            </div>
+
+            <div class="w-full max-w-2xl bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 border border-indigo-500/40 rounded-xl p-6 sm:p-8 shadow-2xl">
+              <div class="flex flex-col items-center gap-4">
+                <svg viewBox="0 0 256 256" class="w-16 h-16 sm:w-20 sm:h-20" fill="#5865F2">
+                  <path d="M216.856 16.597A208.502 208.502 0 0 0 164.042 0c-2.275 4.113-4.933 9.645-6.766 14.046-19.692-2.961-39.203-2.961-58.533 0-1.832-4.4-4.55-9.933-6.846-14.046a207.809 207.809 0 0 0-52.855 16.638C5.618 67.147-3.443 116.4 1.087 164.956c22.169 16.555 43.653 26.612 64.775 33.193A161.094 161.094 0 0 0 79.735 175.3a136.413 136.413 0 0 1-21.846-10.632 108.636 108.636 0 0 0 5.355-4.237c42.122 19.704 87.89 19.704 129.51 0a131.66 131.66 0 0 0 5.355 4.237 136.07 136.07 0 0 1-21.886 10.653c4.006 8.02 8.638 15.67 13.873 22.848 21.142-6.58 42.646-16.637 64.815-33.213 5.316-56.288-9.08-105.09-38.056-148.36ZM85.474 135.095c-12.645 0-23.015-11.805-23.015-26.18s10.149-26.2 23.015-26.2c12.867 0 23.236 11.804 23.015 26.2.02 14.375-10.148 26.18-23.015 26.18Zm85.051 0c-12.645 0-23.014-11.805-23.014-26.18s10.148-26.2 23.014-26.2c12.867 0 23.236 11.804 23.015 26.2 0 14.375-10.148 26.18-23.015 26.18Z"/>
+                </svg>
+                <h3 class="text-white text-xl sm:text-2xl font-bold">${t('discordCommunity')}</h3>
+                <p class="text-indigo-200 text-center text-sm sm:text-base">
+                  ${t('discordPerks')}
+                </p>
+                <a href="https://discord.gg/sGCV3F2T" target="_blank" rel="noopener noreferrer"
+                   class="mt-2 bg-[#5865F2] hover:bg-[#4752C4] active:bg-[#3C45A5] text-white font-bold py-3 px-8 sm:px-10 rounded-lg text-lg sm:text-xl transition-all shadow-lg hover:shadow-indigo-500/50 hover:scale-105 inline-flex items-center gap-2">
+                  💬 ${t('discordJoinBtn')}
+                </a>
+                <span class="text-indigo-300 text-xs sm:text-sm break-all">discord.gg/sGCV3F2T</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-2xl">
+              <div class="bg-gray-800/60 rounded-lg p-4 border border-gray-700 text-center">
+                <div class="text-2xl mb-1">🏆</div>
+                <div class="text-white text-sm font-bold">${t('discordTournaments')}</div>
+                <div class="text-gray-400 text-xs">${t('discordTournamentsDesc')}</div>
+              </div>
+              <div class="bg-gray-800/60 rounded-lg p-4 border border-gray-700 text-center">
+                <div class="text-2xl mb-1">🎨</div>
+                <div class="text-white text-sm font-bold">${t('discordSneakPeeks')}</div>
+                <div class="text-gray-400 text-xs">${t('discordSneakPeeksDesc')}</div>
+              </div>
+              <div class="bg-gray-800/60 rounded-lg p-4 border border-gray-700 text-center">
+                <div class="text-2xl mb-1">🤝</div>
+                <div class="text-white text-sm font-bold">${t('discordFriends')}</div>
+                <div class="text-gray-400 text-xs">${t('discordFriendsDesc')}</div>
+              </div>
+            </div>
+          </div>
+        `
+      } else {
+        tabContent = `
+          <div class="flex flex-col items-center gap-6 sm:gap-8 w-full">
+            <div class="text-center">
+              <div class="text-6xl sm:text-8xl mb-3">🎮</div>
+              <h2 class="text-3xl sm:text-5xl font-bold text-white">${t('gamesHeading')}</h2>
+              <p class="text-gray-400 text-sm sm:text-base mt-3 max-w-md mx-auto">
+                ${t('gamesSubtext')}
+              </p>
+            </div>
+
+            <div class="w-full max-w-2xl bg-gradient-to-br from-purple-900 via-pink-900 to-purple-900 border-2 border-pink-500/40 rounded-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+              <div class="absolute top-3 right-3 bg-yellow-500 text-gray-900 font-bold text-xs px-3 py-1 rounded-full animate-pulse">
+                🔥 ${t('gamesComingSoon')}
+              </div>
+              <div class="flex flex-col items-center gap-4">
+                <div class="text-7xl sm:text-8xl">❓</div>
+                <h3 class="text-white text-2xl sm:text-3xl font-bold">${t('gamesNewTitle')}</h3>
+                <p class="text-pink-200 text-center text-sm sm:text-base max-w-md">
+                  ${t('gamesNewDesc')}
+                </p>
+                <div class="flex flex-wrap gap-2 justify-center mt-2">
+                  <span class="bg-pink-700/60 text-pink-100 px-3 py-1 rounded-full text-xs sm:text-sm">🚧 ${t('gamesTagDev')}</span>
+                  <span class="bg-purple-700/60 text-purple-100 px-3 py-1 rounded-full text-xs sm:text-sm">🎯 ${t('gamesTagStrategy')}</span>
+                  <span class="bg-indigo-700/60 text-indigo-100 px-3 py-1 rounded-full text-xs sm:text-sm">⭐ ${t('gamesTagMadeBy')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-full max-w-2xl bg-gray-800/60 rounded-xl p-4 sm:p-6 border border-gray-700 text-center">
+              <p class="text-gray-300 text-sm sm:text-base">
+                💬 ${t('gamesDiscordHint')} <button id="games-to-discord-btn" class="text-indigo-400 hover:text-indigo-300 underline font-bold">Discord</button> ${t('gamesDiscordHintEnd')}
+              </p>
+            </div>
+          </div>
+        `
+      }
+
+      app.innerHTML = `
+        <div class="min-h-screen flex flex-col items-center p-4 sm:p-8 gap-4 sm:gap-6 overflow-y-auto bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800">
+          <div class="w-full max-w-4xl flex items-center justify-between">
+            <button id="credits-back-btn" class="bg-gray-700 hover:bg-gray-600 active:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+              ← ${t('backButton')}
+            </button>
+            <h1 class="text-xl sm:text-3xl font-bold text-white">✨ ${t('creditsTitle')}</h1>
+            <div class="w-20"></div>
+          </div>
+
+          <div class="w-full max-w-4xl flex flex-wrap gap-1 sm:gap-2 border-b-2 border-yellow-600/40">
+            ${tabBtn('credits', '👑', t('creditsTabCredits'))}
+            ${tabBtn('discord', '💬', t('creditsTabDiscord'))}
+            ${tabBtn('games', '🎮', t('creditsTabGames'))}
+          </div>
+
+          <div class="w-full max-w-4xl flex-1 py-4 sm:py-6">
+            ${tabContent}
+          </div>
+        </div>
+      `
+
+      document.getElementById('credits-back-btn')?.addEventListener('click', () => {
+        showCredits = false
+        render()
+      })
+      document.querySelectorAll('.credits-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = (btn as HTMLElement).dataset.creditsTab as 'credits' | 'discord' | 'games'
+          if (tab) {
+            creditsTab = tab
+            render()
+          }
+        })
+      })
+      document.getElementById('games-to-discord-btn')?.addEventListener('click', () => {
+        creditsTab = 'discord'
+        render()
+      })
+      return
+    }
+
     if (showSettings) {
       // Settings screen
       app.innerHTML = `
@@ -25834,6 +27529,18 @@ function render() {
                 <button data-style="electronic" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'electronic' ? 'bg-cyan-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleElectronic')}</button>
                 <button data-style="orchestral" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'orchestral' ? 'bg-purple-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleOrchestral')}</button>
                 <button data-style="retro" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'retro' ? 'bg-green-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">${t('styleRetro')}</button>
+              </div>
+              <div class="text-gray-400 text-xs mt-1">War Chess Soundtrack:</div>
+              <div class="flex flex-wrap gap-2">
+                <button data-style="command_center" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'command_center' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">🎖️ Command Center</button>
+                <button data-style="briefing_room" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'briefing_room' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">🕐 Briefing Room</button>
+                <button data-style="deploy" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'deploy' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">🪂 Deploy</button>
+                <button data-style="stratagem" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'stratagem' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">♟️ Stratagem</button>
+                <button data-style="encirclement" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'encirclement' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">🔥 Encirclement</button>
+                <button data-style="assault" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'assault' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">⚔️ Assault</button>
+                <button data-style="last_stand" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'last_stand' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">💀 Last Stand</button>
+                <button data-style="barracks" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'barracks' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">🏕️ Barracks</button>
+                <button data-style="war_room" class="style-btn py-1 px-3 rounded text-sm ${musicStyle === 'war_room' ? 'bg-yellow-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}">📊 War Room</button>
               </div>
             </div>
 
@@ -30207,7 +31914,7 @@ function render() {
                                   ${SHOP_ITEMS.filter(i => i.type === 'sound_pack').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
                                 </optgroup>
                                 <optgroup label="🎵 Music Packs">
-                                  ${SHOP_ITEMS.filter(i => i.type === 'music_pack').map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
+                                  ${SHOP_ITEMS.filter(i => i.type === 'music_pack' as any).map(i => `<option value="${i.id}" ${user.purchasedItems?.includes(i.id) ? 'disabled' : ''}>${i.icon} ${i.name}${user.purchasedItems?.includes(i.id) ? ' ✓' : ''}</option>`).join('')}
                                 </optgroup>
                               </select>
                               <button class="admin-give-item-btn bg-purple-600 hover:bg-purple-500 text-white text-xs py-1 px-2 rounded" data-userid="${user.odataId}">Give</button>
@@ -32396,7 +34103,7 @@ function render() {
 
           // Create item button
           document.getElementById('si-create-btn')?.addEventListener('click', async () => {
-            const type = (document.getElementById('si-type') as HTMLSelectElement)?.value as ShopItem['type']
+            const type = (document.getElementById('si-type') as HTMLSelectElement)?.value as ShopItem['type'] | 'music_pack'
             const name = (document.getElementById('si-name') as HTMLInputElement)?.value?.trim()
             const icon = (document.getElementById('si-icon') as HTMLInputElement)?.value?.trim() || '✨'
             const description = (document.getElementById('si-description') as HTMLInputElement)?.value?.trim()
@@ -32405,7 +34112,7 @@ function render() {
             if (!name) { alert('Please enter a name!'); return }
             if (!description) { alert('Please enter a description!'); return }
 
-            const item: Omit<ShopItem, 'id' | 'isCustom'> = { name, icon, description, price, type }
+            const item: Omit<ShopItem, 'id' | 'isCustom'> = { name, icon, description, price, type: type as ShopItem['type'] }
 
             // Type-specific data
             switch (type) {
@@ -32444,7 +34151,7 @@ function render() {
               case 'music_pack': {
                 const packId = 'custom_music_' + Date.now()
                 item.packId = packId
-                item.musicParams = {
+                ;(item as any).musicParams = {
                   tempo: parseInt((document.getElementById('si-music-tempo') as HTMLInputElement)?.value || '120'),
                   scale: (document.getElementById('si-music-scale') as HTMLSelectElement)?.value as 'major' | 'minor' | 'pentatonic' | 'blues' | 'dorian' | 'mixolydian',
                   baseNote: parseInt((document.getElementById('si-music-base') as HTMLInputElement)?.value || '220'),
@@ -34544,6 +36251,11 @@ function render() {
               ⚙️ ${t('settingsButton')}
             </button>
           </div>
+          <div class="flex gap-2">
+            <button id="credits-btn" class="bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 active:from-yellow-700 active:to-orange-700 text-white font-bold py-2 px-6 rounded-lg text-base transition-colors touch-manipulation shadow-lg">
+              ✨ ${t('creditsButton')}
+            </button>
+          </div>
         </div>
         <div class="flex items-start gap-4 sm:gap-8 opacity-50">
           <div class="flex-shrink-0" id="board-container">
@@ -34575,6 +36287,11 @@ function render() {
     })
     document.getElementById('settings-btn')?.addEventListener('click', () => {
       showSettings = true
+      render()
+    })
+    document.getElementById('credits-btn')?.addEventListener('click', () => {
+      showCredits = true
+      creditsTab = 'credits'
       render()
     })
     document.getElementById('coach-btn')?.addEventListener('click', () => {
